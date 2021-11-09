@@ -91,12 +91,12 @@ contains
 
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-1
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
 
@@ -105,44 +105,6 @@ contains
                 enddo
             enddo
         enddo    
-
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-
-                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls) +sigmaqSurfL(id) &
-                    - 5.0_dp*psi(id) +rhoq(id)*constqW)
-            
-            enddo
-        enddo    
-
-        ! boundary iz=nz 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                
-                id2D=id-(nsize-nx*ny)
-                
-                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzmin) +sigmaqSurfR(id2D) &
-                    -5.0_dp*psi(id) +rhoq(id)*constqW)
-            enddo
-        enddo    
-
 
     end subroutine Poisson_Equation_cubic
 
@@ -175,12 +137,12 @@ contains
 
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-1
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy+1,ny),iz ,idxypls)
@@ -196,58 +158,7 @@ contains
                 enddo
             enddo
         enddo    
-
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy+1,ny),iz ,idxypls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy-1,ny),iz ,idxymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy-1,ny),iz ,idxplsymin)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy+1,ny),iz ,idxminypls)
-
-            
-                fvec(noffset+id)= -0.5_dp*(                                                   &
-                        (psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id)       &
-                        -sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls)+psi(idxymin) )/2.0_dp &
-                        )/cos_two_beta+ psi(idzpls)-psi(id)+sigmaqSurfL(id)+rhoq(id)*constqW)
-            
-            enddo
-        enddo    
-
-        ! boundary iz=nz 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy+1,ny),iz ,idxypls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy-1,ny),iz ,idxymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy-1,ny),iz ,idxplsymin)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy+1,ny),iz ,idxminypls)
-
-                id2D=id-(nsize-nx*ny)
-                
-                fvec(noffset+id)= -0.5_dp*(                                                 &
-                    (psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id)         &
-                    -sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls)+psi(idxymin) )/2.0_dp &
-                    )/cos_two_beta+ sigmaqSurfR(id2D)-psi(id)+ psi(idzmin)+rhoq(id)*constqW)
-            enddo
-        enddo    
-        
+ 
         
     end subroutine Poisson_Equation_prism
 
@@ -280,12 +191,12 @@ contains
 
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-2
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
 
@@ -301,58 +212,6 @@ contains
                 enddo
             enddo
         enddo    
-
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-
-                id2D=id-(nsize-nx*ny)    
-
-                fvec(noffset+id)= -0.5_dp*( &
-                     (eps(idxpls)+eps(id)    )*psi(idxpls) +& 
-                     (eps(id)    +eps(idxmin))*psi(idxmin) +&
-                     (eps(idypls)+eps(id)    )*psi(idypls) +&
-                     (eps(id)    +eps(idymin))*psi(idymin) +& 
-                     (eps(idzpls)+eps(id)    )*psi(idzpls) &
-                    -(eps(idxpls)+eps(idxmin)+eps(idypls)+eps(idymin) + 2.0_dp*sigmaqSurfL(id) +&
-                      eps(idzpls)+5.0_dp*eps(id)) *psi(id) +2.0_dp*rhoq(id)*constqW)
-            enddo
-        enddo   
-
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-
-                id2D=id-(nsize-nx*ny)
-
-                fvec(noffset+id)= -0.5_dp*( &
-                     (eps(idxpls)+eps(id)    )*psi(idxpls) +& 
-                     (eps(id)    +eps(idxmin))*psi(idxmin) +&
-                     (eps(idypls)+eps(id)    )*psi(idypls) +&
-                     (eps(id)    +eps(idymin))*psi(idymin) +& 
-                     (eps(idzpls)+eps(id)    )*psi(idzpls) +&
-                     (eps(id)    +eps(idzmin))*psi(idzmin) &
-                    -(eps(idxpls)+eps(idxmin)+eps(idypls)+eps(idymin) + 2.0_dp*sigmaqSurfR(id2D) +&
-                      eps(idzmin)+5.0_dp*eps(id)) *psi(id) +2.0_dp*rhoq(id)*constqW)
-            enddo
-          
-        enddo    
-
 
     end subroutine Poisson_Equation_Eps_cubic
 
@@ -443,7 +302,7 @@ contains
 
 
 
-     subroutine Poisson_Equation_Surface_Eps(fvec,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,eps)
+    subroutine Poisson_Equation_Surface_Eps(fvec,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,eps)
 
         use globals, only : nsize, neq, LEFT, RIGHT, systype, nsegtypes
         use parameters, only : constqW
@@ -610,7 +469,7 @@ contains
     end subroutine grad_pot_sqr_eps_cubic
          
 
-    subroutine grad_and_nabla_pot(psi,Dpsi,D2psi,absDpsi,unitdirDpsi,sigmaqSurfR,sigmaqSurfL)
+    subroutine grad_and_nabla_pot(psi,Dpsi,D2psi,absDpsi,unitdirDpsi)
         
         use volume, only : geometry
 
@@ -620,17 +479,14 @@ contains
         real(dp), intent(in) :: psi(:)
         real(dp), intent(inout) :: Dpsi(:,:),unitdirDpsi(:,:)
         real(dp), intent(inout) :: D2psi(:),absDpsi(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
-
 
         if(geometry=="cubic") then 
 
-            call grad_and_nabla_pot_cubic(psi,Dpsi,D2psi,absDpsi,unitdirDpsi,sigmaqSurfR,sigmaqSurfL)
+            call grad_and_nabla_pot_cubic(psi,Dpsi,D2psi,absDpsi,unitdirDpsi)
         
         else if (geometry=="prism") then 
         
-            call grad_and_nabla_pot_prism(psi,Dpsi,D2psi,absDpsi,unitdirDpsi,sigmaqSurfR,sigmaqSurfL)
+            call grad_and_nabla_pot_prism(psi,Dpsi,D2psi,absDpsi,unitdirDpsi)
         
         endif
 
@@ -641,7 +497,7 @@ contains
     ! computes gradient, nalba (double derivative) , absolute value of gradient and unit direction of gradient of 
     ! electrostaic potential
 
-    subroutine grad_and_nabla_pot_cubic(psi,Dpsi,D2psi,absDpsi,unitdirDpsi,sigmaqSurfR,sigmaqSurfL)
+    subroutine grad_and_nabla_pot_cubic(psi,Dpsi,D2psi,absDpsi,unitdirDpsi) 
         
         use globals, only : nsize
         use volume, only : nx,ny,nz,delta,linearIndexFromCoordinate
@@ -652,8 +508,7 @@ contains
         real(dp), intent(in) :: psi(:)
         real(dp), intent(inout) :: Dpsi(:,:),unitdirDpsi(:,:)
         real(dp), intent(inout) :: D2psi(:),absDpsi(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
+    
         
         ! local variables
         integer :: ix, iy, iz
@@ -664,12 +519,12 @@ contains
        
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-1
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
     
@@ -685,50 +540,7 @@ contains
             enddo
         enddo    
 
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-
-
-                Dpsi(1,id)=(psi(idxpls)-psi(idxmin))/(2.0_dp*delta)
-                Dpsi(2,id)=(psi(idypls)-psi(idymin))/(2.0_dp*delta)
-                Dpsi(3,id)=(psi(idzpls)-(psi(id)+sigmaqSurfL(id)))/(2.0_dp*delta)
-                
-                D2psi(id)=psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)+psi(idzpls) +sigmaqSurfL(id) &
-                    - 5.0_dp*psi(id)
-            enddo
-        enddo    
-
-        ! boundary iz=nz 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                
-                id2D=id-(nsize-nx*ny)
-                
-                Dpsi(1,id)=(psi(idxpls)-psi(idxmin))/(2.0_dp*delta)
-                Dpsi(2,id)=(psi(idypls)-psi(idymin))/(2.0_dp*delta)
-                Dpsi(3,id)=((sigmaqSurfR(id2D)+psi(id))-psi(idzmin))/(2.0_dp*delta)
-            
-                D2psi(id)= psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzmin) +sigmaqSurfR(id2D) &
-                    -5.0_dp*psi(id) 
-            enddo
-        enddo    
+        
 
         do id=1,nsize
            
@@ -756,7 +568,7 @@ contains
     ! computes gradient, nalba ( double derivative), absolute value of gradient and unit direction of gradient of 
     ! electrostaic potential
 
-    subroutine grad_and_nabla_pot_prism(psi,Dpsi,D2psi,absDpsi,unitdirDpsi,sigmaqSurfR,sigmaqSurfL)
+    subroutine grad_and_nabla_pot_prism(psi,Dpsi,D2psi,absDpsi,unitdirDpsi) ! sigmaqSurfR,sigmaqSurfL)
         
         use globals, only : nsize
         use volume, only : nx,ny,nz,delta,linearIndexFromCoordinate
@@ -768,8 +580,8 @@ contains
         real(dp), intent(in) :: psi(:)
         real(dp), intent(inout) :: Dpsi(:,:),unitdirDpsi(:,:)
         real(dp), intent(inout) :: D2psi(:),absDpsi(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
+        !real(dp), intent(in) :: sigmaqSurfR(:)
+        !real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
         integer :: ix, iy, iz
@@ -782,12 +594,12 @@ contains
 
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-1
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
     
@@ -818,69 +630,7 @@ contains
             enddo
         enddo    
 
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy+1,ny),iz ,idxypls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy-1,ny),iz ,idxymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy-1,ny),iz ,idxplsymin)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy+1,ny),iz ,idxminypls)
-
-                Dpsiu=(psi(idxpls)-psi(idxmin))/(2.0_dp*delta)
-                Dpsiv=(psi(idypls)-psi(idymin))/(2.0_dp*delta)
-
-                Dpsi(1,id)=Dpsiu-sin_two_beta*Dpsiv
-                Dpsi(2,id)=Dpsiv-sin_two_beta*Dpsiu
-                Dpsi(3,id)=(psi(idzpls)-(psi(id)+sigmaqSurfL(id)))/(2.0_dp*delta)
-
-                ! nabla
-                !D2psi(id)=( psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id) + &
-                !        2.0_dp*sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls) + &
-                !        psi(idxymin) ))/cos_two_beta+psi(idzpls)-psi(id)+sigmaqSurfL(id)
-                D2psi(id)=( psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id) &
-                    -sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls)+psi(idxymin))/2.0_dp &
-                    )/cos_two_beta+psi(idzpls)-psi(id)+sigmaqSurfL(id)
-            enddo
-        enddo    
-
-        ! bound`ary iz=nz 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy+1,ny),iz ,idxypls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy-1,ny),iz ,idxymin)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),ipbc(iy-1,ny),iz ,idxplsymin)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),ipbc(iy+1,ny),iz ,idxminypls)
-
-                id2D=id-(nsize-nx*ny)
-                Dpsiu=(psi(idxpls)-psi(idxmin))/(2.0_dp*delta)
-                Dpsiv=(psi(idypls)-psi(idymin))/(2.0_dp*delta)
-
-                Dpsi(1,id)=Dpsiu-sin_two_beta*Dpsiv
-                Dpsi(2,id)=Dpsiv-sin_two_beta*Dpsiu
-                Dpsi(3,id)=((sigmaqSurfR(id2D)+psi(id))-psi(idzmin))/(2.0_dp*delta)
-            
-                ! nabla
-                D2psi(id)=( psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id)            &
-                    -sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls)+psi(idxymin))/2.0_dp &
-                    )/cos_two_beta+sigmaqSurfR(id2D)-psi(id)+ psi(idzmin)
-            enddo
-        enddo    
+        
 
         do id=1,nsize
             ! absolute value gradient
@@ -929,12 +679,12 @@ contains
 
         do ix=1,nx
             do iy=1,ny
-                do iz=2,nz-1
+                do iz=1,nz
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
                     call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
                     call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
 
@@ -942,42 +692,6 @@ contains
                         (electPol(2,idypls)-electPol(2,idymin)))+     &
                         (electPol(3,idzpls)-electPol(3,idzmin)))/(2.0_dp*delta)    
                 enddo
-            enddo
-        enddo    
-
-        ! boundary iz=1 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz+1,idzpls)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-
-                rhob(id)=-(sqrtcos*((electPol(1,idxpls)-electPol(1,idxmin)) + &
-                    (electPol(2,idypls)-electPol(2,idymin))) + &
-                    (electPol(3,idzpls)+electPol(3,id    )) )/(2.0_dp*delta)    
-            enddo
-        enddo    
-
-        ! boundary iz=nz 
-
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
-                call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                call linearIndexFromCoordinate(ix,           iy,iz-1,idzmin)
-                call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
-                
-                rhob(id)=-(sqrtcos*((electPol(1,idxpls)-electPol(1,idxmin)) + &
-                    (electPol(2,idypls)-electPol(2,idymin))) + &
-                    ( -electPol(3,id)  -electPol(3,idzmin)) )/(2.0_dp*delta)
             enddo
         enddo    
 
