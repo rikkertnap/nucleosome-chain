@@ -122,7 +122,7 @@ program main
     call make_chains(chainmethod)   ! generate polymer configurations
     call chain_filter()
     call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_part_fnc(ngr)
+    ! call allocate_part_fnc(ngr)
     call init_field()
     call init_surface(bcflag,nsurf)
    

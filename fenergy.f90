@@ -10,6 +10,7 @@ module energy
     implicit none
   
     !     .. variables
+    
     real(dp) :: FE                  ! free energy
     real(dp) :: FEbulk              ! free energybulk
     real(dp) :: deltaFE             ! free energy difference delteFE=FE-FEbulk
@@ -163,12 +164,11 @@ contains
         FEbind = FEbindA+FEbindB
         
         ! .. calcualtion of FEq
-        do g=1,ngr
-            FEq=FEq-log(q(g))    
-        enddo
+        FEq=-log(q)    
+        
          
         ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift*ngr  
+        Eshift=lnproshift! *ngr  
 
         !  .. total free energy  
 
@@ -177,7 +177,7 @@ contains
     
         qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
   
-        volumelat= volcell*nsize !nz*delta   ! volume lattice
+        volumelat= volcell*nsize                  ! volume lattice
 
         FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
             xbulk%Ca/vCa +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +xbulk%pro/vpro)
@@ -441,7 +441,7 @@ contains
             qres = qres + rhoq(i)
         enddo
 
-        checkphi=nseg*ngr
+        checkphi=nseg
         do t=1,nsegtypes
             sumphi(t)=0.0_dp
             do i=1,nsize    
@@ -511,12 +511,12 @@ contains
         endif    
 
         ! .. calcualtion of FEq
-        do g=1,ngr
-            FEq=FEq-log(q(g))    
-        enddo
+     
+        FEq=-log(q)    
+    
      
         ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift*ngr
+        Eshift=lnproshift !*ngr
        
         ! .. total free energy per area of surface 
 
@@ -578,7 +578,7 @@ contains
             FErho = FErho - xsol(i) -xpro(i)/vpro 
         enddo
 
-        checkphi=nseg*ngr
+        checkphi=nseg
         do t=1,nsegtypes
             sumphi(t)=0.0_dp
             do i=1,nsize    
@@ -599,11 +599,11 @@ contains
         endif
 
         ! .. shift in palpha  i.e q 
-        Eshift=lnproshift*ngr 
+        Eshift=lnproshift!*ngr 
 
-        do g=1,ngr
-            FEq=FEq-log(q(g))    
-        enddo
+    
+        FEq=-log(q)    
+    
        
         !  .. total free energy 
 

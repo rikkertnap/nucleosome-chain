@@ -11,7 +11,7 @@ module Poisson
 
 contains
 
-    subroutine Poisson_Equation(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation(fvec,psi,rhoq)
 
         use volume, only : geometry
 
@@ -21,23 +21,21 @@ contains
         real(dp), intent(inout) :: fvec(:)
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
     
         if(geometry=="cubic") then 
 
-            call Poisson_Equation_cubic(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+            call Poisson_Equation_cubic(fvec,psi,rhoq)
         
         else if (geometry=="prism") then 
         
-            call Poisson_Equation_prism(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+            call Poisson_Equation_prism(fvec,psi,rhoq)
         
         endif
         
     end subroutine
         
 
-    subroutine Poisson_Equation_Eps(fvec,psi,rhoq,eps,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_Eps(fvec,psi,rhoq,eps)
 
         use volume, only : geometry
 
@@ -48,12 +46,10 @@ contains
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
         real(dp), intent(in) :: eps(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
     
         if(geometry=="cubic") then 
 
-            call Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps,sigmaqSurfR,sigmaqSurfL)
+            call Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps)
         
         else if (geometry=="prism") then 
         
@@ -65,7 +61,7 @@ contains
 
 
 
-    subroutine Poisson_Equation_cubic(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_cubic(fvec,psi,rhoq)
 
         use globals, only : nsize, neq
         use parameters, only : constqW
@@ -77,8 +73,6 @@ contains
         real(dp), intent(inout) :: fvec(:)
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
         integer :: ix, iy, iz, noffset
@@ -109,7 +103,7 @@ contains
     end subroutine Poisson_Equation_cubic
 
 
-    subroutine Poisson_Equation_prism(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_prism(fvec,psi,rhoq)
 
         use globals, only : nsize, neq
         use parameters, only : constqW
@@ -122,8 +116,6 @@ contains
         real(dp), intent(inout) :: fvec(:)
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
         integer :: ix, iy, iz, noffset
@@ -164,7 +156,7 @@ contains
 
 
 
-    subroutine Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps)
 
         use globals, only : nsize, neq
         use parameters, only : constqW
@@ -177,8 +169,6 @@ contains
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
         real(dp), intent(in) :: eps(:)
-        real(dp), intent(in) :: sigmaqSurfR(:)
-        real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
         integer :: ix, iy, iz, noffset

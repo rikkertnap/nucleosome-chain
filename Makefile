@@ -1,7 +1,8 @@
 #Unix makefile for fortran-file	
 
 # Put the name of the target program here
-TARGET = brush.domain.loop.multi.VdW # the list of source files
+TARGET =  nucleosome 
+# the list of source files
 SRC =  mpivars.f90  precision.f90  mathconst.f90 physconst.f90 globals.f90 myutils.f90  molecule.f90  dielectfcn.f90  loop.f90 chains.f90 rands.f90 volume.f90 L2norm.f90 parameter.f90  poissonEq.f90 field.f90 VdW.f90 surface.f90 confEntropy.f90 fenergy.f90 initcha.f90  myio.f90 rota.f90 cadenas.f90 cadenas-sequence.f90 fcn.brush.f90  init.f90 chaingenerator.f90 kinsolsolver.f90  solver.f90  main.f90
 
 # some definitions

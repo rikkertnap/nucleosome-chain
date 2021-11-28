@@ -578,7 +578,7 @@ contains
     function init_denspol()result(denspol)
 
         use globals, only : nseg, nsize
-        use volume, only : delta,ngr
+        use volume, only : delta
 
         real(dp) :: denspol
 
@@ -586,7 +586,7 @@ contains
         real(dp) :: vol
 
         vol=nsize*(delta**3)
-        denspol= ngr*nseg*1.0_dp/vol   
+        denspol= nseg*1.0_dp/vol   
  
     end function
 

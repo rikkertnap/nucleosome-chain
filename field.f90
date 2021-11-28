@@ -32,8 +32,8 @@ module field
     real(dp), dimension(:,:), allocatable :: fdisA   ! degree of dissociation 
     real(dp), dimension(:,:), allocatable :: fdisB   ! degree of dissociation
       
-    real(dp), dimension(:), allocatable :: q         ! normalization partion fnc polymer 
-    real(dp), dimension(:), allocatable :: lnq      ! exponent of normalization partion fnc polymer 
+    real(dp) :: q         ! normalization partion fnc polymer 
+    real(dp) :: lnq      ! exponent of normalization partion fnc polymer 
 
     real(dp) :: lnproshift ! shift in exponetn palpha
 
@@ -112,8 +112,8 @@ contains
        
         integer, intent(in) :: N
 
-        allocate(lnq(N))
-        allocate(q(N))
+        ! allocate(lnq(N))
+        ! allocate(q(N))
 
     end subroutine allocate_part_fnc
 
@@ -147,7 +147,7 @@ contains
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
-        use volume, only : volcell, ngr
+        use volume, only : volcell
         use globals, only : nsize, systype, nseg, nsegtypes
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
@@ -162,7 +162,7 @@ contains
         enddo      
         sumrhopol=sumrhopol*volcell
 
-        intrhopol=nseg*ngr
+        intrhopol=nseg
         if(systype=="electdouble") intrhopol=intrhopol*2.0_dp  
 
         checkintegral=sumrhopol-intrhopol
@@ -171,7 +171,7 @@ contains
 
     subroutine check_integral_rholpolAB(sumrhopol, checkintegral)
 
-        use volume, only : volcell, ngr
+        use volume, only : volcell
         use globals, only : nsize, systype, nseg
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
@@ -184,7 +184,7 @@ contains
         enddo    
         sumrhopol=sumrhopol*volcell
 
-        intrhopol=nseg*ngr
+        intrhopol=nseg
         if(systype=="electdouble") intrhopol=intrhopol*2.0_dp  
 
         checkintegral=sumrhopol-intrhopol
@@ -308,7 +308,7 @@ contains
      subroutine average_charge_polymer_dna()
 
         use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell,ngr
+        use volume, only : volcell
         use parameters, only : zpol, avfdis, avfdisA, tA
         use chains, only: type_of_monomer,ismonomer_chargeable
 
@@ -324,10 +324,6 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
-
-        do t=1,nsegtypes
-            npol(t)=npol(t)*ngr
-        enddo
             
         do t=1,nsegtypes
             avfdis(t)=0.0_dp
@@ -360,7 +356,7 @@ contains
     subroutine average_charge_polymer_multi()
 
         use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell,ngr
+        use volume, only : volcell
         use parameters, only : zpol, avfdis
         use chains, only: type_of_monomer,ismonomer_chargeable
 
@@ -375,10 +371,6 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
-
-        do t=1,nsegtypes
-            npol(t)=npol(t)*ngr
-        enddo
 
         do t=1,nsegtypes
             avfdis(t)=0.0_dp

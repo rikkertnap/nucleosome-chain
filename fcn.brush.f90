@@ -63,7 +63,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
@@ -96,23 +96,7 @@ contains
                 rhopolin(i,t) = x(i+k) ! density 
             enddo    
         enddo
-
-        ! neq_bc=0
-        ! n0=(2 +nsegtypes)*n
-        ! if(bcflag(RIGHT)/="cc") then
-        !     neq_bc=nx*ny
-        !     do i=1,neq_bc
-        !         psiSurfR(i) =x(n0+i)                 ! surface potentail
-        !     enddo
-        ! endif   
-        ! if(bcflag(LEFT)/="cc") then 
-        !     do i=1,nx*ny
-        !         psiSurfL(i) =x(n0+neq_bc+i)          ! surface potentail
-        !     enddo
-        !     neq_bc=neq_bc+nx*ny
-        ! endif    
-
-             
+ 
         !  .. assign global and local polymer density 
 
         do t=1,nsegtypes
@@ -208,46 +192,46 @@ contains
         if (rank==0) then 
          
             q=0.0_dp 
-            g=1  
-            q(g)=local_q
+            q=local_q
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
            
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
                 
-            !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)  ! volume polymer segment per volume cell
+            !  .. construction of fcn and volume fraction polymer   
+            !  .. volume polymer segment per volume cell 
+
+            rhopol0=(1.0_dp/volcell)/q  
+
 
             do t=1, nsegtypes
                 do i=1,n
-                    rhopol(i,t) = rhopol0 * rhopol(i,t)       ! density polymer of type t  
 
+                    rhopol(i,t) = rhopol0 * rhopol(i,t)               ! density polymer of type t  
                     xpol(i)     = xpol(i) + rhopol(i,t)*vpol(t)*vsol  ! volume fraction polymer
                     if(ismonomer_chargeable(t)) then 
                         rhoqpol(i)  = rhoqpol(i) + (zpol(t,2)*fdis(i,t)+zpol(t,1)*(1.0_dp-fdis(i,t)))*rhopol(i,t)*vsol ! charge density polymer
                     endif    
-                    ! ... scf eq for density
+                    ! ..scf eq for density
                     f(i+(t+1)*n)    = rhopol(i,t) - rhopolin(i,t) 
                 enddo
             enddo        
@@ -263,15 +247,11 @@ contains
 
            
             ! .. electrostatics 
-           
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+    
             
             ! .. Poisson Eq 
-            call Poisson_Equation(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+            call Poisson_Equation(f,psi,rhoq) 
     
-            ! .. boundary conditions
-            call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
 
             norm=l2norm(f,neqint)
             iter=iter+1
@@ -324,7 +304,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
@@ -438,47 +418,42 @@ contains
 
         if (rank==0) then 
 
-            q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=0.0_dp 
+            q=local_q
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)  ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n
                     rhopol(i,t) = rhopol0 * rhopol(i,t)       ! density polymer of type t  
-
                     xpol(i)     = xpol(i) + rhopol(i,t)*vpol(t)*vsol  ! volume fraction polymer
                     if(ismonomer_chargeable(t)) then 
                         rhoqpol(i)  = rhoqpol(i) + (zpol(t,2)*fdis(i,t)+zpol(t,1)*(1.0_dp-fdis(i,t)))*rhopol(i,t)*vsol ! charge density polymer
                     endif    
-        
                 enddo
             enddo        
 
@@ -491,15 +466,9 @@ contains
             !  .. end computation polymer density and charge density  
 
             ! .. electrostatics 
-
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
             
             ! .. Poisson Eq 
-            call Poisson_Equation(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
-
-            ! .. boundary conditions
-            call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+            call Poisson_Equation(f,psi,rhoq)   
 
           
             norm=l2norm(f,neqint)
@@ -553,7 +522,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 
         real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
@@ -716,38 +685,38 @@ contains
 
         if (rank==0) then 
 
-            q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=0.0_dp 
+            q=local_q
             
              do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)! polymer density 
                     enddo
                 enddo
             enddo     
 
 
-            !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)! volume polymer segment per volume cell
+            !  .. construction of fcn and volume fraction polymer 
+
+            !  .. volume polymer segment per volume cell
+
+            rhopol0=(1.0_dp/volcell)/q 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -795,14 +764,7 @@ contains
 
             ! .. electrostatics 
 
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
-            
-            ! .. Poisson Eq 
-            call Poisson_Equation(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
-    
-            ! .. boundary conditions
-            call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+            call Poisson_Equation(f,psi,rhoq)
 
          
             norm=l2norm(f,(nsegtypes+2)*n)
@@ -859,7 +821,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 
         real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
@@ -1014,38 +976,35 @@ contains
 
         if (rank==0) then 
 
-            q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=0.0_dp 
+            q=local_q
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
 
             ! first graft point 
 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1065,7 +1024,6 @@ contains
                 else  
                     do i=1,n
                         rhopol(i,t) = rhopol0 * rhopol(i,t)               ! density polymer of type t  
-                        xpol(i)     = xpol(i) + rhopol(i,t)*vpol(t)*vsol  ! volume fraction polymer
                         f(i+t*n)    = rhopol(i,t) - rhopolin(i,t)         ! scf eq for density
                     enddo
                 endif          
@@ -1077,19 +1035,11 @@ contains
                     zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zRb*xRb(i)/vRb +zK*xK(i)/vK! total charge density in units of vsol  
             enddo
           
-            !     .. end computation polymer density and charge density  
+            ! .. end computation polymer density and charge density  
 
             ! .. electrostatics 
-            
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
-            
-            ! .. Poisson Eq 
-            call Poisson_Equation(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
-    
-            ! .. boundary conditions
-            call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
-
+             
+            call Poisson_Equation(f,psi,rhoq)
 
             !  .. end electrostatics   
          
@@ -1145,7 +1095,7 @@ contains
         real(dp) :: pro,lnpro
         real(dp) :: lbr,expborn,avgvol,Etotself,expsqrgrad, Eself
         real(dp) :: expsqrgradpsi(nsize),expdeltaGAA(nsize,6),expEtotself(nsize)
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn,k1,k2,k3,k4,k5          !indices
+        integer  :: n,i,j,k,l,c,s,ln,t,k1,k2,k3,k4,k5          !indices
         real(dp) :: norm
         real(dp) :: rhopol0 
         real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
@@ -1392,37 +1342,34 @@ contains
         if (rank==0) then 
 
             q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=local_q
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
  
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
 
           
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell) ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1475,15 +1422,10 @@ contains
             !  .. end computation polymer and charge density 
 
             ! .. electrostatics 
-
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
             
 
-            call Poisson_Equation_Eps(f,psi,rhoq,epsfcn,sigmaqsurfR,sigmaqsurfL) 
-
-            ! .. boundary conditions
-            call Poisson_Equation_Surface_Eps(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,epsfcn)
+            call Poisson_Equation_Eps(f,psi,rhoq,epsfcn) 
+            
 
             norm=l2norm(f,neqint)
             iter=iter+1
@@ -1537,7 +1479,7 @@ contains
         real(dp) :: constA,constB
         real(dp) :: pro,rhopol0,lnpro
         integer :: n,ix,iy,iz,neq_bc                  
-        integer :: i,j,k,kL,kR,c,s,g,gn        ! dummy indices
+        integer :: i,j,k,kL,kR,c,s        ! dummy indices
         real(dp) :: norm
         integer :: conf               ! counts number of conformations
         real(dp) :: cn                ! auxilary variable for Poisson Eq
@@ -1705,37 +1647,34 @@ contains
         if (rank==0) then
 
             q=0.0_dp
-            g=1  
-            q(g)=q_local
+            q=q_local
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(q_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+q_local
+                q=q+q_local
             enddo 
         
             ! first graft point 
             do i=1,n
-                rhopol(i,A)=rhopol_local(i,A)/q(1) ! polymer density 
-                rhopol(i,B)=rhopol_local(i,B)/q(1) ! polymer density 
+                rhopol(i,A)=rhopol_local(i,A) ! polymer density 
+                rhopol(i,B)=rhopol_local(i,B) ! polymer density 
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 
                 call MPI_RECV(rhopol_local(:,A), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(rhopol_local(:,B), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 do k=1,nsize
-                    rhopol(k,A)=rhopol(k,A)+rhopol_local(k,A)/q(g) ! polymer density 
-                    rhopol(k,B)=rhopol(k,B)+rhopol_local(k,B)/q(g) ! polymer
+                    rhopol(k,A)=rhopol(k,A)+rhopol_local(k,A) ! polymer density 
+                    rhopol(k,B)=rhopol(k,B)+rhopol_local(k,B) ! polymer
                 enddo
             enddo
     
             !   .. construction of fcn and volume fraction polymer        
-            rhopol0=(1.0_dp/volcell)! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q! volume polymer segment per volume cell
 
             do i=1,n
 
@@ -1763,14 +1702,9 @@ contains
 
             ! .. electrostatics 
 
-            sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-            sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
             
             ! .. Poisson Eq 
-            call Poisson_Equation(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
-    
-            ! .. boundary conditions
-            call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+            call Poisson_Equation(f,psi,rhoq)
  
             do i=1,n
                 f(2*n+i)=rhopol(i,A)-rhopolin(i,A)
@@ -1826,7 +1760,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
@@ -1922,36 +1856,33 @@ contains
         if (rank==0) then 
           
             q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=local_q
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
                 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell) ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n
@@ -2014,7 +1945,7 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,g,gn   ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
@@ -2110,37 +2041,34 @@ contains
 
         if (rank==0) then 
           
-            q=0.0_dp
-            g=1  
-            q(g)=local_q
+            q=0.0_dp 
+            q=local_q
  
             do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                q(g)=q(g)+local_q
+                q=q+local_q
             enddo 
            
            ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
 
             do i=1, size-1
                 source = i
-                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g) ! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
                     enddo
                 enddo
             enddo     
                 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)  ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n

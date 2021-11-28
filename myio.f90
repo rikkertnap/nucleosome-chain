@@ -77,8 +77,7 @@ subroutine read_inputfile(info)
     integer :: pos
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_savePalpha,  isSet_EnergyShift
-    logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_isRandom_rot_loop, isSet_isRandom_pos_graft
-    logical :: isSet_seed_graft,isSet_seed_rot_loop
+    logical :: isSet_maxfkfunevals, isSet_maxniter
 
     if (present(info)) info = 0
 
@@ -100,10 +99,7 @@ subroutine read_inputfile(info)
     isSet_EnergyShift =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false.
-    isSet_isRandom_rot_loop=.false.
-    isSet_isRandom_pos_graft=.true.
-    isSet_seed_graft = .false.
-    isSet_seed_rot_loop =.false.
+    
 
     ! default concentrations
     cKCl=0.0_dp
@@ -113,7 +109,7 @@ subroutine read_inputfile(info)
     
     ! init surface charge
     sigmaSurfL = 0.0_dp
-    sigmaSurfL = 0.0_dp
+    sigmaSurfR = 0.0_dp
 
     ios=0
     line = 0
@@ -205,12 +201,6 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) nseg
             case ('nsegtypes')
                 read(buffer,*,iostat=ios) nsegtypes        ! carefully need to be overwriiten depending on value systype and or chainmethod
-            case ('maxnchains')
-                read(buffer,*,iostat=ios) maxnchainsrotations
-                isSet_maxnchains=.true.
-            case ('maxnchainsxy')
-                read(buffer,*,iostat=ios) maxnchainsrotationsXY
-                isSet_maxnchainsxy=.true.
             case ('cuantas')
                 read(buffer,*,iostat=ios) max_confor
             case ('chainperiod')
@@ -241,26 +231,10 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) unit_conv
             case ('geometry')
                 read(buffer,*,iostat=ios) geometry
-            case ('ngr_freq')
-                read(buffer,*,iostat=ios) ngr_freq
             case ('sgraft')
                 read(buffer,*,iostat=ios) sgraft
-            case ('nset_per_graft')
-                read(buffer,*,iostat=ios) nset_per_graft
             case ('gamma')
                 read(buffer,*,iostat=ios) gamma
-            case ('isRandom_pos_graft')
-                read(buffer,*,iostat=ios) isRandom_pos_graft
-                isSet_isRandom_pos_graft=.true.
-            case ('seed_graft')
-                read(buffer,*,iostat=ios) seed_graft
-                isSet_seed_graft=.true.
-            case ('isRandom_rot_loop')
-                read(buffer,*,iostat=ios) isRandom_rot_loop
-                isSet_isRandom_rot_loop=.true.
-            case ('seed_rot_loop')
-                read(buffer,*,iostat=ios) seed_rot_loop
-                isSet_seed_rot_loop=.true.
             case ('write_mc_chains')
                 read(buffer,*,iostat=ios) write_mc_chains
             case ('precondition')
@@ -301,9 +275,8 @@ subroutine read_inputfile(info)
                     return
                 endif
             end select
-        end if
-    end do
-
+        endif
+    enddo
 
     if(ios >0 ) then
         print*, 'Error parsing file : iostat =', ios
@@ -384,13 +357,6 @@ subroutine read_inputfile(info)
     call set_value_precondition(precondition,isSet_precondition)
     call set_value_isEnergyShift(isEnergyShift,isSet_EnergyShift)
 
-    call set_value_logical_var(isRandom_pos_graft,isSet_isRandom_pos_graft,.false.)
-    call set_value_logical_var(isRandom_rot_loop,isSet_isRandom_rot_loop,.false.)
-    call set_value_int_var(seed_graft,isSet_seed_graft,1234)
-    call set_value_int_var(seed_rot_loop,isSet_seed_rot_loop,5678)
-
-
-
     call set_value_maxfkfunevals(maxfkfunevals,isSet_maxfkfunevals)
     call set_value_maxniter(maxniter,isSet_maxniter)
 
@@ -403,10 +369,10 @@ subroutine read_inputfile(info)
 
     ! overide certain input values
     if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul") then
-        KionNa=0.0_dp
-        KionK=0.0_dp
-        cpro%val =0.0_dp
-        Rpro=0.1_dp
+        KionNa   = 0.0_dp
+        KionK    = 0.0_dp
+        cpro%val = 0.0_dp
+        Rpro     = 0.1_dp
     endif
 
 end subroutine read_inputfile
@@ -1357,8 +1323,6 @@ subroutine output_brush_mul
         write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
         write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
         write(un_sys,*)'delta       = ',delta
-        write(un_sys,*)'ngr         = ',ngr
-        write(un_sys,*)'ngr_node    = ',ngr_node
         write(un_sys,*)'nx          = ',nx
         write(un_sys,*)'ny          = ',ny
         write(un_sys,*)'nzmax       = ',nzmax
@@ -2012,8 +1976,6 @@ subroutine output_neutral
         write(un_sys,*)'nsize       = ',nsize
         write(un_sys,*)'nx          = ',nx
         write(un_sys,*)'ny          = ',ny
-        write(un_sys,*)'ngr_freq    = ',ngr_freq
-        write(un_sys,*)'ngr         = ',ngr
         write(un_sys,*)'nzmax       = ',nzmax
         write(un_sys,*)'nzmin       = ',nzmin
         write(un_sys,*)'nzstep      = ',nzstep

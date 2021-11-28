@@ -58,7 +58,7 @@ contains
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_lnexp
-        use volume, only : ngr, nset_per_graft
+        !use volume, only : ngr, nset_per_graft
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -68,8 +68,6 @@ contains
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -80,6 +78,7 @@ contains
                 do t=1,nsegtypes
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -87,6 +86,7 @@ contains
             do t=1,nsegtypes
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             enddo
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
         endif    
 
         !     .. executable statements 
@@ -116,7 +116,7 @@ contains
                 lnpro = lnpro+lnexppi(k,t)
             enddo  
             pro=exp(lnpro-lnproshift)   
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
         enddo
         
         ! communicate FEconf
@@ -124,20 +124,17 @@ contains
         if(rank==0) then
 
             ! normalize
-            FEconf_array=0.0_dp
-            Econf_array=0.0_dp  
-
-            FEconf_array(1)=FEconf_local
-            Econf_array(1)=Econf_local
+            
+            FEconf=FEconf_local
+            Econf=Econf_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
     
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local
-                Econf_array(g) =Econf_array(g) +Econf_local
+                FEconf=FEconf+FEconf_local
+                Econf =Econf +Econf_local
                 
             enddo 
         else     ! Export results
@@ -146,16 +143,6 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
-
-        if(rank==0) then
-             ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g)))  
-                Econf = Econf + Econf_array(g)/q(g)  
-            enddo      
-        endif
 
     end subroutine FEconf_neutral
 
@@ -171,7 +158,7 @@ contains
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_exp
-        use volume, only : ngr, nset_per_graft
+        !use volume, only : ngr, nset_per_graft
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -181,8 +168,6 @@ contains
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -190,16 +175,12 @@ contains
             do i = 1, size-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                !do t=1,nsegtypes
-                !    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                !enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            !do t=1,nsegtypes
-            !    call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            !enddo
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
         endif    
 
         !     .. executable statements 
@@ -223,27 +204,24 @@ contains
                 lnpro = lnpro+ lnexppi(k,t)
             enddo    
             pro=exp(lnpro-lnproshift)
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
         enddo
         
         ! communicate FEconf
 
         if(rank==0) then
             ! normalize
-            FEconf_array=0.0_dp
-            Econf_array=0.0_dp  
-
-            FEconf_array(1)=FEconf_local
-            Econf_array(1)=Econf_local
+           
+            FEconf=FEconf_local
+            Econf=Econf_local
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
             
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local
-                Econf_array(g) =Econf_array(g) +Econf_local
+                FEconf=FEconf+FEconf_local
+                Econf =Econf +Econf_local
                 
             enddo 
         else     ! Export results
@@ -252,16 +230,6 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
-
-        if(rank==0) then
-             ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g)))  
-                Econf = Econf + Econf_array(g)/q(g)  
-            enddo    
-        endif
 
     end subroutine FEconf_neutral_noVdW
 
@@ -284,8 +252,6 @@ contains
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -298,6 +264,7 @@ contains
                     call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -307,6 +274,7 @@ contains
                 call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             enddo
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif    
 
         !     .. executable statements 
@@ -342,27 +310,24 @@ contains
                 lnpro = lnpro+lnexppi(k,t)
             enddo 
             pro=exp(lnpro-lnproshift)      
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
         enddo
         
         ! communicate FEconf
 
         if(rank==0) then
 
-             ! normalize
-            FEconf_array=0.0_dp
-            Econf_array=0.0_dp  
+            ! normalize
 
-            FEconf_array(1)=FEconf_local
-            Econf_array(1)=Econf_local
+            FEconf=FEconf_local
+            Econf =Econf_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local
-                Econf_array(g) =Econf_array(g) +Econf_local             
+                FEconf=FEconf+FEconf_local
+                Econf =Econf +Econf_local             
             enddo 
         else     ! Export results
             dest = 0
@@ -370,16 +335,6 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
-
-        if(rank==0) then
-            ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g)))  
-                Econf = Econf + Econf_array(g)/q(g)  
-            enddo    
-        endif
 
     end subroutine FEconf_brush_mul
 
@@ -392,18 +347,16 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters
-        use volume, only : ngr, nset_per_graft
+        !use volume, only : ngr, nset_per_graft
         
         real(dp), intent(out) :: FEconf,Econf
         
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k       ! dummy indices
+        integer  :: i,t,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -416,6 +369,7 @@ contains
                     call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -425,6 +379,7 @@ contains
                 call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             enddo
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif    
 
         !     .. executable statements 
@@ -455,25 +410,23 @@ contains
                 lnpro = lnpro+ lnexppi(k,t)
             enddo    
             pro=exp(lnpro-lnproshift)
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
         enddo
         
         ! communicate FEconf
 
         if(rank==0) then
             ! normalize
-            FEconf_array=0.0_dp
-            Econf_array=0.0_dp  
-            FEconf_array(1)=FEconf_local
-            Econf_array(1)=Econf_local
+           
+            FEconf =FEconf_local
+            Econf  =Econf_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local
-                Econf_array(g) =Econf_array(g) +Econf_local             
+                FEconf=FEconf +FEconf_local
+                Econf =Econf + Econf_local             
             enddo 
         else     ! Export results
             dest = 0
@@ -482,16 +435,6 @@ contains
         endif
 
 
-        if(rank==0) then
-            ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g)))  
-                Econf = Econf + Econf_array(g)/q(g)  
-            enddo    
-           
-        endif
 
     end subroutine FEconf_brush_mulnoVdW
 
@@ -501,7 +444,7 @@ contains
         !  .. variables and constant declaractions 
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
-        use volume, only : ngr, nset_per_graft
+        !use volume, only : ngr, nset_per_graft
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
@@ -511,12 +454,11 @@ contains
         
         !     .. declare local variables
         real(dp) :: lnexppiA(nsize),lnexppiB(nsize)    ! auxilairy variable for computing P(\alpha) 
-        integer  :: i,k,c,s,g,gn         ! dummy indices
+        integer  :: i,k,c,s        ! dummy indices
         real(dp) :: pro,lnpro
         real(dp) :: FEconf_local, Econf_local
         real(dp) :: q_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
+        
         ! .. executable statements 
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -528,13 +470,15 @@ contains
                 call MPI_SEND(psi , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(fdisA(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(fdisB(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             call MPI_RECV(psi , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             call MPI_RECV(fdisA(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)    
-            call MPI_RECV(fdisB(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(fdisB(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif
             
         do i=1,nsize
@@ -558,7 +502,7 @@ contains
                 endif
             enddo
             pro=exp(lnpro-lnproshift)
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
                   
         enddo  
 
@@ -567,33 +511,22 @@ contains
 
         if(rank==0) then
             ! normalize
-            FEconf_array=0.0_dp
-            FEconf_array(1)=FEconf_local
-            Econf_array=0.0_dp
-            Econf_array(1)=FEconf_local
+            
+            FEconf=FEconf_local
+            
+            Econf=Econf_local
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local 
-                Econf_array(g)= Econf_array(g)+ Econf_local     
+                
+                FEconf=FEconf + FEconf_local 
+                Econf= Econf  + Econf_local     
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
-
-
-        if(rank==0) then
-            ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g))) 
-                Econf = Econf + Econf_array(g)/q(g)     
-            enddo     
         endif
 
         Econf=0.0_dp
@@ -613,7 +546,7 @@ contains
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW
         use parameters, only : vpolAA, vsol, vNa, vCl, vRb, vMg, vCa ,vpol
         use parameters, only : zNa, zCl, zRb, zMg, zCa, zpolAA
-        use volume, only : ngr, nset_per_graft
+       ! use volume, only : ngr, nset_per_graft
         use VdW, only : VdW_contribution_lnexp
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
         use dielectric_const, only : dielectfcn, born
@@ -623,11 +556,9 @@ contains
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k,tc       ! dummy indices
+        integer  :: i,t,c,s,k,tc       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
-        real(dp) :: FEconf_array(ngr)
-        real(dp) :: Econf_array(ngr)
         integer  :: tcfdis(3)
         real(dp) :: rhopolAA(nsize),rhopolACa(nsize), rhopolAMg(nsize)
         real(dp) :: lbr,expborn,Etotself,expsqrgrad, Eself
@@ -653,6 +584,7 @@ contains
                 do t=1,nsegtypes
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -667,6 +599,7 @@ contains
             do t=1,nsegtypes
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             enddo
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif    
 
         !     .. executable statements 
@@ -757,27 +690,25 @@ contains
                 lnpro = lnpro+lnexppi(k,t)
             enddo 
             pro=exp(lnpro-lnproshift)      
-            FEconf_local=FEconf_local+pro*(log(pro)-logweightchain(c))
+            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
         enddo
 
         ! communicate FEconf
 
         if(rank==0) then
 
-             ! normalize
-            FEconf_array=0.0_dp
-            Econf_array=0.0_dp  
+            ! normalize
+             
 
-            FEconf_array(1)=FEconf_local
-            Econf_array(1)=Econf_local
+            FEconf=FEconf_local
+            Econf =Econf_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-                FEconf_array(g)=FEconf_array(g)+FEconf_local
-                Econf_array(g) =Econf_array(g) +Econf_local             
+                FEconf=FEconf+FEconf_local
+                Econf =Econf +Econf_local             
             enddo 
         else     ! Export results
             dest = 0
@@ -785,16 +716,6 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
-
-        if(rank==0) then
-            ! normalize
-            FEconf=0.0_dp
-            Econf=0.0_dp
-            do g=1,ngr 
-                FEconf = FEconf + (FEconf_array(g)/q(g)-log(q(g)))  
-                Econf = Econf + Econf_array(g)/q(g)  
-            enddo    
-        endif
 
     end subroutine FEconf_brush_born
 
