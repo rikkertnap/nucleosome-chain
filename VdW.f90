@@ -35,7 +35,7 @@ contains
 
 ! function determines range VdW coeffcients 
 ! range = maxlayer=int(VdWcutoff*lseg/delta)+1
-! +1 not neccsarry, for savety 
+! +1 not neccsarry, for safety 
 
 function set_range(lsegAA,VdWcutoff)result(range)
 
@@ -166,6 +166,8 @@ subroutine make_VdWcoeff(info)
 
     if (present(info)) info = 0
 
+    !range=set_range(lsegAA,VdWcutoff)
+
     call allocate_VdWcoeff(info_allocate_VdW)
     call allocate_auxdensity(info_allocate_dens)
    
@@ -198,6 +200,7 @@ end subroutine
 
 ! Monte Carlo simulation to deterimine VdW coefficients
 
+
 subroutine MC_VdWcoeff(lseg,VdWcoeff)
 
     use mpivars
@@ -210,18 +213,18 @@ subroutine MC_VdWcoeff(lseg,VdWcoeff)
     real(dp), intent(in)   :: lseg ! size  segment 
     real(dp), intent(out) :: VdWcoeff(-range:range, -range:range, -range:range)
     
-
     integer :: ix, iy , iz
     real(dp) :: x,y,z, radius, u, v
-    real(dp) :: rn
-    integer :: limit, plimit
-    parameter (limit = range+1) 
-
-    real(dp) :: matriz(-limit:limit, -limit:limit, -limit:limit) ! matrix for chi
-
-    integer :: i
+    real(dp) :: rn, maxradius, limittimesdelta
+    integer :: limit
+    !parameter (limit = range+1) 
+    !real(dp) :: matriz(-limit:limit, -limit:limit, -limit:limit) ! matrix for chi
+    
+    real(dp), allocatable, dimension(:,:,:) :: matriz 
+    
+    integer :: i,status
     real(dp) :: sum
-    character(len=lenText) :: text, rstr
+    character(len=lenText) :: text, rstr, istr
 
 
     if(rank==0) then 
@@ -229,7 +232,14 @@ subroutine MC_VdWcoeff(lseg,VdWcoeff)
         call print_to_log(LogUnit,text)
     endif    
 
-    sum = 0.0_dp
+    limit = range+1
+    limittimesdelta = limit* delta
+    maxradius = (limit*1.0_dp/2.0_dp) * delta
+
+    allocate(matriz(-limit:limit, -limit:limit, -limit:limit),stat=status)! matrix for chi
+    if(status/=0) then
+        print*,"MC_VdWcoeff: allocation error"
+    endif
 
     do ix = -limit, limit
         do iy = -limit, limit
@@ -241,18 +251,24 @@ subroutine MC_VdWcoeff(lseg,VdWcoeff)
 
     seed = 1010
       
+
     do i = 1, MCsteps
 
-        x = 3.0*(rands(seed)-0.5)*delta ! random number between -1.5 * delta and 1.5 * delta
-        y = 3.0*(rands(seed)-0.5)*delta 
-        z = 3.0*(rands(seed)-0.5)*delta 
+        !x = 3.0*(rands(seed)-0.5_dp)*delta ! random number between -1.5 * delta and 1.5 * delta
+        !y = 3.0*(rands(seed)-0.5_dp)*delta 
+        !z = 3.0*(rands(seed)-0.5_dp)*delta 
+
+        x = limittimesdelta*(rands(seed)-0.5_dp)! random number between - limit/2 * delta and limit/2 * delta
+        y = limittimesdelta*(rands(seed)-0.5_dp)
+        z = limittimesdelta*(rands(seed)-0.5_dp) 
 
         u = ut(x, y)
         v = vt(x, y)
 
         radius = sqrt(x**2 + y**2 + z**2) ! real space
  
-        if(radius<=(1.5*delta)) then  ! It is inside the cut-off distance 1.5 delta
+        !if(radius<=(1.5*delta)) then  ! It is inside the cut-off distance 1.5 delta
+        if(radius<=maxradius) then  ! It is inside the cut-off distance 
 
             ix = anint(v/delta)   ! 
             iy = anint(u/delta) 
@@ -268,20 +284,35 @@ subroutine MC_VdWcoeff(lseg,VdWcoeff)
                 
     enddo
 
-    do ix = -2, 2
-        do iy = -2, 2
-            do iz = -2, 2
+    ! do ix = -2, 2
+    !     do iy = -2, 2
+    !         do iz = -2, 2
+    !
+    !            VdWcoeff(ix, iy, iz) = matriz(ix, iy, iz)/MCsteps*((3.0_dp*delta)**3)
+    !            sum = sum +  matriz(ix, iy, iz)/MCsteps*((3.0_dp*delta)**3)
+    !    
+    !        enddo
+    !    enddo
+    !enddo
 
-                VdWcoeff(ix, iy, iz) = matriz(ix, iy, iz)/MCsteps*((3.0_dp*delta)**3)
-                sum = sum +  matriz(ix, iy, iz)/MCsteps*((3.0_dp*delta)**3)
+    sum = 0.0_dp
+
+    do ix = -range, range
+        do iy = -range, range
+            do iz = -range, range
+                VdWcoeff(ix, iy, iz) = matriz(ix, iy, iz)/MCsteps*((limittimesdelta)**3)
+                sum = sum +  matriz(ix, iy, iz)/MCsteps*((limittimesdelta)**3)
         
             enddo
         enddo
     enddo
 
+
     if(rank.eq.0)then 
+        write(istr,'(I3)')range
+        text="VdWcoefficient calculation : range  = "//trim(adjustl(istr))
         write(rstr,'(F5.3)') sum
-        text="VdWcoefficient calculation : Sum 5x5 = "//trim(adjustl(rstr))
+        text="VdWcoefficient calculation : Sum (2xrange+1)x(2xrange+1) = "//trim(adjustl(rstr))
         call print_to_log(LogUnit,text)
     endif    
 
@@ -302,6 +333,7 @@ subroutine MC_VdWcoeff(lseg,VdWcoeff)
     endif    
  
 end subroutine
+
 
 
 ! this compute contribution to Palpha

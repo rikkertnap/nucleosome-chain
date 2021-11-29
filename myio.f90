@@ -1878,12 +1878,12 @@ subroutine output_neutral
     character(len=90) :: xpolzfilename
     character(len=90) :: xprofilename
 
-    character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals
+    character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
     integer :: i, t
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
+    character(len=20) :: rstr,istr
     logical :: isopen
     real(dp) :: denspol
 
@@ -1897,6 +1897,10 @@ subroutine output_neutral
     fmt5reals = "(5ES25.16)"
     fmt6reals = "(6ES25.16)"
 
+
+    write(istr,'(I2)')nsegtypes+1
+    fmtNplus1reals='('//trim(adjustl(istr))//'ES25.16)' ! format nsegtypes+! reals
+
     if(nz==nzmax) then
 
         !     .. make label filename
@@ -1907,7 +1911,7 @@ subroutine output_neutral
         xpolfilename='xpol.'//trim(fnamelabel)
         xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
-        xprofilename='xpro.'//trim(fnamelabel)
+        !xprofilename='xpro.'//trim(fnamelabel)
 
 
         !      .. opening files
@@ -1915,7 +1919,7 @@ subroutine output_neutral
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
-        open(unit=newunit(un_xpro),file=xprofilename)
+        !open(unit=newunit(un_xpro),file=xprofilename)
 
 
     else ! check that files are open
@@ -1927,8 +1931,8 @@ subroutine output_neutral
         if(.not.isopen) write(*,*)"un_xsol is not open"
         inquire(unit=un_xpolz, opened=isopen)
         if(.not.isopen) write(*,*)"un_xpolz is not open"
-        inquire(unit=un_xpro, opened=isopen)
-        if(.not.isopen) write(*,*)"un_xpro is not open"
+        !inquire(unit=un_xpro, opened=isopen)
+        !if(.not.isopen) write(*,*)"un_xpro is not open"
     endif
 
     !   .. writting files
@@ -1937,14 +1941,14 @@ subroutine output_neutral
     if(runtype=="rangedist") then
         write(un_xsol,*)'#D    = ',nz*delta
         write(un_xpol,*)'#D    = ',nz*delta
-        write(un_xpro,*)'#D    = ',nz*delta
+    !    write(un_xpro,*)'#D    = ',nz*delta
         write(un_xpolz,*)'#D    = ',nz*delta
     endif
 
     do i=1,nsize
-       write(un_xpol,fmt3reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+       write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
        write(un_xsol,fmt1reals)xsol(i)
-       write(un_xpro,fmt1reals)xpro(i)
+    !   write(un_xpro,fmt1reals)xpro(i)
 
     enddo
     do i=1,nz
@@ -2023,7 +2027,7 @@ subroutine output_neutral
         close(un_xpol)
         close(un_sys)
         close(un_xpolz)
-        close(un_xpro)
+        !close(un_xpro)
     endif
 
 end subroutine output_neutral
