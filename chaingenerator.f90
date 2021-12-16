@@ -397,10 +397,10 @@ subroutine read_chains_XYZ_nucl(info)
         endif
     
         do s=1,nseg              ! .. read form  trajecotory file
-            read(un,*,iostat=ios)d_atom_num,xc,yc,zc,d_type_num
+            read(un,*,iostat=ios)xc,yc,zc
             !print*,d_atom_num,xc,yc,zc,d_type_num
-            i_atom_num=int(d_atom_num)
-            i_type_num=int(i_type_num)
+            !i_atom_num=int(d_atom_num)
+            !i_type_num=int(i_type_num)
             xseg(1,s) = xc*scalefactor 
             xseg(2,s) = yc*scalefactor  
             xseg(3,s) = zc*scalefactor 
