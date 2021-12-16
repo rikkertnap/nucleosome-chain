@@ -28,7 +28,7 @@ module volume
 
     ! variable for grafting position
 
-    integer :: sgraft               ! item number of graft point to which loop is attached 
+    integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
    
     private :: beta
 

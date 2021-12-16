@@ -590,6 +590,35 @@ contains
  
     end function
 
+    ! compute global volume fraction polymer-chain
+
+    function init_xvolpol(rhopol)result(xvolpol)
+
+        use globals, only : nsize, nsegtypes
+        use volume, only : delta
+    
+        real(dp), intent(in) :: rhopol(:,:)
+        real(dp) :: xvolpol
+
+
+        ! local 
+        real(dp) :: vol
+        integer :: i,t
+
+
+        vol=nsize*(delta**3) ! volume lattice
+        
+        xvolpol=0.0_dp
+        do t=1,nsegtypes
+            do i=1,nsize
+                xvolpol=xvolpol+rhopol(i,t)*vpol(t)
+            enddo
+        enddo
+
+        xvolpol = xvolpol/vol   
+ 
+    end function
+
          
    
     !     purpose: initialize expmu needed by fcn 

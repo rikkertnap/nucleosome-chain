@@ -148,17 +148,12 @@ subroutine make_chains_mc()
             do j=1,nchains   
             
                 do s=1,nseg                          !  transforming form real- to lattice coordinates
-                    zp(s) = chain(1,s,j)
-                    xp(s) = chain(2,s,j)
-                    yp(s) = chain(3,s,j)
+                    z(s) = chain(1,s,j)+zcm
+                    x(s) = chain(2,s,j)+xcm
+                    y(s) = chain(3,s,j)+ycm
                 enddo
                 
-                do s=1,nseg
-
-                    ! .. translation onto center box 
-                    x(s) = xp(s) + xcm
-                    y(s) = yp(s) + ycm
-                    z(s) = zp(s) + zcm 
+                do s=1,nseg 
 
                     ! .. periodic boundary conditions in x-direction and y-direction 
                     chain_rot(2,s) = pbc(x(s),Lx)
@@ -187,26 +182,22 @@ subroutine make_chains_mc()
             do j=1,nchains   
             
                 do s=1,nseg                     !  transforming form real- to lattice coordinates
-                    zp(s) = chain(1,s,j)
-                    xp(s) = chain(2,s,j)
-                    yp(s) = chain(3,s,j)
+                    zp(s) = chain(1,s,j)+zcm
+                    xp(s) = chain(2,s,j)+xcm
+                    yp(s) = chain(3,s,j)+ycm
                 enddo
 
-                
                 do s=1,nseg
-                    xp(s)= xpp(s) + xcm
-                    yp(s)= ypp(s) + ycm
-                    z(s) = zp(s) + zcm
                         
                     ! .. prism coordinates
 
-                    x(s) = ut(xpp(s),ypp(s))
-                    y(s) = vt(xpp(s),ypp(s))
+                    x(s) = ut(xp(s),yp(s))
+                    y(s) = vt(xp(s),yp(s))
                     
                     ! .. periodic boundary conditions in x-direction and y-direction an z-direction 
                     chain_rot(2,s) = pbc(x(s),Lx)
                     chain_rot(3,s) = pbc(y(s),Ly)
-                    chain_rot(1,s) = pbc(z(s),Lz)       
+                    chain_rot(1,s) = pbc(zp(s),Lz)       
 
                     ! .. transforming form real- to lattice coordinates                 
                     xi = int(chain_rot(2,s)/delta)+1
@@ -279,12 +270,11 @@ subroutine read_chains_XYZ_nucl(info)
     use chains
     use random
     use parameters
-    use volume, only :  sgraft, nx, ny,nz, delta
-   ! use chain_rotation, only : rotationXaxis
+    use volume, only :  sgraftpts, nx, ny,nz, delta
+    use chain_rotation, only : rotate_nucl_chain,test_rotate_nucl_chain
     use myio, only : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
-
 
     ! .. argument
 
@@ -301,7 +291,7 @@ subroutine read_chains_XYZ_nucl(info)
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
-    real(dp) :: chain(3,nseg)       ! chains(x,i)= coordinate x of segement i ,x=2 y=3,z=1  
+    real(dp) :: chain(3,nseg),chain_rot(3,nseg)       ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
     real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
@@ -309,8 +299,6 @@ subroutine read_chains_XYZ_nucl(info)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(dp) :: theta 
-    real(dp), allocatable, dimension(:,:) :: theta_array
     real(dp) :: xc,yc,zc               
     real(dp) :: energy                                             
     character(len=25) :: fname
@@ -341,15 +329,15 @@ subroutine read_chains_XYZ_nucl(info)
     if(exist) then
         open(unit=newunit(un),file=fname,status='old',iostat=ios)
     else
-        print*,'traj.rank.xyz file does not exit'
+        print*,' traj file :',fname,' does not exit'
         info = myio_err_chainsfile
         return
-    end if
+    endif
     if(ios >0 ) then
         print*, 'Error opening file : iostat =', ios
         info = myio_err_chainsfile
         return
-    end if
+    endif
 
     if(isChainEnergyFile) then
         write(istr,'(I4)')rankfile
@@ -362,27 +350,21 @@ subroutine read_chains_XYZ_nucl(info)
             print*,text
             info = myio_err_energyfile
             return
-        end if
+        endif
         if(ios >0 ) then
             print*, 'Error opening file : iostat =', ios
             info = myio_err_energyfile
             return
-        end if
-    end if    
-
+        endif
+    endif    
 
     conf=1                    ! counter for conformations                                                           
     conffile=0                ! counter for conformations in file    
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
-
     seed=435672               ! seed for random number generator                                                                               
     
-    ! maxnchains= maxnchainsrotations  ! maximum number of rotation conf                                                                  
-    ! maxntheta = maxnchainsrotationsxy! maximum number of rotation in xy-plane
-    ! call init_loop_rot_angle(maxntheta,ngr,theta_array) ! aray of angles of rotation 
-
     ios=0
 
     Lz= nz*delta            ! maximum height box 
@@ -396,12 +378,16 @@ subroutine read_chains_XYZ_nucl(info)
 
     do while ((conf<=max_confor).and.isReadGood)
     
-        read(un,*,iostat=ios)nsegfile
-        if(ios/=0) isReadGood=.false.
-        read(un,*,iostat=ios)str 
-        if(ios/=0) isReadGood=.false.   
+
+        if(conf.ne.1) then ! skip lines
+            read(un,*,iostat=ios)str
+            read(un,*,iostat=ios)str
+        else               ! read preamble
+            read(un,*,iostat=ios)nsegfile
+            if(ios/=0) isReadGood=.false.
+            read(un,*,iostat=ios)str 
+            if(ios/=0) isReadGood=.false.   
         
-        if(conf==1) then
             if(nsegfile.ne.nseg) then 
                 text="nseg chain file not equal internal nseg : stop program"
                 call print_to_log(LogUnit,text)
@@ -421,11 +407,6 @@ subroutine read_chains_XYZ_nucl(info)
             if(ios/=0) isReadGood=.false. 
         enddo
      
-        !write(rank+101,*)"conf=",conf
-        !do s=1,nseg
-        !    write(rank+101,*)xseg(1,s),xseg(2,s),xseg(3,s)
-        !enddo
-
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
@@ -434,19 +415,23 @@ subroutine read_chains_XYZ_nucl(info)
             conffile=conffile +1 
            
             do s=1,nseg        
-                chain(1,s) = xseg(1,s)-xseg(1,sgraft) +xcm
-                chain(2,s) = xseg(2,s)-xseg(2,sgraft) +ycm 
-                chain(3,s) = xseg(3,s)-xseg(3,sgraft) +zcm
+                chain(1,s) = xseg(1,s)-xseg(1,sgraftpts(1)) 
+                chain(2,s) = xseg(2,s)-xseg(2,sgraftpts(1)) 
+                chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
   
+           !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+           !call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+           chain_rot=chain
+
             select case (geometry)
             case ("cubic")
 
                 do s=1,nseg
 
-                    x(s) = pbc(chain(1,s),Lx) ! periodic boundary conditions in x and y and z direcxtion 
-                    y(s) = pbc(chain(2,s),Ly)
-                    z(s) = pbc(chain(3,s),Lz)  
+                    x(s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions in x and y and z direcxtion 
+                    y(s) = pbc(chain_rot(2,s)+ycm,Ly)
+                    z(s) = pbc(chain_rot(3,s)+zcm,Lz)  
 
                     ! transforming form real- to lattice coordinates                 
                     xi = int(x(s)/delta)+1
@@ -476,15 +461,18 @@ subroutine read_chains_XYZ_nucl(info)
             case("prism") 
                     
                 do s=1,nseg
+                    xp(s) = chain_rot(1,s)+xcm
+                    yp(s) = chain_rot(2,s)+ycm
+                    zp(s) = chain(3,s)+zcm
 
                     ! .. transformation to prism coordinates 
-                    xpp(s) = ut(chain(1,s),yp(s))
-                    ypp(s) = vt(chain(2,s),yp(s))
+                    xpp(s) = ut(xp(s),yp(s))
+                    ypp(s) = vt(xp(s)+ycm,yp(s))
 
                     ! .. periodic boundary conditions in u and v ands z direction
                     x(s) = pbc(xpp(s),Lx) 
                     y(s) = pbc(ypp(s),Ly)
-                    z(s) = pbc(chain(3,s),Lz)        
+                    z(s) = pbc(zp(s),Lz)        
 
                     ! .. transforming form real- to lattice coordinates                 
                     xi = int(x(s)/delta)+1
@@ -559,7 +547,7 @@ subroutine read_graftpts_xyz_nucl(info)
     use parameters, only : unit_conv
     use myio, only : myio_err_chainsfile, myio_err_graft
     use myutils,  only : newunit
-    use volume, only : sgraft
+    use volume, only : sgraftpts
 
     ! .. argument
 
@@ -604,7 +592,7 @@ subroutine read_graftpts_xyz_nucl(info)
     isGraftItem=.false.
     do s=1,2
         read(un,*,iostat=ios)item,xc,yc,zc
-        if(item==sgraft) then
+        if(item==sgraftpts(1)) then
             t=1
             isGraftItem=.true.
         else

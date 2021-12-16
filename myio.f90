@@ -27,6 +27,7 @@ module myio
     integer, parameter ::  myio_err_nseg      = 20
     integer, parameter ::  myio_err_inputlabel = 21
 
+
     integer :: num_cNaCl   ! number of salt concentration considered
     integer :: num_cMgCl2
     integer :: num_cKCl
@@ -232,7 +233,7 @@ subroutine read_inputfile(info)
             case ('geometry')
                 read(buffer,*,iostat=ios) geometry
             case ('sgraft')
-                read(buffer,*,iostat=ios) sgraft
+                read(buffer,*,iostat=ios) sgraftpts(1),sgraftpts(2),sgraftpts(3)
             case ('gamma')
                 read(buffer,*,iostat=ios) gamma
             case ('write_mc_chains')
@@ -247,6 +248,7 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) maxfkfunevals
                 isSet_maxfkfunevals=.true.
             case ('dielect_env')
+                print*,"hello: dielect"
                 read(buffer,*,iostat=ios) dielect_env
             case ('VdWscale%val')
                 read(buffer,*,iostat=ios) VdWscale%val
@@ -1911,7 +1913,7 @@ subroutine output_neutral
         xpolfilename='xpol.'//trim(fnamelabel)
         xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
-        !xprofilename='xpro.'//trim(fnamelabel)
+        xprofilename='xpro.'//trim(fnamelabel)
 
 
         !      .. opening files
@@ -1919,7 +1921,7 @@ subroutine output_neutral
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
-        !open(unit=newunit(un_xpro),file=xprofilename)
+        open(unit=newunit(un_xpro),file=xprofilename)
 
 
     else ! check that files are open
@@ -1931,8 +1933,8 @@ subroutine output_neutral
         if(.not.isopen) write(*,*)"un_xsol is not open"
         inquire(unit=un_xpolz, opened=isopen)
         if(.not.isopen) write(*,*)"un_xpolz is not open"
-        !inquire(unit=un_xpro, opened=isopen)
-        !if(.not.isopen) write(*,*)"un_xpro is not open"
+        inquire(unit=un_xpro, opened=isopen)
+        if(.not.isopen) write(*,*)"un_xpro is not open"
     endif
 
     !   .. writting files
