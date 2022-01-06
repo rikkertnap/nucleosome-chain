@@ -39,7 +39,7 @@ module myio
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_q
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpolz, un_xpol, un_fdis, un_xpro, un_fdisP
+    integer :: un_dip ,un_dielec,un_xpolABz, un_xpolz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -112,7 +112,7 @@ subroutine read_inputfile(info)
     sigmaSurfL = 0.0_dp
     sigmaSurfR = 0.0_dp
 
-    ios=0
+    ios = 0
     line = 0
 
     ! ios<0 : if an end of record condition is encountered or if an end of file condition was detected.
@@ -198,6 +198,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) Rpro
             case ('nsize')
                 read(buffer,*,iostat=ios) nsize
+            case ('nnucl')
+                read(buffer,*,iostat=ios) nnucl   
             case ('nseg')
                 read(buffer,*,iostat=ios) nseg
             case ('nsegtypes')
@@ -214,6 +216,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) typesfname
             case('lsegfname')
                 read(buffer,*,iostat=ios) lsegfname
+            case('segcmfname')
+                read(buffer,*,iostat=ios) segcmfname
             case ('nx')
                 read(buffer,*,iostat=ios) nx
             case ('ny')
@@ -233,7 +237,7 @@ subroutine read_inputfile(info)
             case ('geometry')
                 read(buffer,*,iostat=ios) geometry
             case ('sgraft')
-                read(buffer,*,iostat=ios) sgraftpts(1),sgraftpts(2),sgraftpts(3)
+                read(buffer,*,iostat=ios) sgraftpts(1),sgraftpts(2),sgraftpts(3)  
             case ('gamma')
                 read(buffer,*,iostat=ios) gamma
             case ('write_mc_chains')
@@ -293,6 +297,7 @@ subroutine read_inputfile(info)
 
     bcflag(LEFT)="cc"
     bcflag(RIGHT)="cc"
+
 
 
     ! .. check error flag
@@ -1130,7 +1135,7 @@ subroutine output_brush_mul
     use energy
     use surface
     use myutils, only : newunit
-    use chains, only : isHomopolymer
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle
 
     !     .. local arguments
 
@@ -1158,6 +1163,7 @@ subroutine output_brush_mul
     character(len=90) :: densfracPfilename
     character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
+    character(len=90) :: anglesfilename
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
@@ -1192,6 +1198,7 @@ subroutine output_brush_mul
         densfracPfilename='densityfracP.'//trim(fnamelabel)
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
         qfilename='q.'//trim(fnamelabel)
+        anglesfilename='angles.'//trim(fnamelabel)
 
         !     .. opening files
 
@@ -1204,6 +1211,7 @@ subroutine output_brush_mul
         if(systype=="brushdna") open(unit=newunit(un_fdisP),file=densfracPfilename)
         open(unit=newunit(un_q),file=qfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
+        open(unit=newunit(un_angle),file=anglesfilename)
 
 
         if(verboseflag=="yes") then
@@ -1259,18 +1267,17 @@ subroutine output_brush_mul
 
     endif
 
-!    do i=1,nsurf
-!        write(un_psi,*)psiSurfL(i)
-!    enddo
+    !  .. output of bond and dihedral angles
+    do i=1,nnucl-4
+        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+    enddo
+    write(un_angle,*)avbond_angle(nnucl-3)
+
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
         write(un_psi,*)psi(i)
     enddo
-
-!    do i=1,nsurf
-!       write(un_psi,*)psiSurfR(i)
-!    enddo
 
     write(un_q,*)q
 
@@ -1316,6 +1323,8 @@ subroutine output_brush_mul
         write(un_sys,*)"isHomopolymer= ",isHomopolymer
         write(un_sys,*)'nseg        = ',nseg
         write(un_sys,*)'nsegtypes   = ',nsegtypes
+        write(un_sys,*)'nnucl       = ',nnucl
+        write(un_sys,*)'sgraftpts   = ',(sgraftpts(t),t=1,3)
         write(un_sys,*)'lseg        = ',(lsegAA(t),t=1,nsegtypes)
         write(un_sys,*)'cuantas     = ',cuantas
         write(un_sys,*)'denspol     = ',denspol
@@ -1408,6 +1417,8 @@ subroutine output_brush_mul
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
     write(un_sys,*)'height      = ',height
+    write(un_sys,*)'avRgsqr     = ',avRgsqr 
+    write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
     if(systype=="brushdna".or.systype=="brushborn")then
@@ -1452,6 +1463,8 @@ subroutine output_brush_mul
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
+
+
     ! .. closing files
 
     if(nz==nzmin) then
@@ -1463,6 +1476,7 @@ subroutine output_brush_mul
         if(systype=="brushdna") close(un_fdisP)
         close(un_xpolz)
         close(un_q)
+        close(un_angle)
         if(verboseflag=="yes") then
             close(un_xNa)
             close(un_xK)
@@ -1491,7 +1505,7 @@ subroutine output_elect
     use energy
     use surface
     use myutils, only : newunit
-    use chains, only : isHomopolymer
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle
 
     !     .. local arguments
 
@@ -1517,6 +1531,7 @@ subroutine output_elect
     character(len=90) :: densfracBfilename
     character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
+    character(len=90) :: anglesfilename
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
@@ -1553,19 +1568,19 @@ subroutine output_elect
         densfracBfilename='densityBfrac.'//trim(fnamelabel)
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
         qfilename='q.'//trim(fnamelabel)
+        anglesfilename='angles.'//trim(fnamelabel)
 
         !     .. opening files
 
         open(unit=newunit(un_sys),file=sysfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_psi),file=potentialfilename)
-
-
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_fdisA),file=densfracAfilename)
         open(unit=newunit(un_fdisB),file=densfracBfilename)
         open(unit=newunit(un_q),file=qfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
+        open(unit=newunit(un_angle),file=anglesfilename)
 
         if(verboseflag=="yes") then
             open(unit=newunit(un_xNa),file=xNafilename)
@@ -1617,19 +1632,17 @@ subroutine output_elect
 
     endif
 
+    !  .. output of bond and dihedral angles
+    do i=1,nnucl-4
+        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+    enddo
+    write(un_angle,*)avbond_angle(nnucl-3)
 
-    !do i=1,nsurf
-    !    write(un_psi,*)psiSurfL(i)
-    !enddo
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
         write(un_psi,*)psi(i)
     enddo
-
-    !do i=1,nsurf
-    !    write(un_psi,*)psiSurfR(i)
-    !enddo
 
     write(un_q,*)q
 
@@ -1672,6 +1685,7 @@ subroutine output_elect
            write(un_sys,*)'readinchains = ',readinchains
         endif
         write(un_sys,*)'nseg        = ',nseg
+        write(un_sys,*)'nnucl       = ',nnucl
         write(un_sys,*)'lseg        = ',lseg
         write(un_sys,*)'chainperiod = ',chainperiod
         write(un_sys,*)'cuantas     = ',cuantas
@@ -1782,6 +1796,8 @@ subroutine output_elect
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
     write(un_sys,*)'height      = ',height
+    write(un_sys,*)'avRgsqr     = ',avRgsqr 
+    write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -1844,6 +1860,7 @@ subroutine output_elect
         close(un_fdisB)
         close(un_xpolz)
         close(un_q)
+        close(un_angle)
         if(verboseflag=="yes") then
             close(un_xNa)
             close(un_xK)
@@ -1871,7 +1888,7 @@ subroutine output_neutral
     use field
     use energy
     use myutils, only : newunit
-    use chains, only : isHomopolymer
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle
 
     !     .. output file names
     character(len=90) :: sysfilename
@@ -1879,6 +1896,7 @@ subroutine output_neutral
     character(len=90) :: xpolfilename
     character(len=90) :: xpolzfilename
     character(len=90) :: xprofilename
+    character(len=90) :: anglesfilename
 
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
@@ -1913,8 +1931,8 @@ subroutine output_neutral
         xpolfilename='xpol.'//trim(fnamelabel)
         xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
-        xprofilename='xpro.'//trim(fnamelabel)
-
+        xprofilename='xpro.'//trim(fnamelabel) 
+        anglesfilename='angles.'//trim(fnamelabel) 
 
         !      .. opening files
         open(unit=newunit(un_sys),file=sysfilename)
@@ -1922,9 +1940,11 @@ subroutine output_neutral
         open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_xpro),file=xprofilename)
+        open(unit=newunit(un_angle),file=anglesfilename)
 
 
     else ! check that files are open
+
         inquire(unit=un_sys, opened=isopen)
         if(.not.isopen) write(*,*)"un_sys is not open"
         inquire(unit=un_xpol, opened=isopen)
@@ -1935,6 +1955,9 @@ subroutine output_neutral
         if(.not.isopen) write(*,*)"un_xpolz is not open"
         inquire(unit=un_xpro, opened=isopen)
         if(.not.isopen) write(*,*)"un_xpro is not open"
+        inquire(unit=un_angle, opened=isopen)
+        if(.not.isopen) write(*,*)"un_angles is not open"
+
     endif
 
     !   .. writting files
@@ -1957,6 +1980,11 @@ subroutine output_neutral
        write(un_xpolz,fmt1reals)xpolz(i)
     enddo
 
+    !  .. output of bond and dihedral angles
+    do i=1,nnucl-4
+        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+    enddo
+    write(un_angle,*)avbond_angle(nnucl-3)
     !     .. system information
 
     if(nz.eq.nzmax) then
@@ -1971,6 +1999,7 @@ subroutine output_neutral
            write(un_sys,*)'readinchains = ',readinchains
         endif
         write(un_sys,*)'nseg        = ',nseg
+        write(un_sys,*)'nnucl       = ',nnucl
         write(un_sys,*)'lseg        = ',lseg
         write(un_sys,*)'chainperiod = ',chainperiod
         write(un_sys,*)'cuantas     = ',cuantas
@@ -2020,6 +2049,8 @@ subroutine output_neutral
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'mu          = ',-log(q)
     write(un_sys,*)'height      = ',height
+    write(un_sys,*)'avRgsqr     = ',avRgsqr 
+    write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val= ',VdWscale%val
 
@@ -2029,6 +2060,7 @@ subroutine output_neutral
         close(un_xpol)
         close(un_sys)
         close(un_xpolz)
+        close(un_angle)
         !close(un_xpro)
     endif
 

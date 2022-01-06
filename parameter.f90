@@ -69,7 +69,7 @@
   
      !  .. input filenames select if chainmethod==file
     integer, parameter :: lenfname=40
-    character(len=lenfname) :: chainfname,vpolfname,pKafname,typesfname,lsegfname
+    character(len=lenfname) :: chainfname,vpolfname,pKafname,typesfname,lsegfname,segcmfname
 
     ! .. other physical quanties
   
@@ -115,11 +115,12 @@
     integer :: maxnchainsrotationsxy  ! number of rotations read in from input.in, assigned to maxnctheta in chaingenerator default 1  
     integer :: tA                     ! segment number type of monomer type A  
     logical :: write_mc_chains        ! if true MC chain write of file
-    logical :: isEnergyShift         ! if true energychain is shifted by energychain_min see chaingenerator
+    logical :: isEnergyShift          ! if true energychain is shifted by energychain_min see chaingenerator
 
     ! ..average structural properties of layer
 
     real(dp) :: height             ! average height of layer 
+    real(dp) :: avRsqr             ! average Radius of Gyration Nucleosome chain
     real(dp) :: qpolA              ! charge poly A of layer 
     real(dp) :: qpolB              ! charge poly B of layer 
     real(dp) :: qpol_tot           ! charge poly A+B of layer 
@@ -163,7 +164,7 @@
     real(dp) :: cCaCl2             ! concentration of CaCl2 in bulk in mol/liter
     real(dp),target :: cMgCl2      ! concentration of MgCl2 in bulk in mol/liter
     
-    type(looplist), target :: cpro ! concentration of crowder /protien in mol/liter 
+    type(looplist), target :: cpro ! concentration of crowder /protine in mol/liter 
 
     type (looplist), target :: pH
     real(dp) :: pHbulk             ! pH of bulk pH = -log([H+])
@@ -199,8 +200,12 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna") 
-                neq = (2+nsegtypes) * nsize 
+            case ("brushdna")
+                numeq=0 
+                do t=1,nsegtypes
+                    if(isrhoselfconsistent(t)) numeq=numeq+1
+                enddo    
+                neq = (2+numeq) * nsize 
             case ("brushborn")
                 numeq=0 
                 do t=1,nsegtypes
@@ -210,7 +215,11 @@ contains
             case ("elect") 
                 neq = 4 * nsize 
             case ("neutral") 
-                neq = (1+nsegtypes) * nsize
+                numeq=0
+                do t=1,nsegtypes
+                    if(isrhoselfconsistent(t)) numeq=numeq+1
+                enddo   
+                neq = (1+numeq) * nsize
             case ("neutralnoVdW") 
                 neq = nsize  
             case ("bulk water") 

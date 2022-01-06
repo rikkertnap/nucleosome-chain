@@ -30,8 +30,10 @@ contains
         case ("elect")
             call FEconf_elect(FEconf,Econf)
         case ("neutral")
+            print*,"Hello"
             call FEconf_neutral(FEconf,Econf)
         case ("neutralnoVdW")
+               print*,"Hello no VdW"
             call FEconf_neutral_noVdW(FEconf,Econf)
         case ("brush_mul","brushdna")
             call FEconf_brush_mul(FEconf,Econf)
@@ -55,6 +57,7 @@ contains
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_lnexp
@@ -66,8 +69,8 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
-        real(dp) :: FEconf_local
-        real(dp) :: Econf_local
+        real(dp) :: FEconf_local,Econf_local
+        real(dp) :: Rgsqr_local,Rendsqr_local
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -105,8 +108,10 @@ contains
 
         !  .. computation polymer volume fraction      
        
-        FEconf_local= 0.0_dp !init FEconf
-        Econf_local=0.0_dp ! init  Econf
+        FEconf_local= 0.0_dp !init 
+        Econf_local=0.0_dp   
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
             
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -117,8 +122,14 @@ contains
             enddo  
             pro=exp(lnpro-lnproshift)   
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
         enddo
         
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
+
         ! communicate FEconf
 
         if(rank==0) then
@@ -127,20 +138,30 @@ contains
             
             FEconf=FEconf_local
             Econf=Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-    
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
+
+                avRgsqr=avRgsqr+Rgsqr_local
+                avRendsqr=avRendsqr+Rendsqr_local
                 
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+        
         endif
 
 
@@ -155,10 +176,12 @@ contains
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_exp
         !use volume, only : ngr, nset_per_graft
+
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -168,6 +191,7 @@ contains
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
+        real(dp) :: Rgsqr_local,Rendsqr_local
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -195,6 +219,8 @@ contains
        
         FEconf_local= 0.0_dp !init FEconf
         Econf_local=0.0_dp ! init FEconf
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
             
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)        ! internal energy  
@@ -205,8 +231,14 @@ contains
             enddo    
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
         enddo
         
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
+
         ! communicate FEconf
 
         if(rank==0) then
@@ -214,20 +246,28 @@ contains
            
             FEconf=FEconf_local
             Econf=Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
 
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-            
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
+                avRgsqr=avRgsqr+Rgsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local
                 
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -240,6 +280,7 @@ contains
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters
         use VdW, only : VdW_contribution_lnexp
@@ -252,6 +293,7 @@ contains
         integer  :: i,t,g,gn,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
+        real(dp) :: Rgsqr_local,Rendsqr_local
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -301,6 +343,8 @@ contains
        
         FEconf_local= 0.0_dp !init FEconf
         Econf_local=0.0_dp ! init FEconf
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
          
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -311,8 +355,13 @@ contains
             enddo 
             pro=exp(lnpro-lnproshift)      
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
         enddo
         
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
         ! communicate FEconf
 
         if(rank==0) then
@@ -321,18 +370,28 @@ contains
 
             FEconf=FEconf_local
             Econf =Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local             
+                avRgsqr=avRgsqr+Rgsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local
+
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -345,6 +404,7 @@ contains
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters
         !use volume, only : ngr, nset_per_graft
@@ -357,6 +417,7 @@ contains
         integer  :: i,t,c,s,k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
+        real(dp) :: Rgsqr_local,Rendsqr_local
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -401,6 +462,8 @@ contains
        
         FEconf_local= 0.0_dp !init FEconf
         Econf_local=0.0_dp ! init FEconf
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
             
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)       ! internal energy  
@@ -411,8 +474,13 @@ contains
             enddo    
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
         enddo
         
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
+
         ! communicate FEconf
 
         if(rank==0) then
@@ -420,18 +488,29 @@ contains
            
             FEconf =FEconf_local
             Econf  =Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+            
                 FEconf=FEconf +FEconf_local
-                Econf =Econf + Econf_local             
+                Econf =Econf + Econf_local      
+                avRgsqr=avRgsqr+Rgsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local
+
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+    
         endif
 
 
@@ -446,6 +525,7 @@ contains
         use globals, only : nseg, nsegtypes, nsize, cuantas
         !use volume, only : ngr, nset_per_graft
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
 
@@ -458,7 +538,8 @@ contains
         real(dp) :: pro,lnpro
         real(dp) :: FEconf_local, Econf_local
         real(dp) :: q_local
-        
+        real(dp) :: Rgsqr_local,Rendsqr_local
+
         ! .. executable statements 
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -489,6 +570,8 @@ contains
     
         FEconf_local= 0.0_dp
         Econf_local=0.0_dp 
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
 
         do c=1,cuantas             ! loop over cuantas
         
@@ -503,9 +586,12 @@ contains
             enddo
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-                  
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro         
         enddo  
 
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
 
         ! communicate FEconf
 
@@ -513,20 +599,28 @@ contains
             ! normalize
             
             FEconf=FEconf_local
-            
             Econf=Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
+
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+            
                 FEconf=FEconf + FEconf_local 
-                Econf= Econf  + Econf_local     
+                Econf= Econf  + Econf_local  
+                avRgsqr=avRgsqr+Rgsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local   
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
         Econf=0.0_dp
@@ -541,6 +635,7 @@ contains
 
         use globals, only : nseg, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW
@@ -550,6 +645,8 @@ contains
         use VdW, only : VdW_contribution_lnexp
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
         use dielectric_const, only : dielectfcn, born
+
+
         
         real(dp), intent(out) :: FEconf,Econf
         
@@ -563,6 +660,7 @@ contains
         real(dp) :: rhopolAA(nsize),rhopolACa(nsize), rhopolAMg(nsize)
         real(dp) :: lbr,expborn,Etotself,expsqrgrad, Eself
         real(dp) :: expsqrgradpsi(nsize),expEtotself(nsize)
+        real(dp) :: Rgsqr_local,Rendsqr_local
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -681,6 +779,8 @@ contains
        
         FEconf_local= 0.0_dp !init FEconf
         Econf_local=0.0_dp ! init FEconf
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
          
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -691,7 +791,12 @@ contains
             enddo 
             pro=exp(lnpro-lnproshift)      
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
         enddo
+
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
 
         ! communicate FEconf
 
@@ -702,18 +807,28 @@ contains
 
             FEconf=FEconf_local
             Econf =Econf_local
+            avRgsqr=Rgsqr_local
+            avRendsqr=Rendsqr_local
             
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                FEconf=FEconf+FEconf_local
-                Econf =Econf +Econf_local             
+                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+            
+                FEconf=FEconf + FEconf_local 
+                Econf= Econf  + Econf_local  
+                avRgsqr=avRgsqr+Rgsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local   
+                           
             enddo 
         else     ! Export results
             dest = 0
             call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 

@@ -252,7 +252,6 @@ subroutine read_chains_XYZ(info)
 
     call read_chains_XYZ_nucl(info)
 
-   
 end subroutine
 
 
@@ -299,7 +298,7 @@ subroutine read_chains_XYZ_nucl(info)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(dp) :: xc,yc,zc               
+    real(sp) :: xc,yc,zc               
     real(dp) :: energy                                             
     character(len=25) :: fname
     integer :: ios, rankfile, iosene
@@ -311,6 +310,7 @@ subroutine read_chains_XYZ_nucl(info)
     real(dp) :: d_type_num, d_atom_num
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
+    character(len=80), parameter  :: fmt3reals = "(5F25.16)"
 
     ! .. executable statements   
 
@@ -380,12 +380,12 @@ subroutine read_chains_XYZ_nucl(info)
     
 
         if(conf.ne.1) then ! skip lines
-            read(un,*,iostat=ios)str
-            read(un,*,iostat=ios)str
+            read(un,*,iostat=ios)
+            read(un,*,iostat=ios) 
         else               ! read preamble
             read(un,*,iostat=ios)nsegfile
             if(ios/=0) isReadGood=.false.
-            read(un,*,iostat=ios)str 
+            read(un,*,iostat=ios) ! skip line
             if(ios/=0) isReadGood=.false.   
         
             if(nsegfile.ne.nseg) then 
@@ -395,18 +395,20 @@ subroutine read_chains_XYZ_nucl(info)
                 return
             endif    
         endif
-    
+
+        print*,isReadGood
+        
         do s=1,nseg              ! .. read form  trajecotory file
+    
             read(un,*,iostat=ios)xc,yc,zc
-            !print*,d_atom_num,xc,yc,zc,d_type_num
-            !i_atom_num=int(d_atom_num)
-            !i_type_num=int(i_type_num)
+            if(ios/=0) isReadGood=.false. 
+            print*,s,xc,yc,zc,isReadGood
+            
             xseg(1,s) = xc*scalefactor 
             xseg(2,s) = yc*scalefactor  
             xseg(3,s) = zc*scalefactor 
-            if(ios/=0) isReadGood=.false. 
+            
         enddo
-     
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
@@ -420,9 +422,27 @@ subroutine read_chains_XYZ_nucl(info)
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
   
-           !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
-           !call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
-           chain_rot=chain
+            Rgsqr(conffile)   = radius_gyration_cm(chain,nnucl,segcm)
+            Rendsqr(conffile) = end_to_end_distance_cm(chain,nnucl,segcm)
+            bond_angle(:,conffile)     = bond_angles_cm(chain,nnucl,segcm)
+            dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
+
+            print*,Rgsqr(conffile),Rendsqr(conffile)
+            print*,bond_angle(:,conffile)
+            print*,dihedral_angle(:,conffile)
+
+            ! rotate chain 
+            call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+            call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+
+            Rgsqr(conffile)   = radius_gyration_cm(chain_rot,nnucl,segcm)
+            Rendsqr(conffile) = end_to_end_distance_cm(chain_rot,nnucl,segcm)
+            bond_angle(:,conffile)     = bond_angles_cm(chain_rot,nnucl,segcm)
+            dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
+
+            print*,Rgsqr(conffile),Rendsqr(conffile)
+            print*,bond_angle(:,conffile)
+            print*,dihedral_angle(:,conffile) 
 
             select case (geometry)
             case ("cubic")
@@ -1497,5 +1517,277 @@ subroutine VdWpotentialenergy(chain,Energy)
 
 end subroutine VdWpotentialenergy
 
+
+! .. commuter radius of gyration of a sub chain conformation
+! .. sub chain confomation defined by sequence segcm = segment number 
+! .. denoting center mass of  the nmer histone of the nucleosome nmer-array
+
+function radius_gyration_cm(chain,nmer,segcm) result(Rgsqr)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcm(:) 
+
+    real(dp) :: Rgsqr
+    integer :: i,j,k,isegcm,jsegcm
+
+    Rgsqr=0.0_dp
+    
+    do i=1,nmer
+        isegcm=segcm(i)
+        do j=1,nmer
+            jsegcm=segcm(j)
+            do k=1,3
+                Rgsqr=Rgsqr+(chain(k,isegcm)-chain(k,jsegcm))**2
+            enddo
+        enddo
+    enddo     
+
+    Rgsqr=Rgsqr/(2.0_dp*nmer*nmer)
+
+end function radius_gyration_cm
+
+
+function radius_gyration(chain,nseg) result(Rgsqr)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nseg
+    real(dp) :: Rgsqr
+    integer :: i,j,k
+
+    Rgsqr=0.0_dp
+    
+    do i=1,nseg
+        do j=1,nseg
+            do k=1,3
+                Rgsqr=Rgsqr+(chain(k,i)-chain(k,j))**2
+            enddo
+        enddo
+    enddo     
+
+    Rgsqr=Rgsqr/(2.0_dp*nseg*nseg)
+
+end function radius_gyration
+
+
+function end_to_end_distance_cm(chain,nmer,segcm) result(Rendsqr)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcm(:)  
+
+    real(dp) :: Rendsqr
+    integer :: isegcm, jsegcm, k
+
+    Rendsqr=0.0_dp
+       
+    isegcm=segcm(1)
+    jsegcm=segcm(nmer)
+
+    do k=1,3
+        Rendsqr=Rendsqr+(chain(k,isegcm)-chain(k,jsegcm))**2
+    enddo     
+
+end function end_to_end_distance_cm
+
+function bond_angles_cm(chain,nmer,segcm) result(bondangle)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcm(:)
+    real(dp) :: bondangle(nmer-2)
+
+    ! .. local variables
+    real(dp) :: u1(3), u2(3), absu1, absu2
+    integer :: i,j,k ,isegcm, ipls1segcm
+
+
+    bondangle=0.0_dp    
+    isegcm=segcm(1)
+    ipls1segcm=segcm(2)
+    do k=1,3
+        u1(k)=(chain(k,ipls1segcm)-chain(k,isegcm))
+    enddo
+
+    absu1=sqrt(dot_product(u1,u1))
+
+    do i=3,nmer
+        isegcm=segcm(i-1)
+        ipls1segcm=segcm(i)
+        do k=1,3
+            u2(k)=(chain(k,ipls1segcm)-chain(k,isegcm))
+        enddo
+        absu2=sqrt(dot_product(u2,u2))
+        bondangle(i-2)=acos(dot_product(u1,u2)/(absu2*absu1))
+        u1=u2
+        absu1=absu2
+    enddo     
+
+end function bond_angles_cm
+
+
+function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcm(:) 
+    
+    real(dp) :: dihedral(nmer-3)
+    
+    ! .. local variables
+    integer  :: i,j,k 
+    real(dp) :: u1(3),u2(3),u3(3),n123(3),n234(3)
+    real(dp) :: absn123, absn234, absu2
+    integer  :: isegcm,ipls1segcm,ipls2segcm,ipls3segcm
+    real(dp) :: theta(nmer-3), costheta, x, y, sintheta, sintheta2 ,theta2,sintheta3, sintheta4
+    
+
+
+    if(nmer>=4) then  ! need at least 4 unit/nucleosomes
+
+        isegcm    =segcm(1)
+        ipls1segcm=segcm(2)
+        ipls2segcm=segcm(3)
+        ipls3segcm=segcm(4)
+
+        do k=1,3
+            u1(k)=(chain(k,ipls1segcm)-chain(k,isegcm    ))
+            u2(k)=(chain(k,ipls2segcm)-chain(k,ipls1segcm))
+            u3(k)=(chain(k,ipls3segcm)-chain(k,ipls2segcm))
+        enddo
+
+        n123=crossproduct(u1,u2)
+        n234=crossproduct(u2,u3)
+
+        absn123=sqrt(dot_product(n123,n123))  ! or sqrt(sum(n123*n123)) 
+        absn234=sqrt(dot_product(n234,n234))
+        absu2=sqrt(dot_product(u2,u2))
+   
+        y = dot_product(u2,crossproduct(n123,n234)) 
+        x = absu2*dot_product(n123,n234)   
+            
+        theta(1)=atan2(y,x)  !formula See e.g Bondel and Karplus j. comp, chem. 17 1132
+
+        costheta= dot_product(n123,n234)/(absn123*absn234) ! cos first dihedral angle
+        sintheta= dot_product(u2,crossproduct(n123,n234))/(absu2*absn123*absn234)
+
+       ! print*,"theta    =",theta(1)
+       ! print*,"costheta  =",costheta
+       ! print*,"sintheta  =",sintheta
+       ! print*,"sin^2+cos^2=?",sintheta**2+costheta**2
+       ! print*,"tantheta =",tan(theta(1))," <=>",sintheta/costheta
+
+       ! following dihedral angles 
+
+        do i=5,nmer 
         
+            ! advance one unit
+            n123=n234 
+            absn123=absn234 
+            u1=u2
+            u2=u3 
+
+            ipls2segcm=ipls3segcm
+            ipls3segcm=segcm(i) 
+
+            do k=1,3
+                u3(k)=(chain(k,ipls3segcm)-chain(k,ipls2segcm))
+            enddo
+
+            n234=crossproduct(u2,u3)
+            absn234=sqrt(dot_product(n234,n234))
+            absu2=sqrt(dot_product(u2,u2))
+           
+            y = dot_product(u2,crossproduct(n123,n234)) 
+            x = absu2*dot_product(n123,n234)
+            
+            theta(i-3)=atan2(y,x) ! i-3 the cos dihedral angle
+
+        enddo    
+   
+    endif   
+
+    dihedral=theta    
+
+end function dihedral_angles_cm
+
+! inner product of vectors x and y with dimenstion 3
+! similar to intrisic function dotproduct
+
+function dotproduct(x,y) result(dotp)
+   
+    real(dp), dimension(3) :: x, y
+    real(dp) :: dotp
+  
+    dotp = sum(x*y)
+
+end function dotproduct
+
+
+function crossproduct(x,y)result(crossprod)
+  
+  real(dp), intent(in), dimension(3) :: x, y
+  real(dp), dimension(3) :: crossprod
+  
+  crossprod(1) = x(2)*y(3) - x(3)*y(2)
+  crossprod(2) =-x(3)*y(1) + x(1)*y(3)
+  crossprod(3) = x(1)*y(2) - x(2)*y(1)
+
+end function crossproduct
+        
+
+!  .. read segment id number to which we assign center of mass of one histone from file
+!  .. segment id numbers stored in array segcm 
+!  .. nucleosome has nnucl histones 
+!  .. post segcm assigned
+
+subroutine make_segcm(segcm,nnucl,filename)
+
+    use mpivars
+    use  myutils
+    
+    !     .. arguments 
+    integer, intent(inout) :: segcm(:)
+    character(lenfname), intent(in) :: filename
+    integer,  intent(in) :: nnucl
+
+    !      .. local variables
+    integer :: ios, un  ! un = unit number
+    integer :: s
+    character(80) :: istr,str,letter
+
+    !     .. reading in of variables from file
+    open(unit=newunit(un),file=filename,iostat=ios,status='old')
+    if(ios/=0 ) then
+        write(istr,'(I2)')ios
+        str='Error opening file '//trim(adjustl(filename))//' : iostat = '//istr
+        print*,str
+        call MPI_FINALIZE(ierr)
+        stop
+    endif
+    
+    s=0
+    ios=0
+
+    do while (s<nnucl.and.ios==0)
+        s=s+1
+        read(un,*,iostat=ios)segcm(s)
+    enddo
+
+    if(s/=nnucl.or.ios/=0) then 
+        str="reached end of file before all elements read or ios error"
+        print*,str
+        str="read file "//trim(adjustl(filename))//" failed"
+        print*,str
+        call MPI_FINALIZE(ierr)
+        stop
+    endif
+
+    close(un)
+
+end subroutine make_segcm
+
+
+
+
 end module chaingenerator

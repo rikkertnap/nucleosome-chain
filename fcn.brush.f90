@@ -528,7 +528,7 @@ contains
         real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
-        integer  :: count_sc
+        integer  :: count_scf
 
         !     .. executable statements 
 
@@ -558,11 +558,11 @@ contains
         !    enddo    
         !enddo
         
-        count_sc=0    
+        count_scf=0    
         do t=1,nsegtypes
             if(isrhoselfconsistent(t)) then
-                count_sc=count_sc+1 
-                k=(count_sc+1)*n
+                count_scf=count_scf+1 
+                k=(count_scf+1)*n
                 do i=1,n                         
                     rhopolin(i,t) = x(i+k)          ! density 
                 enddo
@@ -768,11 +768,11 @@ contains
             enddo    
 
             ! self-consistent equation of densities
-            count_sc=0    
+            count_scf=0    
             do t=1,nsegtypes
                 if(isrhoselfconsistent(t)) then
-                    count_sc=count_sc+1 
-                    k=(count_sc+1)*n
+                    count_scf=count_scf+1 
+                    k=(count_scf+1)*n
                     do i=1,n   
                         f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
                     enddo
@@ -1793,6 +1793,7 @@ contains
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
+        integer  :: count_scf
 
         !     .. executable statements 
 
@@ -1816,17 +1817,21 @@ contains
             xpro(i) = expmu%pro*(xsol(i)**vpro) ! crowder volume fraction  
         enddo 
 
+        count_scf=0   
         do t=1,nsegtypes
-            k=t*n
-            do i=1,n 
-                rhopolin(i,t) = x(i+k)  ! .. density 
-                rhopol(i,t)=0.0_dp      ! .. assign global and local polymer density 
-                local_rhopol(i,t)=0.0_dp
-            enddo    
+            if(isrhoselfconsistent(t)) then
+                count_scf=count_scf+1 
+                k=count_scf*n+1
+                do i=1,n                         
+                    rhopolin(i,t) = x(i+k)      ! density 
+                enddo
+            endif        
         enddo
 
         do t=1,nsegtypes
-            do i=1,n
+            do i=1,n 
+                rhopol(i,t) = 0.0_dp      ! .. assign global and local polymer density 
+                local_rhopol(i,t) = 0.0_dp
                 fdis(i,t)  = 0.0_dp
                 lnexppi(i,t) = log(xsol(i))*vpol(t)  
             enddo
@@ -1916,10 +1921,23 @@ contains
                 do i=1,n
                     rhopol(i,t) = rhopol0 * rhopol(i,t)       ! density polymer of type t  
                     xpol(i)     = xpol(i) + rhopol(i,t)*vpol(t)*vsol  ! volume fraction polymer
-                    ! ... scf eq for density
-                    f(i+t*n)    = rhopol(i,t) - rhopolin(i,t) 
+                    ! .. scf eq for density
+                    !f(i+t*n)    = rhopol(i,t) - rhopolin(i,t) 
                 enddo
-            enddo        
+            enddo   
+
+            ! .. scf eq for density       
+            count_scf=0    
+            do t=1,nsegtypes
+                if(isrhoselfconsistent(t)) then
+                    count_scf=count_scf+1 
+                    k=count_scf*n +1 
+                    do i=1,n   
+                        f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
+                    enddo
+                endif        
+            enddo
+
 
             do i=1,n
                 f(i) = xpol(i)+xsol(i)+xpro(i)-1.0_dp
@@ -2220,7 +2238,7 @@ contains
         neqint=int(neq,kind(neqint))     ! explict conversion from integer(8) to integer
     
         select case (systype)
-            case ("brush_mul","brushdna")  ! multi copolymer:
+            case ("brush_mul","brushdna")      ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo
@@ -2245,13 +2263,13 @@ contains
                     constr(i+3*nsize)=1.0_dp   ! number density B 
                 enddo  
 
-            case ("neutral","neutralnoVdW")                 ! neutral polymers
+            case ("neutral","neutralnoVdW")    ! neutral polymers
             
                 do i=1,nsize
                     constr(i)=1.0_dp
                 enddo 
             
-            case ("brush_mulnoVdW")                 ! multi copolymer:
+            case ("brush_mulnoVdW")            ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo

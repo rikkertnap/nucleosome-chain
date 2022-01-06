@@ -10,13 +10,12 @@ module globals
   
     !     .. variables
 
-
-
     integer  :: nsize         ! size lattice, numer of layers
-    integer  :: nseg          ! length of polymer 
+    integer  :: nnucl         ! number of nucleosome
+    integer  :: nseg          ! number of segment 
     integer  :: nsegtypes     ! number of segment types 
-    integer  :: cuantas       ! number of polymer configurations
-    integer  :: max_confor    ! maximum number of polymer configurations
+    integer  :: cuantas       ! number of configurations
+    integer  :: max_confor    ! maximum number of configurations
    
     integer(8)  :: neq        ! number of non-linear equations
     integer(8)  :: neqmax     ! maximum number of non-linear equations

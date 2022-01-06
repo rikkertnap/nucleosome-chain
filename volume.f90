@@ -29,6 +29,8 @@ module volume
     ! variable for grafting position
 
     integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
+    integer, dimension(:), allocatable :: sRg ! unit numbers of AA in histone close to cm of : nmumber of number = nnucl
+
    
     private :: beta
 
