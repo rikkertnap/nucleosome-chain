@@ -97,6 +97,7 @@ subroutine read_inputfile(info)
     isSet_precondition=.false.
     isSet_savePalpha  =.false.
     write_mc_chains   =.false.
+    write_struct      =.false.
     isSet_EnergyShift =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false.
@@ -252,7 +253,6 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) maxfkfunevals
                 isSet_maxfkfunevals=.true.
             case ('dielect_env')
-                print*,"hello: dielect"
                 read(buffer,*,iostat=ios) dielect_env
             case ('VdWscale%val')
                 read(buffer,*,iostat=ios) VdWscale%val
@@ -274,6 +274,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) pKd%stepsize
             case ('pKd%delta')
                 read(buffer,*,iostat=ios) pKd%delta
+            case ("write_struct")
+                read(buffer,*,iostat=ios) write_struct
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped

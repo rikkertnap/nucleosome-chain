@@ -1,7 +1,9 @@
 ! --------------------------------------------------------------|
 ! ConfEntropy.f90:                                              |
 ! constructs the free energy Conformational Entropy             |
-!  beta Fconf = sigma \sum_alpha P(\alpha)lnP{\alpha)           |
+! beta Fconf = sigma \sum_alpha P(\alpha)lnP(\alpha)            |
+! It also computes other scructure averages involving P(\alpha) |
+! namely Rg,Rend_to_end distance, bond and dihedral angles      |
 ! --------------------------------------------------------------|
 
 
@@ -11,7 +13,7 @@ module conform_entropy
     use precision_definition
     implicit none
 
-    private                    ! default all routines in this module private 
+    private                    ! default all routines in this module private 
     public  ::  FEconf_entropy ! only this subroutine  public
    
 contains
@@ -30,10 +32,8 @@ contains
         case ("elect")
             call FEconf_elect(FEconf,Econf)
         case ("neutral")
-            print*,"Hello"
             call FEconf_neutral(FEconf,Econf)
         case ("neutralnoVdW")
-               print*,"Hello no VdW"
             call FEconf_neutral_noVdW(FEconf,Econf)
         case ("brush_mul","brushdna")
             call FEconf_brush_mul(FEconf,Econf)
@@ -55,22 +55,26 @@ contains
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle        
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_lnexp
-        !use volume, only : ngr, nset_per_graft
 
         real(dp), intent(out) :: FEconf,Econf
         
         ! .. declare local variables
-        real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
+
+        real(dp) :: lnexppi(nsize,nsegtypes)   ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k       ! dummy indices
+        integer  :: i,t,g,gn,c,s,k             ! dummy indices
         real(dp) :: FEconf_local,Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -112,6 +116,11 @@ contains
         Econf_local=0.0_dp   
         Rgsqr_local=0.0_dp
         Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
+
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -120,26 +129,35 @@ contains
                 t=type_of_monomer(s)                
                 lnpro = lnpro+lnexppi(k,t)
             enddo  
-            pro=exp(lnpro-lnproshift)   
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            pro=exp(lnpro-lnproshift)  
 
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+            FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+
+            Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
+            Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
+            
+            bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+            
         enddo
         
-        Rgsqr_local=Rgsqr_local/q
-        Rendsqr_local=Rendsqr_local/q
+        Rgsqr_local = Rgsqr_local/q
+        Rendsqr_local = Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
 
-        ! communicate FEconf
+        ! communicate local quantities
 
         if(rank==0) then
 
             ! normalize
             
-            FEconf=FEconf_local
-            Econf=Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
+            FEconf = FEconf_local
+            Econf = Econf_local
+            avRgsqr = Rgsqr_local
+            avRendsqr = Rendsqr_local
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local 
             
             do i=1, size-1
                 source = i
@@ -147,12 +165,17 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
 
                 avRgsqr=avRgsqr+Rgsqr_local
                 avRendsqr=avRendsqr+Rendsqr_local
+
+                avbond_angle = avbond_angle+bond_angle_local
+                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
                 
             enddo 
         else     ! Export results
@@ -161,6 +184,8 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -174,14 +199,13 @@ contains
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_exp
-        !use volume, only : ngr, nset_per_graft
-
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -192,6 +216,9 @@ contains
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3) 
+        integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -218,9 +245,14 @@ contains
         !  .. computation polymer volume fraction      
        
         FEconf_local= 0.0_dp !init FEconf
-        Econf_local=0.0_dp ! init FEconf
+        Econf_local=0.0_dp ! init Econf
         Rgsqr_local=0.0_dp
-        Rendsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp 
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
+
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)        ! internal energy  
@@ -230,14 +262,20 @@ contains
                 lnpro = lnpro+ lnexppi(k,t)
             enddo    
             pro=exp(lnpro-lnproshift)
+
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
 
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+            Rgsqr_local = Rgsqr_local + Rgsqr(c)*pro
+            Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
+            bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
+            dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
+
         enddo
         
-        Rgsqr_local=Rgsqr_local/q
-        Rendsqr_local=Rendsqr_local/q
+        Rgsqr_local = Rgsqr_local/q
+        Rendsqr_local = Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
 
         ! communicate FEconf
 
@@ -248,6 +286,8 @@ contains
             Econf=Econf_local
             avRgsqr=Rgsqr_local
             avRendsqr=Rendsqr_local
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local 
 
             do i=1, size-1
                 source = i
@@ -255,6 +295,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -268,6 +311,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+        
         endif
 
 
@@ -278,9 +324,10 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters
         use VdW, only : VdW_contribution_lnexp
@@ -294,6 +341,9 @@ contains
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -342,9 +392,14 @@ contains
         !  .. computation polymer volume fraction      
        
         FEconf_local= 0.0_dp !init FEconf
-        Econf_local=0.0_dp ! init FEconf
+        Econf_local=0.0_dp   !init Econf
         Rgsqr_local=0.0_dp
         Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
+
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
          
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -358,6 +413,8 @@ contains
 
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -379,11 +436,16 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+
                 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local             
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local
+                avbond_angle = avbond_angle+bond_angle_local
+                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
 
             enddo 
         else     ! Export results
@@ -392,6 +454,8 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -402,12 +466,12 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters
-        !use volume, only : ngr, nset_per_graft
         
         real(dp), intent(out) :: FEconf,Econf
         
@@ -418,6 +482,9 @@ contains
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -464,7 +531,13 @@ contains
         Econf_local=0.0_dp ! init FEconf
         Rgsqr_local=0.0_dp
         Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
             
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
+        
+
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)       ! internal energy  
             do s=1,nseg        ! loop over segments                     
@@ -476,6 +549,8 @@ contains
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -497,11 +572,16 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+
             
                 FEconf=FEconf +FEconf_local
                 Econf =Econf + Econf_local      
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local
+                avbond_angle = avbond_angle+bond_angle_local
+                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
 
             enddo 
         else     ! Export results
@@ -510,10 +590,10 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-    
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+        
         endif
-
-
 
     end subroutine FEconf_brush_mulnoVdW
 
@@ -522,10 +602,10 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
-        !use volume, only : ngr, nset_per_graft
+        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
 
@@ -539,6 +619,9 @@ contains
         real(dp) :: FEconf_local, Econf_local
         real(dp) :: q_local
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        integer  :: nbonds,ndihedrals
 
         ! .. executable statements 
 
@@ -572,6 +655,11 @@ contains
         Econf_local=0.0_dp 
         Rgsqr_local=0.0_dp
         Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
+
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
 
         do c=1,cuantas             ! loop over cuantas
         
@@ -587,7 +675,9 @@ contains
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro         
+            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
+            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro        
         enddo  
 
         Rgsqr_local=Rgsqr_local/q
@@ -609,11 +699,17 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+
             
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
                 avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local   
+                avRendsqr=avRendsqr+Rendsqr_local  
+                avbond_angle = avbond_angle+bond_angle_local
+                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
+
             enddo 
         else     ! Export results
             dest = 0
@@ -621,6 +717,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+        
         endif
 
         Econf=0.0_dp
@@ -633,9 +732,10 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr 
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle  
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW
@@ -653,7 +753,7 @@ contains
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,c,s,k,tc       ! dummy indices
+        integer  :: i,t,c,s,k,tc,l    ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         integer  :: tcfdis(3)
@@ -661,6 +761,9 @@ contains
         real(dp) :: lbr,expborn,Etotself,expsqrgrad, Eself
         real(dp) :: expsqrgradpsi(nsize),expEtotself(nsize)
         real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -742,8 +845,6 @@ contains
         enddo 
 
 
-
-
         do t=1,nsegtypes
       
             if(ismonomer_chargeable(t)) then    
@@ -781,7 +882,13 @@ contains
         Econf_local=0.0_dp ! init FEconf
         Rgsqr_local=0.0_dp
         Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
          
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3 
+
+
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
             do s=1,nseg        ! loop over segments                     
@@ -793,6 +900,10 @@ contains
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+            do l=1,nbonds
+                bond_angle_local(l) = bond_angle_local(l) +bond_angle(l,c)*pro
+            enddo    
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
         enddo
 
         Rgsqr_local=Rgsqr_local/q
@@ -816,11 +927,16 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+
             
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local   
+                avbond_angle = avbond_angle+bond_angle_local
+                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
                            
             enddo 
         else     ! Export results
@@ -829,6 +945,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+        
         endif
 
 

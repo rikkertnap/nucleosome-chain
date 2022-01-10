@@ -395,14 +395,11 @@ subroutine read_chains_XYZ_nucl(info)
                 return
             endif    
         endif
-
-        print*,isReadGood
         
         do s=1,nseg              ! .. read form  trajecotory file
     
             read(un,*,iostat=ios)xc,yc,zc
             if(ios/=0) isReadGood=.false. 
-            print*,s,xc,yc,zc,isReadGood
             
             xseg(1,s) = xc*scalefactor 
             xseg(2,s) = yc*scalefactor  
@@ -427,22 +424,18 @@ subroutine read_chains_XYZ_nucl(info)
             bond_angle(:,conffile)     = bond_angles_cm(chain,nnucl,segcm)
             dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
 
-            print*,Rgsqr(conffile),Rendsqr(conffile)
-            print*,bond_angle(:,conffile)
-            print*,dihedral_angle(:,conffile)
-
             ! rotate chain 
-            call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+            !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
             call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
 
-            Rgsqr(conffile)   = radius_gyration_cm(chain_rot,nnucl,segcm)
-            Rendsqr(conffile) = end_to_end_distance_cm(chain_rot,nnucl,segcm)
-            bond_angle(:,conffile)     = bond_angles_cm(chain_rot,nnucl,segcm)
-            dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
+            ! Rgsqr(conffile)   = radius_gyration_cm(chain_rot,nnucl,segcm)
+            ! Rendsqr(conffile) = end_to_end_distance_cm(chain_rot,nnucl,segcm)
+            ! bond_angle(:,conffile)     = bond_angles_cm(chain_rot,nnucl,segcm)
+            ! dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
 
-            print*,Rgsqr(conffile),Rendsqr(conffile)
-            print*,bond_angle(:,conffile)
-            print*,dihedral_angle(:,conffile) 
+            ! print*,Rgsqr(conffile),Rendsqr(conffile)
+            ! print*,bond_angle(:,conffile)
+            ! print*,dihedral_angle(:,conffile) 
 
             select case (geometry)
             case ("cubic")
@@ -556,8 +549,7 @@ subroutine read_chains_XYZ_nucl(info)
     close(un) 
     if(isChainEnergyFile) close(un_ene)
     
-    !deallocate(theta_array)
-
+    
 end subroutine read_chains_XYZ_nucl
 
 
@@ -1671,12 +1663,6 @@ function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
         costheta= dot_product(n123,n234)/(absn123*absn234) ! cos first dihedral angle
         sintheta= dot_product(u2,crossproduct(n123,n234))/(absu2*absn123*absn234)
 
-       ! print*,"theta    =",theta(1)
-       ! print*,"costheta  =",costheta
-       ! print*,"sintheta  =",sintheta
-       ! print*,"sin^2+cos^2=?",sintheta**2+costheta**2
-       ! print*,"tantheta =",tan(theta(1))," <=>",sintheta/costheta
-
        ! following dihedral angles 
 
         do i=5,nmer 
@@ -1701,7 +1687,7 @@ function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
             y = dot_product(u2,crossproduct(n123,n234)) 
             x = absu2*dot_product(n123,n234)
             
-            theta(i-3)=atan2(y,x) ! i-3 the cos dihedral angle
+            theta(i-3)=atan2(y,x) ! i-3 dihedral angle
 
         enddo    
    
@@ -1711,30 +1697,32 @@ function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
 
 end function dihedral_angles_cm
 
-! inner product of vectors x and y with dimenstion 3
+
+
+! inner product of vectors a and b with dimenstion 3
 ! similar to intrisic function dotproduct
 
-function dotproduct(x,y) result(dotp)
+function dotproduct(a,b) result(dotprod)
    
-    real(dp), dimension(3) :: x, y
-    real(dp) :: dotp
+    real(dp), dimension(3) :: a, b 
+    real(dp) :: dotprod
   
-    dotp = sum(x*y)
+    dotprod = sum(a*b)
 
 end function dotproduct
 
-
-function crossproduct(x,y)result(crossprod)
+function crossproduct(a,b)result(crossprod)
   
-  real(dp), intent(in), dimension(3) :: x, y
+  real(dp), intent(in), dimension(3) :: a, b
   real(dp), dimension(3) :: crossprod
   
-  crossprod(1) = x(2)*y(3) - x(3)*y(2)
-  crossprod(2) =-x(3)*y(1) + x(1)*y(3)
-  crossprod(3) = x(1)*y(2) - x(2)*y(1)
+  crossprod(1) = a(2)*b(3) - a(3)*b(2)
+  crossprod(2) =-a(1)*b(3) + a(3)*b(1)
+  crossprod(3) = a(1)*b(2) - a(2)*b(1)
 
 end function crossproduct
-        
+
+
 
 !  .. read segment id number to which we assign center of mass of one histone from file
 !  .. segment id numbers stored in array segcm 
@@ -1789,5 +1777,93 @@ end subroutine make_segcm
 
 
 
+subroutine write_chain_struct(write_struct,info)
+
+    use globals, only : cuantas,nnucl
+    use myutils, only : lenText
+    use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle
+
+    implicit none 
+
+    logical, intent(in) :: write_struct
+    integer, intent(inout) :: info
+ 
+    ! .. local
+    character(len=lenText) :: filename
+    integer :: un_dihedral,un_bond,un_Rg,un_Rend
+    integer :: c,s,nbonds,ndihedrals
+
+
+    if(write_struct) then
+    
+        filename="dihedral."
+        un_dihedral=open_chain_struct_file(filename,info)
+        filename="bond."
+        un_bond=open_chain_struct_file(filename,info)
+        filename="Rgalpha."
+        un_Rg=open_chain_struct_file(filename,info)
+        filename="Rend."
+        un_Rend=open_chain_struct_file(filename,info)
+        
+        nbonds=nnucl-2
+        ndihedrals=nnucl-3
+    
+        do c=1,cuantas
+            write(un_Rg,*)Rgsqr(c)
+            write(un_Rend,*)Rendsqr(c)
+            write(un_bond,*)(bond_angle(s,c),s=1,nbonds)
+            write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
+        enddo 
+
+        close(un_dihedral)
+        close(un_bond)
+        close(un_Rg)
+        close(un_Rend)  
+      
+    else
+        info=1
+    endif
+
+        
+end subroutine write_chain_struct
+
+
+function open_chain_struct_file(filename,info)result(un)
+
+    use mpivars, only : rank
+    use myutils, only : newunit, lenText
+    use myio, only : myio_err_chainsfile
+
+    character(len=lenText) :: filename
+    integer, optional, intent(inout) :: info
+
+    integer :: un
+
+    ! local
+    character(len=lenText) :: istr
+    character(len=25) :: fname
+    integer :: ios
+    logical :: exist
+    
+    write(istr,'(I4)')rank
+    fname=trim(adjustl(filename))//trim(adjustl(istr))//'.dat'
+
+    inquire(file=fname,exist=exist)
+    if(.not.exist) then
+        open(unit=newunit(un),file=fname,status='new',iostat=ios)
+        if(ios >0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    else
+        open(unit=newunit(un),file=fname,status='old',iostat=ios)
+        if(ios >0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    endif    
+end function
 
 end module chaingenerator

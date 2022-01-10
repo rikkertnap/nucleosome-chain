@@ -133,7 +133,9 @@ program main
     call set_size_neq()             ! number of non-linear equation neq
     call set_fcn()
     call set_dielect_fcn(dielect_env)
+
     call write_chain_config()
+    call write_chain_struct(write_struct,info)
 
     !  .. computation starts
 

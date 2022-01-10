@@ -115,6 +115,7 @@
     integer :: maxnchainsrotationsxy  ! number of rotations read in from input.in, assigned to maxnctheta in chaingenerator default 1  
     integer :: tA                     ! segment number type of monomer type A  
     logical :: write_mc_chains        ! if true MC chain write of file
+    logical :: write_struct            ! if true structural quantities writting to file
     logical :: isEnergyShift          ! if true energychain is shifted by energychain_min see chaingenerator
 
     ! ..average structural properties of layer
