@@ -1585,14 +1585,16 @@ function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
     real(dp) :: spacingsqr
         
     spacing=0.0_dp
-    do i=1,nmer-1
-        spacingsqr=0.0_dp
-        do k=1,3
-            spacingsqr=spacingsqr+(chain(k,segcom(i+1))-chain(k,segcom(i)))**2
-        enddo
-        spacing=spacing+sqrt(spacingsqr)
-    enddo  
-    spacing=spacing/(1.0_dp*nmer)       
+    if(nmer>=2) then  ! need at least 2 unit/nucleosomes
+        do i=1,nmer-1
+            spacingsqr=0.0_dp
+            do k=1,3
+                spacingsqr=spacingsqr+(chain(k,segcom(i+1))-chain(k,segcom(i)))**2
+            enddo
+            spacing=spacing+sqrt(spacingsqr)
+        enddo  
+        spacing=spacing/(1.0_dp*(nmer-1)) ! normalize
+    endif           
 
 end function nucleosomal_spacing
 
