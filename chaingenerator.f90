@@ -419,23 +419,15 @@ subroutine read_chains_XYZ_nucl(info)
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
   
-            Rgsqr(conffile)   = radius_gyration_cm(chain,nnucl,segcm)
-            Rendsqr(conffile) = end_to_end_distance_cm(chain,nnucl,segcm)
-            bond_angle(:,conffile)     = bond_angles_cm(chain,nnucl,segcm)
-            dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
+            Rgsqr(conffile)   = radius_gyration_com(chain,nnucl,segcm)
+            Rendsqr(conffile) = end_to_end_distance_com(chain,nnucl,segcm)
+            bond_angle(:,conffile)     = bond_angles_com(chain,nnucl,segcm)
+            dihedral_angle(:,conffile) = dihedral_angles_com(chain,nnucl,segcm)
+            nucl_spacing(conffile)    = nucleosomal_spacing(chain,nnucl,segcm)
 
             ! rotate chain 
             !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
             call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
-
-            ! Rgsqr(conffile)   = radius_gyration_cm(chain_rot,nnucl,segcm)
-            ! Rendsqr(conffile) = end_to_end_distance_cm(chain_rot,nnucl,segcm)
-            ! bond_angle(:,conffile)     = bond_angles_cm(chain_rot,nnucl,segcm)
-            ! dihedral_angle(:,conffile) = dihedral_angles_cm(chain,nnucl,segcm)
-
-            ! print*,Rgsqr(conffile),Rendsqr(conffile)
-            ! print*,bond_angle(:,conffile)
-            ! print*,dihedral_angle(:,conffile) 
 
             select case (geometry)
             case ("cubic")
@@ -1514,7 +1506,7 @@ end subroutine VdWpotentialenergy
 ! .. sub chain confomation defined by sequence segcm = segment number 
 ! .. denoting center mass of  the nmer histone of the nucleosome nmer-array
 
-function radius_gyration_cm(chain,nmer,segcm) result(Rgsqr)
+function radius_gyration_com(chain,nmer,segcm) result(Rgsqr)
 
     real(dp), intent(in) :: chain(:,:)
     integer, intent(in) :: nmer
@@ -1537,7 +1529,7 @@ function radius_gyration_cm(chain,nmer,segcm) result(Rgsqr)
 
     Rgsqr=Rgsqr/(2.0_dp*nmer*nmer)
 
-end function radius_gyration_cm
+end function radius_gyration_com
 
 
 function radius_gyration(chain,nseg) result(Rgsqr)
@@ -1562,7 +1554,7 @@ function radius_gyration(chain,nseg) result(Rgsqr)
 end function radius_gyration
 
 
-function end_to_end_distance_cm(chain,nmer,segcm) result(Rendsqr)
+function end_to_end_distance_com(chain,nmer,segcm) result(Rendsqr)
 
     real(dp), intent(in) :: chain(:,:)
     integer, intent(in) :: nmer
@@ -1580,34 +1572,53 @@ function end_to_end_distance_cm(chain,nmer,segcm) result(Rendsqr)
         Rendsqr=Rendsqr+(chain(k,isegcm)-chain(k,jsegcm))**2
     enddo     
 
-end function end_to_end_distance_cm
+end function end_to_end_distance_com
 
-function bond_angles_cm(chain,nmer,segcm) result(bondangle)
+function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
 
     real(dp), intent(in) :: chain(:,:)
     integer, intent(in) :: nmer
-    integer, intent(in) :: segcm(:)
+    integer, intent(in) :: segcom(:)  
+
+    real(dp) :: spacing
+    integer :: i,k
+        
+    spacing=0.0_dp
+    do i=1,nmer-1
+        do k=1,3
+            spacing=spacing+abs(chain(k,segcom(i+1))-chain(k,segcom(i)))
+        enddo
+    enddo  
+    spacing=spacing/(1.0_dp*nmer)       
+
+end function nucleosomal_spacing
+
+function bond_angles_com(chain,nmer,segcom) result(bondangle)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcom(:)
     real(dp) :: bondangle(nmer-2)
 
     ! .. local variables
     real(dp) :: u1(3), u2(3), absu1, absu2
-    integer :: i,j,k ,isegcm, ipls1segcm
+    integer :: i,j,k ,isegcom, ipls1segcom
 
 
     bondangle=0.0_dp    
-    isegcm=segcm(1)
-    ipls1segcm=segcm(2)
+    isegcom=segcom(1)
+    ipls1segcom=segcom(2)
     do k=1,3
-        u1(k)=(chain(k,ipls1segcm)-chain(k,isegcm))
+        u1(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
     enddo
 
     absu1=sqrt(dot_product(u1,u1))
 
     do i=3,nmer
-        isegcm=segcm(i-1)
-        ipls1segcm=segcm(i)
+        isegcom=segcom(i-1)
+        ipls1segcom=segcom(i)
         do k=1,3
-            u2(k)=(chain(k,ipls1segcm)-chain(k,isegcm))
+            u2(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
         enddo
         absu2=sqrt(dot_product(u2,u2))
         bondangle(i-2)=acos(dot_product(u1,u2)/(absu2*absu1))
@@ -1615,10 +1626,10 @@ function bond_angles_cm(chain,nmer,segcm) result(bondangle)
         absu1=absu2
     enddo     
 
-end function bond_angles_cm
+end function bond_angles_com
 
 
-function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
+function dihedral_angles_com(chain,nmer,segcm) result(dihedral)
 
     real(dp), intent(in) :: chain(:,:)
     integer, intent(in) :: nmer
@@ -1658,7 +1669,7 @@ function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
         y = dot_product(u2,crossproduct(n123,n234)) 
         x = absu2*dot_product(n123,n234)   
             
-        theta(1)=atan2(y,x)  !formula See e.g Bondel and Karplus j. comp, chem. 17 1132
+        theta(1)=atan2(y,x)  !formula See e.g. Bondel and Karplus j. comp. chem. 17 1132
 
         costheta= dot_product(n123,n234)/(absn123*absn234) ! cos first dihedral angle
         sintheta= dot_product(u2,crossproduct(n123,n234))/(absu2*absn123*absn234)
@@ -1695,7 +1706,7 @@ function dihedral_angles_cm(chain,nmer,segcm) result(dihedral)
 
     dihedral=theta    
 
-end function dihedral_angles_cm
+end function dihedral_angles_com
 
 
 
@@ -1727,15 +1738,15 @@ end function crossproduct
 !  .. read segment id number to which we assign center of mass of one histone from file
 !  .. segment id numbers stored in array segcm 
 !  .. nucleosome has nnucl histones 
-!  .. post segcm assigned
+!  .. post segcom assigned
 
-subroutine make_segcm(segcm,nnucl,filename)
+subroutine make_segcom(segcom,nnucl,filename)
 
     use mpivars
     use  myutils
     
     !     .. arguments 
-    integer, intent(inout) :: segcm(:)
+    integer, intent(inout) :: segcom(:)
     character(lenfname), intent(in) :: filename
     integer,  intent(in) :: nnucl
 
@@ -1759,7 +1770,7 @@ subroutine make_segcm(segcm,nnucl,filename)
 
     do while (s<nnucl.and.ios==0)
         s=s+1
-        read(un,*,iostat=ios)segcm(s)
+        read(un,*,iostat=ios)segcom(s)
     enddo
 
     if(s/=nnucl.or.ios/=0) then 
@@ -1773,7 +1784,7 @@ subroutine make_segcm(segcm,nnucl,filename)
 
     close(un)
 
-end subroutine make_segcm
+end subroutine make_segcom
 
 
 
@@ -1781,7 +1792,7 @@ subroutine write_chain_struct(write_struct,info)
 
     use globals, only : cuantas,nnucl
     use myutils, only : lenText
-    use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle
+    use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing
 
     implicit none 
 
@@ -1790,7 +1801,7 @@ subroutine write_chain_struct(write_struct,info)
  
     ! .. local
     character(len=lenText) :: filename
-    integer :: un_dihedral,un_bond,un_Rg,un_Rend
+    integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist
     integer :: c,s,nbonds,ndihedrals
 
 
@@ -1804,6 +1815,8 @@ subroutine write_chain_struct(write_struct,info)
         un_Rg=open_chain_struct_file(filename,info)
         filename="Rend."
         un_Rend=open_chain_struct_file(filename,info)
+        filename="spacing."
+        un_dist=open_chain_struct_file(filename,info)
         
         nbonds=nnucl-2
         ndihedrals=nnucl-3
@@ -1813,12 +1826,15 @@ subroutine write_chain_struct(write_struct,info)
             write(un_Rend,*)Rendsqr(c)
             write(un_bond,*)(bond_angle(s,c),s=1,nbonds)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
+            write(un_dist,*)nucl_spacing(c)
+
         enddo 
 
         close(un_dihedral)
         close(un_bond)
         close(un_Rg)
         close(un_Rend)  
+        close(un_dist)
       
     else
         info=1

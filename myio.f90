@@ -621,7 +621,7 @@ end subroutine check_value_bcflag
         endif
 
 
-    end subroutine  set_value_KCl
+    end subroutine set_value_KCl
 
     subroutine set_value_MgCl2(runtype,info)
 
@@ -1137,7 +1137,7 @@ subroutine output_brush_mul
     use energy
     use surface
     use myutils, only : newunit
-    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
 
     !     .. local arguments
 
@@ -1270,10 +1270,12 @@ subroutine output_brush_mul
     endif
 
     !  .. output of bond and dihedral angles
-    do i=1,nnucl-4
+    do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+        print*,avbond_angle(i),avdihedral_angle(i)
+        
     enddo
-    write(un_angle,*)avbond_angle(nnucl-3)
+    write(un_angle,*)avbond_angle(nnucl-2)
 
 
     do i=1,nsize
@@ -1421,6 +1423,7 @@ subroutine output_brush_mul
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing 
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
     if(systype=="brushdna".or.systype=="brushborn")then
@@ -1507,7 +1510,7 @@ subroutine output_elect
     use energy
     use surface
     use myutils, only : newunit
-    use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle,avnucl_spacing 
 
     !     .. local arguments
 
@@ -1800,6 +1803,7 @@ subroutine output_elect
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing   
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -1890,7 +1894,7 @@ subroutine output_neutral
     use field
     use energy
     use myutils, only : newunit
-    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle
+    use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
 
     !     .. output file names
     character(len=90) :: sysfilename
@@ -1983,10 +1987,10 @@ subroutine output_neutral
     enddo
 
     !  .. output of bond and dihedral angles
-    do i=1,nnucl-4
+    do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
     enddo
-    write(un_angle,*)avbond_angle(nnucl-3)
+    write(un_angle,*)avbond_angle(nnucl-2)
     !     .. system information
 
     if(nz.eq.nzmax) then
@@ -2053,6 +2057,7 @@ subroutine output_neutral
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing 
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val= ',VdWscale%val
 

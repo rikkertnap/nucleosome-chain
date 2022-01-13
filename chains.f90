@@ -24,10 +24,12 @@ module chains
     real(dp), dimension(:), allocatable     :: Rendsqr                  ! end-to-end distance
     real(dp), dimension(:,:), allocatable   :: bond_angle               ! bond angle
     real(dp), dimension(:,:), allocatable   :: dihedral_angle           ! dihedralangle
+    real(dp), dimension(:), allocatable     :: nucl_spacing             ! spacing or distance between Nuclesome  
+    real(dp), dimension(:), allocatable     :: avbond_angle             ! bond angle
+    real(dp), dimension(:), allocatable     :: avdihedral_angle         ! dihedral angle
+    real(dp)  :: avnucl_spacing            ! spacing or distance between Nuclesome
     real(dp) :: avRgsqr                    ! radius of gyration 
     real(dp) :: avRendsqr                  ! end-to-end distance
-    real(dp), dimension(:), allocatable     :: avbond_angle               ! bond angle
-    real(dp), dimension(:), allocatable     :: avdihedral_angle           ! dihedralangle
     
 
 
@@ -60,7 +62,9 @@ contains
         allocate(bond_angle(nnucl-2,maxcuantas))
         allocate(dihedral_angle(nnucl-3,maxcuantas))
         allocate(avbond_angle(nnucl-2))
-        allocate(avdihedral_angle(nnucl-3))     
+        allocate(avdihedral_angle(nnucl-3)) 
+        allocate(nucl_spacing(maxcuantas))  
+          
 
     end subroutine allocate_chains
   

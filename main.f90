@@ -95,7 +95,6 @@ program main
         stop
     endif
 
-    
     call init_constants()
     call make_geometry()            ! generate volume elements lattice
     call allocate_chain_parameters()  
@@ -104,7 +103,7 @@ program main
     call init_chain_parameters      ! chain volume, charges, pKa etc
     call make_sequence_chain(chainperiod,chaintype)
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
-    call make_segcm(segcm,nnucl,segcmfname)
+    call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
 
     if(isVdW) then 
@@ -120,14 +119,11 @@ program main
         call make_VdWeps(info)    
     endif  
 
-    call make_chains(chainmethod)   ! generate polymer configurations
+    call make_chains(chainmethod)   
     call chain_filter()
     call allocate_field(nx,ny,nz,nsegtypes)
-    ! call allocate_part_fnc(ngr)
     call init_field()
     call init_surface(bcflag,nsurf)
-   
-    ! VdW used to be here 
 
     call make_isrhoselfconsistent(isVdW)
     call set_size_neq()             ! number of non-linear equation neq

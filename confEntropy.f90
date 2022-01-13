@@ -57,8 +57,8 @@ contains
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle        
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
         use VdW, only : VdW_contribution_lnexp
@@ -74,6 +74,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -118,6 +119,7 @@ contains
         Rendsqr_local=0.0_dp
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
 
         nbonds=nnucl-2
         ndihedrals=nnucl-3
@@ -132,19 +134,18 @@ contains
             pro=exp(lnpro-lnproshift)  
 
             FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
             Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
-            
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            
+            nucl_spacing_local = nucl_spacing_local +nucl_spacing(c)*pro         
         enddo
         
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q 
 
         ! communicate local quantities
 
@@ -158,6 +159,7 @@ contains
             avRendsqr = Rendsqr_local
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local 
+            avnucl_spacing = nucl_spacing_local 
             
             do i=1, size-1
                 source = i
@@ -167,16 +169,15 @@ contains
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
-
                 avRgsqr=avRgsqr+Rgsqr_local
                 avRendsqr=avRendsqr+Rendsqr_local
-
                 avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
-                
+                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
+                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
             enddo 
         else     ! Export results
             dest = 0
@@ -186,7 +187,7 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        
+            call MPI_SEND(nucl_spacing_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -201,7 +202,7 @@ contains
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale
@@ -218,6 +219,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3) 
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -250,6 +252,7 @@ contains
         Rendsqr_local=0.0_dp 
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
 
         nbonds=nnucl-2
         ndihedrals=nnucl-3
@@ -264,18 +267,18 @@ contains
             pro=exp(lnpro-lnproshift)
 
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
             Rgsqr_local = Rgsqr_local + Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
             bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-
+            nucl_spacing_local = nucl_spacing_local + nucl_spacing(c)*pro
         enddo
         
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q
 
         ! communicate FEconf
 
@@ -288,6 +291,7 @@ contains
             avRendsqr=Rendsqr_local
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local 
+            avnucl_spacing = nucl_spacing_local
 
             do i=1, size-1
                 source = i
@@ -297,12 +301,15 @@ contains
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-
+                call MPI_RECV(nucl_spacing_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+               
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local
+                avbond_angle = avbond_angle +bond_angle_local
+                avdihedral_angle = avdihedral_angle+ dihedral_angle_local 
+                avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
                 
             enddo 
         else     ! Export results
@@ -313,7 +320,8 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        
+            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+           
         endif
 
 
@@ -326,7 +334,7 @@ contains
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters
@@ -343,6 +351,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -415,11 +424,16 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+            nucl_spacing_local = nucl_spacing_local+nucl_spacing(c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
-        ! communicate FEconf
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q 
+
+        ! communicate 
 
         if(rank==0) then
 
@@ -429,23 +443,27 @@ contains
             Econf =Econf_local
             avRgsqr=Rgsqr_local
             avRendsqr=Rendsqr_local
-            
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local
+            avnucl_spacing = nucl_spacing_local
+
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                
+                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+    
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local             
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local
                 avbond_angle = avbond_angle+bond_angle_local
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
+                avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
 
             enddo 
         else     ! Export results
@@ -456,6 +474,7 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -468,7 +487,7 @@ contains
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters
@@ -484,6 +503,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -533,6 +553,7 @@ contains
         Rendsqr_local=0.0_dp
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
             
         nbonds=nnucl-2
         ndihedrals=nnucl-3
@@ -551,10 +572,14 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+            nucl_spacing_local = nucl_spacing_local+ nucl_spacing(c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local= nucl_spacing_local/q
 
         ! communicate FEconf
 
@@ -565,6 +590,9 @@ contains
             Econf  =Econf_local
             avRgsqr=Rgsqr_local
             avRendsqr=Rendsqr_local
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local
+            avnucl_spacing = nucl_spacing_local
             
             do i=1, size-1
                 source = i
@@ -574,7 +602,7 @@ contains
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
+                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
             
                 FEconf=FEconf +FEconf_local
                 Econf =Econf + Econf_local      
@@ -582,6 +610,7 @@ contains
                 avRendsqr=avRendsqr+Rendsqr_local
                 avbond_angle = avbond_angle+bond_angle_local
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
+                avnucl_spacing = avnucl_spacing+ nucl_spacing_local
 
             enddo 
         else     ! Export results
@@ -592,6 +621,7 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -604,7 +634,7 @@ contains
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
@@ -621,6 +651,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. executable statements 
@@ -657,6 +688,7 @@ contains
         Rendsqr_local=0.0_dp
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local= 0.0_dp
 
         nbonds=nnucl-2
         ndihedrals=nnucl-3
@@ -677,11 +709,15 @@ contains
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro        
+            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
+            nucl_spacing_local = nucl_spacing_local+nucl_spacing(c)*pro     
         enddo  
 
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q
 
         ! communicate FEconf
 
@@ -692,7 +728,9 @@ contains
             Econf=Econf_local
             avRgsqr=Rgsqr_local
             avRendsqr=Rendsqr_local
-
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local
+            
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -701,7 +739,7 @@ contains
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
+                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
             
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
@@ -709,6 +747,7 @@ contains
                 avRendsqr=avRendsqr+Rendsqr_local  
                 avbond_angle = avbond_angle+bond_angle_local
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
+                avnucl_spacing = avnucl_spacing+ nucl_spacing_local
 
             enddo 
         else     ! Export results
@@ -719,6 +758,7 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -734,7 +774,7 @@ contains
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle  
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
@@ -763,6 +803,7 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local
         integer  :: nbonds,ndihedrals
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -884,10 +925,10 @@ contains
         Rendsqr_local=0.0_dp
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
          
         nbonds=nnucl-2
         ndihedrals=nnucl-3 
-
 
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
@@ -900,26 +941,30 @@ contains
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            do l=1,nbonds
-                bond_angle_local(l) = bond_angle_local(l) +bond_angle(l,c)*pro
-            enddo    
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+            bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
+            dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
+            nucl_spacing_local = nucl_spacing_local + nucl_spacing(c)*pro
         enddo
 
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q
 
-        ! communicate FEconf
+        ! communicate 
 
         if(rank==0) then
 
             ! normalize
              
-
             FEconf=FEconf_local
             Econf =Econf_local
             avRgsqr=Rgsqr_local
             avRendsqr=Rendsqr_local
+            avbond_angle = bond_angle_local
+            avdihedral_angle = dihedral_angle_local
+            avnucl_spacing = nucl_spacing_local
             
             do i=1, size-1
                 source = i
@@ -929,14 +974,15 @@ contains
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-            
+                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                  
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
                 avRgsqr=avRgsqr+Rgsqr_local   
                 avRendsqr=avRendsqr+Rendsqr_local   
                 avbond_angle = avbond_angle+bond_angle_local
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
+                avnucl_spacing = avnucl_spacing+ nucl_spacing_local
                            
             enddo 
         else     ! Export results
@@ -947,6 +993,7 @@ contains
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
