@@ -1582,12 +1582,15 @@ function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
 
     real(dp) :: spacing
     integer :: i,k
+    real(dp) :: spacingsqr
         
     spacing=0.0_dp
     do i=1,nmer-1
+        spacingsqr=0.0_dp
         do k=1,3
-            spacing=spacing+abs(chain(k,segcom(i+1))-chain(k,segcom(i)))
+            spacingsqr=spacingsqr+(chain(k,segcom(i+1))-chain(k,segcom(i)))**2
         enddo
+        spacing=spacing+sqrt(spacingsqr)
     enddo  
     spacing=spacing/(1.0_dp*nmer)       
 
@@ -1880,6 +1883,6 @@ function open_chain_struct_file(filename,info)result(un)
             return
         endif
     endif    
-end function
+end function open_chain_struct_file
 
 end module chaingenerator
