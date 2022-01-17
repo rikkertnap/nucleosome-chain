@@ -472,6 +472,8 @@ subroutine check_value_bcflag(bcflag,info)
     integer :: i
     logical :: flag
 
+    if (present(info)) info = 0 ! init 
+
     ! permissible values of bcflag
 
     bcvalues(RIGHT,1)="qu"
@@ -510,106 +512,42 @@ subroutine check_value_bcflag(bcflag,info)
 end subroutine check_value_bcflag
 
 
-    subroutine set_value_NaCl(runtype,info)
+subroutine set_value_NaCl(runtype,info)
 
-        use mpivars
-        !use parameters, only : num_cNaCl,cNaCl_array
-        use myutils, only : newunit
+    use mpivars
+    !use parameters, only : num_cNaCl,cNaCl_array
+    use myutils, only : newunit
 
-        character(len=12), intent(in) :: runtype
-        integer, intent(out),optional :: info
+    character(len=12), intent(in) :: runtype
+    integer, intent(out),optional :: info
 
-        ! local variables
-        character(len=7) :: fname
-        integer :: ios
-        integer :: i
-        integer :: un_cs
+    ! local variables
+    character(len=7) :: fname
+    integer :: ios
+    integer :: i
+    integer :: un_cs
 
+    if (present(info)) info = 0 ! init 
 
-        if(runtype=="defaultpH".or.runtype=="defaultT".or.runtype=="defaultsigma") then
+    if(runtype=="defaultpH".or.runtype=="defaultT".or.runtype=="defaultsigma") then
 
-            num_cNaCl=6
-            allocate(cNaCl_array(num_cNaCl))
+        num_cNaCl=6
+        allocate(cNaCl_array(num_cNaCl))
 
-            cNaCl_array(1)=0.25_dp
-            cNaCl_array(2)=0.20_dp
-            cNaCl_array(3)=0.15_dp
-            cNaCl_array(4)=0.10_dp
-            cNaCl_array(5)=0.05_dp
-            cNaCl_array(6)=0.01_dp
+        cNaCl_array(1)=0.25_dp
+        cNaCl_array(2)=0.20_dp
+        cNaCl_array(3)=0.15_dp
+        cNaCl_array(4)=0.10_dp
+        cNaCl_array(5)=0.05_dp
+        cNaCl_array(6)=0.01_dp
 
-        else if(runtype=="inputcspH".or.runtype=="inputcsT".or.runtype=="inputcssigma") then
+    else if(runtype=="inputcspH".or.runtype=="inputcsT".or.runtype=="inputcssigma") then
 
-            !     .. read salt concentrations from file
-            write(fname,'(A7)')'salt.in'
-            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
-            if(ios > 0 ) then
-                print*, 'Error opening file salt.in : iostat =', ios
-                call MPI_FINALIZE(ierr)
-                if (present(info)) then
-                    info = myio_err_inputfile
-                    return
-                else
-                    stop
-                endif
-             endif
-
-             read(un_cs,*)num_cNaCl ! read number of salt concentration form file
-             allocate(cNaCl_array(num_cNaCl))
-
-             do i=1,num_cNaCl     ! read value salt concentration
-                 read(un_cs,*)cNaCl_array(i)
-             enddo
-             close(un_cs)
-        endif
-
-
-    end subroutine  set_value_NaCl
-
-
-    subroutine set_value_KCl(runtype,info)
-
-        use mpivars
-        !use parameters, only : num_cNaCl,cNaCl_array
-        use myutils, only : newunit
-
-        character(len=12), intent(in) :: runtype
-        integer, intent(out),optional :: info
-
-        ! local variables
-        character(len=7) :: fname
-        integer :: ios
-        integer :: i
-        integer :: un_cs
-
-
-       if(runtype=="inputcsKClpH") then
-
-            !     .. read salt concentrations from file
-            write(fname,'(A7)')'salt.in'
-            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
-            if(ios > 0 ) then
-                print*, 'Error opening file salt.in : iostat =', ios
-                call MPI_FINALIZE(ierr)
-                if (present(info)) then
-                    info = myio_err_inputfile
-                    return
-                else
-                    stop
-                endif
-            endif
-
-            read(un_cs,*)num_cKCl ! read number of salt concentration form file
-            allocate(cKCl_array(num_cKCl))
-
-            do i=1,num_cKCl     ! read value salt concentration
-                read(un_cs,*)cKCl_array(i)
-            enddo
-            close(un_cs)
-
-
-        else
-            print*,'Error wrong runtype in set_value_KCl'
+        !     .. read salt concentrations from file
+        write(fname,'(A7)')'salt.in'
+        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        if(ios > 0 ) then
+            print*, 'Error opening file salt.in : iostat =', ios
             call MPI_FINALIZE(ierr)
             if (present(info)) then
                 info = myio_err_inputfile
@@ -617,57 +555,43 @@ end subroutine check_value_bcflag
             else
                 stop
             endif
+         endif
 
-        endif
+         read(un_cs,*)num_cNaCl ! read number of salt concentration form file
+         allocate(cNaCl_array(num_cNaCl))
 
+         do i=1,num_cNaCl     ! read value salt concentration
+             read(un_cs,*)cNaCl_array(i)
+         enddo
+         close(un_cs)
+    endif
 
-    end subroutine set_value_KCl
-
-    subroutine set_value_MgCl2(runtype,info)
-
-        use mpivars
-        !use parameters, only : num_cMgCl2,cMgCl2_array
-        use myutils, only : newunit
-
-        character(len=12), intent(in) :: runtype
-        integer, intent(out),optional :: info
+end subroutine  set_value_NaCl
 
 
-        ! local variables
-        character(len=9) :: fname
-        integer :: ios
-        integer :: i
-        integer :: un_cs
+subroutine set_value_KCl(runtype,info)
 
-        if (present(info)) info=0
+    use mpivars
+    use myutils, only : newunit
 
-        if(runtype=="inputMgpH".or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+    character(len=12), intent(in) :: runtype
+    integer, intent(out),optional :: info
 
-            !     .. read salt concentrations from file
-            write(fname,'(A9)')'saltMg.in'
-            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
-            if(ios > 0 ) then
-                print*, 'Error opening file saltMg.in : iostat =', ios
-                call MPI_FINALIZE(ierr)
-                if (present(info)) then
-                    info = myio_err_inputfile
-                    return
-                else
-                    stop
-                endif
-            endif
+    ! local variables
+    character(len=7) :: fname
+    integer :: ios
+    integer :: i
+    integer :: un_cs
 
-            read(un_cs,*)num_cMgCl2 ! read number of salt concentration form file
-            allocate(cMgCl2_array(num_cMgCl2))
+    if (present(info)) info = 0
 
-            do i=1,num_cMgCl2     ! read value salt concentration
-                read(un_cs,*)cMgCl2_array(i)
-            enddo
-            close(un_cs)
+    if(runtype=="inputcsKClpH") then
 
-        else
-
-            print*,'Error wrong runtype in set_value_MgCl2'
+        !     .. read salt concentrations from file
+        write(fname,'(A7)')'salt.in'
+        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        if(ios > 0 ) then
+            print*, 'Error opening file salt.in : iostat =', ios
             call MPI_FINALIZE(ierr)
             if (present(info)) then
                 info = myio_err_inputfile
@@ -675,12 +599,89 @@ end subroutine check_value_bcflag
             else
                 stop
             endif
-
-
         endif
 
+        read(un_cs,*)num_cKCl ! read number of salt concentration form file
+        allocate(cKCl_array(num_cKCl))
 
-    end subroutine  set_value_MgCl2
+        do i=1,num_cKCl     ! read value salt concentration
+            read(un_cs,*)cKCl_array(i)
+        enddo
+        close(un_cs)
+
+
+    else
+        print*,'Error wrong runtype in set_value_KCl'
+        call MPI_FINALIZE(ierr)
+        if (present(info)) then
+            info = myio_err_inputfile
+            return
+        else
+            stop
+        endif
+
+    endif
+
+
+end subroutine set_value_KCl
+
+subroutine set_value_MgCl2(runtype,info)
+
+    use mpivars
+    !use parameters, only : num_cMgCl2,cMgCl2_array
+    use myutils, only : newunit
+
+    character(len=12), intent(in) :: runtype
+    integer, intent(out),optional :: info
+
+
+    ! local variables
+    character(len=9) :: fname
+    integer :: ios
+    integer :: i
+    integer :: un_cs
+
+    if (present(info)) info=0
+
+    if(runtype=="inputMgpH".or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+
+        !     .. read salt concentrations from file
+        write(fname,'(A9)')'saltMg.in'
+        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        if(ios > 0 ) then
+            print*, 'Error opening file saltMg.in : iostat =', ios
+            call MPI_FINALIZE(ierr)
+            if (present(info)) then
+                info = myio_err_inputfile
+                return
+            else
+                stop
+            endif
+        endif
+
+        read(un_cs,*)num_cMgCl2 ! read number of salt concentration form file
+        allocate(cMgCl2_array(num_cMgCl2))
+
+        do i=1,num_cMgCl2     ! read value salt concentration
+            read(un_cs,*)cMgCl2_array(i)
+        enddo
+        close(un_cs)
+
+    else
+
+        print*,'Error wrong runtype in set_value_MgCl2'
+        call MPI_FINALIZE(ierr)
+        if (present(info)) then
+            info = myio_err_inputfile
+            return
+        else
+            stop
+        endif
+
+    endif
+
+
+end subroutine  set_value_MgCl2
 
 
 subroutine check_value_geometry(geometry,info)

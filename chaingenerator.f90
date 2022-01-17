@@ -1809,6 +1809,7 @@ subroutine write_chain_struct(write_struct,info)
     integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist
     integer :: c,s,nbonds,ndihedrals
 
+    info=0
 
     if(write_struct) then
     
@@ -1841,8 +1842,6 @@ subroutine write_chain_struct(write_struct,info)
         close(un_Rend)  
         close(un_dist)
       
-    else
-        info=1
     endif
 
         
@@ -1865,6 +1864,8 @@ function open_chain_struct_file(filename,info)result(un)
     character(len=25) :: fname
     integer :: ios
     logical :: exist
+    
+    if (present(info))  info=0 ! init
     
     write(istr,'(I4)')rank
     fname=trim(adjustl(filename))//trim(adjustl(istr))//'.dat'
