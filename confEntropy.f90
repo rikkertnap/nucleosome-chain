@@ -74,8 +74,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -121,7 +121,8 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
 
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
@@ -138,7 +139,7 @@ contains
             Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local +nucl_spacing(c)*pro         
+            nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
         enddo
         
         Rgsqr_local = Rgsqr_local/q
@@ -167,9 +168,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -185,9 +186,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -219,8 +220,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3) 
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -254,7 +255,8 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
 
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
@@ -271,7 +273,7 @@ contains
             Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
             bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local + nucl_spacing(c)*pro
+            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
         enddo
         
         Rgsqr_local = Rgsqr_local/q
@@ -299,9 +301,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -318,9 +320,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
            
         endif
 
@@ -351,8 +353,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -407,7 +409,8 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
 
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
          
         do c=1,cuantas         ! loop over cuantas
@@ -424,7 +427,7 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(c)*pro
+            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -453,9 +456,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
     
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local             
@@ -472,9 +475,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -503,8 +506,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -555,7 +558,8 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
             
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
         
 
@@ -572,7 +576,7 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+ nucl_spacing(c)*pro
+            nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -600,9 +604,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
             
                 FEconf=FEconf +FEconf_local
                 Econf =Econf + Econf_local      
@@ -619,9 +623,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -651,8 +655,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. executable statements 
 
@@ -690,7 +694,8 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local= 0.0_dp
 
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
 
         do c=1,cuantas             ! loop over cuantas
@@ -710,7 +715,7 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(c)*pro     
+            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro     
         enddo  
 
         Rgsqr_local=Rgsqr_local/q
@@ -730,6 +735,7 @@ contains
             avRendsqr=Rendsqr_local
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local
+            avnucl_spacing =  nucl_spacing_local
             
             do i=1, size-1
                 source = i
@@ -737,9 +743,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
             
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
@@ -756,9 +762,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -803,8 +809,8 @@ contains
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
-        real(dp) :: nucl_spacing_local
-        integer  :: nbonds,ndihedrals
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        integer  :: nbonds,ndihedrals,nangles
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -927,7 +933,8 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
          
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3 
 
         do c=1,cuantas         ! loop over cuantas
@@ -943,7 +950,7 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local + nucl_spacing(c)*pro
+            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
         enddo
 
         Rgsqr_local=Rgsqr_local/q
@@ -972,9 +979,9 @@ contains
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nbonds, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                   
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
@@ -991,9 +998,9 @@ contains
             call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 

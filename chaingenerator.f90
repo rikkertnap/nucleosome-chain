@@ -419,11 +419,11 @@ subroutine read_chains_XYZ_nucl(info)
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
   
-            Rgsqr(conffile)   = radius_gyration_com(chain,nnucl,segcm)
+            Rgsqr(conffile) = radius_gyration_com(chain,nnucl,segcm)
             Rendsqr(conffile) = end_to_end_distance_com(chain,nnucl,segcm)
-            bond_angle(:,conffile)     = bond_angles_com(chain,nnucl,segcm)
+            bond_angle(:,conffile) = bond_angles_com(chain,nnucl,segcm)
             dihedral_angle(:,conffile) = dihedral_angles_com(chain,nnucl,segcm)
-            nucl_spacing(conffile)    = nucleosomal_spacing(chain,nnucl,segcm)
+            nucl_spacing(:,conffile) = nucleosomal_spacing(chain,nnucl,segcm)
 
             ! rotate chain 
             !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
@@ -1580,7 +1580,7 @@ function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
     integer, intent(in) :: nmer
     integer, intent(in) :: segcom(:)  
 
-    real(dp) :: spacing
+    real(dp) :: spacing(nmer-1)
     integer :: i,k
     real(dp) :: spacingsqr
         
@@ -1591,9 +1591,8 @@ function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
             do k=1,3
                 spacingsqr=spacingsqr+(chain(k,segcom(i+1))-chain(k,segcom(i)))**2
             enddo
-            spacing=spacing+sqrt(spacingsqr)
+            spacing(i)=sqrt(spacingsqr)
         enddo  
-        spacing=spacing/(1.0_dp*(nmer-1)) ! normalize
     endif           
 
 end function nucleosomal_spacing
@@ -1807,7 +1806,7 @@ subroutine write_chain_struct(write_struct,info)
     ! .. local
     character(len=lenText) :: filename
     integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist
-    integer :: c,s,nbonds,ndihedrals
+    integer :: c,s,nbonds,nangles,ndihedrals
 
     info=0
 
@@ -1824,15 +1823,16 @@ subroutine write_chain_struct(write_struct,info)
         filename="spacing."
         un_dist=open_chain_struct_file(filename,info)
         
-        nbonds=nnucl-2
+        nbonds=nnucl-1
+        nangles=nnucl-2
         ndihedrals=nnucl-3
     
         do c=1,cuantas
             write(un_Rg,*)Rgsqr(c)
             write(un_Rend,*)Rendsqr(c)
-            write(un_bond,*)(bond_angle(s,c),s=1,nbonds)
+            write(un_bond,*)(bond_angle(s,c),s=1,nangles)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
-            write(un_dist,*)nucl_spacing(c)
+            write(un_dist,*)(nucl_spacing(s,c),s=1,nbonds)
 
         enddo 
 

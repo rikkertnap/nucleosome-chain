@@ -24,10 +24,10 @@ module chains
     real(dp), dimension(:), allocatable     :: Rendsqr                  ! end-to-end distance
     real(dp), dimension(:,:), allocatable   :: bond_angle               ! bond angle
     real(dp), dimension(:,:), allocatable   :: dihedral_angle           ! dihedralangle
-    real(dp), dimension(:), allocatable     :: nucl_spacing             ! spacing or distance between Nuclesome  
-    real(dp), dimension(:), allocatable     :: avbond_angle             ! bond angle
-    real(dp), dimension(:), allocatable     :: avdihedral_angle         ! dihedral angle
-    real(dp)  :: avnucl_spacing            ! spacing or distance between Nuclesome
+    real(dp), dimension(:,:), allocatable     :: nucl_spacing             ! spacing or distance between Nuclesome  
+    real(dp), dimension(:), allocatable     :: avbond_angle             ! average bond angle
+    real(dp), dimension(:), allocatable     :: avdihedral_angle         ! average dihedral angle
+    real(dp), dimension(:), allocatable     :: avnucl_spacing           ! average spacing or distance between Nuclesome
     real(dp) :: avRgsqr                    ! radius of gyration 
     real(dp) :: avRendsqr                  ! end-to-end distance
     
@@ -55,17 +55,19 @@ contains
         allocate(type_of_monomer_char(nseg))
         allocate(ismonomer_of_type(nseg,nsegtypes)) 
         allocate(ismonomer_chargeable(nsegtypes))
+
         ! chain stuctural quantities
+        
         allocate(segcm(nnucl))
         allocate(Rgsqr(maxcuantas))
         allocate(Rendsqr(maxcuantas))
         allocate(bond_angle(nnucl-2,maxcuantas))
         allocate(dihedral_angle(nnucl-3,maxcuantas))
+        allocate(nucl_spacing(nnucl-1,maxcuantas)) 
         allocate(avbond_angle(nnucl-2))
         allocate(avdihedral_angle(nnucl-3)) 
-        allocate(nucl_spacing(maxcuantas))  
+        allocate(avnucl_spacing(nnucl-1))  
           
-
     end subroutine allocate_chains
   
 end module chains

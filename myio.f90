@@ -39,7 +39,7 @@ module myio
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_q
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpolz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle
+    integer :: un_dip ,un_dielec,un_xpolABz, un_xpolz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle, un_dist
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -1167,6 +1167,7 @@ subroutine output_brush_mul
     character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
+    character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
@@ -1202,6 +1203,7 @@ subroutine output_brush_mul
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
         qfilename='q.'//trim(fnamelabel)
         anglesfilename='angles.'//trim(fnamelabel)
+        spacingfilename='spacing.'//trim(fnamelabel)
 
         !     .. opening files
 
@@ -1215,7 +1217,7 @@ subroutine output_brush_mul
         open(unit=newunit(un_q),file=qfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_angle),file=anglesfilename)
-
+        open(unit=newunit(un_dist),file=spacingfilename)
 
         if(verboseflag=="yes") then
             open(unit=newunit(un_xNa),file=xNafilename)
@@ -1278,6 +1280,9 @@ subroutine output_brush_mul
     enddo
     write(un_angle,*)avbond_angle(nnucl-2)
 
+    do i=1,nnucl-1
+        write(un_dist,*)avnucl_spacing(i)
+    enddo
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
@@ -1424,7 +1429,6 @@ subroutine output_brush_mul
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing 
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
     if(systype=="brushdna".or.systype=="brushborn")then
@@ -1483,6 +1487,7 @@ subroutine output_brush_mul
         close(un_xpolz)
         close(un_q)
         close(un_angle)
+        close(un_dist)
         if(verboseflag=="yes") then
             close(un_xNa)
             close(un_xK)
@@ -1538,6 +1543,7 @@ subroutine output_elect
     character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
+    character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
@@ -1575,7 +1581,7 @@ subroutine output_elect
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
         qfilename='q.'//trim(fnamelabel)
         anglesfilename='angles.'//trim(fnamelabel)
-
+        spacingfilename='spacing.'//trim(fnamelabel)
         !     .. opening files
 
         open(unit=newunit(un_sys),file=sysfilename)
@@ -1587,6 +1593,7 @@ subroutine output_elect
         open(unit=newunit(un_q),file=qfilename)
         open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_angle),file=anglesfilename)
+        open(unit=newunit(un_dist),file=spacingfilename)
 
         if(verboseflag=="yes") then
             open(unit=newunit(un_xNa),file=xNafilename)
@@ -1644,6 +1651,9 @@ subroutine output_elect
     enddo
     write(un_angle,*)avbond_angle(nnucl-3)
 
+    do i=1,nnucl-1
+        write(un_dist,*)avnucl_spacing(i)
+    enddo
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
@@ -1804,7 +1814,6 @@ subroutine output_elect
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing   
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -1868,6 +1877,8 @@ subroutine output_elect
         close(un_xpolz)
         close(un_q)
         close(un_angle)
+        close(un_dist)
+
         if(verboseflag=="yes") then
             close(un_xNa)
             close(un_xK)
@@ -1904,7 +1915,8 @@ subroutine output_neutral
     character(len=90) :: xpolzfilename
     character(len=90) :: xprofilename
     character(len=90) :: anglesfilename
-
+    character(len=90) :: spacingfilename
+    
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
@@ -1940,6 +1952,8 @@ subroutine output_neutral
         xsolfilename='xsol.'//trim(fnamelabel)
         xprofilename='xpro.'//trim(fnamelabel) 
         anglesfilename='angles.'//trim(fnamelabel) 
+        spacingfilename='spacing.'//trim(fnamelabel) 
+
 
         !      .. opening files
         open(unit=newunit(un_sys),file=sysfilename)
@@ -1948,6 +1962,7 @@ subroutine output_neutral
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_xpro),file=xprofilename)
         open(unit=newunit(un_angle),file=anglesfilename)
+        open(unit=newunit(un_dist),file=spacingfilename)
 
 
     else ! check that files are open
@@ -1964,6 +1979,8 @@ subroutine output_neutral
         if(.not.isopen) write(*,*)"un_xpro is not open"
         inquire(unit=un_angle, opened=isopen)
         if(.not.isopen) write(*,*)"un_angles is not open"
+        inquire(unit=un_dist, opened=isopen)
+        if(.not.isopen) write(*,*)"un_dist is not open"
 
     endif
 
@@ -1992,6 +2009,13 @@ subroutine output_neutral
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
     enddo
     write(un_angle,*)avbond_angle(nnucl-2)
+
+    !  .. output of nuceleson distance 
+    do i=1,nnucl-1
+        write(un_dist,*)avnucl_spacing(i)
+    enddo
+
+
     !     .. system information
 
     if(nz.eq.nzmax) then
@@ -2058,7 +2082,6 @@ subroutine output_neutral
     write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avnucl_spacing  = ',avnucl_spacing 
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val= ',VdWscale%val
 
@@ -2069,6 +2092,7 @@ subroutine output_neutral
         close(un_sys)
         close(un_xpolz)
         close(un_angle)
+        close(un_dist)
         !close(un_xpro)
     endif
 
