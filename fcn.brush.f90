@@ -66,7 +66,7 @@ contains
         integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
-        integer  :: noffset
+        integer  :: noffset, count_scf
         real(dp) :: locallnproshift(2), globallnproshift(2)
 
 
@@ -89,13 +89,19 @@ contains
         do i=1,n                     
             xsol(i) = x(i)        ! volume fraction solvent
             psi(i)  = x(i+k)      ! potential
-        enddo           
+        enddo 
+
+        count_scf=0   
         do t=1,nsegtypes
-            k=(t+1)*n
-            do i=1,n 
-                rhopolin(i,t) = x(i+k) ! density 
-            enddo    
+            if(isrhoselfconsistent(t)) then
+                count_scf=count_scf+1 
+                k=(count_scf+1)*n
+                do i=1,n                         
+                    rhopolin(i,t) = x(i+k)      ! density 
+                enddo
+            endif        
         enddo
+
  
         !  .. assign global and local polymer density 
 
@@ -142,7 +148,7 @@ contains
         ! Van der Waals   
         if(isVdW) then 
             do t=1,nsegtypes  
-                call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
+                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)                    
             enddo
         endif 
 
@@ -232,9 +238,23 @@ contains
                         rhoqpol(i)  = rhoqpol(i) + (zpol(t,2)*fdis(i,t)+zpol(t,1)*(1.0_dp-fdis(i,t)))*rhopol(i,t)*vsol ! charge density polymer
                     endif    
                     ! ..scf eq for density
-                    f(i+(t+1)*n)    = rhopol(i,t) - rhopolin(i,t) 
+                    !f(i+(t+1)*n)    = rhopol(i,t) - rhopolin(i,t) 
                 enddo
-            enddo        
+            enddo      
+
+            ! .. scf eq for density       
+            count_scf=0    
+            do t=1,nsegtypes
+                if(isrhoselfconsistent(t)) then
+                    count_scf=count_scf+1 
+                    k=(count_scf+1)*n 
+                    do i=1,n   
+                        f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
+                    enddo
+                endif        
+            enddo
+
+
 
             do i=1,n
                 f(i) = xpol(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xRb(i)+xCa(i)+xMg(i)+xNaCl(i) +xK(i)+xpro(i) -1.0_dp
@@ -550,13 +570,6 @@ contains
             xsol(i) = x(i)        ! volume fraction solvent
             psi(i)  = x(i+k)      ! potential
         enddo  
-
-        !do t=1,nsegtypes
-        !    k=(t+1)*n
-        !    do i=1,n 
-        !        rhopolin(i,t) = x(i+k) ! density 
-        !    enddo    
-        !enddo
         
         count_scf=0    
         do t=1,nsegtypes
@@ -569,9 +582,7 @@ contains
             endif        
         enddo
 
-
         !  .. assign global and local polymer density 
-
         do t=1,nsegtypes
             do i=1,n
                 rhopol(i,t)=0.0_dp 
@@ -794,7 +805,7 @@ contains
             call Poisson_Equation(f,psi,rhoq)
 
          
-            norm=l2norm(f,(nsegtypes+2)*n)
+            norm=l2norm(f,neqint)
             iter=iter+1
            
             print*,'iter=', iter ,'norm=',norm
@@ -1821,7 +1832,7 @@ contains
         do t=1,nsegtypes
             if(isrhoselfconsistent(t)) then
                 count_scf=count_scf+1 
-                k=count_scf*n+1
+                k=count_scf*n
                 do i=1,n                         
                     rhopolin(i,t) = x(i+k)      ! density 
                 enddo
@@ -1839,8 +1850,8 @@ contains
        
         ! Van der Waals   
         if(isVdW) then 
-            do t=1,nsegtypes  
-                call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
+            do t=1,nsegtypes 
+                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)   
             enddo
         endif 
 
@@ -1931,7 +1942,7 @@ contains
             do t=1,nsegtypes
                 if(isrhoselfconsistent(t)) then
                     count_scf=count_scf+1 
-                    k=count_scf*n +1 
+                    k=count_scf*n 
                     do i=1,n   
                         f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
                     enddo
@@ -2143,8 +2154,6 @@ contains
             enddo
 
         endif
-
-
 
     end subroutine fcnneutralnoVdW
 

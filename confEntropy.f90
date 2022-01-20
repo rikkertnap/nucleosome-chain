@@ -32,7 +32,9 @@ contains
         case ("elect")
             call FEconf_elect(FEconf,Econf)
         case ("neutral")
+            print*,"FEconf"
             call FEconf_neutral(FEconf,Econf)
+            print*,"end FEconf"
         case ("neutralnoVdW")
             call FEconf_neutral_noVdW(FEconf,Econf)
         case ("brush_mul","brushdna")
@@ -60,7 +62,7 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vpol, isVdW, VdWscale
+        use parameters, only : vpol, isVdW,  isrhoselfconsistent
         use VdW, only : VdW_contribution_lnexp
 
         real(dp), intent(out) :: FEconf,Econf
@@ -107,7 +109,7 @@ contains
        
         if(isVdW) then 
             do t=1,nsegtypes  
-                call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
+                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
             enddo
         endif 
 
@@ -339,7 +341,7 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
-        use parameters
+        use parameters, only : vpol, zpol, isVdW,  isrhoselfconsistent
         use VdW, only : VdW_contribution_lnexp
 
         real(dp), intent(out) :: FEconf,Econf
@@ -396,7 +398,7 @@ contains
        
         if(isVdW) then 
             do t=1,nsegtypes  
-                call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
+                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
             enddo
         endif 
 
@@ -493,7 +495,7 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
-        use parameters
+        use parameters, only : vpol, zpol
         
         real(dp), intent(out) :: FEconf,Econf
         

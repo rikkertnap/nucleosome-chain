@@ -1610,25 +1610,28 @@ function bond_angles_com(chain,nmer,segcom) result(bondangle)
 
 
     bondangle=0.0_dp    
-    isegcom=segcom(1)
-    ipls1segcom=segcom(2)
-    do k=1,3
-        u1(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
-    enddo
 
-    absu1=sqrt(dot_product(u1,u1))
-
-    do i=3,nmer
-        isegcom=segcom(i-1)
-        ipls1segcom=segcom(i)
+    if(nmer>=3) then  ! need at least 3 unit/nucleosomes
+        isegcom=segcom(1)
+        ipls1segcom=segcom(2)
         do k=1,3
-            u2(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
+            u1(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
         enddo
-        absu2=sqrt(dot_product(u2,u2))
-        bondangle(i-2)=acos(dot_product(u1,u2)/(absu2*absu1))
-        u1=u2
-        absu1=absu2
-    enddo     
+
+        absu1=sqrt(dot_product(u1,u1))
+
+        do i=3,nmer
+            isegcom=segcom(i-1)
+            ipls1segcom=segcom(i)
+            do k=1,3
+                u2(k)=(chain(k,ipls1segcom)-chain(k,isegcom))
+            enddo
+            absu2=sqrt(dot_product(u2,u2))
+            bondangle(i-2)=acos(dot_product(u1,u2)/(absu2*absu1))
+            u1=u2
+            absu1=absu2
+        enddo
+    endif         
 
 end function bond_angles_com
 

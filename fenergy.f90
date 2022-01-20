@@ -449,7 +449,7 @@ contains
             enddo
             sumphi(t) = volcell*sumphi(t)
             checkphi = checkphi-sumphi(t)
-            print*,"fcnenergy brush mul rank=",rank,"t=",t,"sum= ",sumphi(t),"check=",checkphi
+        !    print*,"fcnenergy brush mul rank=",rank,"t=",t,"sum= ",sumphi(t),"check=",checkphi
         enddo
 
         FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully check this
@@ -918,7 +918,7 @@ contains
 
                         betapi=-log(xsol(i))/vsol
                         lambda=-log(fdis(i,t)) -psi(i)*zpol(t,2)-betapi*vpol(t)*vsol
-                        rhopolq=zpol(t,2)*fdis(i,t)*rhopol(i,t)
+                        rhopolq=(zpol(t,1)*(1.0_dp-fdis(i,t))+ zpol(t,2)*fdis(i,t))*rhopol(i,t) ! charge from aciod or base 
             
                         FEchem_react = FEchem_react + &
                             (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
@@ -996,7 +996,8 @@ contains
 
                             betapi=-log(xsol(i))/vsol
                             lambda=-log(fdis(i,t)) -psi(i)*zpol(t,2)-betapi*vpol(t)*vsol
-                            rhopolq=zpol(t,2)*fdis(i,t)*rhopol(i,t)
+                            rhopolq=(zpol(t,1)*(1.0_dp-fdis(i,t))+ zpol(t,2)*fdis(i,t))*rhopol(i,t)
+
             
                             FEchem_react = FEchem_react + &
                                 (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
@@ -1050,7 +1051,7 @@ contains
                                  born(lbr,bornrad%polMg,zpolAA(6))*fdisA(i,6) )*rhopol(i,t)
                         
                         rhopolq = 0.0_dp ! total poly charge at i
-                        xpol=0.0_dp      ! total poly volume fraction at i   carefully check wiht definition of xpol in module field
+                        xpol=0.0_dp      ! total poly volume fraction at i   carefully check with definition of xpol in module field
                         do k=1,4 
                             rhopolq=rhopolq+ zpolAA(k)*fdisA(i,k)*rhopol(i,t)
                             xpol   =xpol + rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol

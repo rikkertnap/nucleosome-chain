@@ -17,6 +17,7 @@ module VdW
 
     integer, parameter :: range = 2 
     integer, parameter :: MCsteps = 100000000
+    real(dp), parameter :: Vdwepsilon=1.0e-5_dp  ! Also in parameters.f90
     
     integer, parameter :: VdW_err_allocation = 1
     integer, parameter :: VdW_err_vdwcoeff   = 2
@@ -166,7 +167,7 @@ subroutine make_VdWcoeff(info)
 
     if (present(info)) info = 0
 
-    !range=set_range(lsegAA,VdWcutoff)
+    !range=set_range(lsegAA,VdWcutoff) ! update !!!!!! 
 
     call allocate_VdWcoeff(info_allocate_VdW)
     call allocate_auxdensity(info_allocate_dens)
@@ -712,35 +713,41 @@ function VdW_energy(rhopol)result(EVdW)
 
     do s=1,nsegtypes
         do t=1,nsegtypes
-    
-            Etemp =0.0_dp
-   
-            do ix=1,nx
-                do iy=1,ny
-                    do iz=1,nz
-                        do ax = -range,range 
+            
+            if(abs(VdWeps(s,t))>Vdwepsilon) then 
                 
-                            jx = ix+ax
-                            jx = ipbc(jx,nx) ! mod(jx-1+5*dimx, dimx) + 1
-                        
-                            do ay = -range,range
-                                jy = iy+ay
-                                jy = ipbc(jy,ny) ! mod(jy-1+5*dimy, dimy) + 1
-                        
-                                do az = -range,range 
-                                    jz = iz+az
-                                    jz = ipbc(jz,nz)
+                Etemp =0.0_dp
 
-                                    Etemp=Etemp + VdWcoeff(ax,ay,az,s,t)*rhopoltmp(jx, jy, jz,s)*rhopoltmp(ix, iy, iz,t)
-                                        
+                do ix=1,nx
+                    do iy=1,ny
+                        do iz=1,nz
+                            do ax = -range,range 
+                    
+                                jx = ix+ax
+                                jx = ipbc(jx,nx) ! mod(jx-1+5*dimx, dimx) + 1
+                            
+                                do ay = -range,range
+                                    jy = iy+ay
+                                    jy = ipbc(jy,ny) ! mod(jy-1+5*dimy, dimy) + 1
+                            
+                                    do az = -range,range 
+                                        jz = iz+az
+                                        jz = ipbc(jz,nz)
+
+                                        Etemp=Etemp + VdWcoeff(ax,ay,az,s,t)* &
+                                            rhopoltmp(jx, jy, jz,s)*rhopoltmp(ix, iy, iz,t)
+                                            
+                                    enddo
                                 enddo
                             enddo
                         enddo
                     enddo
                 enddo
-            enddo
 
-            EVdW = EVdW-VdWeps(s,t)*Etemp*volcell/2.0_dp
+                EVdW = EVdW-VdWeps(s,t)*Etemp*volcell/2.0_dp
+            
+            endif
+                
         enddo
     enddo            
 

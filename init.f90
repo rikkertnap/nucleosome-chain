@@ -55,8 +55,8 @@ subroutine init_guess(x, xguess)
     use globals, only : systype
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
-    real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential 
-       
+    real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential   
+
     select case (systype)
         case ("elect")   
             call init_guess_elect(x,xguess)    
@@ -167,16 +167,16 @@ subroutine init_guess_neutral(x, xguess)
     use globals, only : neqint,nsize,nsegtypes
     use volume, only : nz
     use field, only : xsol,rhopol,xpol
-    use parameters, only : xbulk, infile
+    use parameters, only : xbulk, infile, isrhoselfconsistent
     use myutils, only : newunit
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, t
+    integer :: n, i, k, t
     character(len=8) :: fname(2)
-    integer :: ios,un_file(2)
+    integer :: ios,un_file(2),count_scf
   
     !     .. init guess all xbulk      
 
@@ -204,10 +204,20 @@ subroutine init_guess_neutral(x, xguess)
             read(un_file(1),*)xsol(i) ! solvent
             read(un_file(2),*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
             x(i) = xsol(i)            ! placing xsol  in vector x
-            do t=1,nsegtypes          ! placing rhopol(:,t) in vector x
-                x(i+t*nsize)=rhopol(i,t)
-            enddo      
-        enddo     
+        enddo
+        
+        count_scf=0                     ! placing density in vector x
+        do t=1,nsegtypes
+            if(isrhoselfconsistent(t)) then
+                count_scf=count_scf+1 
+                k=count_scf*nsize
+                do i=1,nsize
+                    x(i+k) = rhopol(i,t)                            
+                enddo
+            endif        
+        enddo    
+
+
         close(un_file(1))
         close(un_file(2))
     endif
@@ -276,17 +286,19 @@ subroutine init_guess_multi(x, xguess)
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol
     use surface, only : psisurfL, psisurfR 
-    use parameters, only : xbulk, infile
+    use parameters, only : xbulk, infile, isrhoselfconsistent
     use myutils, only : newunit
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, t
+    integer :: n, i, k, t
     character(len=8) :: fname(4)
-    integer :: ios,un_file(4)
+    integer :: ios,un_file(4),count_scf
   
+    print*,"init_guess_multi"
+
     ! .. init guess all xbulk     
 
     do i=1,neqint
@@ -296,6 +308,7 @@ subroutine init_guess_multi(x, xguess)
     do i=1,nsize
         x(i)=xbulk%sol
     enddo
+
 
     if (infile.eq.1) then   ! infile is read in from file/stdio  
     
@@ -324,13 +337,19 @@ subroutine init_guess_multi(x, xguess)
             x(i)         = xsol(i)    ! placing xsol in vector x
             x(i+nsize)   = psi(i)     ! placing psi in vector x
         enddo 
-            
-        do t=1,nsegtypes          ! placing rhopol(:,t) in vector x
-            do i=1,nsize
-                x(i+(t+1)*nsize)=rhopol(i,t)
-            enddo        
-        enddo
+       
     
+        count_scf=0                     ! placing density in vector x
+        do t=1,nsegtypes
+            if(isrhoselfconsistent(t)) then
+                count_scf=count_scf+1 
+                k=(count_scf+1)*nsize
+                do i=1,nsize
+                    x(i+k) = rhopol(i,t)                            
+                enddo
+            endif        
+        enddo
+
         if(bcflag(RIGHT)/="cc") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
@@ -348,6 +367,7 @@ subroutine init_guess_multi(x, xguess)
         xguess(i)=x(i)
     enddo
 
+    print*,"end : init_guess_multi"
 end subroutine init_guess_multi
 
 

@@ -28,12 +28,13 @@ module field
     real(dp), dimension(:), allocatable :: epsfcn   ! dielectric constant 
     real(dp), dimension(:), allocatable :: Depsfcn  ! derivative dielectric constant
 
-    real(dp), dimension(:,:), allocatable :: fdis   ! degree of dissociation of acid monomer
-    real(dp), dimension(:,:), allocatable :: fdisA   ! degree of dissociation 
+    real(dp), dimension(:,:), allocatable :: fdis    ! degree of dissociation of acid monomer and base monomer
+                                                     ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
+    real(dp), dimension(:,:), allocatable :: fdisA   ! degree of dissociation of acid including condensed states
     real(dp), dimension(:,:), allocatable :: fdisB   ! degree of dissociation
       
     real(dp) :: q         ! normalization partion fnc polymer 
-    real(dp) :: lnq      ! exponent of normalization partion fnc polymer 
+    real(dp) :: lnq       ! exponent of normalization partion fnc polymer 
 
     real(dp) :: lnproshift ! shift in exponetn palpha
 

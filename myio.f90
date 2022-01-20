@@ -1278,7 +1278,7 @@ subroutine output_brush_mul
         print*,avbond_angle(i),avdihedral_angle(i)
         
     enddo
-    write(un_angle,*)avbond_angle(nnucl-2)
+    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
     do i=1,nnucl-1
         write(un_dist,*)avnucl_spacing(i)
@@ -2008,7 +2008,7 @@ subroutine output_neutral
     do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
     enddo
-    write(un_angle,*)avbond_angle(nnucl-2)
+    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
     !  .. output of nuceleson distance 
     do i=1,nnucl-1
@@ -2093,7 +2093,7 @@ subroutine output_neutral
         close(un_xpolz)
         close(un_angle)
         close(un_dist)
-        !close(un_xpro)
+        close(un_xpro)
     endif
 
 end subroutine output_neutral

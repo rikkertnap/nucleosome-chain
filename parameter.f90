@@ -115,7 +115,7 @@
     integer :: maxnchainsrotationsxy  ! number of rotations read in from input.in, assigned to maxnctheta in chaingenerator default 1  
     integer :: tA                     ! segment number type of monomer type A  
     logical :: write_mc_chains        ! if true MC chain write of file
-    logical :: write_struct            ! if true structural quantities writting to file
+    logical :: write_struct           ! if true structural quantities writting to file
     logical :: isEnergyShift          ! if true energychain is shifted by energychain_min see chaingenerator
 
     ! ..average structural properties of layer
@@ -138,10 +138,10 @@
     real(dp), dimension(:), allocatable :: Ka               ! experimemtal equilibruim constant 
     real(dp), dimension(:), allocatable :: pKa              ! experimental equilibruim constant pKa= -log[Ka]
     
-    real(dp) :: KaA(4),K0aA(4),pKaA(4)     !  ... constant for  acid 
+    real(dp) :: KaA(4),K0aA(4),pKaA(4)     !  .. constant for  acid 
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
     real(dp) :: KaAA(7),K0aAA(7),pKaAA(7) 
-    type (looplist), target :: pKd   ! binding constants 
+    type (looplist), target :: pKd         ! binding constants 
    
       
      ! water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
@@ -159,7 +159,7 @@
    
     real(dp) :: cHplus             ! concentration of H+ in bulk in mol/liter
     real(dp) :: cOHmin             ! concentration of OH- in bulk in mol/liter
-    real(dp),target  :: cNaCl      ! concentration of salt in bulk in mol/liter
+    real(dp),target :: cNaCl       ! concentration of salt in bulk in mol/liter
     real(dp),target :: cKCl        ! concentration of salt in bulk in mol/liter
     real(dp) :: cRbCl              ! concentration of RbCl in bulk in mol/liter
     real(dp) :: cCaCl2             ! concentration of CaCl2 in bulk in mol/liter
@@ -176,7 +176,7 @@
     integer, parameter ::  err_pKdfile         = 2 
     integer, parameter ::  err_pKderror        = 3
 
-    ! lammmps unit conversion ! converts sigma to nm 
+    ! unit conversion : converts unit of input conformation to nm unit!
 
     real(dp) :: unit_conv
 

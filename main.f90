@@ -55,7 +55,6 @@ program main
 
     ! .. executable statements
 
-
     ! .. mpi
 
     call MPI_INIT(ierr)
@@ -124,12 +123,10 @@ program main
     call allocate_field(nx,ny,nz,nsegtypes)
     call init_field()
     call init_surface(bcflag,nsurf)
-
     call make_isrhoselfconsistent(isVdW)
     call set_size_neq()             ! number of non-linear equation neq
     call set_fcn()
     call set_dielect_fcn(dielect_env)
-
     call write_chain_config()
     call write_chain_struct(write_struct,info)
 
@@ -139,7 +136,6 @@ program main
     allocate(x(neq))
     allocate(xguess(neq))
     allocate(fvec(neq))
-
         
     if(runtype=="rangedist") then ! loop over distances
 
@@ -147,12 +143,11 @@ program main
         neqmax = neq
 
         isfirstguess = .true.
-        use_xstored = .false.         ! with both flags set false make_guess will set xguess equal to x
+        use_xstored = .false.      ! with both flags set false make_guess will set xguess equal to x
         
         pH%val=pH%min
        
         iter = 0
-
 
         do while (nz>=nzmin)        ! loop distances
 
@@ -223,7 +218,6 @@ program main
 
     else  ! loop over pH, or pKd etc  values
  
-
         if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH") then 
             loop => pH
         else if(runtype=="rangecpro") then 
@@ -403,7 +397,6 @@ program main
     call deallocate_field()
 
     text="program end"
-
     call print_to_log(LogUnit,text)
     call close_logfile(LogUnit)
 
