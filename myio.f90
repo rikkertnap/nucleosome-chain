@@ -56,6 +56,7 @@ module myio
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg
     public :: num_cNaCl,num_cMgCl2, cNaCl_array,  cMgCl2_array, set_value_NaCl, set_value_MgCl2
     public :: num_cKCl,  cKCl_array, set_value_KCl
+    public :: set_value_isVdW_on_values
 
 contains
 
@@ -910,7 +911,7 @@ subroutine set_value_isVdW(systype, isVdW)
     character(len=15) :: systypestr(3)
     integer :: i
 
-     isVdW=.True.
+    isVdW=.True.
 
     ! systype that NOT involve VdW interactions 
 
@@ -941,24 +942,32 @@ subroutine set_value_isVdWintEne(systype, isVdWintEne)
 
 end subroutine
 
-! changes value isVdW based on values of VdWeps parameter
-! pre :VdWeps need to be initialized see module VdW
+! changes value isVdW to .false. if and only if all values of VdWeps  
+! are smalller than threshold 
+! pre : VdWeps need to be initialized see module VdW
 
 subroutine set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW)
+
+    use parameters, only : VdWepsilon
 
     integer, intent(in) :: nsegtypes
     real(dp), intent(in) :: VdWeps(:,:)
     logical, intent(inout)  :: isVdW
 
     integer :: s,t
+    logical :: isallVdWzero
+
+    isallVdWzero=.true.
 
     do s=1,nsegtypes
         do t=1,nsegtypes
-            if (abs(VdWeps(s,t))>1.0e-4_dp) isVdW=.true.
+            if (abs(VdWeps(s,t))>VdWepsilon) isallVdWzero=.false.
         enddo
     enddo
 
-end subroutine
+    if(isallVdWzero) isVdW=.false. 
+
+end subroutine set_value_isVdW_on_values
 
 
 subroutine set_value_nsegtypes(nsegtypes,chaintype,systype,info)

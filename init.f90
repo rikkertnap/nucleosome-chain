@@ -296,8 +296,7 @@ subroutine init_guess_multi(x, xguess)
     integer :: n, i, k, t
     character(len=8) :: fname(4)
     integer :: ios,un_file(4),count_scf
-  
-    print*,"init_guess_multi"
+
 
     ! .. init guess all xbulk     
 
@@ -367,7 +366,6 @@ subroutine init_guess_multi(x, xguess)
         xguess(i)=x(i)
     enddo
 
-    print*,"end : init_guess_multi"
 end subroutine init_guess_multi
 
 

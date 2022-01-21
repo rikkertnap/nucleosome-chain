@@ -104,7 +104,17 @@ program main
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
     call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
-
+    
+    call make_VdWeps(info) 
+    if(info/=0) then
+        write(istr,'(I3)')info
+        text="Error in make_VdWeps: info = "//trim(adjustl(istr))//" : end program."
+        call print_to_log(LogUnit,text)
+        print*,text
+        stop
+    endif   
+    call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
+    
     if(isVdW) then 
         call make_VdWcoeff(info)
         if(info/=0) then
@@ -113,9 +123,7 @@ program main
             call print_to_log(LogUnit,text)
             print*,text
             stop
-        endif
-    else
-        call make_VdWeps(info)    
+        endif   
     endif  
 
     call make_chains(chainmethod)   

@@ -17,7 +17,6 @@ module VdW
 
     integer, parameter :: range = 2 
     integer, parameter :: MCsteps = 100000000
-    real(dp), parameter :: Vdwepsilon=1.0e-5_dp  ! Also in parameters.f90
     
     integer, parameter :: VdW_err_allocation = 1
     integer, parameter :: VdW_err_vdwcoeff   = 2
@@ -167,6 +166,14 @@ subroutine make_VdWcoeff(info)
 
     if (present(info)) info = 0
 
+    call make_VdWeps(info_VdWeps)   
+    if (info_VdWeps == VdW_err_inputfile) then
+        text="make_VdWcoeff: make_VdWeps failed"
+        call print_to_log(LogUnit,text)
+        if (present(info)) info = VdW_err_inputfile
+        return
+    endif
+
     !range=set_range(lsegAA,VdWcutoff) ! update !!!!!! 
 
     call allocate_VdWcoeff(info_allocate_VdW)
@@ -186,13 +193,13 @@ subroutine make_VdWcoeff(info)
         enddo
     enddo    
 
-    call make_VdWeps(info_VdWeps)   
-    if (info_VdWeps == VdW_err_inputfile) then
-        text="make_VdWcoeff: make_VdWeps failed"
-        call print_to_log(LogUnit,text)
-        if (present(info)) info = VdW_err_inputfile
-        return
-    endif
+  !  call make_VdWeps(info_VdWeps)   
+  !  if (info_VdWeps == VdW_err_inputfile) then
+  !      text="make_VdWcoeff: make_VdWeps failed"
+  !    call print_to_log(LogUnit,text)
+  !     if (present(info)) info = VdW_err_inputfile
+  !      return
+  !  endif
 
 end subroutine
 
@@ -691,7 +698,7 @@ function VdW_energy(rhopol)result(EVdW)
 
     use globals, only : nsize, nsegtypes
     use volume, only : nx,ny,nz,coordinateFromLinearIndex,linearIndexFromCoordinate,volcell
-    use parameters, only : VdWeps
+    use parameters, only : VdWeps,Vdwepsilon
 
     real(dp), intent(in) :: rhopol(:,:)
 
@@ -753,7 +760,10 @@ function VdW_energy(rhopol)result(EVdW)
 
 end function
 
-
+! reads VdWeps.in file
+! info = 0 ; read succes
+! info =  VdW_err_inputfile read failure 
+ 
 subroutine read_VdWeps(info)
     
     use mpivars
@@ -768,6 +778,7 @@ subroutine read_VdWeps(info)
     character(80) :: str
     integer :: s,t, line
    
+    if (present(info)) info=0
 
     ! .. reading in of variables from file 
 
@@ -817,6 +828,7 @@ subroutine make_VdWeps(info)
     use parameters, only : set_VdWepsAAandBB, set_VdWepsin
     integer,  intent(out), optional :: info
     
+    if (present(info)) info = 0
 
     call allocate_VdWeps()
     call read_VdWeps(info)

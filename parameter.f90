@@ -180,7 +180,6 @@
 
     real(dp) :: unit_conv
 
-    private :: VdWepsilon
     private :: err_pKdfile_noexist,err_pKdfile,err_pKderror  
 
 contains
