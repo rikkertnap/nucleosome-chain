@@ -24,7 +24,7 @@ module chains
     real(dp), dimension(:), allocatable     :: Rendsqr                  ! end-to-end distance
     real(dp), dimension(:,:), allocatable   :: bond_angle               ! bond angle
     real(dp), dimension(:,:), allocatable   :: dihedral_angle           ! dihedralangle
-    real(dp), dimension(:,:), allocatable     :: nucl_spacing             ! spacing or distance between Nuclesome  
+    real(dp), dimension(:,:), allocatable   :: nucl_spacing             ! spacing or distance between Nuclesome  
     real(dp), dimension(:), allocatable     :: avbond_angle             ! average bond angle
     real(dp), dimension(:), allocatable     :: avdihedral_angle         ! average dihedral angle
     real(dp), dimension(:), allocatable     :: avnucl_spacing           ! average spacing or distance between Nuclesome

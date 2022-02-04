@@ -765,7 +765,7 @@ end subroutine read_sequence_copoly_from_file
 ! select indexchain and energy that have a weightchain=.true.
 ! return actual number of conformations
 ! rational: need identical set of confors for loop of distance /volumesizes
-! Allows moding of brush compressesd by second surface at z=nz
+! ! Allows modeling of brush compressesd by second surface at z=nz
  
 subroutine chain_filter()
     
@@ -804,10 +804,8 @@ end subroutine  chain_filter
 
 
 ! Compute weight chain w=e^E/Tre^E and normalize
-! layout conformations : there are nset_per_graft nset 
-! each graft point has nset of confomations thus total numberf of nodes= ngr*nset_per_graft
-! the confomation on different graft point are the same excpet for translation. 
-! Each graft point is idivual normalizes thus we need only normalize one set 
+! layout conformations : there are  nset of conformations thus total nodes = nset 
+! Each set hodl differnte conformations
 
 subroutine normed_weightchains()
 
@@ -819,9 +817,8 @@ subroutine normed_weightchains()
     real(dp) :: localsum, totalsum, logtotalsum
 
         
-    !    assymetric only use the first graft point to find normalization
     localsum=0.0_dp    
-   
+
     do c=1,cuantas
         localsum=localsum+exp(energychain(c))   
     enddo    

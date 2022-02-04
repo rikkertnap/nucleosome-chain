@@ -410,6 +410,7 @@ contains
         Rendsqr_local=0.0_dp
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
