@@ -36,6 +36,9 @@ module myio
     real(dp), dimension(:), allocatable, target :: cMgCl2_array
     real(dp), dimension(:), allocatable, target :: cKCl_array
 
+    ! varialble for allow steps in between given salt concentrations
+    integer :: maxlist_step
+
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_q
@@ -51,12 +54,13 @@ module myio
     character(len=80), parameter  :: fmt6reals = "(6ES25.16E3)"
 
     private
-    public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output,write_chain_config
+    public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output, write_chain_config
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg
-    public :: num_cNaCl,num_cMgCl2, cNaCl_array,  cMgCl2_array, set_value_NaCl, set_value_MgCl2
-    public :: num_cKCl,  cKCl_array, set_value_KCl
+    public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
+    public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
     public :: set_value_isVdW_on_values
+    public :: maxlist_step
 
 contains
 

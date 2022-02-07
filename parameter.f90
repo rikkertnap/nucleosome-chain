@@ -142,7 +142,7 @@
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
     real(dp) :: KaAA(7),K0aAA(7),pKaAA(7) 
     type (looplist), target :: pKd         ! binding constants 
-   
+    type (looplist), target :: deltaGd 
       
      ! water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
     real(dp) :: pKw                 

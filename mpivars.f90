@@ -8,7 +8,7 @@ module mpivars
   !     .. variables
 
   integer  rank              ! current node number
-  integer  size              ! total number of nodes
+  integer  size              ! total number of nodes 
   integer  ierr
   integer  stat(MPI_STATUS_SIZE)
   integer  source
