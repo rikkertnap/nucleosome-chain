@@ -6,7 +6,7 @@ module field
     implicit none
     
     real(dp), dimension(:), allocatable :: xpol     ! volume fraction of polymer   
-    real(dp), dimension(:), allocatable :: xpolz    ! total volume fraction of polymer in z-direction  
+!    real(dp), dimension(:), allocatable :: xpolz    ! total volume fraction of polymer in z-direction  
     real(dp), dimension(:,:), allocatable :: rhopol ! density  monomer of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopolin 
     real(dp), dimension(:), allocatable :: rhoqpol  ! charge density  monomer of polymer in layer i 
@@ -51,7 +51,6 @@ contains
         N=Nx*Ny*Nz
 
         allocate(xpol(N),stat=ier)
-        allocate(xpolz(Nz),stat=ier)
         allocate(rhopol(N,nsegtypes),stat=ier) 
         allocate(rhopolin(N,nsegtypes),stat=ier) 
         allocate(rhoqpol(N),stat=ier) 
@@ -86,7 +85,6 @@ contains
     subroutine deallocate_field()
         
         deallocate(xpol)
-        deallocate(xpolz)
         deallocate(rhopol)
         deallocate(rhoqpol)
         deallocate(xsol)
@@ -137,7 +135,6 @@ contains
         rhoq=0.0_dp
         fdisA=0.0_dp
         fdisB=0.0_dp
-        xpolz=0.0_dp
         psi=0.0_dp
         xpro=0.0_dp
            

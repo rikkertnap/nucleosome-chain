@@ -120,7 +120,7 @@
 
     ! ..average structural properties of layer
 
-    real(dp) :: height             ! average height of layer 
+    !real(dp) :: height             ! average height of layer 
     real(dp) :: avRsqr             ! average Radius of Gyration Nucleosome chain
     real(dp) :: qpolA              ! charge poly A of layer 
     real(dp) :: qpolB              ! charge poly B of layer 

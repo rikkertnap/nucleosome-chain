@@ -41,8 +41,8 @@ module myio
 
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
-    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_q
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpolz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle, un_dist
+    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
+    integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle, un_dist
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -1122,7 +1122,6 @@ subroutine output()
 
     case("neutral","neutralnoVdW") 
 
-
         call output_neutral
         call output_individualcontr_fe
 
@@ -1162,7 +1161,6 @@ subroutine output_brush_mul
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolzfilename
     character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
@@ -1177,7 +1175,6 @@ subroutine output_brush_mul
     character(len=90) :: xOHminfilename
     character(len=90) :: densfracfilename
     character(len=90) :: densfracPfilename
-    character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
@@ -1198,7 +1195,6 @@ subroutine output_brush_mul
 
         sysfilename='system.'//trim(fnamelabel)
         xpolfilename='xpol.'//trim(fnamelabel)
-        xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
         xNafilename='xNaions.'//trim(fnamelabel)
         xKfilename='xKions.'//trim(fnamelabel)
@@ -1214,7 +1210,6 @@ subroutine output_brush_mul
         densfracfilename='densityfrac.'//trim(fnamelabel)
         densfracPfilename='densityfracP.'//trim(fnamelabel)
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
-        qfilename='q.'//trim(fnamelabel)
         anglesfilename='angles.'//trim(fnamelabel)
         spacingfilename='spacing.'//trim(fnamelabel)
 
@@ -1223,12 +1218,9 @@ subroutine output_brush_mul
         open(unit=newunit(un_sys),file=sysfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_psi),file=potentialfilename)
-
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_fdis),file=densfracfilename)
         if(systype=="brushdna") open(unit=newunit(un_fdisP),file=densfracPfilename)
-        open(unit=newunit(un_q),file=qfilename)
-        open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_angle),file=anglesfilename)
         open(unit=newunit(un_dist),file=spacingfilename)
 
@@ -1248,9 +1240,10 @@ subroutine output_brush_mul
 
     else ! check that files are open
         inquire(unit=un_sys, opened=isopen)
+        if(.not.isopen) write(*,*)"un_sys is not open"
         inquire(unit=un_xpol, opened=isopen)
+        if(.not.isopen) write(*,*)"un_xpol is not open"
         inquire(unit=un_xsol, opened=isopen)
-
         if(.not.isopen) write(*,*)"un_xsol is not open"
 
     endif
@@ -1288,8 +1281,6 @@ subroutine output_brush_mul
     !  .. output of bond and dihedral angles
     do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-        print*,avbond_angle(i),avdihedral_angle(i)
-        
     enddo
     if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
@@ -1302,16 +1293,12 @@ subroutine output_brush_mul
         write(un_psi,*)psi(i)
     enddo
 
-    write(un_q,*)q
 
     do i=1,nsize
         write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
         write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
     enddo
 
-    do i=1,nz
-        write(un_xpolz,fmt1reals)xpolz(i)
-    enddo
 
     if(systype=="brushdna")then
         do i=1,nsize
@@ -1439,7 +1426,7 @@ subroutine output_brush_mul
     write(un_sys,*)'FEbind      = ',FEbind
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
-    write(un_sys,*)'height      = ',height
+    write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
@@ -1497,8 +1484,6 @@ subroutine output_brush_mul
         close(un_xpol)
         close(un_fdis)
         if(systype=="brushdna") close(un_fdisP)
-        close(un_xpolz)
-        close(un_q)
         close(un_angle)
         close(un_dist)
         if(verboseflag=="yes") then
@@ -1538,8 +1523,6 @@ subroutine output_elect
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolzfilename
-    character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
     character(len=90) :: xCafilename
@@ -1553,7 +1536,6 @@ subroutine output_elect
     character(len=90) :: xOHminfilename
     character(len=90) :: densfracAfilename
     character(len=90) :: densfracBfilename
-    character(len=90) :: qfilename
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
@@ -1576,7 +1558,6 @@ subroutine output_elect
 
         sysfilename='system.'//trim(fnamelabel)
         xpolfilename='xpol.'//trim(fnamelabel)
-        xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
         xNafilename='xNaions.'//trim(fnamelabel)
         xKfilename='xKions.'//trim(fnamelabel)
@@ -1592,7 +1573,6 @@ subroutine output_elect
         densfracAfilename='densityAfrac.'//trim(fnamelabel)
         densfracBfilename='densityBfrac.'//trim(fnamelabel)
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
-        qfilename='q.'//trim(fnamelabel)
         anglesfilename='angles.'//trim(fnamelabel)
         spacingfilename='spacing.'//trim(fnamelabel)
         !     .. opening files
@@ -1603,8 +1583,6 @@ subroutine output_elect
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_fdisA),file=densfracAfilename)
         open(unit=newunit(un_fdisB),file=densfracBfilename)
-        open(unit=newunit(un_q),file=qfilename)
-        open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_angle),file=anglesfilename)
         open(unit=newunit(un_dist),file=spacingfilename)
 
@@ -1624,9 +1602,10 @@ subroutine output_elect
 
     else ! check that files are open
         inquire(unit=un_sys, opened=isopen)
+        if(.not.isopen) write(*,*)"un_sys is not open"
         inquire(unit=un_xpol, opened=isopen)
+        if(.not.isopen) write(*,*)"un_xpol is not open"
         inquire(unit=un_xsol, opened=isopen)
-
         if(.not.isopen) write(*,*)"un_xsol is not open"
 
     endif
@@ -1658,12 +1637,14 @@ subroutine output_elect
 
     endif
 
-    !  .. output of bond and dihedral angles
-    do i=1,nnucl-4
+    !  .. output of bond and dihedral 
+    
+    do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
     enddo
-    write(un_angle,*)avbond_angle(nnucl-3)
+    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
+        
     do i=1,nnucl-1
         write(un_dist,*)avnucl_spacing(i)
     enddo
@@ -1673,17 +1654,11 @@ subroutine output_elect
         write(un_psi,*)psi(i)
     enddo
 
-    write(un_q,*)q
-
     do i=1,nsize
         write(un_xpol,fmt3reals)xpol(i),rhopol(i,1),rhopol(i,2)
         write(un_fdisA,fmt5reals)(fdisA(i,k),k=1,5)
         write(un_fdisB,fmt5reals)(fdisB(i,k),k=1,5)
     enddo
-    do i=1,nz
-        write(un_xpolz,fmt1reals)xpolz(i)
-    enddo
-
 
     if(verboseflag=="yes") then
         do i=1,nsize
@@ -1824,7 +1799,7 @@ subroutine output_elect
     write(un_sys,*)'FEbind      = ',FEbind
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
-    write(un_sys,*)'height      = ',height
+    write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'qpolA       = ',qpolA
@@ -1887,8 +1862,6 @@ subroutine output_elect
         close(un_xpol)
         close(un_fdisA)
         close(un_fdisB)
-        close(un_xpolz)
-        close(un_q)
         close(un_angle)
         close(un_dist)
 
@@ -1925,7 +1898,6 @@ subroutine output_neutral
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolzfilename
     character(len=90) :: xprofilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
@@ -1961,9 +1933,8 @@ subroutine output_neutral
         !     .. make filenames
         sysfilename='system.'//trim(fnamelabel)
         xpolfilename='xpol.'//trim(fnamelabel)
-        xpolzfilename='xpolz.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
-        xprofilename='xpro.'//trim(fnamelabel) 
+        !xprofilename='xpro.'//trim(fnamelabel) 
         anglesfilename='angles.'//trim(fnamelabel) 
         spacingfilename='spacing.'//trim(fnamelabel) 
 
@@ -1971,9 +1942,7 @@ subroutine output_neutral
         !      .. opening files
         open(unit=newunit(un_sys),file=sysfilename)
         open(unit=newunit(un_xpol),file=xpolfilename)
-        open(unit=newunit(un_xpolz),file=xpolzfilename)
         open(unit=newunit(un_xsol),file=xsolfilename)
-        open(unit=newunit(un_xpro),file=xprofilename)
         open(unit=newunit(un_angle),file=anglesfilename)
         open(unit=newunit(un_dist),file=spacingfilename)
 
@@ -1986,10 +1955,6 @@ subroutine output_neutral
         if(.not.isopen) write(*,*)"un_xpol is not open"
         inquire(unit=un_xsol, opened=isopen)
         if(.not.isopen) write(*,*)"un_xsol is not open"
-        inquire(unit=un_xpolz, opened=isopen)
-        if(.not.isopen) write(*,*)"un_xpolz is not open"
-        inquire(unit=un_xpro, opened=isopen)
-        if(.not.isopen) write(*,*)"un_xpro is not open"
         inquire(unit=un_angle, opened=isopen)
         if(.not.isopen) write(*,*)"un_angles is not open"
         inquire(unit=un_dist, opened=isopen)
@@ -1997,33 +1962,28 @@ subroutine output_neutral
 
     endif
 
-    !   .. writting files
-    !   .. this line seperates different distances
+    !  .. writting files
+    !  .. this line seperates different distances
 
     if(runtype=="rangedist") then
         write(un_xsol,*)'#D    = ',nz*delta
         write(un_xpol,*)'#D    = ',nz*delta
-    !    write(un_xpro,*)'#D    = ',nz*delta
-        write(un_xpolz,*)'#D    = ',nz*delta
     endif
 
     do i=1,nsize
        write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
        write(un_xsol,fmt1reals)xsol(i)
-    !   write(un_xpro,fmt1reals)xpro(i)
+    enddo
 
-    enddo
-    do i=1,nz
-       write(un_xpolz,fmt1reals)xpolz(i)
-    enddo
 
     !  .. output of bond and dihedral angles
+   
     do i=1,nnucl-3
         write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
     enddo
     if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-
-    !  .. output of nuceleson distance 
+    
+    !  .. output of nuclesome distance 
     do i=1,nnucl-1
         write(un_dist,*)avnucl_spacing(i)
     enddo
@@ -2059,7 +2019,7 @@ subroutine output_neutral
         write(un_sys,*)'nzmin       = ',nzmin
         write(un_sys,*)'nzstep      = ',nzstep
         write(un_sys,*)'tol_conv    = ',tol_conv
-        ! other physcial parameters
+        ! other physical parameters
         write(un_sys,*)'T           = ',Tref
         ! volume
         write(un_sys,*)'vsol        = ',vsol
@@ -2092,7 +2052,6 @@ subroutine output_neutral
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'mu          = ',-log(q)
-    write(un_sys,*)'height      = ',height
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'iterations  = ',iter
@@ -2103,10 +2062,8 @@ subroutine output_neutral
         close(un_xsol)
         close(un_xpol)
         close(un_sys)
-        close(un_xpolz)
         close(un_angle)
         close(un_dist)
-        close(un_xpro)
     endif
 
 end subroutine output_neutral
@@ -2282,7 +2239,11 @@ subroutine make_filename_label(fnamelabel)
 
         if(cCaCl2/=0.0_dp) then
             if(cCaCl2>=0.001) then
-                write(rstr,'(F5.3)')cCaCl2
+                if(cCaCl2>=0.01) then
+                    write(rstr,'(F5.3)')cCaCl2
+                else
+                    write(rstr,'(F6.4)')cCaCl2
+                endif  
             elseif(cCaCl2>0.0) then
                 write(rstr,'(ES9.2E2)')cCaCl2
             else
@@ -2290,14 +2251,22 @@ subroutine make_filename_label(fnamelabel)
             endif
             fnamelabel=trim(fnamelabel)//"cCaCl2"//trim(adjustl(rstr))
         endif
+        
         if(cMgCl2/=0.0_dp) then
             if(cMgCl2>=0.001) then
-                write(rstr,'(F5.3)')cMgCl2
+                if(cMgCl2>=0.01) then
+                    write(rstr,'(F5.3)')cMgCl2
+                else
+                    write(rstr,'(F6.4)')cMgCl2
+                endif  
             elseif(cMgCl2>0.0) then
                 write(rstr,'(ES9.2E2)')cMgCl2
             else
                 write(rstr,'(F3.1)')cMgCl2
             endif
+
+
+
             fnamelabel=trim(fnamelabel)//"cMgCl2"//trim(adjustl(rstr))
         endif
 
@@ -2398,9 +2367,8 @@ end subroutine copy_solution
 subroutine compute_vars_and_output()
 
     use globals, only : systype
-    use energy
-    use field
-    use parameters, only : height
+    use energy, only : fcnenergy
+    use field, only : charge_polymer,average_charge_polymer,make_ion_excess
 
     select case (systype)
     case ("elect")
@@ -2408,24 +2376,21 @@ subroutine compute_vars_and_output()
         call fcnenergy()
         call charge_polymer()
         call average_charge_polymer()
-        call average_density_z(xpol,xpolz,height)
         call make_ion_excess()
         call output()
 
     case ("neutral","neutralnoVdW")
 
         call fcnenergy()
-        call average_density_z(xpol,xpolz,height)
-        call output()           ! writing of output
+        call output()           
 
     case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
 
         call fcnenergy()
         call charge_polymer()
         call average_charge_polymer()
-        call average_density_z(xpol,xpolz,height)
         call make_ion_excess()
-        call output()           ! writing of output
+        call output()           
 
     case default
 
