@@ -1431,8 +1431,10 @@ subroutine output_brush_mul
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
+
     if(systype=="brushdna".or.systype=="brushborn")then
         write(un_sys,'(A15,8ES25.16)')'avfdisA      = ',(avfdisA(k),k=1,8)
+        write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     else
         write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     endif
