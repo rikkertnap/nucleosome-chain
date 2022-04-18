@@ -290,7 +290,7 @@ subroutine read_chains_XYZ_nucl(info)
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
-    real(dp) :: chain(3,nseg),chain_rot(3,nseg)       ! chains(x,i)= coordinate x of segement i
+    real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg)    ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
     real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
@@ -418,12 +418,6 @@ subroutine read_chains_XYZ_nucl(info)
                 chain(2,s) = xseg(2,s)-xseg(2,sgraftpts(1)) 
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
-  
-            Rgsqr(conffile) = radius_gyration_com(chain,nnucl,segcm)
-            Rendsqr(conffile) = end_to_end_distance_com(chain,nnucl,segcm)
-            bond_angle(:,conffile) = bond_angles_com(chain,nnucl,segcm)
-            dihedral_angle(:,conffile) = dihedral_angles_com(chain,nnucl,segcm)
-            nucl_spacing(:,conffile) = nucleosomal_spacing(chain,nnucl,segcm)
 
             ! rotate chain 
             !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
@@ -434,14 +428,14 @@ subroutine read_chains_XYZ_nucl(info)
 
                 do s=1,nseg
 
-                    x(s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions in x and y and z direcxtion 
-                    y(s) = pbc(chain_rot(2,s)+ycm,Ly)
-                    z(s) = pbc(chain_rot(3,s)+zcm,Lz)  
+                    chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions in x and y and z direcxtion 
+                    chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly)
+                    chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz)  
 
                     ! transforming form real- to lattice coordinates                 
-                    xi = int(x(s)/delta)+1
-                    yi = int(y(s)/delta)+1
-                    zi = int(z(s)/delta)+1
+                    xi = int(chain(1,s)/delta)+1
+                    yi = int(chain(2,s)/delta)+1
+                    zi = int(chain(3,s)/delta)+1
                         
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
@@ -458,31 +452,38 @@ subroutine read_chains_XYZ_nucl(info)
                     endif
                     
                 enddo
-                
+
                 energychain_init(conf)=energy
 
+                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                
                 conf=conf+1   
                                     
             case("prism") 
                     
                 do s=1,nseg
+                    
                     xp(s) = chain_rot(1,s)+xcm
                     yp(s) = chain_rot(2,s)+ycm
-                    zp(s) = chain(3,s)+zcm
+                    zp(s) = chain_rot(3,s)+zcm
 
                     ! .. transformation to prism coordinates 
                     xpp(s) = ut(xp(s),yp(s))
                     ypp(s) = vt(xp(s)+ycm,yp(s))
 
                     ! .. periodic boundary conditions in u and v ands z direction
-                    x(s) = pbc(xpp(s),Lx) 
-                    y(s) = pbc(ypp(s),Ly)
-                    z(s) = pbc(zp(s),Lz)        
+                    chain_pbc(1,s) = pbc(xpp(s),Lx) 
+                    chain_pbc(2,s) = pbc(ypp(s),Ly)
+                    chain_pbc(3,s) = pbc(zp(s),Lz)        
 
                     ! .. transforming form real- to lattice coordinates                 
-                    xi = int(x(s)/delta)+1
-                    yi = int(y(s)/delta)+1
-                    zi = int(z(s)/delta)+1
+                    xi = int(chain_pbc(1,s)/delta)+1
+                    yi = int(chain_pbc(2,s)/delta)+1
+                    zi = int(chain_pbc(3,s)/delta)+1
                         
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
@@ -500,6 +501,12 @@ subroutine read_chains_XYZ_nucl(info)
                 enddo
                 
                 energychain_init(conf)=energy
+
+                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
 
                 conf=conf+1   
 
