@@ -433,9 +433,9 @@ subroutine read_chains_XYZ_nucl(info)
                     chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz)  
 
                     ! transforming form real- to lattice coordinates                 
-                    xi = int(chain(1,s)/delta)+1
-                    yi = int(chain(2,s)/delta)+1
-                    zi = int(chain(3,s)/delta)+1
+                    xi = int(chain_pbc(1,s)/delta)+1
+                    yi = int(chain_pbc(2,s)/delta)+1
+                    zi = int(chain_pbc(3,s)/delta)+1
                         
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
