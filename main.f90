@@ -140,6 +140,8 @@ program main
     call write_chain_config()
     call write_chain_struct(write_struct,info)
 
+    stop
+
     !  .. computation starts
 
     allocate(xstored(neq))

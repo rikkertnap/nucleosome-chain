@@ -423,6 +423,13 @@ subroutine read_chains_XYZ_nucl(info)
             !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
             call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
 
+            Rgsqr(conf)            = radius_gyration_com(chain,nnucl,segcm)
+            Rendsqr(conf)          = end_to_end_distance_com(chain,nnucl,segcm)
+            bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
+            dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
+            nucl_spacing(:,conf)   = nucleosomal_spacing(chain,nnucl,segcm)
+                
+
             select case (geometry)
             case ("cubic")
 
@@ -455,11 +462,11 @@ subroutine read_chains_XYZ_nucl(info)
 
                 energychain_init(conf)=energy
 
-                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                ! Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                ! Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                ! bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                ! dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                ! nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
                 
                 conf=conf+1   
                                     
