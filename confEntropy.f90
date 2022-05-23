@@ -37,7 +37,7 @@ contains
             print*,"end FEconf"
         case ("neutralnoVdW")
             call FEconf_neutral_noVdW(FEconf,Econf)
-        case ("brush_mul","brushdna")
+        case ("brush_mul","brushdna","brushdna_ionbin")
             call FEconf_brush_mul(FEconf,Econf)
         case ("brush_mulnoVdW")
             call FEconf_brush_mulnoVdW(FEconf,Econf)

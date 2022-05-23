@@ -104,6 +104,7 @@ program main
     call init_chain_parameters      ! chain volume, charges, pKa etc
     call make_sequence_chain(chainperiod,chaintype)
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
+    call make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
     call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
     
@@ -139,8 +140,6 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info)
-
-    stop
 
     !  .. computation starts
 
@@ -232,8 +231,6 @@ program main
  
         if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH") then 
             loop => pH
-        else if(runtype=="rangecpro") then 
-            loop => cpro
         else if (runtype=="rangepKd") then
             loop => pKd   
         else if (runtype=="rangedeltaGd") then

@@ -270,7 +270,7 @@ subroutine read_chains_XYZ_nucl(info)
     use random
     use parameters
     use volume, only :  sgraftpts, nx, ny,nz, delta
-    use chain_rotation, only : rotate_nucl_chain,test_rotate_nucl_chain
+    use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
     use myio, only : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
@@ -317,8 +317,6 @@ subroutine read_chains_XYZ_nucl(info)
     info=0
 
     ! .. open file   
-
-    !rankfile=mod(rank,nset_per_graft)
 
     rankfile=rank                                                                                     
     
@@ -421,14 +419,8 @@ subroutine read_chains_XYZ_nucl(info)
 
             ! rotate chain 
             !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
-            call test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+            call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations)                
 
-            Rgsqr(conf)            = radius_gyration_com(chain,nnucl,segcm)
-            Rendsqr(conf)          = end_to_end_distance_com(chain,nnucl,segcm)
-            bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
-            dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
-            nucl_spacing(:,conf)   = nucleosomal_spacing(chain,nnucl,segcm)
-                
 
             select case (geometry)
             case ("cubic")
@@ -462,11 +454,11 @@ subroutine read_chains_XYZ_nucl(info)
 
                 energychain_init(conf)=energy
 
-                ! Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                ! Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                ! bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                ! dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                ! nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
                 
                 conf=conf+1   
                                     
@@ -1159,6 +1151,33 @@ subroutine make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
     enddo
 
 end subroutine make_charge_table
+
+
+! routine determines is type of charge of segment type t 
+! pre: zpol needs to be initialized
+! post: type_of_charge list of characters
+
+subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
+ 
+    character(len=1), intent(out) :: type_of_charge(:)
+    integer, intent(in) :: zpol(:,:)
+    integer, intent(in) :: nsegtypes
+    
+    ! local variable
+    integer :: t 
+
+    do t=1,nsegtypes
+        if(zpol(t,1)==0.and.zpol(t,2)==0) then 
+            type_of_charge(t)="N"
+        else if(zpol(t,1)==0.and.zpol(t,2)==-1) then
+             type_of_charge(t)="A"
+        else if(zpol(t,1)==1.and.zpol(t,2)==0) then
+             type_of_charge(t)="B"  
+        endif
+    enddo
+
+end subroutine make_type_of_charge_table
+
 
 
 logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)

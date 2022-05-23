@@ -15,7 +15,6 @@ module molecules
         real(dp) :: KCl
         real(dp) :: Hplus
         real(dp) :: OHmin
-        real(dp) :: pro 
     end type moleclist
 
 
@@ -32,12 +31,6 @@ module molecules
         real(dp) :: Hplus
         real(dp) :: OHmin
     end type bornmoleclist 
-
-
-    !type dipolelist
-    !    real(dp) :: sol
-    !    real(dp) :: pol
-    !end type dipolelist
 
   
 end module molecules

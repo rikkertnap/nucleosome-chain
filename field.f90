@@ -5,8 +5,7 @@ module field
 
     implicit none
     
-    real(dp), dimension(:), allocatable :: xpol     ! volume fraction of polymer   
-!    real(dp), dimension(:), allocatable :: xpolz    ! total volume fraction of polymer in z-direction  
+    real(dp), dimension(:), allocatable :: xpol     ! volume fraction of polymer 
     real(dp), dimension(:,:), allocatable :: rhopol ! density  monomer of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopolin 
     real(dp), dimension(:), allocatable :: rhoqpol  ! charge density  monomer of polymer in layer i 
@@ -23,7 +22,7 @@ module field
     real(dp), dimension(:), allocatable :: xCl     ! volume fraction of negative ion
     real(dp), dimension(:), allocatable :: xHplus  ! volume fraction of Hplus
     real(dp), dimension(:), allocatable :: xOHmin  ! volume fraction of OHmin 
-    real(dp), dimension(:), allocatable :: xpro    ! volume fraction of crowder 
+
     real(dp), dimension(:), allocatable :: rhoq    ! total free charge density in units of vsol  
     real(dp), dimension(:), allocatable :: epsfcn   ! dielectric constant 
     real(dp), dimension(:), allocatable :: Depsfcn  ! derivative dielectric constant
@@ -32,11 +31,13 @@ module field
                                                      ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
     real(dp), dimension(:,:), allocatable :: fdisA   ! degree of dissociation of acid including condensed states
     real(dp), dimension(:,:), allocatable :: fdisB   ! degree of dissociation
-      
+    real(dp), dimension(:,:,:), allocatable :: gdisA   ! degree of dissociation of acid including condensed states  
+    real(dp), dimension(:,:,:), allocatable :: gdisB   ! degree of dissociation of base including condensed states  
+
     real(dp) :: q         ! normalization partion fnc polymer 
     real(dp) :: lnq       ! exponent of normalization partion fnc polymer 
 
-    real(dp) :: lnproshift ! shift in exponetn palpha
+    real(dp) :: lnproshift ! shift in exponent palpha
 
   
 contains
@@ -67,12 +68,16 @@ contains
         allocate(xHplus(N),stat=ier)
         allocate(xOHmin(N),stat=ier)
         allocate(rhoq(N),stat=ier)
+        allocate(epsfcn(N),stat=ier)    ! relative dielectric constant
+        allocate(Depsfcn(N),stat=ier)   ! derivate relative dielectric constan
+
         allocate(fdis(N,nsegtypes),stat=ier)
         allocate(fdisA(N,8),stat=ier)
         allocate(fdisB(N,5),stat=ier)
-        allocate(epsfcn(N),stat=ier)    ! relative dielectric constant
-        allocate(Depsfcn(N),stat=ier)   ! derivate relative dielectric constan
-        allocate(xpro(N),stat=ier) 
+        allocate(gdisA(N,nsegtypes,4),stat=ier)
+        allocate(gdisB(N,nsegtypes,3),stat=ier)
+       
+
         
         if( ier/=0 ) then
             print*, 'Allocation error : stat =', ier
@@ -98,11 +103,16 @@ contains
         deallocate(xHplus)
         deallocate(xOHmin)
         deallocate(rhoq)
-        deallocate(fdisA)
-        deallocate(fdisB)
         deallocate(epsfcn)
         deallocate(Depsfcn)
-        deallocate(xpro)
+
+
+        deallocate(fdis)
+        deallocate(fdisA)
+        deallocate(fdisB)
+        deallocate(gdisA)
+        deallocate(gdisB)
+      
         
     end subroutine deallocate_field
 
@@ -133,11 +143,13 @@ contains
         xHplus=0.0_dp
         xOHmin=0.0_dp
         rhoq=0.0_dp
+        psi=0.0_dp
+        fdis=0.0_dp
         fdisA=0.0_dp
         fdisB=0.0_dp
-        psi=0.0_dp
-        xpro=0.0_dp
-           
+        gdisA=0.0_dp
+        gdisB=0.0_dp
+
     end subroutine init_field
 
 
@@ -161,7 +173,6 @@ contains
         sumrhopol=sumrhopol*volcell
 
         intrhopol=nseg
-        if(systype=="electdouble") intrhopol=intrhopol*2.0_dp  
 
         checkintegral=sumrhopol-intrhopol
 
@@ -182,8 +193,7 @@ contains
         enddo    
         sumrhopol=sumrhopol*volcell
 
-        intrhopol=nseg
-        if(systype=="electdouble") intrhopol=intrhopol*2.0_dp  
+        intrhopol=nseg  
 
         checkintegral=sumrhopol-intrhopol
 
@@ -199,6 +209,8 @@ contains
             call charge_polymer_multi()
         case ("brushdna","brushborn")
             call charge_polymer_dna()
+        case ("brushdna_ionbin")
+            call charge_polymer_dna_ionbin()
         case ("elect")  
             call charge_polymer_binary()
         case default
@@ -237,6 +249,42 @@ contains
         enddo
 
     end subroutine charge_polymer_dna
+
+
+    subroutine charge_polymer_dna_ionbin()
+
+        use globals, only : nsize, nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, qpol, qpol_tot, tA
+        use chains, only : ismonomer_chargeable 
+
+        integer :: i, t
+
+        qpol_tot=0.0_dp
+        do t=1,nsegtypes
+            qpol(t)=0.0_dp
+            if(ismonomer_chargeable(t)) then 
+                if(t/=tA) then 
+                    if(zpol(t,1)==0) then    
+                        do i=1,nsize
+                            qpol(t)=qpol(t)-gdisA(i,t,1)*rhopol(i,t)
+                        enddo
+                    else
+                        do i=1,nsize
+                            qpol(t)=qpol(t)+gdisB(i,t,1)*rhopol(i,t)
+                        enddo
+                    endif    
+                else
+                    do i=1,nsize
+                        qpol(t)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,tA)
+                    enddo
+                endif    
+            endif    
+            qpol(t)=qpol(t)*volcell
+            qpol_tot=qpol_tot+qpol(t)
+        enddo
+
+    end subroutine charge_polymer_dna_ionbin
 
 
     subroutine charge_polymer_multi()
@@ -292,6 +340,8 @@ contains
             call average_charge_polymer_multi()
         case ("brushdna","brushborn")
             call average_charge_polymer_dna()
+        case ("brushdna_ionbin")
+            call average_charge_polymer_dna_ionbin()
         case ("elect","electA","electVdWAB","electdouble")   
             call average_charge_polymer_binary()
         case default
@@ -350,6 +400,70 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_polymer_dna
+
+
+     subroutine average_charge_polymer_dna_ionbin()
+
+        use globals, only : nseg,nsize,nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, avfdis, avfdisA, tA, avgdisA, avgdisB
+        use chains, only: type_of_monomer,ismonomer_chargeable
+
+        integer, dimension(:), allocatable   :: npol
+        integer :: i,s,t,k
+        real(dp) :: sumrhopolt ! average density of polymer of type t 
+
+        allocate(npol(nsegtypes))
+        
+        npol=0
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            npol(t)=npol(t)+1
+        enddo   
+            
+        do t=1,nsegtypes
+            avfdis(t)=0.0_dp
+            if(ismonomer_chargeable(t)) then 
+                sumrhopolt=npol(t)/volcell
+                if(npol(t)/=0) then
+                    if(t/=tA) then 
+                        if(zpol(t,1)==0) then ! acid
+                            do k=1,4
+                                avgdisA(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,t,k)*rhopol(i,t)
+                                enddo
+                                avgdisA(t,k)=avgdisA(t,k)/sumrhopolt  
+                            enddo
+                            avfdis(t)=zpol(t,2)*avgdisA(t,1) ! signed charged fraction   
+                        else ! base
+                            do k=1,3
+                                avgdisB(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,t,k)*rhopol(i,t)
+                                enddo
+                                avgdisB(t,k)=avgdisB(t,k)/sumrhopolt 
+                            enddo
+                            avfdis(t)=zpol(t,1)*avgdisB(t,1) 
+                        endif            
+                    else
+                        do k=1,8
+                            avfdisA(k)=0.0_dp
+                            do i=1,nsize
+                                avfdisA(k)=avfdisA(k)+fdisA(i,k)*rhopol(i,t)
+                            enddo
+                            avfdisA(k)=avfdisA(k)/sumrhopolt  
+                        enddo
+                        avfdis(t)=avfdisA(1)
+                    endif       
+                endif
+            endif    
+        enddo         
+
+        deallocate(npol)    
+
+    end subroutine average_charge_polymer_dna_ionbin
 
     subroutine average_charge_polymer_multi()
 

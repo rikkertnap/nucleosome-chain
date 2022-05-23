@@ -73,7 +73,8 @@ contains
             stop
         endif
 
-     end subroutine open_logfile  
+    end subroutine open_logfile
+
 
 
     subroutine close_logfile(UnitNum)
@@ -84,7 +85,8 @@ contains
 
         close(UnitNum)
 
-    end subroutine close_logfile    
+    end subroutine close_logfile
+        
 
     ! in fortran 2008 newunit is provided 
  

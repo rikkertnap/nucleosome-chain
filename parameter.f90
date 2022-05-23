@@ -30,7 +30,6 @@
     real(dp) :: vMg                ! volume positive Mg2+ ion in units of vsol
     real(dp) :: vNaCl
     real(dp) :: vKCl
-    real(dp) :: vpro
   
     !  .. radii
   
@@ -40,7 +39,6 @@
     real(dp) :: RCl
     real(dp) :: RCa
     real(dp) :: RMg
-    real(dp) :: Rpro
 
      !    .. charges 
     integer :: zpolAA(8)
@@ -67,9 +65,9 @@
     type(looplist), target :: VdWscale ! scale factor in VdW interaction
 
   
-     !  .. input filenames select if chainmethod==file
+     !  .. input filenames 
     integer, parameter :: lenfname=40
-    character(len=lenfname) :: chainfname,vpolfname,pKafname,typesfname,lsegfname,segcmfname
+    character(len=lenfname) :: chainfname,vpolfname,pKafname,pKaionfname,typesfname,lsegfname,segcmfname
 
     ! .. other physical quanties
   
@@ -95,7 +93,9 @@
     logical ::  precondition     ! controls use of precondtioner 
 
     !  .. output control
-    character(len=3) ::  verboseflag    ! select input falg 
+
+    character(len=3) ::  verboseflag ! select verbosity of output if equal yes ion density also outputted
+    logical ::  write_rotations      ! if .true. extra information by chain rotation test_rotate_nucl_chain written 
 
     ! .. chain variables 
     real(dp) :: lseg              ! segment length of A polymer in nm
@@ -120,7 +120,6 @@
 
     ! ..average structural properties of layer
 
-    !real(dp) :: height             ! average height of layer 
     real(dp) :: avRsqr             ! average Radius of Gyration Nucleosome chain
     real(dp) :: qpolA              ! charge poly A of layer 
     real(dp) :: qpolB              ! charge poly B of layer 
@@ -128,16 +127,23 @@
   
     real(dp), dimension(:), allocatable :: qpol                ! charge poly of layer 
     real(dp), dimension(:), allocatable :: avfdis              ! average degree of dissociation
+    real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average degree of dissociation
     real(dp) :: avfdisA(8)         ! average degree of dissociation 
     real(dp) :: avfdisB(5)         ! average degree of dissociation
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
 
     !  .. weak polyelectrolyte variables 
     !  .. equibrium constant
-    real(dp), dimension(:), allocatable :: K0a              ! intrinsic equilibruim constant
-    real(dp), dimension(:), allocatable :: Ka               ! experimemtal equilibruim constant 
-    real(dp), dimension(:), allocatable :: pKa              ! experimental equilibruim constant pKa= -log[Ka]
-    
+    real(dp), dimension(:), allocatable :: K0a               ! intrinsic equilibruim constant
+    real(dp), dimension(:), allocatable :: Ka                ! experimemtal equilibruim constant 
+    real(dp), dimension(:), allocatable :: pKa               ! experimental equilibruim constant pKa= -log[Ka]
+
+    real(dp), dimension(:,:), allocatable :: K0aion          ! intrinsic equilibruim constant
+    real(dp), dimension(:,:), allocatable :: Kaion           ! experimemtal equilibruim constant 
+    real(dp), dimension(:,:), allocatable :: pKaion          ! experimental equilibruim constant pKaion= -log[Kaion]
+
+
+
     real(dp) :: KaA(4),K0aA(4),pKaA(4)     !  .. constant for  acid 
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
     real(dp) :: KaAA(7),K0aAA(7),pKaAA(7) 
@@ -164,14 +170,11 @@
     real(dp) :: cRbCl              ! concentration of RbCl in bulk in mol/liter
     real(dp) :: cCaCl2             ! concentration of CaCl2 in bulk in mol/liter
     real(dp),target :: cMgCl2      ! concentration of MgCl2 in bulk in mol/liter
-    
-    type(looplist), target :: cpro ! concentration of crowder /protine in mol/liter 
-
     type (looplist), target :: pH
     real(dp) :: pHbulk             ! pH of bulk pH = -log([H+])
     real(dp) :: pOHbulk            ! p0H of bulk p0H = -log([0H-])
   
-    !  retrun error of subroutine read_pKds
+    !  return error of subroutine read_pKds 
     integer, parameter ::  err_pKdfile_noexist = 1
     integer, parameter ::  err_pKdfile         = 2 
     integer, parameter ::  err_pKderror        = 3
@@ -200,7 +203,7 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna")
+            case ("brushdna","brushdna_ionbin")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
@@ -325,9 +328,6 @@ contains
         vNaCl= (vNa+vCl)          ! contact ion pair
         vKCl = (vK+vCl)           ! contact ion pair
         
-        ! .. volume crowder/protein
-        vpro  = ((4.0_dp/3.0_dp)*pi*(Rpro)**3)/vsol 
-
         ! .. volume polymer segments
         ! .. all volume scaled by vsol
         
@@ -699,13 +699,11 @@ contains
         xbulk%Mg=xMgCl2salt*vMg/(vMg+2.0_dp*vCl)
         xbulk%Cl=xbulk%Cl+ xMgCl2salt*2.0_dp*vCl/(vMg+2.0_dp*vCl)
 
-        xbulk%pro = (cpro%val*Na/(1.0e24_dp))*(vpro*vsol)! volume fraction crowder/protein 
-
         xbulk%NaCl=0.0_dp    ! no in pairing
         xbulk%KCl=0.0_dp     ! no ion pairing
         
         xbulk%sol=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
-                -xbulk%Ca -xbulk%Rb -xbulk%Mg -xbulk%pro
+                -xbulk%Ca -xbulk%Rb -xbulk%Mg 
 
 
         if(xbulk%sol<0) then
@@ -772,11 +770,15 @@ contains
         K0aA(4) = (K0aA(4)*vsol)*(Na/1.0e24_dp)
         K0aB(4) = (K0aB(4)*vsol)*(Na/1.0e24_dp)
          
-        ! pKa constant from file assogned from read_pKas_and_zpol
+        ! pKa constant from file assigned from read_pKas_and_zpol
 
-        Ka  = 10.0_dp**(-pKa) ! experimental equilibruim constant acid 
-        K0a = (Ka*vsol)*(Na/1.0e24_dp) ! intrinstic equilibruim constant 
-
+        Ka  = 10.0_dp**(-pKa)                       ! experimental equilibruim constant acid 
+        K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
+ 
+        if(systype=="brushdna_ionbin") then 
+            Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
+            K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
+        endif    
 
         if(systype=="brushborn") then 
 
@@ -802,8 +804,6 @@ contains
             expmu%Hplus = (xbulk%Hplus/xbulk%sol) *      exp(bornbulk%Hplus)  
             expmu%OHmin = (xbulk%OHmin/xbulk%sol) *      exp(bornbulk%OHmin)  
 
-            expmu%pro   = xbulk%pro  /(xbulk%sol**vpro) 
-
         else
 
             ! exp(beta mu_i) = (rhobulk_i v_i) / exp(- beta pibulk v_i) 
@@ -817,7 +817,7 @@ contains
             expmu%KCl   = xbulk%KCl  /(xbulk%sol**vKCl)
             expmu%Hplus = xbulk%Hplus/xbulk%sol ! vsol = vHplus 
             expmu%OHmin = xbulk%OHmin/xbulk%sol ! vsol = vOHmin 
-            expmu%pro   = xbulk%pro  /(xbulk%sol**vpro) 
+           
 
         endif    
               
@@ -841,13 +841,8 @@ contains
     subroutine init_expmu_neutral
 
         use precision_definition
-        use physconst, only : Na
-
-        xbulk%pro = (cpro%val*Na/(1.0e24_dp))*(vpro*vsol) ! volume fraction crowder/protein     
-        xbulk%sol=1.0_dp -xbulk%pro                   ! volume fraction solvent 
-
-        expmu%pro   = xbulk%pro  /(xbulk%sol**vpro) 
-        ! print*,xbulk%pro,expmu%pro
+        
+        xbulk%sol=1.0_dp                  ! volume fraction solvent 
 
     end subroutine init_expmu_neutral
 
@@ -871,7 +866,7 @@ contains
         case ("brush_mul","brush_mulnoVdW") 
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale)     
-        case ("brushdna") 
+        case ("brushdna","brushdna_ionbin") 
             call init_dna  
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
@@ -895,13 +890,18 @@ contains
         
         !  allocate array depending on nsegtypes
 
-        allocate(vpol(nsegtypes)) !  volume polymer segments, all volume scaled by vsol
-        allocate(pKa(nsegtypes))  !  equilibrium constants 
-        allocate(Ka(nsegtypes))   
+        allocate(vpol(nsegtypes))    !  volume polymer segments, all volume scaled by vsol
+        allocate(pKa(nsegtypes))     !  equilibrium constants
+        allocate(pKaion(nsegtypes,4))!  equilibrium constants  
+        allocate(Ka(nsegtypes)) 
+        allocate(Kaion(nsegtypes,4))  
         allocate(K0a(nsegtypes))  
-        allocate(zpol(nsegtypes,2)) !  charge of segment of given type       
-        allocate(qpol(nsegtypes)) ! total charge of polymer type 
-        allocate(avfdis(nsegtypes)) !  fraction of charge of polymer type 
+        allocate(K0aion(nsegtypes,4))  
+        allocate(zpol(nsegtypes,2))  !  charge of segment of given type       
+        allocate(qpol(nsegtypes))    !  total charge of polymer type 
+        allocate(avfdis(nsegtypes))  !  fraction of charge of polymer type 
+        allocate(avgdisA(nsegtypes,4)) 
+        allocate(avgdisB(nsegtypes,3))  
         allocate(lsegAA(nsegtypes))
 
     end subroutine allocate_chain_parameters
@@ -910,10 +910,11 @@ contains
     !   post/after  allocate_chain_parameters and init_constants    
 
     subroutine init_chain_parameters
-                
+        
         call init_volume_pol 
         call init_pKas_and_zpol
         call init_lseg  ! init segment length
+        call init_pKaions
 
     end subroutine init_chain_parameters
 
@@ -932,11 +933,22 @@ contains
         use globals, only : nsegtypes
 
         pKa  =0.0_dp
-        zpol =0.0_Dp
+        zpol =0.0_dp
     
         call read_pKas_and_zpol(pKa,zpol,pKafname, nsegtypes) 
        
     end subroutine init_pKas_and_zpol
+
+
+    subroutine init_pKaions
+
+        use globals, only : nsegtypes, systype
+
+        pKaion =0.0_dp
+        
+        if(systype=="brushdna_ionbin") call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
+       
+    end subroutine init_pKaions
 
 
     ! Warning !!this routine is semi redundant because lseg not used in VdW yet !!!
@@ -1051,7 +1063,7 @@ contains
         open(unit=newunit(un),file=filename,iostat=ios,status='old')
         if(ios/=0 ) then
             write(istr,'(I2)')ios
-            str='Error opening file '//trim(adjustl(filename))//' : iostat = '//istr
+            str='Error read_pKas_and_zpol opening file '//trim(adjustl(filename))//' : iostat = '//istr
             print*,str
             stop
         endif
@@ -1064,6 +1076,72 @@ contains
 
 
     end subroutine read_pKas_and_zpol
+
+    !  .. assign  pKaion from values in file named filename
+   
+    subroutine read_pKaions(pKaion,zpol,filename, ntypes)
+   
+        use  myutils
+        implicit none 
+        
+        !     .. arguments 
+        real(dp), intent(inout) :: pKaion(:,:)
+        integer, intent(in) ::  zpol(:,:)
+        character(lenfname), intent(in) :: filename
+        integer,  intent(in) :: ntypes
+
+        !      .. local variables
+        integer :: ios, un  ! un = unit number
+        integer :: t, k, info ,zpol1,zpol2
+        character(80) :: istr,str
+        logical :: exist
+        real(dp) :: a,b
+
+        info = 0
+
+        inquire(file=filename,exist=exist)
+        if(exist) then
+            !     .. reading in of variables from file
+            open(unit=newunit(un),file=filename,iostat=ios,status='old')
+            if(ios/=0 ) then
+                write(istr,'(I2)')ios
+                str='Error read_pKaions opening file '//trim(adjustl(filename))//' : iostat = '//istr
+                print*,str
+                info =  err_pKdfile
+            endif
+            
+        else
+            str='pKaions file does not exist: '//trim(adjustl(filename))
+            print*,str
+            info= err_pKdfile_noexist
+        endif
+        
+        if(info==0) then        
+            do t=1,ntypes 
+                if((zpol(t,1)==0).and.(zpol(t,2)==-1)) then !acid 
+                    read(un,*,iostat=ios)pKaion(t,1),zpol1,zpol2,(pKaion(t,k),k=2,3)
+                !    print*,pKaion(t,1),zpol1,zpol2,(pKaion(t,k),k=2,3)
+                else if((zpol(t,1)==1).and.(zpol(t,2)==0)) then ! base
+                    read(un,*,iostat=ios)pKaion(t,1),zpol1,zpol2,pKaion(t,2)
+                !    print*,pKaion(t,1),zpol1,zpol2,pKaion(t,2)
+                else
+                    read(un,*,iostat=ios)
+                endif   
+                if(ios>0) then 
+                    write(istr,'(I2)')t
+                    str='Error occur reading line '//istr//' of pKaion inputfile'
+                    info =  err_pKderror
+                endif    
+            enddo    
+                
+            close(un)
+ 
+        else  ! something went wrong
+            stop
+        endif    
+            
+
+    end subroutine read_pKaions
 
     ! read pKd for acid group tA including acid-base equilbrium Na condensation etc
     ! four return value 
@@ -1236,7 +1314,8 @@ contains
             VdWepsAA = VdWeps(1,1) 
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
-        case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna")
+        case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
+                "brushdna_ionbin")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

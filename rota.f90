@@ -296,8 +296,9 @@ subroutine unit_test_rotate_nucl_chain(info)
            
 end subroutine unit_test_rotate_nucl_chain
 
+! identical to rotate_nucl_chain plus test of rotated conformation
 
-subroutine test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+subroutine rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations)
 
     use vectornorm
 
@@ -305,7 +306,8 @@ subroutine test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
     real(dp), intent(inout) :: chain_rot(:,:)  
     integer , intent(in)    :: sgraftpts(3) 
     integer , intent(in)    :: nseg  
-
+    logical , intent(in)    :: write_rotations
+    
     ! .. local variable
     real(dp) :: Rmat(3,3) ,vec2(3), vec3(3),vec3prime(3)
     real(dp) :: alpha, beta, gamma
@@ -354,34 +356,28 @@ subroutine test_rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
     radius=sqrt(chain_rot(1,sgraftpts(1))**2+chain_rot(2,sgraftpts(2))**2)
     if( radius>epsradius) then 
         print*,"Second chain conformation not on z-axis" 
-        info=1
+        info=2
     endif
 
     radius=sqrt(chain_rot(1,sgraftpts(3))**2)
     if(radius> epsradius) then
         print*,"Third chain conformation not in z-y plane" 
-        info=1
+        info=3
     endif
-
     
-    if(.true.) then
+    if(info/=0.or.write_rotations) then
         print*,"alpha=",alpha
         print*,"beta=",beta
         print*,"gamma=",gamma
-
         do s=1,3
             do i=1,3 
                 print*,s,i,chain(i,sgraftpts(s)),chain_rot(i,sgraftpts(s))
             enddo  
             print*,""
         enddo    
-         
     endif
-            
-            
-
-   
-end subroutine test_rotate_nucl_chain
+             
+end subroutine rotate_nucl_chain_test
 
 end module chain_rotation
     

@@ -42,7 +42,7 @@ module myio
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_xpro, un_fdisP, un_angle, un_dist
+    integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -101,11 +101,12 @@ subroutine read_inputfile(info)
     isSet_maxnchainsxy=.false.
     isSet_precondition=.false.
     isSet_savePalpha  =.false.
-    write_mc_chains   =.false.
-    write_struct      =.false.
     isSet_EnergyShift =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false.
+    write_mc_chains   =.false.
+    write_struct      =.false.
+    write_rotations   =.false.
     
 
     ! default concentrations
@@ -154,7 +155,7 @@ subroutine read_inputfile(info)
             case ('chaintype')
                 read(buffer,*,iostat=ios) chaintype
             case ('isChainEnergyFile')
-                    read(buffer,*,iostat=ios) isChainEnergyFile
+                read(buffer,*,iostat=ios) isChainEnergyFile
             case ('isEnergyShift')
                 read(buffer,*,iostat=ios) isEnergyShift
                 isSet_EnergyShift=.true.
@@ -177,9 +178,9 @@ subroutine read_inputfile(info)
             case ('KionK')
                 read(buffer,*,iostat=ios) KionK
             case ('sigmaSurfL')
-              read(buffer,*,iostat=ios) sigmaSurfL
-           case ('sigmaSurfR')
-              read(buffer,*,iostat=ios) sigmaSurfR
+                read(buffer,*,iostat=ios) sigmaSurfL
+            case ('sigmaSurfR')
+                read(buffer,*,iostat=ios) sigmaSurfR
             case ('cNaCl')
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
@@ -190,18 +191,6 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) cCaCl2
             case ('cMgCl2')
                 read(buffer,*,iostat=ios) cMgCl2
-            case ('cpro%val')
-                read(buffer,*,iostat=ios) cpro%val
-            case ('cpro%min')
-                read(buffer,*,iostat=ios) cpro%min
-            case ('cpro%max')
-                read(buffer,*,iostat=ios) cpro%max
-            case ('cpro%stepsize')
-                read(buffer,*,iostat=ios) cpro%stepsize
-            case ('cpro%delta')
-                read(buffer,*,iostat=ios) cpro%delta
-            case ('Rpro')
-                read(buffer,*,iostat=ios) Rpro
             case ('nsize')
                 read(buffer,*,iostat=ios) nsize
             case ('nnucl')
@@ -218,6 +207,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) vpolfname
             case('pKafname')
                 read(buffer,*,iostat=ios) pKafname
+            case('pKaionfname')
+                read(buffer,*,iostat=ios) pKaionfname
             case('typesfname')
                 read(buffer,*,iostat=ios) typesfname
             case('lsegfname')
@@ -281,6 +272,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) pKd%delta
             case ("write_struct")
                 read(buffer,*,iostat=ios) write_struct
+            case ('write_rotations')
+                read(buffer,*,iostat=ios) write_rotations
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped
@@ -382,11 +375,9 @@ subroutine read_inputfile(info)
     endif
 
     ! overide certain input values
-    if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul") then
+    if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul".or.systype=="brushdna_ionbin") then
         KionNa   = 0.0_dp
         KionK    = 0.0_dp
-        cpro%val = 0.0_dp
-        Rpro     = 0.1_dp
     endif
 
 end subroutine read_inputfile
@@ -397,7 +388,7 @@ subroutine check_value_systype(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=15) :: systypestr(8)
+    character(len=15) :: systypestr(9)
     integer :: i
     logical :: flag
 
@@ -411,10 +402,10 @@ subroutine check_value_systype(systype,info)
     systypestr(6)="brushborn"
     systypestr(7)="bulk water"
     systypestr(8)="neutralnoVdW"
-
+    systypestr(9)="brushdna_ionbin"
     flag=.FALSE.
 
-    do i=1,8
+    do i=1,9
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -435,7 +426,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(7)
+    character(len=15) :: runtypestr(6)
     integer :: i
     logical :: flag
 
@@ -447,7 +438,6 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(4)="rangepKd"
     runtypestr(5)="rangeVdWeps"
     runtypestr(6)="rangedist"
-    runtypestr(7)="rangecpro"  ! excluded
 
     flag=.FALSE.
 
@@ -858,7 +848,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(4)
+    character(len=15) :: systypestr(5)
     integer :: i
     logical :: flag
 
@@ -870,10 +860,12 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(2)="brush_mul"
         systypestr(3)="brushdna"
         systypestr(4)="brushborn"
+        systypestr(5)="brushdna_ionbin"
 
-        do i=1,4! sofar only electA works with VdW
-            if(systype==systypestr(i)) flag=.TRUE.
+        do i=1,5 
+            if(systype==systypestr(i)) flag=.true.
         enddo
+
     else  ! isVdW=.false. so oke
         flag=.true.
     endif
@@ -1125,7 +1117,7 @@ subroutine output()
         call output_neutral
         call output_individualcontr_fe
 
-    case("brush_mul","brush_mulnoVdW","brushdna","brushborn")
+    case("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin","brushborn")
 
         call output_brush_mul
         call output_individualcontr_fe
@@ -1151,7 +1143,8 @@ subroutine output_brush_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-
+    use chains, only : type_of_charge
+    
     !     .. local arguments
 
     integer :: t
@@ -1175,6 +1168,7 @@ subroutine output_brush_mul
     character(len=90) :: xOHminfilename
     character(len=90) :: densfracfilename
     character(len=90) :: densfracPfilename
+    character(len=90) :: densfracionfilename
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
@@ -1209,6 +1203,7 @@ subroutine output_brush_mul
         xOHminfilename='xOHmin.'//trim(fnamelabel)
         densfracfilename='densityfrac.'//trim(fnamelabel)
         densfracPfilename='densityfracP.'//trim(fnamelabel)
+        densfracionfilename='densityfracion.'//trim(fnamelabel)
         densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
         anglesfilename='angles.'//trim(fnamelabel)
         spacingfilename='spacing.'//trim(fnamelabel)
@@ -1220,7 +1215,9 @@ subroutine output_brush_mul
         open(unit=newunit(un_psi),file=potentialfilename)
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_fdis),file=densfracfilename)
-        if(systype=="brushdna") open(unit=newunit(un_fdisP),file=densfracPfilename)
+        if(systype=="brushdna".or.systype=="brushdna_ionbin") open(unit=newunit(un_fdisP),file=densfracPfilename)
+        if(systype=="brushdna_ionbin") open(unit=newunit(un_fdision),file=densfracionfilename)
+
         open(unit=newunit(un_angle),file=anglesfilename)
         open(unit=newunit(un_dist),file=spacingfilename)
 
@@ -1259,7 +1256,8 @@ subroutine output_brush_mul
         write(un_xpol,*)'#D    = ',nz*delta
         write(un_fdis,*)'#D    = ',nz*delta
 
-        if(systype=="brushdna") write(un_fdisP,*)'#D    = ',nz*delta
+        if(systype=="brushdna".or.systype=="brushdna_ionbin") write(un_fdisP,*)'#D    = ',nz*delta
+        if(systype=="brushdna_ionbin") write(un_fdision,*)'#D    = ',nz*delta
 
 
         if(verboseflag=="yes") then
@@ -1296,15 +1294,35 @@ subroutine output_brush_mul
 
     do i=1,nsize
         write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-        write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
     enddo
+    if(systype/="brushdna_ionbin") then
+        do i=1,nsize
+            write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
+        enddo
+    endif     
 
-
-    if(systype=="brushdna")then
+    if(systype=="brushdna".or.systype=="brushdna_ionbin") then
         do i=1,nsize
             write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
         enddo
     endif
+    if(systype=="brushdna_ionbin") then
+        do t=1,nsegtypes
+            if(type_of_charge(t)=="A") then 
+                do i=1,nsize
+                    write(un_fdision,*)(gdisA(i,t,k),k=1,4)
+                enddo
+            endif    
+        enddo    
+        do t=1,nsegtypes
+            if(type_of_charge(t)=="B") then 
+                do i=1,nsize
+                    write(un_fdision,*)(gdisB(i,t,k),k=1,3)
+                enddo
+            endif       
+        enddo
+    endif
+
 
     if(verboseflag=="yes") then
         do i=1,nsize
@@ -1325,7 +1343,7 @@ subroutine output_brush_mul
     ! .. writing system information
     if(nz.eq.nzmax) then
         write(un_sys,*)'===begin distance independent settings=='
-        write(un_sys,*)'system      = planar weakpolyelectrolyte brush'
+        write(un_sys,*)'system      = nucleosome chain'
         write(un_sys,*)'version     = ',VERSION
         ! chain description
         write(un_sys,*)'chainmethod = ',chainmethod
@@ -1371,7 +1389,7 @@ subroutine output_brush_mul
         ! disociation constants
         write(un_sys,*)'pKa         = ',(pKa(t),t=1,nsegtypes)
         !
-        if(systype=="brushdna".or.systype=="brushborn") then
+        if(systype=="brushdna".or.systype=="brushdna_ionbin".or.systype=="brushborn") then
            write(un_sys,'(A15,7ES25.16)')'pKaAA       = ',(pKaAA(t),t=1,7)
         endif
 
@@ -1432,14 +1450,21 @@ subroutine output_brush_mul
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
 
-    if(systype=="brushdna".or.systype=="brushborn")then
+    if(systype=="brushdna".or.systype=="brushdna_ionbin".or.systype=="brushborn")then
         write(un_sys,'(A15,8ES25.16)')'avfdisA      = ',(avfdisA(k),k=1,8)
         write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     else
         write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     endif
-    write(un_sys,*)'sigmaSurfL  = ',sigmaSurfL/((4.0_dp*pi*lb)*delta)
-    write(un_sys,*)'sigmaSurfR  = ',sigmaSurfR/((4.0_dp*pi*lb)*delta)
+    if(systype=="brushdna_ionbin")then
+        do k=1,4
+            write(un_sys,*)'avgdisA(',k,')      = ',(avgdisA(t,k),t=1,nsegtypes)
+        enddo 
+        do k=1,3   
+            write(un_sys,*)'avgdisB(',k,')      = ',(avgdisB(t,k),t=1,nsegtypes)
+        enddo
+    endif
+    
 
 
     if(bcflag(LEFT)=='ta') then
@@ -1480,14 +1505,17 @@ subroutine output_brush_mul
     ! .. closing files
 
     if(nz==nzmin) then
+
         close(un_sys)
         close(un_xsol)
         close(un_psi)
         close(un_xpol)
-        close(un_fdis)
-        if(systype=="brushdna") close(un_fdisP)
+        if(systype/="brushdna_ionbin")close(un_fdis)
+        if(systype=="brushdna".or.systype=="brushdna_ionbin") close(un_fdisP)
+        if(systype=="brushdna_ionbin") close(un_fdision)
         close(un_angle)
         close(un_dist)
+
         if(verboseflag=="yes") then
             close(un_xNa)
             close(un_xK)
@@ -1681,7 +1709,7 @@ subroutine output_elect
     ! .. writing system information
     if(nz.eq.nzmax) then
         write(un_sys,*)'===begin distance independent settings=='
-        write(un_sys,*)'system      = planar weakpolyelectrolyte brush'
+        write(un_sys,*)'system      =  nucleosome chain'
         write(un_sys,*)'version     = ',VERSION
         ! chain description
         write(un_sys,*)'chainmethod = ',chainmethod
@@ -1900,7 +1928,6 @@ subroutine output_neutral
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xprofilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
     
@@ -1936,7 +1963,6 @@ subroutine output_neutral
         sysfilename='system.'//trim(fnamelabel)
         xpolfilename='xpol.'//trim(fnamelabel)
         xsolfilename='xsol.'//trim(fnamelabel)
-        !xprofilename='xpro.'//trim(fnamelabel) 
         anglesfilename='angles.'//trim(fnamelabel) 
         spacingfilename='spacing.'//trim(fnamelabel) 
 
@@ -1995,7 +2021,7 @@ subroutine output_neutral
 
     if(nz.eq.nzmax) then
         write(un_sys,*)'===begin distance independent settings=='
-        write(un_sys,*)'system      = planar  brush'
+        write(un_sys,*)'system      = nuclesome chain'
         write(un_sys,*)'version     = ',VERSION
         ! chain description
         write(un_sys,*)'chainmethod = ',chainmethod
@@ -2026,8 +2052,6 @@ subroutine output_neutral
         ! volume
         write(un_sys,*)'vsol        = ',vsol
         write(un_sys,*)'vpol        = ',(vpol(t)*vsol,t=1,nsegtypes)
-        write(un_sys,*)'vpro        = ',vpro
-        write(un_sys,*)'cpro        = ',cpro%val
         write(un_sys,*)'isVdW       = ',isVdW
 
         write(un_sys,*)'===end distance independent settings=='
@@ -2043,7 +2067,6 @@ subroutine output_neutral
     write(un_sys,*)'FEconf      = ',FEconf
     write(un_sys,*)'Econf       = ',Econf
     write(un_sys,*)'FEtrans%sol = ',FEtrans%sol
-    write(un_sys,*)'FEtrans%pro = ',FEtrans%pro
     write(un_sys,*)'fnorm       = ',fnorm
     write(un_sys,*)'sumphi      = ',(sumphi(t),t=1,nsegtypes)
     write(un_sys,*)'check phi   = ',checkphi
@@ -2135,8 +2158,6 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEtrans%NaCl    = ",FEtrans%NaCl
     write(un_fe,*)"FEtrans%Hplus   = ",FEtrans%Hplus
     write(un_fe,*)"FEtrans%OHmin   = ",FEtrans%OHmin
-    write(un_fe,*)"FEtrans%pro     = ",FEtrans%pro
-
 
     write(un_fe,*)"FEchempot%Na    = ",FEchempot%Na
     write(un_fe,*)"FEchempot%Cl    = ",FEchempot%Cl
@@ -2147,7 +2168,6 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEchempot%NaCl  = ",FEchempot%NaCl
     write(un_fe,*)"FEchempot%Hplus = ",FEchempot%Hplus
     write(un_fe,*)"FEchempot%OHmin = ",FEchempot%OHmin
-    write(un_fe,*)"FEchempot%pro   = ",FEchempot%pro
 
     write(un_fe,*)"FEchemsurf(LEFT)     = ",FEchemsurf(LEFT)
     write(un_fe,*)"FEchemsurf(RIGHT)    = ",FEchemsurf(RIGHT)
@@ -2166,7 +2186,7 @@ end subroutine output_individualcontr_fe
 subroutine make_filename_label(fnamelabel)
 
     use globals, only : LEFT,RIGHT, systype, runtype
-    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,cpro,VdWscale,pKd
+    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd
 
     character(len=*), intent(inout) :: fnamelabel
 
@@ -2212,18 +2232,10 @@ subroutine make_filename_label(fnamelabel)
 
         write(rstr,'(F5.3)')denspol
         fnamelabel="phi"//trim(adjustl(rstr))
-        if(cpro%val>=0.001) then
-            write(rstr,'(F5.3)')cpro%val
-        elseif(cpro%val>0.0) then
-            write(rstr,'(ES9.2E2)')cpro%val
-        else
-            write(rstr,'(F3.1)')cpro%val
-        endif
-        fnamelabel=trim(fnamelabel)//"cPro"//trim(adjustl(rstr))
         write(rstr,'(F5.3)')VdWscale%val
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
-    case("brush_mul","brush_mulnoVdW","brushdna","brushborn")
+    case("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin","brushborn")
 
         write(rstr,'(F5.3)')denspol
         fnamelabel="phi"//trim(adjustl(rstr))
@@ -2386,7 +2398,7 @@ subroutine compute_vars_and_output()
         call fcnenergy()
         call output()           
 
-    case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
+    case ("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin","brushborn")
 
         call fcnenergy()
         call charge_polymer()

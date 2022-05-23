@@ -65,7 +65,7 @@ contains
         character(len=lenText) :: text 
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna")
+        case ("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin")
         
             call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
@@ -81,7 +81,7 @@ contains
             call fcnenergy_neutral_alternative()  
         
         case ("brushborn")
-            print*,"energy born not comnpleted yet "   
+            print*,"energy born not completed yet "   
             call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()    
 
@@ -134,7 +134,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xCl(i)/vCl+xK(i)/vK +&
-                xNaCl(i)/vNaCl +xKCl(i)/vKCl   +xpro(i)/vpro)                 ! sum over  rho_i 
+                xNaCl(i)/vNaCl +xKCl(i)/vKCl)                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)/2.0_dp      
             FEbindA = FEbindA + fdisA(i,5)*rhopol(i,A)
             FEbindB = FEbindB + fdisB(i,5)*rhopol(i,B)
@@ -180,7 +180,7 @@ contains
         volumelat= volcell*nsize                  ! volume lattice
 
         FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
-            xbulk%Ca/vCa +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +xbulk%pro/vpro)
+            xbulk%Ca/vCa +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl )
         FEbulk = volumelat*FEbulk/(vsol)
 
         deltaFE = FE - FEbulk
@@ -205,18 +205,7 @@ contains
         integer :: i,j,s               ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
         integer :: nzadius
-        !real(dp) :: sigmaSurf(2),sigmaqSurf(2,nx*ny),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
-        !real(dp) :: diffFEchemTa, FEchemSurftmp
-
-        ! sigmaSurf(RIGHT)  = sigmaSurfR 
-        ! sigmaSurf(LEFT)   = sigmaSurfL
-        
-        ! do s=1,nx*ny
-        !     sigmaqSurf(RIGHT,s) = sigmaqSurfR(s)
-        !     sigmaqSurf(LEFT,s)  = sigmaqSurfL(s)
-        !     psiSurf(RIGHT,s)    = psiSurfR(s)
-        !     psiSurf(LEFT,s)     = psiSurfL(s)
-        ! enddo    
+      
 
         ! .. computation ofalternative computation free energy
 
@@ -231,8 +220,7 @@ contains
         FEtrans%KCl   = FEtrans_entropy(xKCl,xbulk%KCl,vKCl)
         FEtrans%NaCl  = FEtrans_entropy(xNaCl,xbulk%NaCl,vNaCl)
         FEtrans%Hplus = FEtrans_entropy(xHplus,xbulk%Hplus,vsol,"w")
-        FEtrans%OHmin = FEtrans_entropy(xOHmin,xbulk%OHmin,vsol,"w")  
-        FEtrans%pro   = FEtrans_entropy(xpro,xbulk%pro,vpro)  
+        FEtrans%OHmin = FEtrans_entropy(xOHmin,xbulk%OHmin,vsol,"w") 
 
         ! .. chemical potential + standard chemical potential 
 
@@ -246,7 +234,6 @@ contains
         FEchempot%NaCl  = FEchem_pot(xNaCl,expmu%NaCl,vNaCl)
         FEchempot%Hplus = FEchem_pot(xHplus,expmu%Hplus,vsol,"w")
         FEchempot%OHmin = FEchem_pot(xOHmin,expmu%OHmin,vsol,"w")
-        FEchempot%pro   = FEchem_pot(xpro,expmu%pro,vpro)
 
         ! .. surface chemical contribution
  
@@ -254,25 +241,21 @@ contains
         ! .. summing all contrubutions
         
         FEalt = FEtrans%sol +FEtrans%Na+ FEtrans%Cl +FEtrans%NaCl+FEtrans%Ca +FEtrans%Mg
-        FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl +FEtrans%pro 
+        FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl 
         FEalt = FEalt+FEchempot%sol +FEchempot%Na+ FEchempot%Cl +FEchempot%NaCl+FEchempot%Ca +FEchempot%Mg
         FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl
-        FEalt = FEalt+FEchempot%pro
+      
 
         ! be vary carefull FE = -1/2 \int dz rho_q(z) psi(z)
 
          ! .. chemical and binding contribution
-        if(systype=="brush_mul") then 
+
+        select case (systype) 
+        case ("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin","brushborn")
             FEchem = FEchem_react_multi()
-        else  if(systype=="brush_mulnoVdW") then 
-            FEchem = FEchem_react_multi()
-        else if(systype=="brushdna") then
-            FEchem = FEchem_react_multi()
-         else if(systype=="brushborn") then
-            FEchem = FEchem_react_multi()
-        else
+        case default
             FEchem = FEchem_react()
-        endif    
+        end select 
 
         !  .. electrostatic Born self energy
         FEborn=FE_selfenergy_brush()
@@ -295,8 +278,7 @@ contains
         FEtransbulk%KCl   = FEtrans_entropy_bulk(xbulk%KCl,vKCl)
         FEtransbulk%NaCl  = FEtrans_entropy_bulk(xbulk%NaCl,vNaCl)
         FEtransbulk%Hplus = FEtrans_entropy_bulk(xbulk%Hplus,vsol,"w")
-        FEtransbulk%OHmin = FEtrans_entropy_bulk(xbulk%OHmin,vsol,"w")   
-        FEtransbulk%pro   = FEtrans_entropy_bulk(xbulk%pro,vpro)  
+        FEtransbulk%OHmin = FEtrans_entropy_bulk(xbulk%OHmin,vsol,"w") 
 
         ! .. delta chemical potential + standard chemical potential 
 
@@ -310,16 +292,15 @@ contains
         FEchempotbulk%NaCl  = FEchem_pot_bulk(xbulk%NaCl,expmu%NaCl,vNaCl)
         FEchempotbulk%Hplus = FEchem_pot_bulk(xbulk%Hplus,expmu%Hplus,vsol,"w")
         FEchempotbulk%OHmin = FEchem_pot_bulk(xbulk%OHmin,expmu%OHmin,vsol,"w")
-        FEchempotbulk%pro   = FEchem_pot_bulk(xbulk%pro,expmu%pro,vpro) 
         
         ! .. bulk free energy
 
         volumelat = volcell*nsize   ! volume lattice 
         FEbulkalt = FEtransbulk%sol +FEtransbulk%Na+ FEtransbulk%Cl +FEtransbulk%NaCl+FEtransbulk%Ca +FEtransbulk%Mg 
-        FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl +FEtransbulk%pro 
+        FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl 
         FEbulkalt = FEbulkalt+FEchempotbulk%sol +FEchempotbulk%Na+FEchempotbulk%Cl +FEchempotbulk%NaCl+FEchempotbulk%Ca 
         FEbulkalt = FEbulkalt+FEchempotbulk%Mg +FEchempotbulk%OHmin +FEchempotbulk%Hplus +FEchempotbulk%K +FEchempotbulk%KCl
-        FEbulkalt = FEbulkalt+FEchempotbulk%pro
+       
 
         FEBornbulk = (  bornbulk%Na*xbulk%Na/vNa    + bornbulk%Cl*xbulk%Cl/vCl + &
                         bornbulk%Ca*xbulk%Ca/vCa    + bornbulk%Mg*xbulk%Mg/vMg + &
@@ -344,7 +325,6 @@ contains
         deltaFEtrans%NaCl  = FEtrans%NaCl - FEtransbulk%NaCl * volumelat
         deltaFEtrans%Hplus = FEtrans%Hplus- FEtransbulk%Hplus * volumelat
         deltaFEtrans%OHmin = FEtrans%OHmin- FEtransbulk%OHmin * volumelat
-        deltaFEtrans%pro   = FEtrans%pro  - FEtransbulk%pro * volumelat
          
         deltaFEchempot%sol   = FEchempot%sol  - FEchempotbulk%sol * volumelat
         deltaFEchempot%Na    = FEchempot%Na   - FEchempotbulk%Na * volumelat
@@ -356,32 +336,10 @@ contains
         deltaFEchempot%NaCl  = FEchempot%NaCl - FEchempotbulk%NaCl * volumelat
         deltaFEchempot%Hplus = FEchempot%Hplus- FEchempotbulk%Hplus * volumelat
         deltaFEchempot%OHmin = FEchempot%OHmin- FEchempotbulk%OHmin * volumelat
-        deltaFEchempot%pro   = FEchempot%pro  - FEchempotbulk%pro * volumelat
 
         ! .. differences
 
         deltaFEalt = FEalt - FEbulkalt
-
-
-!        print*,"delta FEchemsurfalt(RIGHT)=",FEchemsurfalt(RIGHT)-FEchemsurf(RIGHT)
-
-        
-        ! if(bcflag(LEFT)=="ta" ) then 
-        !     diffFEchemsurf(LEFT)= (sigmaSurf(LEFT)/(4.0_dp*pi*lb*delta))*( dlog(K0Ta(1)) -dlog(expmu%Hplus))
-        ! else
-        !     diffFEchemsurf(LEFT)=0.0_dp
-        ! endif
-
-        ! if(bcflag(RIGHT)=='qu') then ! quartz
-        !     diffFEchemsurf(RIGHT)= (sigmaSurf(RIGHT)/(4.0_dp*pi*lb*delta))*( dlog(K0S(1)) -dlog(expmu%Hplus))
-        ! elseif(bcflag(RIGHT)=='cl') then ! quartz
-        !     diffFEchemsurf(RIGHT)= (sigmaSurf(RIGHT)/(4.0_dp*pi*lb*delta))*( dlog(K0S(1)) -dlog(expmu%Hplus))
-        ! elseif(bcflag(RIGHT)=="ta" ) then ! taurine       
-        !     diffFEchemsurf(RIGHT)= (sigmaSurf(RIGHT)/(4.0_dp*pi*lb*delta))*( dlog(K0Ta(1)) -dlog(expmu%Hplus))
-        ! else
-        !     diffFEchemsurf(RIGHT)=0.0_dp
-        !     ! not yet implemented 
-        ! endif 
 
 
     end subroutine fcnenergy_elect_alternative
@@ -436,7 +394,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
-                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl +xpro(i)/vpro)                 ! sum over  rho_i 
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl )                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)
             qres = qres + rhoq(i)
         enddo
@@ -543,7 +501,7 @@ contains
         use globals, only : nsize, nseg, nsegtypes
         use volume, only : volcell
         use parameters
-        use field, only : xsol, xpro, rhopol, q, lnproshift
+        use field, only : xsol, rhopol, q, lnproshift
         use VdW, only : VdW_energy
     
 
@@ -575,7 +533,7 @@ contains
 
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
-            FErho = FErho - xsol(i) -xpro(i)/vpro 
+            FErho = FErho - xsol(i) 
         enddo
 
         checkphi=nseg
@@ -599,11 +557,9 @@ contains
         endif
 
         ! .. shift in palpha  i.e q 
-        Eshift=lnproshift!*ngr 
-
+        Eshift=lnproshift
     
         FEq=-log(q)    
-    
        
         !  .. total free energy 
 
@@ -611,7 +567,7 @@ contains
         
        
         volumelat= volcell*nsize  ! volume lattice divide by area surface
-        FEbulk = log(xbulk%sol)-xbulk%sol-xbulk%pro/vpro
+        FEbulk = log(xbulk%sol)-xbulk%sol
         FEbulk = volumelat*FEbulk/(vsol)
         deltaFE  = FE -FEbulk
     
@@ -632,39 +588,33 @@ contains
         real(dp) :: volumelat          ! volume lattice 
         
         ! .. translational entropy
-        FEtrans%sol=FEtrans_entropy(xsol,xbulk%sol,vsol,"w")     
-        FEtrans%pro=FEtrans_entropy(xpro,xbulk%pro,vpro)
+        FEtrans%sol=FEtrans_entropy(xsol,xbulk%sol,vsol,"w") 
        
         ! .. chemical potential + standard chemical potential 
-        FEchempot%sol   = 0.0_dp ! by construction  
-        FEchempot%pro   = FEchem_pot(xpro,expmu%pro,vpro)
+        FEchempot%sol   = 0.0_dp ! by construction 
 
     
         ! .. summing all contributions
         
-        FEalt = FEtrans%sol +FEtrans%pro + FEchempot%sol +FEchempot%pro
+        FEalt = FEtrans%sol + FEchempot%sol 
         FEalt= FEalt +FEconf -FEVdW+Econf
 
     
         ! .. delta translational entropy
-        FEtransbulk%sol   = FEtrans_entropy_bulk(xbulk%sol,vsol,"w")   
-        FEtransbulk%pro   = FEtrans_entropy_bulk(xbulk%pro,vpro)  
+        FEtransbulk%sol   = FEtrans_entropy_bulk(xbulk%sol,vsol,"w") 
 
         ! .. delta chemical potential + standard chemical potential 
-        FEchempotbulk%sol   = 0.0_dp ! by construction  
-        FEchempotbulk%pro   = FEchem_pot_bulk(xbulk%pro,expmu%pro,vpro) 
+        FEchempotbulk%sol   = 0.0_dp ! by construction 
         
         ! .. bulk free energy
         volumelat = volcell*nsize   ! volume lattice 
-        FEbulkalt = FEtransbulk%sol +FEtransbulk%pro +FEchempotbulk%sol +FEchempotbulk%pro
+        FEbulkalt = FEtransbulk%sol +FEchempotbulk%sol 
 
         FEbulkalt = volumelat*FEbulkalt
 
         ! .. delta
         deltaFEtrans%sol   = FEtrans%sol  - FEtransbulk%sol * volumelat
-        deltaFEtrans%pro   = FEtrans%pro  - FEtransbulk%pro * volumelat
         deltaFEchempot%sol   = FEchempot%sol  - FEchempotbulk%sol * volumelat
-        deltaFEchempot%pro   = FEchempot%pro  - FEchempotbulk%pro * volumelat
 
         ! .. differences
 
@@ -892,7 +842,7 @@ contains
     function FEchem_react_multi()result(FEchem_react)
 
         use globals, only : systype,nsize,nsegtypes
-        use field, only : xsol,psi,rhopol,fdis,fdisA , epsfcn,Depsfcn
+        use field, only : xsol,psi,rhopol,fdis,fdisA,gdisA,gdisB,epsfcn,Depsfcn
         use field, only : xNa,xK,xCl,xHplus,xOHmin,xCa,xMg,xRb
         use volume, only : volcell
         use parameters, only : vsol, vpol,zpol,vpolAA,zpolAA, lb, bornrad 
@@ -1002,6 +952,70 @@ contains
                             FEchem_react = FEchem_react + &
                                 (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
                         enddo
+                    endif
+                        
+                endif        
+            enddo
+
+        case("brushdna_ionbin") 
+            
+            do t=1,nsegtypes
+
+                if(ismonomer_chargeable(t)) then
+
+                    if(t==ta) then 
+                        do i=1,nsize
+
+                            betapi=-log(xsol(i))/vsol
+                            lambda=-log(fdisA(i,1)) -psi(i)*zpolAA(1)-betapi*vpolAA(1)*vsol
+                           
+                
+                            rhopolq = 0.0_dp
+                            xpol=0.0_dp
+                            do k=1,4
+                                rhopolq=rhopolq+ zpolAA(k)*fdisA(i,k)*rhopol(i,t)
+                                xpol  =xpol + rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol
+                            enddo   
+                            rhopolq=rhopolq+ zpolAA(6)*fdisA(i,6)*rhopol(i,t)
+                            xpol = xpol +rhopol(i,t)*(fdisA(i,5)*vpolAA(5)*vsol/2.0_dp +&
+                                                      fdisA(i,6)*vpolAA(6)*vsol +&
+                                                      fdisA(i,7)*vpolAA(7)*vsol/2.0_dp+ &
+                                                      fdisA(i,8)*vpolAA(8)*vsol)
+
+                
+                            FEchem_react = FEchem_react + ( -rhopol(i,t)*lambda &
+                                -psi(i)*rhopolq -betapi*xpol+(fdisA(i,5)+fdisA(i,7))*rhopol(i,t)/2.0_dp)
+                           
+                        enddo
+
+                    else
+                        if(zpol(t,1)==0.and.zpol(t,2)==-1) then ! acid 
+                            do i=1,nsize
+
+                                betapi = -log(xsol(i))/vsol
+                                lambda = -log(gdisA(i,t,1)) +psi(i) -betapi*vpol(t)*vsol
+                                rhopolq= -gdisA(i,t,1)*rhopol(i,t)
+
+            
+                                FEchem_react = FEchem_react + &
+                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
+                            enddo
+                        else if(zpol(t,1)==1.and.zpol(t,2)==0) then ! base
+                            do i=1,nsize
+
+                                betapi = -log(xsol(i))/vsol
+                                lambda = -log(gdisB(i,t,2))  -betapi*vpol(t)*vsol
+                                rhopolq= gdisB(i,t,1)*rhopol(i,t)
+
+            
+                                FEchem_react = FEchem_react + &
+                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
+                            enddo
+                        else 
+                            print*,"Error in FEchem_react_multi for systype=brushdna_ionbin"
+                            print*,"Charged monomer ",t," not acid or base : zpol(1)=",zpol(t,1)," and zpol(2)=",zpol(t,2)
+                        endif    
+
                     endif
                         
                 endif        
