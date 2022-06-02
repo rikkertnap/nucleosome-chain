@@ -1468,7 +1468,7 @@ contains
         use VdW, only : VdW_contribution_lnexp
         use dielectric_const, only : dielectfcn, born
         use surface
-        use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
+        use Poisson, only : Poisson_Equation_Eps, grad_pot_sqr_eps_cubic
 
         !  .. scalar arguments
 

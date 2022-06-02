@@ -115,9 +115,11 @@ subroutine read_inputfile(info)
     cMgCl2=0.0_dp
     cRbCl=0.0_dp
     
-    ! init surface charge
+    ! init surface charge 
     sigmaSurfL = 0.0_dp
     sigmaSurfR = 0.0_dp
+    bcflag(LEFT) = "cc"
+    bcflag(RIGHT) = "cc"
 
     ios = 0
     line = 0
@@ -139,17 +141,13 @@ subroutine read_inputfile(info)
             label = buffer(1:pos)
             buffer = buffer(pos+1:)
 
-            select case (label) !list-directed The CHARACTER variable is treated as an 'internal file'
+            select case (label) !list-directed The character variable is treated as an 'internal file'
             case ('method')
                 read(buffer, *,iostat=ios) method
             case ('systype')
                 read(buffer, *,iostat=ios) systype
             case ('runtype')
                 read(buffer, *,iostat=ios) runtype
-            case ('bcflag(LEFT)')
-                read(buffer,*,iostat=ios) bcflag(LEFT)
-            case ('bcflag(RIGHT)')
-                read(buffer,*,iostat=ios) bcflag(RIGHT)
             case ('chainmethod')
                 read(buffer,*,iostat=ios) chainmethod
             case ('chaintype')
@@ -177,10 +175,6 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) KionNa
             case ('KionK')
                 read(buffer,*,iostat=ios) KionK
-            case ('sigmaSurfL')
-                read(buffer,*,iostat=ios) sigmaSurfL
-            case ('sigmaSurfR')
-                read(buffer,*,iostat=ios) sigmaSurfR
             case ('cNaCl')
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
@@ -292,12 +286,6 @@ subroutine read_inputfile(info)
     endif
 
     close(un_input)
-
-    ! override input bcflags
-
-    bcflag(LEFT)="cc"
-    bcflag(RIGHT)="cc"
-
 
 
     ! .. check error flag

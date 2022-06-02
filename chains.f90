@@ -67,9 +67,9 @@ contains
         allocate(bond_angle(nnucl-2,maxcuantas))
         allocate(dihedral_angle(nnucl-3,maxcuantas))
         allocate(nucl_spacing(nnucl-1,maxcuantas)) 
+        allocate(avnucl_spacing(nnucl-1)) 
         allocate(avbond_angle(nnucl-2))
-        allocate(avdihedral_angle(nnucl-3)) 
-        allocate(avnucl_spacing(nnucl-1))  
+        allocate(avdihedral_angle(nnucl-3))  
           
     end subroutine allocate_chains
   
