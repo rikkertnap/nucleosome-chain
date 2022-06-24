@@ -391,6 +391,7 @@ subroutine check_value_systype(systype,info)
     systypestr(7)="bulk water"
     systypestr(8)="neutralnoVdW"
     systypestr(9)="brushdna_ionbin"
+
     flag=.FALSE.
 
     do i=1,9
@@ -1162,6 +1163,7 @@ subroutine output_brush_mul
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
+
     logical :: isopen
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol
@@ -1205,9 +1207,9 @@ subroutine output_brush_mul
         open(unit=newunit(un_fdis),file=densfracfilename)
         if(systype=="brushdna".or.systype=="brushdna_ionbin") open(unit=newunit(un_fdisP),file=densfracPfilename)
         if(systype=="brushdna_ionbin") open(unit=newunit(un_fdision),file=densfracionfilename)
-
-        open(unit=newunit(un_angle),file=anglesfilename)
-        open(unit=newunit(un_dist),file=spacingfilename)
+        if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
+        if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
+        
 
         if(verboseflag=="yes") then
             open(unit=newunit(un_xNa),file=xNafilename)
@@ -1395,7 +1397,7 @@ subroutine output_brush_mul
         enddo
         write(un_sys,*)'zNa         = ',zNa
         write(un_sys,*)'zCa         = ',zCa
-        write(un_sys,*)'zMG         = ',zMg
+        write(un_sys,*)'zMg         = ',zMg
         write(un_sys,*)'zK          = ',zK
         write(un_sys,*)'zCl         = ',zCl
          ! volume
@@ -1501,8 +1503,8 @@ subroutine output_brush_mul
         if(systype/="brushdna_ionbin")close(un_fdis)
         if(systype=="brushdna".or.systype=="brushdna_ionbin") close(un_fdisP)
         if(systype=="brushdna_ionbin") close(un_fdision)
-        close(un_angle)
-        close(un_dist)
+        if(nnucl>=3) close(un_angle)
+        if(nnucl>=2) close(un_dist)
 
         if(verboseflag=="yes") then
             close(un_xNa)
