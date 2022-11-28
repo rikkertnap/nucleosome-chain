@@ -937,9 +937,9 @@ contains
                              !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
 
                             xA(1) = xHplus(i)/(K0a(t)*xsol(i))           ! AH/A!
-                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2)*xsol(i))   ! ANa/A-
-                            xA(3) = (xK(i)/vK)/(K0aion(t,3)*xsol(i))     ! AK/A-
-                            sgxA =  1.0_dp+xA(1)!+xA(2)+xA(3)  
+                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i))   ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
+                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))     ! AK/A-
+                            sgxA =  1.0_dp+xA(1)+xA(2)+xA(3)  
                             
                             gdisA(i,t,1) = 1.0_dp/sgxA                    ! A^- 
                             gdisA(i,t,2) = gdisA(i,t,1)*xA(1)             ! AH 
@@ -955,8 +955,8 @@ contains
                     else !  base
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
-                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2)*xsol(i))    ! BHCl/BH+
-                            sgxB =  1.0_dp+xB(1)!+xB(2)  
+                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))    ! BHCl/BH+
+                            sgxB =  1.0_dp+xB(1)+xB(2)  
                             gdisB(i,t,1) = 1.0_dp/sgxB                    ! BH^+
                             gdisB(i,t,2) = gdisB(i,t,1)*xB(1)             ! B
                             gdisB(i,t,3) = gdisB(i,t,1)*xB(2)             ! BHCl 
