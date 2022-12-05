@@ -423,7 +423,15 @@ contains
         enddo   
             
         do t=1,nsegtypes
+            ! init 
             avfdis(t)=0.0_dp
+            do k=1,4
+                avgdisA(t,k)=0.0_dp
+            enddo
+            do k=1,3
+                avgdisB(t,k)=0.0_dp
+            enddo
+                        
             if(ismonomer_chargeable(t)) then 
                 sumrhopolt=npol(t)/volcell
                 if(npol(t)/=0) then
@@ -456,7 +464,7 @@ contains
                             avfdisA(k)=avfdisA(k)/sumrhopolt  
                         enddo
                         avfdis(t)=avfdisA(1)
-                    endif       
+                    endif               
                 endif
             endif    
         enddo         
