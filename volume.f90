@@ -31,7 +31,10 @@ module volume
     integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
     integer, dimension(:), allocatable :: sRg ! unit numbers of AA in histone close to cm of : nmumber of number = nnucl
 
-   
+    ! hash table
+    integer, dimension(:,:,:), allocatable :: coordtoindex 
+    integer, dimension(:,:), allocatable :: indextocoord
+
     private :: beta
 
 contains
@@ -200,6 +203,35 @@ contains
    
     end function
 
+subroutine allocate_hashtable(nx,ny,nz)
+
+    use globals, only : nsize
+    integer, intent(in) :: nx,ny,nz
+
+    allocate(coordtoindex(nx,ny,nz))
+    allocate(indextocoord(nsize,3))
+    
+end subroutine allocate_hashtable
+
+subroutine make_hashtable
+
+    use globals, only : nsize
+
+    integer :: idx, ix, iy, iz
+        
+    do idx=1,nsize
+        
+        call coordinateFromLinearIndex(idx, ix, iy,iz)
+
+        coordtoindex(ix,iy,iz)=idx
+        
+        indextocoord(idx,1)=ix
+        indextocoord(idx,2)=iy
+        indextocoord(idx,3)=iz
+
+    enddo
+    
+end subroutine make_hashtable
 
 
 end module volume

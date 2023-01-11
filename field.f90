@@ -209,8 +209,8 @@ contains
             call charge_polymer_multi()
         case ("brushdna","brushborn")
             call charge_polymer_dna()
-        case ("brushdna_ionbin")
-            call charge_polymer_dna_ionbin()
+        case ("nucl_ionbin")
+            call charge_nucl_ionbin()
         case ("elect")  
             call charge_polymer_binary()
         case default
@@ -251,7 +251,7 @@ contains
     end subroutine charge_polymer_dna
 
 
-    subroutine charge_polymer_dna_ionbin()
+    subroutine charge_nucl_ionbin()
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
@@ -284,7 +284,7 @@ contains
             qpol_tot=qpol_tot+qpol(t)
         enddo
 
-    end subroutine charge_polymer_dna_ionbin
+    end subroutine charge_nucl_ionbin
 
 
     subroutine charge_polymer_multi()
@@ -340,8 +340,8 @@ contains
             call average_charge_polymer_multi()
         case ("brushdna","brushborn")
             call average_charge_polymer_dna()
-        case ("brushdna_ionbin")
-            call average_charge_polymer_dna_ionbin()
+        case ("nucl_ionbin","nucl_ionbin_sv")
+            call average_charge_nucl_ionbin()
         case ("elect","electA","electVdWAB","electdouble")   
             call average_charge_polymer_binary()
         case default
@@ -353,7 +353,7 @@ contains
     end subroutine average_charge_polymer
         
 
-     subroutine average_charge_polymer_dna()
+    subroutine average_charge_polymer_dna()
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
@@ -402,7 +402,7 @@ contains
     end subroutine average_charge_polymer_dna
 
 
-     subroutine average_charge_polymer_dna_ionbin()
+     subroutine average_charge_nucl_ionbin()
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
@@ -471,7 +471,7 @@ contains
 
         deallocate(npol)    
 
-    end subroutine average_charge_polymer_dna_ionbin
+    end subroutine average_charge_nucl_ionbin
 
     subroutine average_charge_polymer_multi()
 

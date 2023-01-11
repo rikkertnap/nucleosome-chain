@@ -65,7 +65,7 @@ contains
         character(len=lenText) :: text 
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin")
+        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin")
         
             call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
@@ -251,7 +251,7 @@ contains
          ! .. chemical and binding contribution
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna","brushdna_ionbin","brushborn")
+        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","brushborn")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -957,7 +957,7 @@ contains
                 endif        
             enddo
 
-        case("brushdna_ionbin") 
+        case("nucl_ionbin") 
             
             do t=1,nsegtypes
 
@@ -1012,7 +1012,7 @@ contains
                                 (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
                             enddo
                         else 
-                            print*,"Error in FEchem_react_multi for systype=brushdna_ionbin"
+                            print*,"Error in FEchem_react_multi for systype=nucl_ionbin"
                             print*,"Charged monomer ",t," not acid or base : zpol(1)=",zpol(t,1)," and zpol(2)=",zpol(t,2)
                         endif    
 

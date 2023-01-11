@@ -203,7 +203,7 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna","brushdna_ionbin")
+            case ("brushdna","nucl_ionbin","dna_ionbin_sv")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
@@ -775,7 +775,7 @@ contains
         Ka  = 10.0_dp**(-pKa)                       ! experimental equilibruim constant acid 
         K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
  
-        if(systype=="brushdna_ionbin") then 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
         endif    
@@ -866,8 +866,8 @@ contains
         case ("brush_mul","brush_mulnoVdW") 
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale)     
-        case ("brushdna","brushdna_ionbin") 
-            call init_dna  
+        case ("brushdna","nucl_ionbin","nucl_ionbin_sv") 
+            call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
         case("brushborn") 
@@ -946,7 +946,7 @@ contains
 
         pKaion =0.0_dp
         
-        if(systype=="brushdna_ionbin") call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
+        if(systype=="nucl_ionbin") call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
        
     end subroutine init_pKaions
 
@@ -1315,7 +1315,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "brushdna_ionbin")
+                "nucl_ionbin")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"
