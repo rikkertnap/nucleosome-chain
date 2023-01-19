@@ -21,6 +21,7 @@
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
     real(dp), dimension(:), allocatable :: vpol  ! volume of polymer segment of given type, vpol in units of vsol
+    real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -126,10 +127,10 @@
     real(dp) :: qpol_tot           ! charge poly A+B of layer 
   
     real(dp), dimension(:), allocatable :: qpol                ! charge poly of layer 
-    real(dp), dimension(:), allocatable :: avfdis              ! average degree of dissociation
-    real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average degree of dissociation
-    real(dp) :: avfdisA(8)         ! average degree of dissociation 
-    real(dp) :: avfdisB(5)         ! average degree of dissociation
+    real(dp), dimension(:), allocatable :: avfdis              ! average degree of dissociation of monomer of type t
+    real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average fraction of Acidic and Basic AA in state A,AH,ANa etc 
+    real(dp) :: avfdisA(8)         ! average fraction of monomer ta=phosphate in state A,AH,ANa,AMg,A2Mg etc
+    real(dp) :: avfdisB(5)         ! average fraction of monomer state
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
 
     !  .. weak polyelectrolyte variables 
@@ -886,23 +887,24 @@ contains
    
     subroutine allocate_chain_parameters
         
-        use globals, only : nsegtypes
+        use globals, only : nsegtypes, systype
         
         !  allocate array depending on nsegtypes
 
-        allocate(vpol(nsegtypes))    !  volume polymer segments, all volume scaled by vsol
-        allocate(pKa(nsegtypes))     !  equilibrium constants
-        allocate(pKaion(nsegtypes,4))!  equilibrium constants  
+        allocate(vpol(nsegtypes))       !  volume polymer segments, all volume scaled by vsol
+        allocate(pKa(nsegtypes))        !  equilibrium constants
+        allocate(pKaion(nsegtypes,4))   !  equilibrium constants  ion binding
         allocate(Ka(nsegtypes)) 
         allocate(Kaion(nsegtypes,4))  
         allocate(K0a(nsegtypes))  
         allocate(K0aion(nsegtypes,4))  
-        allocate(zpol(nsegtypes,2))  !  charge of segment of given type       
-        allocate(qpol(nsegtypes))    !  total charge of polymer type 
-        allocate(avfdis(nsegtypes))  !  fraction of charge of polymer type 
-        allocate(avgdisA(nsegtypes,4)) 
-        allocate(avgdisB(nsegtypes,3))  
+        allocate(zpol(nsegtypes,2))     !  charge of segment of given type       
+        allocate(qpol(nsegtypes))       !  total charge of polymer type 
+        allocate(avfdis(nsegtypes))     !  average fraction of charge of polymer type 
+        allocate(avgdisA(nsegtypes,4))  !  fraction of acidic AA in state A, AH, ANa or AK
+        allocate(avgdisB(nsegtypes,3))  !  fraction of basic AA in state BH, B, BCl
         allocate(lsegAA(nsegtypes))
+        if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
 
     end subroutine allocate_chain_parameters
 
@@ -915,6 +917,7 @@ contains
         call init_pKas_and_zpol
         call init_lseg  ! init segment length
         call init_pKaions
+        call init_volume_pol_sv   
 
     end subroutine init_chain_parameters
 
@@ -927,6 +930,56 @@ contains
         
     end subroutine init_volume_pol
         
+    ! splits volume of monomer type over neighboring cell (8) evenly 
+    ! only when systype=="nucl_ionbin_sv"
+    ! coorinate ix,iy,iz realtive to density location (ix,iy,iz)=(0,0,0)
+    ! pre : init_volume_pol called
+    ! post: deltavnucl for all monomore types
+
+    subroutine init_volume_pol_sv
+
+        use globals, only : nsegtypes,systype
+        use chains, only : ismonomer_chargeable
+
+        integer :: ix,iy,iz,t,state
+
+        deltavnucl=0.0_dp ! init
+
+        if(systype=="nucl_ionbin_sv") then 
+    
+            do t=1,nsegtypes
+                do state=1,4
+                    do ix=1,2 
+                        do iy=1,2 
+                            do iz=1,2
+                                deltavnucl(ix,iy,iz,state,t)=vpol(t)/8.0_dp
+                            enddo    
+                        enddo
+                    enddo
+                enddo   
+                
+                if(ismonomer_chargeable(t)) then
+                    ix=1 ! locatation charge center
+                    iy=1
+                    iz=1
+                    if(zpol(t,1)==0) then  !  acid
+                        ! state: 1==A^-  2 ==AH 3== ANa  4=AK
+                         deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vNa
+                         deltavnucl(ix,iy,iz,4,t)=deltavnucl(ix,iy,iz,4,t)+vK
+                    else !  base
+                        ! state:  1==BH^+ 2== B 3 = BHCl
+                        deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vCl
+                    endif       
+                endif  
+
+            enddo    
+
+
+        endif        
+
+
+
+    end subroutine init_volume_pol_sv       
 
     subroutine init_pKas_and_zpol
 

@@ -112,7 +112,7 @@ subroutine make_chains_mc()
     Ly = ny*delta            ! maximum depth box 
     xcm= Lx/2.0_dp           ! center box
     ycm= Ly/2.0_dp
-    zcm= LZ/2.0_DP
+    zcm= LZ/2.0_dp
    
     energy=0.0_dp
             
@@ -1018,19 +1018,19 @@ function pbc(z,deltaz) result(zpbc)
 end function
 
 
-function ipbc(ival,imax) result(intpbc)
-    implicit none 
-    integer, intent(in) :: ival
-    integer, intent(in) :: imax
-    integer :: intpbc
+! function ipbc(ival,imax) result(intpbc)
+!     implicit none 
+!     integer, intent(in) :: ival
+!     integer, intent(in) :: imax
+!     integer :: intpbc
 
-    if(ival>0) then
-        intpbc=ival-int((ival-1)/imax)*imax
-    else
-        intpbc=ival-(int((ival-1)/imax)-1)*imax
-    endif
+!     if(ival>0) then
+!         intpbc=ival-int((ival-1)/imax)*imax
+!     else
+!         intpbc=ival-(int((ival-1)/imax)-1)*imax
+!     endif
 
-end function
+! end function
 
 
 !     .. returns number of A monomer

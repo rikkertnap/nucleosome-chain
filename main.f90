@@ -61,7 +61,8 @@ program main
 
     call MPI_INIT(ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(MPI_COMM_WORLD, size, ierr)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, numproc, ierr)
+    size=numproc !! temporary
 
     ! .. logfile
     
@@ -101,7 +102,7 @@ program main
     call allocate_chain_parameters()  
     call init_matrices()            ! init matrices for chain generation
     call allocate_chains(cuantas,nnucl,nseg,nsegtypes,maxnchainsrotations,maxnchainsrotationsxy)
-    call init_chain_parameters      ! chain volume, charges, pKa etc
+    call init_chain_parameters()      !ß
     call make_sequence_chain(chainperiod,chaintype)
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
     call make_type_of_charge_table(type_of_charge,zpol,nsegtypes)

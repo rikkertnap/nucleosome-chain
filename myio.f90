@@ -840,7 +840,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(5)
+    character(len=15) :: systypestr(6)
     integer :: i
     logical :: flag
 
@@ -853,8 +853,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(3)="brushdna"
         systypestr(4)="brushborn"
         systypestr(5)="nucl_ionbin"
+        systypestr(6)="nucl_ionbin_sv"
 
-        do i=1,5 
+        do i=1,6
             if(systype==systypestr(i)) flag=.true.
         enddo
 

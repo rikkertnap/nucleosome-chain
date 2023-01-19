@@ -1187,18 +1187,25 @@ contains
     ! with ion charegeable group being on one acid (tA) with counterion binding etc 
     ! distribute voluem of neighborign cell
 
-    subroutine fcndna_ionbin_sv(x,f,nn)
+    subroutine fcnnucl_ionbin_sv(x,f,nn)
 
         use mpivars
-        use globals
-        use parameters, Tlocal=>Tref 
-        use volume
-        use chains
-        use field
-        use vectornorm
+        use globals, only : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
+        use parameters, Tlocal=>Tref
+        use parameters, only : expmu 
+        use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavnucl
+        use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg
+        use volume, only : volcell
+        use chains, only : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable     
+        use field, only : xsol,xpol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
+        use field, only : psi,gdisA,gdisB,fdis,fdisA
+        use field, only : q, lnproshift
+        use vectornorm, only : L2norm
         use VdW, only : VdW_contribution_lnexp
         use surface
         use Poisson
+        use fcnaux, only : compute_lnexppi_neutral, compute_lnexppi_acid, compute_lnexppi_base
+        use fcnaux, only : compute_xpol_neutral, compute_xpol_chargeable
 
         !     .. scalar arguments
 
@@ -1231,7 +1238,7 @@ contains
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -1269,10 +1276,10 @@ contains
             xpol(i)    = 0.0_dp                                   ! volume fraction polymer
             rhoqpol(i) = 0.0_dp                                   ! charge density AA monomoer
             xNa(i)     = expmu%Na*(xsol(i)**vNa)*exp(-psi(i)*zNa) ! Na+ volume fraction
-            xK(i)      = expmu%K*(xsol(i)**vK)*exp(-psi(i)*zK)    ! K+ volume fraction
+            xK(i)      = expmu%K* (xsol(i)**vK) *exp(-psi(i)*zK)  ! K+ volume fraction
             xCl(i)     = expmu%Cl*(xsol(i)**vCl)*exp(-psi(i)*zCl) ! Cl- volume fraction
-            xHplus(i)  = expmu%Hplus*(xsol(i))*exp(-psi(i))       ! H+  volume fraction
-            xOHmin(i)  = expmu%OHmin*(xsol(i))*exp(+psi(i))       ! OH- volume fraction
+            xHplus(i)  = expmu%Hplus*(xsol(i))  *exp(-psi(i))     ! H+  volume fraction
+            xOHmin(i)  = expmu%OHmin*(xsol(i))  *exp(+psi(i))     ! OH- volume fraction
             xRb(i)     = expmu%Rb*(xsol(i)**vRb)*exp(-psi(i)*zRb) ! Rb+ volume fraction
             xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
@@ -1294,42 +1301,35 @@ contains
                      
                         do i=1,n
 
-                             !fdis(i,t)  = 1.0_dp/(1.0_dp+xHplus(i)/(K0a(t)*xsol(i)))      
-                             !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
-
                             xA(1) = xHplus(i)/(K0a(t)*xsol(i))           ! AH/A!
-                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i))   ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
-                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))     ! AK/A-
-                            sgxA =  1.0_dp+xA(1)+xA(2)+xA(3)  
-                            
+                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i)) ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
+                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))   ! AK/A-
+                            sgxA = 1.0_dp+xA(1)+xA(2)+xA(3)  
                             gdisA(i,t,1) = 1.0_dp/sgxA                    ! A^- 
                             gdisA(i,t,2) = gdisA(i,t,1)*xA(1)             ! AH 
                             gdisA(i,t,3) = gdisA(i,t,1)*xA(2)             ! ANa 
                             gdisA(i,t,4) = gdisA(i,t,1)*xA(3)             ! AK
 
-                            lnexppi(i,t) = log(xsol(i))*vpol(t) +psi(i) -log(gdisA(i,t,1))   ! auxilary variable palpha
-
-                            fdis(i,t) = gdisA(i,t,1)
-
-                            !print*,xA(1),xA(2),xA(3)
                         enddo    
+
+                         fdis(:,t) = gdisA(:,t,1)
+                        call compute_lnexppi_acid(xsol,psi,gdisA(:,t,1),deltavnucl(:,:,:,1,t),lnexppi(:,t)) 
+
                     else !  base
+
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
-                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))    ! BHCl/BH+
+                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))  ! BHCl/BH+
                             sgxB =  1.0_dp+xB(1)+xB(2)  
                             gdisB(i,t,1) = 1.0_dp/sgxB                    ! BH^+
                             gdisB(i,t,2) = gdisB(i,t,1)*xB(1)             ! B
-                            gdisB(i,t,3) = gdisB(i,t,1)*xB(2)             ! BHCl 
-
-                            lnexppi(i,t) = log(xsol(i))*vpol(t) -log(gdisB(i,t,2))   !    
-
-                            fdis(i,t) = gdisB(i,t,2)  
-
-                            !fdis(i,t)  = 1.0_dp/(1.0_dp+xHplus(i)/(K0a(t)*xsol(i)))  
-                            !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
+                            gdisB(i,t,3) = gdisB(i,t,1)*xB(2)             ! BHCl     
 
                         enddo
+
+                        fdis(:,t) = gdisB(:,t,2)  
+                        call compute_lnexppi_base(xsol,gdisB(:,t,2),deltavnucl(:,:,:,2,t),lnexppi(:,t)) 
+
                     endif       
                 else
                 
@@ -1355,16 +1355,18 @@ contains
                         fdisA(i,6)  = fdisA(i,1)*xA(5)                       ! AMg+ 
                         fdisA(i,7)  = (fdisA(i,1)**2)*constAMg               ! A2Mg 
                         fdisA(i,8)  = fdisA(i,1)*xA(7)                       ! AK
+                        
+                    enddo
 
-                        lnexppi(i,t)  = log(xsol(i))*vpol(t)+psi(i)-log(fdisA(i,1))   ! auxilary variable palpha
-                        fdis(i,t)   = fdisA(i,1) 
-                    enddo  
+                    fdis(:,t)   = fdisA(:,1)
+                    call compute_lnexppi_acid(xsol,psi,fdisA(:,1),deltavnucl(:,:,:,1,ta),lnexppi(:,ta)) 
+
                 endif
-            else    
-                do i=1,n
-                    fdis(i,t)  = 0.0_dp
-                    lnexppi(i,t)  = log(xsol(i))*vpol(t)
-                enddo  
+            else  
+
+                fdis(:,t)  = 0.0_dp
+                call compute_lnexppi_neutral(xsol,deltavnucl(:,:,:,1,t),lnexppi(:,t))
+                 
             endif   
         enddo      
                
@@ -1398,8 +1400,7 @@ contains
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
         lnproshift=globallnproshift(1)
-             
-         
+              
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c) 
             do s=1,nseg        ! loop over segments 
@@ -1423,7 +1424,7 @@ contains
             q=0.0_dp 
             q=local_q
             
-             do i=1, size-1
+             do i=1, numproc-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
                 q=q+local_q
@@ -1436,7 +1437,7 @@ contains
                 enddo
             enddo
            
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
@@ -1458,40 +1459,61 @@ contains
 
                     if(t/=ta) then
                         if(zpol(t,1)==0) then ! acid                                        
+
                             do i=1,n
                                 rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
                                 rhoqpol(i)   = rhoqpol(i) -gdisA(i,t,1)*rhopol(i,t)*vsol 
-                                xpol(i)      = xpol(i) + rhopol(i,t)* ( (gdisA(i,t,1) + gdisA(i,t,2) )*vpol(t) + &
-                                    gdisA(i,t,3)*(vpol(t)+vNa)+ gdisA(i,t,4)*(vpol(t)+vK))*vsol  ! volume fraction polymer
-                            enddo  
+                            enddo
+
+                            call compute_xpol_chargeable(rhopol(:,t),gdisA(:,t,:),deltavnucl(:,:,:,:,t),xpol)
+
                         else  ! base                                        
+                            
                             do i=1,n
                                 rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
                                 rhoqpol(i)   = rhoqpol(i) + gdisB(i,t,1)*rhopol(i,t)*vsol 
-                                xpol(i)      = xpol(i) + rhopol(i,t)* ( (gdisB(i,t,1) + gdisB(i,t,2) )*vpol(t) + &
-                                    gdisB(i,t,3)*(vpol(t)+vCl) )*vsol  ! volume fraction polymer
                             enddo 
+                            
+                            call compute_xpol_chargeable(rhopol(:,t),gdisB(:,t,:),deltavnucl(:,:,:,:,t),xpol)
+
                         endif     
 
                     else
 
-                        do i=1,n
-                            rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t 
-                            rhoqpol(i)   = rhoqpol(i) + (- fdisA(i,1)+fdisA(i,4)+fdisA(i,6) )*rhopol(i,t)*vsol 
-                            do k=1,4               ! polymer volume fraction
-                                xpol(i) = xpol(i)+rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol   
+                        if(DEBUG.eqv..false.) then  
+
+                            do i=1,n
+                                rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t 
+                                rhoqpol(i)   = rhoqpol(i) + (- fdisA(i,1)+fdisA(i,4)+fdisA(i,6) )*rhopol(i,t)*vsol 
+                                do k=1,4               ! polymer volume fraction
+                                    xpol(i) = xpol(i)+rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol   
+                                enddo
+                                xpol(i)=xpol(i)+rhopol(i,t)*(fdisA(i,5)*vpolAA(5)/2.0_dp + &
+                                                         fdisA(i,6)*vpolAA(6) + &
+                                                         fdisA(i,7)*vpolAA(7)/2.0_dp +fdisA(i,8)*vpolAA(8) )*vsol 
+                            
                             enddo
-                            xpol(i)=xpol(i)+rhopol(i,t)*(fdisA(i,5)*vpolAA(5)/2.0_dp + &
-                                                     fdisA(i,6)*vpolAA(6) + &
-                                                     fdisA(i,7)*vpolAA(7)/2.0_dp +fdisA(i,8)*vpolAA(8) )*vsol 
-                        
-                        enddo
+                        else  
+
+
+                            do i=1,n
+                                rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
+                                rhoqpol(i)   = rhoqpol(i) -gdisA(i,t,1)*rhopol(i,t)*vsol 
+                            enddo
+
+                            call compute_xpol_chargeable(rhopol(:,t),gdisA(:,t,:),deltavnucl(:,:,:,:,t),xpol)
+                            
+                        endif    
                     endif    
                 else  
+
+                    ! density polymer of type t 
                     do i=1,n
-                        rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
-                        xpol(i)      = xpol(i) + rhopol(i,t)*vpol(t)*vsol  ! volume fraction polymer
+                        rhopol(i,t)  = rhopol0 * rhopol(i,t)    
                     enddo
+
+                    call compute_xpol_neutral(rhopol(:,t),deltavnucl(:,:,:,1,t),xpol)
+
                 endif          
             enddo    
 
@@ -1507,12 +1529,12 @@ contains
                 endif        
             enddo
 
-
-
             do i=1,n
+
                 f(i) = xpol(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xRb(i)+xCa(i)+xMg(i)+xK(i)-1.0_dp
                 rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
                     zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zRb*xRb(i)/vRb +zK*xK(i)/vK ! total charge density in units of vsol  
+
             enddo
           
             ! .. end computation polymer density and charge density  
@@ -1541,7 +1563,7 @@ contains
         endif
 
 
-    end subroutine fcndna_ionbin_sv
+    end subroutine fcnnucl_ionbin_sv
 
     ! brush of multiblock copolymers
     ! with ion charegeable group being an acid with counterion binding etc 
@@ -3010,7 +3032,7 @@ contains
 
     subroutine set_fcn
 
-        use globals
+        use globals, only : systype
         use fcnpointer
 
         select case (systype) 
@@ -3023,7 +3045,7 @@ contains
         case ("nucl_ionbin")
             fcnptr => fcnnucl_ionbin  
         case ("nucl_ionbin_sv")
-            fcnptr => fcndna_ionbin_sv  
+            fcnptr => fcnnucl_ionbin_sv  
         case ("brushborn")
             fcnptr => fcnbrushborn    
         case ("elect")                  ! copolymer weak polyacid, no VdW

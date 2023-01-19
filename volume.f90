@@ -41,7 +41,7 @@ contains
     
     subroutine init_lattice
 
-        use globals, only : nsize, DEBUG
+        use globals, only : nsize, systype
         use mathconst
 
         implicit none 
@@ -65,6 +65,10 @@ contains
 
         areasurf=nsurf*delta*delta
       
+        if(systype=="nucl_ionbin_sv") then     ! use of hash table 
+            call allocate_hashtable(nx,ny,nz)
+            call make_hashtable
+        endif
 
     end subroutine init_lattice
          
@@ -203,35 +207,53 @@ contains
    
     end function
 
-subroutine allocate_hashtable(nx,ny,nz)
+    subroutine allocate_hashtable(nx,ny,nz)
 
-    use globals, only : nsize
-    integer, intent(in) :: nx,ny,nz
+        use globals, only : nsize
+        integer, intent(in) :: nx,ny,nz
 
-    allocate(coordtoindex(nx,ny,nz))
-    allocate(indextocoord(nsize,3))
-    
-end subroutine allocate_hashtable
-
-subroutine make_hashtable
-
-    use globals, only : nsize
-
-    integer :: idx, ix, iy, iz
+        allocate(coordtoindex(nx,ny,nz))
+        allocate(indextocoord(nsize,3))
         
-    do idx=1,nsize
-        
-        call coordinateFromLinearIndex(idx, ix, iy,iz)
+    end subroutine allocate_hashtable
 
-        coordtoindex(ix,iy,iz)=idx
-        
-        indextocoord(idx,1)=ix
-        indextocoord(idx,2)=iy
-        indextocoord(idx,3)=iz
+    subroutine make_hashtable
 
-    enddo
-    
-end subroutine make_hashtable
+        use globals, only : nsize
+
+        integer :: idx, ix, iy, iz
+            
+        do idx=1,nsize
+            
+            call coordinateFromLinearIndex(idx, ix, iy,iz)
+
+            coordtoindex(ix,iy,iz)=idx
+            
+            indextocoord(idx,1)=ix
+            indextocoord(idx,2)=iy
+            indextocoord(idx,3)=iz
+
+        enddo
+        
+    end subroutine make_hashtable
+
+    ! compute periodic boundary condition in integer units 
+    ! real(dp) version  : pbbc is located in chaingenerator  
+
+    function ipbc(ival,imax) result(intpbc)
+        implicit none 
+        integer, intent(in) :: ival
+        integer, intent(in) :: imax
+        integer :: intpbc
+
+        if(ival>0) then
+            intpbc=ival-int((ival-1)/imax)*imax
+        else
+            intpbc=ival-(int((ival-1)/imax)-1)*imax
+        endif
+
+    end function
+
 
 
 end module volume
