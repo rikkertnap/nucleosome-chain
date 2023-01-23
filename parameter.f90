@@ -204,7 +204,7 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna","nucl_ionbin","dna_ionbin_sv")
+            case ("brushdna","nucl_ionbin","nucl_ionbin_sv")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
@@ -917,7 +917,7 @@ contains
         call init_pKas_and_zpol
         call init_lseg  ! init segment length
         call init_pKaions
-        call init_volume_pol_sv   
+        call init_volume_pol_sv    ! only effective if if(systype=="nucl_ionbin_sv")
 
     end subroutine init_chain_parameters
 
@@ -943,16 +943,17 @@ contains
 
         integer :: ix,iy,iz,t,state
 
-        deltavnucl=0.0_dp ! init
 
         if(systype=="nucl_ionbin_sv") then 
+
+            deltavnucl=0.0_dp ! init
     
             do t=1,nsegtypes
                 do state=1,4
-                    do ix=1,2 
-                        do iy=1,2 
-                            do iz=1,2
-                                deltavnucl(ix,iy,iz,state,t)=vpol(t)/8.0_dp
+                    do ix=1,1!2 
+                        do iy=1,1!2 
+                            do iz=1,1!2
+                                deltavnucl(ix,iy,iz,state,t)=vpol(t) !/8.0_dp
                             enddo    
                         enddo
                     enddo
@@ -974,10 +975,7 @@ contains
 
             enddo    
 
-
         endif        
-
-
 
     end subroutine init_volume_pol_sv       
 
@@ -1368,7 +1366,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin")
+                "nucl_ionbin","nucl_ionbin_sv")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

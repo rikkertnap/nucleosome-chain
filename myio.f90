@@ -392,7 +392,7 @@ subroutine check_value_systype(systype,info)
     systypestr(7)="bulk water"
     systypestr(8)="neutralnoVdW"
     systypestr(9)="nucl_ionbin"
-    systypestr(10)="nucl_ionbin"
+    systypestr(10)="nucl_ionbin_sv"
 
 
     flag=.FALSE.
@@ -1110,10 +1110,12 @@ subroutine output()
         call output_neutral
         call output_individualcontr_fe
 
-    case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","brushborn")
+    case("brush_mul","brush_mulnoVdW","brushdna","brushborn",&
+        "nucl_ionbin","nucl_ionbin_sv")
 
         call output_brush_mul
         call output_individualcontr_fe
+
 
     case default
 
@@ -1209,8 +1211,10 @@ subroutine output_brush_mul
         open(unit=newunit(un_psi),file=potentialfilename)
         open(unit=newunit(un_xpol),file=xpolfilename)
         open(unit=newunit(un_fdis),file=densfracfilename)
-        if(systype=="brushdna".or.systype=="nucl_ionbin") open(unit=newunit(un_fdisP),file=densfracPfilename)
-        if(systype=="nucl_ionbin") open(unit=newunit(un_fdision),file=densfracionfilename)
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
+            open(unit=newunit(un_fdisP),file=densfracPfilename)
+        endif
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") open(unit=newunit(un_fdision),file=densfracionfilename)
         if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
         if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
         
@@ -1250,8 +1254,10 @@ subroutine output_brush_mul
         write(un_xpol,*)'#D    = ',nz*delta
         write(un_fdis,*)'#D    = ',nz*delta
 
-        if(systype=="brushdna".or.systype=="nucl_ionbin") write(un_fdisP,*)'#D    = ',nz*delta
-        if(systype=="nucl_ionbin") write(un_fdision,*)'#D    = ',nz*delta
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
+            write(un_fdisP,*)'#D    = ',nz*delta
+        endif    
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin") write(un_fdision,*)'#D    = ',nz*delta
 
 
         if(verboseflag=="yes") then
@@ -1289,29 +1295,29 @@ subroutine output_brush_mul
     do i=1,nsize
         write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
     enddo
-    if(systype/="nucl_ionbin") then
+    if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv") then
         do i=1,nsize
             write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
         enddo
     endif     
 
-    if(systype=="brushdna".or.systype=="nucl_ionbin") then
+    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
         do i=1,nsize
             write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
         enddo
     endif
-    if(systype=="nucl_ionbin") then
+    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
         do t=1,nsegtypes
             if(type_of_charge(t)=="A") then 
                 do i=1,nsize
-                    write(un_fdision,*)(gdisA(i,t,k),k=1,4)
+                    write(un_fdision,*)(gdisA(i,k,t),k=1,4)
                 enddo
             endif    
         enddo    
         do t=1,nsegtypes
             if(type_of_charge(t)=="B") then 
                 do i=1,nsize
-                    write(un_fdision,*)(gdisB(i,t,k),k=1,3)
+                    write(un_fdision,*)(gdisB(i,k,t),k=1,3)
                 enddo
             endif       
         enddo
@@ -1383,7 +1389,8 @@ subroutine output_brush_mul
         ! disociation constants
         write(un_sys,*)'pKa         = ',(pKa(t),t=1,nsegtypes)
         !
-        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="brushborn") then
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+            .or.systype=="brushborn") then
            write(un_sys,'(A15,7ES25.16)')'pKaAA       = ',(pKaAA(t),t=1,7)
         endif
 
@@ -1444,13 +1451,14 @@ subroutine output_brush_mul
     write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
     write(un_sys,*)'qpoltot     = ',qpol_tot
 
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="brushborn")then
+    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+        .or.systype=="brushborn")then
         write(un_sys,'(A15,8ES25.16)')'avfdisA      = ',(avfdisA(k),k=1,8)
         write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     else
         write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
     endif
-    if(systype=="nucl_ionbin")then
+    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")then
         do k=1,4
             write(un_sys,*)'avgdisA(',k,')      = ',(avgdisA(t,k),t=1,nsegtypes)
         enddo 
@@ -1505,8 +1513,8 @@ subroutine output_brush_mul
         close(un_psi)
         close(un_xpol)
         if(systype/="nucl_ionbin")close(un_fdis)
-        if(systype=="brushdna".or.systype=="nucl_ionbin") close(un_fdisP)
-        if(systype=="nucl_ionbin") close(un_fdision)
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") close(un_fdisP)
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")close(un_fdision)
         if(nnucl>=3) close(un_angle)
         if(nnucl>=2) close(un_dist)
 
@@ -2229,7 +2237,8 @@ subroutine make_filename_label(fnamelabel)
         write(rstr,'(F5.3)')VdWscale%val
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
-    case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","brushborn")
+    case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
+        "brushborn")
 
         write(rstr,'(F5.3)')denspol
         fnamelabel="phi"//trim(adjustl(rstr))
@@ -2298,11 +2307,11 @@ subroutine make_filename_label(fnamelabel)
 
 
     case default
-        print*,"Error in output_individualcontr_fe subroutine"
+        print*,"Error in make_filename_label subroutine"
         print*,"Wrong value systype : ", systype
     endselect
 
-end subroutine
+end subroutine make_filename_label
 
 subroutine copy_solution(x)
 
@@ -2392,13 +2401,23 @@ subroutine compute_vars_and_output()
         call fcnenergy()
         call output()           
 
-    case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","brushborn")
+    case ("brush_mul","brush_mulnoVdW","brushdna",&
+        "nucl_ionbin","brushborn")
 
         call fcnenergy()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
         call output()           
+
+    case ("nucl_ionbin_sv")
+
+        call fcnenergy()
+        call charge_polymer()
+        call average_charge_polymer()
+        call make_ion_excess()
+        call output()           
+
 
     case default
 

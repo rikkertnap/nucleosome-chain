@@ -232,7 +232,7 @@ contains
         integer  :: state, nstates
 
         nstates=size(fdis,2)  ! number of states equal to dim=2 of fdis
-        print*,"nstates=",nstates
+       ! print*,"nstates=",nstates
 
         do idx=1,nsize
 

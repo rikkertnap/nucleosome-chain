@@ -74,8 +74,8 @@ contains
         allocate(fdis(N,nsegtypes),stat=ier)
         allocate(fdisA(N,8),stat=ier)
         allocate(fdisB(N,5),stat=ier)
-        allocate(gdisA(N,nsegtypes,4),stat=ier)
-        allocate(gdisB(N,nsegtypes,3),stat=ier)
+        allocate(gdisA(N,4,nsegtypes),stat=ier)
+        allocate(gdisB(N,3,nsegtypes),stat=ier)
        
 
         
@@ -105,7 +105,6 @@ contains
         deallocate(rhoq)
         deallocate(epsfcn)
         deallocate(Depsfcn)
-
 
         deallocate(fdis)
         deallocate(fdisA)
@@ -211,10 +210,14 @@ contains
             call charge_polymer_dna()
         case ("nucl_ionbin")
             call charge_nucl_ionbin()
+        case ("nucl_ionbin_sv")
+            print*,"warning charge_polymer subroutine"    
+            print*,"Not yet implemented for  systype : ", systype
+            call charge_nucl_ionbin()   
         case ("elect")  
             call charge_polymer_binary()
         case default
-            print*,"Error in average_charge_polymer subroutine"    
+            print*,"Error in charge_polymer subroutine"    
             print*,"Wrong value systype : ", systype
             stop
         end select  
@@ -261,17 +264,18 @@ contains
         integer :: i, t
 
         qpol_tot=0.0_dp
+        
         do t=1,nsegtypes
             qpol(t)=0.0_dp
             if(ismonomer_chargeable(t)) then 
                 if(t/=tA) then 
                     if(zpol(t,1)==0) then    
                         do i=1,nsize
-                            qpol(t)=qpol(t)-gdisA(i,t,1)*rhopol(i,t)
+                            qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
                         enddo
                     else
                         do i=1,nsize
-                            qpol(t)=qpol(t)+gdisB(i,t,1)*rhopol(i,t)
+                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
                         enddo
                     endif    
                 else
@@ -285,6 +289,44 @@ contains
         enddo
 
     end subroutine charge_nucl_ionbin
+
+
+    subroutine charge_nucl_ionbin_sv()
+
+        use globals, only : nsize, nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, qpol, qpol_tot, tA
+        use chains, only : ismonomer_chargeable 
+
+        integer :: i, t
+
+        qpol_tot=0.0_dp
+
+        do t=1,nsegtypes
+            qpol(t)=0.0_dp
+            if(ismonomer_chargeable(t)) then 
+                if(t/=tA) then 
+                    if(zpol(t,1)==0) then    
+                        do i=1,nsize
+                            qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
+                        enddo
+                    else
+                        do i=1,nsize
+                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
+                        enddo
+                    endif    
+                else
+                    do i=1,nsize
+                        qpol(t)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,tA)
+                    enddo
+                endif    
+            endif    
+            qpol(t)=qpol(t)*volcell
+            qpol_tot=qpol_tot+qpol(t)
+        enddo
+
+    end subroutine charge_nucl_ionbin_sv
+
 
 
     subroutine charge_polymer_multi()
@@ -337,17 +379,27 @@ contains
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
+
             call average_charge_polymer_multi()
+
         case ("brushdna","brushborn")
+
             call average_charge_polymer_dna()
+
         case ("nucl_ionbin","nucl_ionbin_sv")
+
             call average_charge_nucl_ionbin()
-        case ("elect","electA","electVdWAB","electdouble")   
+
+        case ("elect","electA","electVdWAB","electdouble") 
+
             call average_charge_polymer_binary()
+
         case default
+
             print*,"Error in average_charge_polymer subroutine"    
             print*,"Wrong value systype : ", systype
             stop
+
         end select  
 
     end subroutine average_charge_polymer
@@ -402,7 +454,7 @@ contains
     end subroutine average_charge_polymer_dna
 
 
-     subroutine average_charge_nucl_ionbin()
+    subroutine average_charge_nucl_ionbin()
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
@@ -440,7 +492,7 @@ contains
                             do k=1,4
                                 avgdisA(t,k)=0.0_dp
                                 do i=1,nsize
-                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,t,k)*rhopol(i,t)
+                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,k,t)*rhopol(i,t)
                                 enddo
                                 avgdisA(t,k)=avgdisA(t,k)/sumrhopolt  
                             enddo
@@ -449,7 +501,7 @@ contains
                             do k=1,3
                                 avgdisB(t,k)=0.0_dp
                                 do i=1,nsize
-                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,t,k)*rhopol(i,t)
+                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,k,t)*rhopol(i,t)
                                 enddo
                                 avgdisB(t,k)=avgdisB(t,k)/sumrhopolt 
                             enddo

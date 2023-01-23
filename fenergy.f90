@@ -70,6 +70,11 @@ contains
             call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
 
+        case ("nucl_ionbin_sv")
+        
+            call fcnenergy_electbrush_mul() 
+            !call fcnenergy_elect_alternative()
+
         case("elect")
             
             call fcnenergy_elect()
@@ -251,7 +256,7 @@ contains
          ! .. chemical and binding contribution
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","brushborn")
+        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -855,7 +860,9 @@ contains
 
         integer :: i, k, t
         real(dp) :: lambda,  rhopolq, betapi, xpol, Eself ,bornene, lbr, Ebornself
-        real(dp) :: sqrgradpsi(nsize)
+        real(dp) :: sqrgradpsi(nsize) ! make allocatable only for sytype=brushborn
+        integer :: state 
+        real(dp) :: vpolstate(4)
 
         FEchem_react = 0.0_dp
 
@@ -957,7 +964,7 @@ contains
                 endif        
             enddo
 
-        case("nucl_ionbin") 
+        case("nucl_ionbin","nucl_ionbin_sv") 
             
             do t=1,nsegtypes
 
@@ -990,26 +997,52 @@ contains
 
                     else
                         if(zpol(t,1)==0.and.zpol(t,2)==-1) then ! acid 
+                            
+                            vpolstate(1)=vpol(t)
+                            vpolstate(2)=vpol(t)
+                            vpolstate(3)=vpol(t)+vNa
+                            vpolstate(4)=vpol(t)+vK
+                            
                             do i=1,nsize
 
                                 betapi = -log(xsol(i))/vsol
-                                lambda = -log(gdisA(i,t,1)) +psi(i) -betapi*vpol(t)*vsol
-                                rhopolq= -gdisA(i,t,1)*rhopol(i,t)
+                                lambda = -log(gdisA(i,1,t)) +psi(i) -betapi*vpol(t)*vsol
+
+                                rhopolq= -gdisA(i,1,t)*rhopol(i,t)
+                                
+                                xpol=0.0_dp
+                                do state=1,4
+                                    xpol = xpol + rhopol(i,t)*gdisA(i,state,t)*vpolstate(state)
+                                enddo  
+                                xpol=xpol*vsol
 
             
                                 FEchem_react = FEchem_react + &
-                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
+                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*xpol )
                             enddo
+                            
                         else if(zpol(t,1)==1.and.zpol(t,2)==0) then ! base
+
+                            vpolstate(1)=vpol(t)
+                            vpolstate(2)=vpol(t)
+                            vpolstate(3)=vpol(t)+vCl
+                    
                             do i=1,nsize
 
                                 betapi = -log(xsol(i))/vsol
-                                lambda = -log(gdisB(i,t,2))  -betapi*vpol(t)*vsol
-                                rhopolq= gdisB(i,t,1)*rhopol(i,t)
+                                lambda = -log(gdisB(i,2,t))  -betapi*vpol(t)*vsol
+                                rhopolq= gdisB(i,1,t)*rhopol(i,t)
 
+                                xpol=0.0_dp
+                                do state=1,3
+                                    xpol = xpol + rhopol(i,t)*gdisB(i,state,t)*vpolstate(state)
+                                enddo  
+                                xpol=xpol*vsol
             
+
+
                                 FEchem_react = FEchem_react + &
-                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*rhopol(i,t)*vpol(t)*vsol )
+                                (- rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*xpol)
                             enddo
                         else 
                             print*,"Error in FEchem_react_multi for systype=nucl_ionbin"
