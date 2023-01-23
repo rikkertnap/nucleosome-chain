@@ -954,12 +954,6 @@ contains
 
                         enddo 
 
-                        if(t==10) then 
-                            do i=1,n
-                                write(150,*)(gdisA(i,k,t),k=1,4)
-                            enddo    
-                        endif
-
                     else !  base
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
@@ -975,15 +969,10 @@ contains
 
                             !fdis(i,t)  = 1.0_dp/(1.0_dp+xHplus(i)/(K0a(t)*xsol(i)))  
                             !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
-                            if(t==10) then
-                                writ
+                            
 
                         enddo
-                        if(t==3) then 
-                            do i=1,n
-                                write(100,*)(gdisB(i,k,t),k=1,3)
-                            enddo    
-                        endif
+            
                     endif       
                 else
                 
@@ -1327,13 +1316,6 @@ contains
 
                         enddo 
 
-                        if(t==10) then 
-                            do i=1,n
-                                write(250,*)(gdisA(i,k,t),k=1,4)
-                            enddo    
-                        endif
-
-
                         fdis(:,t) = gdisA(:,1,t)
                         call compute_lnexppi_acid(xsol,psi,gdisA(:,1,t),deltavnucl(:,:,:,1,t),lnexppi(:,t)) 
 
@@ -1346,21 +1328,13 @@ contains
                             gdisB(i,1,t) = 1.0_dp/sgxB                    ! BH^+
                             gdisB(i,2,t) = gdisB(i,1,t)*xB(1)             ! B
                             gdisB(i,3,t) = gdisB(i,1,t)*xB(2)             ! BHCl     
-                            if(t==3) then
-                                write(201,*)t,K0a(t),K0aion(t,2),xsol(i),xHplus(i),xCl(i),(gdisB(i,k,t),k=1,3)
-                            endif    
+
                         enddo
 
                         fdis(:,t) = gdisB(:,2,t)  
                         call compute_lnexppi_base(xsol,gdisB(:,2,t),deltavnucl(:,:,:,2,t),lnexppi(:,t)) 
 
                     endif  
-
-                    if(t==10) then 
-                        do i=1,n
-                            write(200,*)(gdisB(i,k,t),k=1,3)
-                        enddo    
-                    endif
                                 
                 else
                     ! t=ta : phosphate

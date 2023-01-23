@@ -997,7 +997,9 @@ contains
 
         pKaion =0.0_dp
         
-        if(systype=="nucl_ionbin") call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
+            call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
+        endif    
        
     end subroutine init_pKaions
 

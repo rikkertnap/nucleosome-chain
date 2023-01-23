@@ -2430,26 +2430,55 @@ subroutine compute_vars_and_output()
 end subroutine compute_vars_and_output
 
 
+subroutine make_num_to_char(type_of_monomer_num_to_char)
+
+    use globals, only : nsegtypes,nseg 
+    use chains, only : type_of_monomer,type_of_monomer_char
+
+    character(len=3), intent(inout) :: type_of_monomer_num_to_char(:)  
+        
+    integer :: t, k
+    logical :: found
+
+    do t=1,nsegtypes
+        k=1
+        found=.false.
+        do while (k<=nseg .or. found)
+            if(type_of_monomer(k)==t) then
+                found=.true.
+                type_of_monomer_num_to_char(t)=type_of_monomer_char(k)
+            endif 
+        enddo        
+    enddo
+
+end subroutine make_num_to_char
+
 subroutine write_chain_config()
 
     use mpivars, only : rank
     use globals, only: nseg, nsegtypes
-    use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer
+    use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer,type_of_charge
     use parameters, only : lseg,lsegAA,vpol, vsol
-
     use myutils, only : newunit
 
     character(len=100) :: fname
     integer :: i, un_cc
     character(len=10) ::istr
+    character(len=3) :: types_num_to_char(nsegtypes)
 
     if(rank==0) then
+
+       ! call make_num_to_char(types_num_to_char)
         write(istr,'(I4)')rank
         fname='chain_config.'//trim(adjustl(istr))//'.log'
         !     .. opening file
         open(unit=newunit(un_cc),file=fname)
 
         write(un_cc,*)"chain configuration summary"
+        !write(un_cc,*)"#nsegtypes char charge type "
+        !do i=1,nsegtypes
+        !    write(un_cc,*)i,types_num_to_char(i),type_of_charge(i)
+        !enddo
         write(un_cc,*)"###"
         write(un_cc,*)"lseg=",lseg
         write(un_cc,*)"#nsegtypes   lsegAA    vpol"

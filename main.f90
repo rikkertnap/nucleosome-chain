@@ -142,10 +142,6 @@ program main
     call write_chain_config()
     call write_chain_struct(write_struct,info)
 
-    do i=1,nsegtypes
-        print*,i,ismonomer_chargeable(i),type_of_charge(i)
-    enddo
-
     !  .. computation starts
 
     allocate(xstored(neq))
@@ -333,9 +329,9 @@ program main
 
                 if(rank==0) then     ! node rank=0
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                    !call solver(x, xguess, tol_conv, fnorm, isSolution)
+                    call solver(x, xguess, tol_conv, fnorm, isSolution)
                     call fcnptr(x, fvec, neq)
-                    isSolution=.true.
+                    !isSolution=.true.
                     flag_solver = 0   ! stop nodes
                     do i = 1, size-1
                         dest =i

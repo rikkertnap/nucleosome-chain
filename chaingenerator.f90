@@ -1921,4 +1921,7 @@ function open_chain_struct_file(filename,info)result(un)
     endif    
 end function open_chain_struct_file
 
+
+
+
 end module chaingenerator
