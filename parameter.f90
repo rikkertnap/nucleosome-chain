@@ -904,7 +904,6 @@ contains
         allocate(avgdisA(nsegtypes,4))  !  fraction of acidic AA in state A, AH, ANa or AK
         allocate(avgdisB(nsegtypes,3))  !  fraction of basic AA in state BH, B, BCl
         allocate(lsegAA(nsegtypes))
-        if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
 
     end subroutine allocate_chain_parameters
 
@@ -917,7 +916,6 @@ contains
         call init_pKas_and_zpol
         call init_lseg  ! init segment length
         call init_pKaions
-        call init_volume_pol_sv    ! only effective if if(systype=="nucl_ionbin_sv")
 
     end subroutine init_chain_parameters
 
@@ -930,13 +928,23 @@ contains
         
     end subroutine init_volume_pol
         
+
+    subroutine allocate_deltavnucl
+
+        use globals, only : nsegtypes,systype
+
+        if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
+
+    end subroutine allocate_deltavnucl    
+
     ! splits volume of monomer type over neighboring cell (8) evenly 
     ! only when systype=="nucl_ionbin_sv"
     ! coorinate ix,iy,iz realtive to density location (ix,iy,iz)=(0,0,0)
-    ! pre : init_volume_pol called
+    ! pre : init_volume_pol called for  vpol
+    ! pre :  called for ismonomer_chargeable
     ! post: deltavnucl for all monomore types
 
-    subroutine init_volume_pol_sv
+    subroutine make_deltavnucl   
 
         use globals, only : nsegtypes,systype
         use chains, only : ismonomer_chargeable
@@ -977,7 +985,7 @@ contains
 
         endif        
 
-    end subroutine init_volume_pol_sv       
+    end subroutine make_deltavnucl         
 
     subroutine init_pKas_and_zpol
 

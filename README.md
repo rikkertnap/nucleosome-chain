@@ -3,12 +3,15 @@
 
 ## Description
 
-Uses the molecular theory approach to compute the structure of a nucleosome n-mer in 3D in cartesian and oblique(prism and hexagonal) coordinates. 
-The aqueous solution is characterized by pH, NaCl, KCL and Ca2Cl.
-The nucleoeosome chains are obtained from simulation using the 1CPN-model. 
-This trajectory are inverted adn mapped back to amino-acid  unit resolution of the 3SPN-model.
+Uses the molecular theory approach to compute the structure and charge of a nucleosome n-mer in 3D in 
+cartesian and oblique (prism and hexagonal) coordinates. 
+The aqueous solution is characterized by pH, and salt concentration of NaCl, KCl, CaCl2 and MgCl2.
+The nucleoeosome chains or conformation are obtained from simulation using the 1CPN-model. 
+The 1CPN trajectory are inverted and mapped back to amino-acid unit resolution of the 3SPN-AIGC model, inwhich DNA is represented by 3 sites. Namly 
+P(phosphate), S( sugar) and an nucliotude (A, T, G, and C ). The amino-acid reside is represented by one site.
 Formation of Ca-bridges between phosphate monomer is taken into account.
-Program has inherited features and input varialbles of srcf90-fdis5-3D, which solved in 3D a end-tethered polyelectroltye layer of arbitrair composition. 
+Program has inherited features and input variables of other codes such as srcf90-fdis5-3D, which solved in 3D a end-tethered polyelectroltye layer of arbitrair composition. Hence beside nucleomse it can alos represent copolymers, whose confoamtions are generated internal using the RIS model. 
+
 
 ### Prerequisites
 
@@ -18,13 +21,13 @@ Sundials/kinsol, version 2.5/2.6.1.
 ### Installing
 
 Modify Makefile such that in contains the appropriate linker flags to the sundials library.
-Linker flags can be obtained form the examples directory of the sundials installation.
+Linker flags can be obtained from the examples directory of the sundials installation.
 
 
 
 ### Running
-
-The program uses an input file called 'input.in' that contain following key words.
+The program requires a number of input files describe below.
+A central configuration file is called 'input.in' that contain following key words.
 
 
 | Keyword (type)     	    | Description                       | Value                                                  |
@@ -45,6 +48,8 @@ The program uses an input file called 'input.in' that contain following key word
 |                           |                               | __brush_mulnoVdW__: multi-component acid-base: noVdW interaction  |
 |                           |                               | __brushborn__ : idem brush plus varing Born Energy  |
 |                           |                               | __brushdna__  : multi-component acid-base plus one acid with Ca/Mg binding |
+|                           |                               | __nucl_ionbin__ : nucleosome with ionbinding to both phosphate and AAs |
+|                           |                               | __nucl_ionbin_sv__ : nucleosome with ionbinding to both phosphate and AAs, volume distributed |
 |runtype`char`              | Sets type of run                  | __inputcspH__ : loop over pH salt concentration from file salt.in|
 |                           |   	                              | __inputMgpH__ : loop over pH Mg salt concentration from file saltMg.in |
 |                           |                                   | __inputcsKClpH__ : loop over pH K salt concentration from file salt.in | 
@@ -119,7 +124,7 @@ The program uses an input file called 'input.in' that contain following key word
 |write_struct `logical`     | if .true. writing of nucleosome chain properties to file ||
 |                           | bond angle, dihedral angle, Rend-to-end, Radius of gyration | if not set default: __.false.__| 
 |                           | and inter nucleosome spacing or distance  ||
-|write_rotations `logical`  | if .true. extra output on   nucleosome chain rotation calculation | if not set default: __.false.__|
+|write_rotations `logical`  | if .true. extra output on  nucleosome chain rotation calculation | if not set default: __.false.__|
 
 Format other input files:
  

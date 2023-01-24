@@ -856,7 +856,7 @@ contains
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
 
-        real(dp) :: norm
+        real(dp) :: norm, normvol, normPE
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
         real(dp) :: qAD, constA, constACa, constAMg ! disociation variables 
@@ -1167,7 +1167,12 @@ contains
          
             norm=l2norm(f,neqint)
             iter=iter+1
+
+
+            normvol=L2norm_sub(f,1,neqint/2)
+            normPE=L2norm_sub(f,neqint/2+1,neqint)
            
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol, "normPE=",normPE
             print*,'iter=', iter ,'norm=',norm
 
         else                      ! Export results 
@@ -1206,7 +1211,7 @@ contains
         use field, only : xsol,xpol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only : psi,gdisA,gdisB,fdis,fdisA
         use field, only : q, lnproshift
-        use vectornorm, only : L2norm
+        use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
         use VdW, only : VdW_contribution_lnexp
         use Poisson, only : Poisson_Equation
         use fcnaux, only : compute_lnexppi_neutral, compute_lnexppi_acid, compute_lnexppi_base
@@ -1228,13 +1233,15 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
-        real(dp) :: norm
+        real(dp) :: norm,normvol, normPE
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
         real(dp) :: qAD, constA, constACa, constAMg ! disociation variables 
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
         integer  :: count_scf
+
+        real(dp) :: g(neq/2)
 
         !     .. executable statements 
 
@@ -1338,6 +1345,7 @@ contains
                                 
                 else
                     ! t=ta : phosphate
+
 
                     do i=1,n  
                         xA(1)= xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      ! AH/A-
@@ -1555,23 +1563,24 @@ contains
 
             call Poisson_Equation(f,psi,rhoq)
 
-         
-            norm=l2norm(f,neqint)
+            norm=l2norm_f90(f)
             iter=iter+1
+                        
+            normvol=L2norm_f90(f(1:neqint/2))
+            normPE=L2norm_f90(f(neqint/2+1:neqint))
            
-            print*,'iter=', iter ,'norm=',norm
-
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+            
         else                      ! Export results 
             
             dest = 0 
-           
+
             call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
 
             do t=1,nsegtypes
                 call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
             enddo
 
-    
         endif
 
 
@@ -2457,7 +2466,7 @@ contains
                 enddo
             enddo
     
-            !   .. construction of fcn and volume fraction polymer        
+            !  .. construction of fcn and volume fraction polymer        
             rhopol0=(1.0_dp/volcell)/q! volume polymer segment per volume cell
 
             do i=1,n
@@ -2481,7 +2490,7 @@ contains
                     ((zpolA(1)*fdisA(i,1)+ zpolA(4)*fdisA(i,4))*rhopol(i,A) + &
                      (zpolB(1)*fdisB(i,1)+ zpolB(4)*fdisB(i,4))*rhopol(i,B) )*vsol         
        
-                !   ..  total charge density in units of vsol
+                   !  .. total charge density in units of vsol
             enddo  !  .. end computation polymer density and charge density  
 
             ! .. electrostatics 
@@ -2510,8 +2519,7 @@ contains
             call MPI_SEND(q_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(rhopol_local(:,A), nsize, MPI_DOUBLE_PRECISION,dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(rhopol_local(:,B), nsize, MPI_DOUBLE_PRECISION,dest, tag, MPI_COMM_WORLD, ierr)
-           
-
+        
         endif
 
 

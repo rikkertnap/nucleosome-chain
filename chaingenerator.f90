@@ -17,6 +17,10 @@ module chaingenerator
     private :: lenfname, conf_write
     private :: pbc 
     private :: xgraftloop
+
+    private :: read_chains_XYZ_nucl
+
+    public :: make_chains,make_chains_mc,read_chains_XYZ
    
 contains
 
@@ -623,11 +627,8 @@ subroutine read_graftpts_xyz_nucl(info)
 end subroutine
 
 
-
-
-! post: isAmonomer set 
-! for chaintype==multi , type_of_monomer,type_of_monomer_char
-! ismonomer_type are set.
+! post:  make isAmonomer, type_of_monomer and  type_of_monomer_char 
+! pre: nseg, nsegtypes, freq=chainperiod and chaintype are set
 
 subroutine make_sequence_chain(freq,chaintype)
   
@@ -1922,6 +1923,30 @@ function open_chain_struct_file(filename,info)result(un)
 end function open_chain_struct_file
 
 
+subroutine set_mapping_num_to_char(type_of_monomer_num_to_char)
+
+    use globals, only : nsegtypes,nseg
+    use chains, only : type_of_monomer, type_of_monomer_char
+
+    character(len=3), intent(inout) :: type_of_monomer_num_to_char(:)  
+        
+    integer :: t, k
+    logical :: notfound
+
+    do t=1,nsegtypes
+        k=1
+        notfound=.true.
+        do while (k<=nseg .and. notfound)
+            if(type_of_monomer(k)==t) then
+                type_of_monomer_num_to_char(t)=type_of_monomer_char(k)
+                notfound=.false. ! stops
+                k=1 ! reset
+            endif 
+            k=k+1
+        enddo        
+    enddo
+
+end subroutine set_mapping_num_to_char
 
 
 end module chaingenerator

@@ -1138,7 +1138,7 @@ subroutine output_brush_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge
+    use chains, only : type_of_charge, mapping_num_to_char
     
     !     .. local arguments
 
@@ -1309,10 +1309,11 @@ subroutine output_brush_mul
     if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
         do t=1,nsegtypes
             if(type_of_charge(t)=="A") then 
+                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
                 do i=1,nsize
                     write(un_fdision,*)(gdisA(i,k,t),k=1,4)
                 enddo
-            endif    
+            endif 
         enddo    
         do t=1,nsegtypes
             if(type_of_charge(t)=="B") then 
@@ -2383,8 +2384,8 @@ end subroutine copy_solution
 
 subroutine compute_vars_and_output()
 
-    use globals, only : systype
-    use energy, only : fcnenergy
+    use globals, only : systype,DEBUG
+    use energy, only : fcnenergy,check_volume_xpol
     use field, only : charge_polymer,average_charge_polymer,make_ion_excess
 
     select case (systype)
@@ -2408,7 +2409,8 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
-        call output()           
+        call output()  
+        if(DEBUG) call check_volume_xpol()        
 
     case ("nucl_ionbin_sv")
 
@@ -2417,7 +2419,7 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call output()           
-
+        if(DEBUG) call check_volume_xpol()     
 
     case default
 
@@ -2430,55 +2432,32 @@ subroutine compute_vars_and_output()
 end subroutine compute_vars_and_output
 
 
-subroutine make_num_to_char(type_of_monomer_num_to_char)
-
-    use globals, only : nsegtypes,nseg 
-    use chains, only : type_of_monomer,type_of_monomer_char
-
-    character(len=3), intent(inout) :: type_of_monomer_num_to_char(:)  
-        
-    integer :: t, k
-    logical :: found
-
-    do t=1,nsegtypes
-        k=1
-        found=.false.
-        do while (k<=nseg .or. found)
-            if(type_of_monomer(k)==t) then
-                found=.true.
-                type_of_monomer_num_to_char(t)=type_of_monomer_char(k)
-            endif 
-        enddo        
-    enddo
-
-end subroutine make_num_to_char
-
 subroutine write_chain_config()
 
     use mpivars, only : rank
     use globals, only: nseg, nsegtypes
     use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer,type_of_charge
+    use chains, only : mapping_num_to_char
     use parameters, only : lseg,lsegAA,vpol, vsol
     use myutils, only : newunit
 
     character(len=100) :: fname
     integer :: i, un_cc
     character(len=10) ::istr
-    character(len=3) :: types_num_to_char(nsegtypes)
+   
 
     if(rank==0) then
-
-       ! call make_num_to_char(types_num_to_char)
+        
         write(istr,'(I4)')rank
         fname='chain_config.'//trim(adjustl(istr))//'.log'
         !     .. opening file
         open(unit=newunit(un_cc),file=fname)
 
         write(un_cc,*)"chain configuration summary"
-        !write(un_cc,*)"#nsegtypes char charge type "
-        !do i=1,nsegtypes
-        !    write(un_cc,*)i,types_num_to_char(i),type_of_charge(i)
-        !enddo
+        write(un_cc,*)"#nsegtypes char charge type "
+        do i=1,nsegtypes
+            write(un_cc,*)i,mapping_num_to_char(i),' ',type_of_charge(i)
+        enddo
         write(un_cc,*)"###"
         write(un_cc,*)"lseg=",lseg
         write(un_cc,*)"#nsegtypes   lsegAA    vpol"

@@ -98,16 +98,22 @@ program main
     endif
 
     call init_constants()
-    call make_geometry()            ! generate volume elements lattice
-    call allocate_chain_parameters()  
-    call init_matrices()            ! init matrices for chain generation
+    call make_geometry()                        ! generate volume elements lattice
+    call allocate_chain_parameters()            !  
+    call init_matrices()                        ! init matrices for MC chain generation
     call allocate_chains(cuantas,nnucl,nseg,nsegtypes,maxnchainsrotations,maxnchainsrotationsxy)
-    call init_chain_parameters()      !ß
-    call make_sequence_chain(chainperiod,chaintype)
-    call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)
-    call make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
+    call init_chain_parameters()                                   ! reads pKa, pKaions zpol and vpol from file
+    call make_sequence_chain(chainperiod,chaintype)                ! set isAmonomer, type_of_monomer and  type_of_monomer_char
+    call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)    ! set ismonomer_chargeable,
+    call make_type_of_charge_table(type_of_charge,zpol,nsegtypes)  ! set type_of_charge
     call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
+    call set_mapping_num_to_char(mapping_num_to_char)
+    
+    if(systype=="nucl_ionbin_sv") then          ! init distributed volume = deltavnucl 
+        call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
+        call make_deltavnucl()
+    endif    
     
     call make_VdWeps(info) 
     if(info/=0) then
@@ -331,7 +337,6 @@ program main
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
                     call fcnptr(x, fvec, neq)
-                    !isSolution=.true.
                     flag_solver = 0   ! stop nodes
                     do i = 1, size-1
                         dest =i

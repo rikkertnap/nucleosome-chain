@@ -10,22 +10,22 @@ module field
     real(dp), dimension(:,:), allocatable :: rhopolin 
     real(dp), dimension(:), allocatable :: rhoqpol  ! charge density  monomer of polymer in layer i 
 
-    real(dp), dimension(:), allocatable :: xsol    ! volume fraction solvent
-    real(dp), dimension(:), allocatable :: psi     ! electrostatic potential 
-    real(dp), dimension(:), allocatable :: xNa     ! volume fraction of positive Na+ ion
-    real(dp), dimension(:), allocatable :: xK      ! volume fraction of positive K+ ion
-    real(dp), dimension(:), allocatable :: xRb     ! volume fraction of positive Rb+ ion
-    real(dp), dimension(:), allocatable :: xCa     ! volume fraction of positive Ca2+ ion
-    real(dp), dimension(:), allocatable :: xMg     ! volume fraction of positive Mg2+ ion    
-    real(dp), dimension(:), allocatable :: xNaCl   ! volume fraction of NaCl ion pair
-    real(dp), dimension(:), allocatable :: xKCl    ! volume fraction of KCl  ion pair
-    real(dp), dimension(:), allocatable :: xCl     ! volume fraction of negative ion
-    real(dp), dimension(:), allocatable :: xHplus  ! volume fraction of Hplus
-    real(dp), dimension(:), allocatable :: xOHmin  ! volume fraction of OHmin 
+    real(dp), dimension(:), allocatable :: xsol     ! volume fraction solvent
+    real(dp), dimension(:), allocatable :: psi      ! electrostatic potential 
+    real(dp), dimension(:), allocatable :: xNa      ! volume fraction of positive Na+ ion
+    real(dp), dimension(:), allocatable :: xK       ! volume fraction of positive K+ ion
+    real(dp), dimension(:), allocatable :: xRb      ! volume fraction of positive Rb+ ion
+    real(dp), dimension(:), allocatable :: xCa      ! volume fraction of positive Ca2+ ion
+    real(dp), dimension(:), allocatable :: xMg      ! volume fraction of positive Mg2+ ion    
+    real(dp), dimension(:), allocatable :: xNaCl    ! volume fraction of NaCl ion pair
+    real(dp), dimension(:), allocatable :: xKCl     ! volume fraction of KCl  ion pair
+    real(dp), dimension(:), allocatable :: xCl      ! volume fraction of negative ion
+    real(dp), dimension(:), allocatable :: xHplus   ! volume fraction of Hplus
+    real(dp), dimension(:), allocatable :: xOHmin   ! volume fraction of OHmin 
 
-    real(dp), dimension(:), allocatable :: rhoq    ! total free charge density in units of vsol  
-    real(dp), dimension(:), allocatable :: epsfcn   ! dielectric constant 
-    real(dp), dimension(:), allocatable :: Depsfcn  ! derivative dielectric constant
+    real(dp), dimension(:), allocatable :: rhoq     ! total free charge density in units of vsol  
+    real(dp), dimension(:), allocatable :: epsfcn   ! relative dielectric constant 
+    real(dp), dimension(:), allocatable :: Depsfcn  ! relative derivative dielectric constant
 
     real(dp), dimension(:,:), allocatable :: fdis    ! degree of dissociation of acid monomer and base monomer
                                                      ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
@@ -34,12 +34,10 @@ module field
     real(dp), dimension(:,:,:), allocatable :: gdisA   ! degree of dissociation of acid including condensed states  
     real(dp), dimension(:,:,:), allocatable :: gdisB   ! degree of dissociation of base including condensed states  
 
-    real(dp) :: q         ! normalization partion fnc polymer 
-    real(dp) :: lnq       ! exponent of normalization partion fnc polymer 
-
+    real(dp) :: q          ! normalization partion fnc polymer 
+    real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
     real(dp) :: lnproshift ! shift in exponent palpha
 
-  
 contains
 
     subroutine allocate_field(Nx,Ny,Nz,nsegtypes)
@@ -47,42 +45,41 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,nsegtypes
         
         integer :: N
-        integer :: ier
+        integer :: ier(24), i
 
         N=Nx*Ny*Nz
 
-        allocate(xpol(N),stat=ier)
-        allocate(rhopol(N,nsegtypes),stat=ier) 
-        allocate(rhopolin(N,nsegtypes),stat=ier) 
-        allocate(rhoqpol(N),stat=ier) 
-        allocate(xsol(N),stat=ier)
-        allocate(psi(N+2*Nx*Ny))
-        allocate(xNa(N),stat=ier)
-        allocate(xK(N),stat=ier)
-        allocate(xRb(N),stat=ier)
-        allocate(xCa(N),stat=ier)
-        allocate(xMg(N),stat=ier)
-        allocate(xNaCl(N),stat=ier) 
-        allocate(xKCl(N),stat=ier) 
-        allocate(xCl(N),stat=ier) 
-        allocate(xHplus(N),stat=ier)
-        allocate(xOHmin(N),stat=ier)
-        allocate(rhoq(N),stat=ier)
-        allocate(epsfcn(N),stat=ier)    ! relative dielectric constant
-        allocate(Depsfcn(N),stat=ier)   ! derivate relative dielectric constan
-
-        allocate(fdis(N,nsegtypes),stat=ier)
-        allocate(fdisA(N,8),stat=ier)
-        allocate(fdisB(N,5),stat=ier)
-        allocate(gdisA(N,4,nsegtypes),stat=ier)
-        allocate(gdisB(N,3,nsegtypes),stat=ier)
+        allocate(xpol(N),stat=ier(1))
+        allocate(rhopol(N,nsegtypes),stat=ier(2)) 
+        allocate(rhopolin(N,nsegtypes),stat=ier(3)) 
+        allocate(rhoqpol(N),stat=ier(4)) 
+        allocate(xsol(N),stat=ier(5))
+        allocate(psi(N+2*Nx*Ny),stat=ier(6))
+        allocate(xNa(N),stat=ier(7))
+        allocate(xK(N),stat=ier(8))
+        allocate(xRb(N),stat=ier(9))
+        allocate(xCa(N),stat=ier(10))
+        allocate(xMg(N),stat=ier(11))
+        allocate(xNaCl(N),stat=ier(12)) 
+        allocate(xKCl(N),stat=ier(13)) 
+        allocate(xCl(N),stat=ier(14)) 
+        allocate(xHplus(N),stat=ier(15))
+        allocate(xOHmin(N),stat=ier(16))
+        allocate(rhoq(N),stat=ier(17))
+        allocate(epsfcn(N),stat=ier(18))    
+        allocate(Depsfcn(N),stat=ier(19))   
+        allocate(fdis(N,nsegtypes),stat=ier(20))
+        allocate(fdisA(N,8),stat=ier(21))
+        allocate(fdisB(N,5),stat=ier(22))
+        allocate(gdisA(N,4,nsegtypes),stat=ier(23))
+        allocate(gdisB(N,3,nsegtypes),stat=ier(24))
        
-
-        
-        if( ier/=0 ) then
-            print*, 'Allocation error : stat =', ier
-            stop
-        endif
+        do i=1,24
+            if( ier(i)/=0 ) then
+                print*, 'Allocation error : stat =', ier(i),' for i= ',i
+                stop
+            endif
+        enddo    
         
     end subroutine allocate_field
 
