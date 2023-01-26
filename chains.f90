@@ -16,9 +16,9 @@ module chains
     character(len=1), dimension(:), allocatable  :: type_of_charge      ! either "A" =Acid, "B"=base or "N"=neutral for segment number type "t" 
     real(dp), dimension(:), allocatable     :: energychain              ! energy chain   
     real(dp), dimension(:), allocatable     :: energychain_init         ! energy chain   
-    real(dp) :: energychain_min                                         ! mimimum energy chain
+    real(dp)                                :: energychain_min          ! mimimum energy chain
     real(dp), dimension(:),   allocatable   :: logweightchain           !  
-    logical :: isHomopolymer
+    logical                                 :: isHomopolymer
     double precision, dimension(:),allocatable :: lsegseq               ! segment length only needed for copolymer
 
     ! chain stuctural quantities
@@ -31,10 +31,8 @@ module chains
     real(dp), dimension(:), allocatable     :: avbond_angle             ! average bond angle
     real(dp), dimension(:), allocatable     :: avdihedral_angle         ! average dihedral angle
     real(dp), dimension(:), allocatable     :: avnucl_spacing           ! average spacing or distance between Nuclesome
-    real(dp) :: avRgsqr                                                 ! radius of gyration 
-    real(dp) :: avRendsqr                                               ! end-to-end distance
-    
-
+    real(dp)                                :: avRgsqr                  ! radius of gyration 
+    real(dp)                                :: avRendsqr                ! end-to-end distance
 
 contains
 
@@ -60,7 +58,6 @@ contains
         allocate(ismonomer_of_type(nseg,nsegtypes)) 
         allocate(ismonomer_chargeable(nsegtypes))
         allocate(type_of_charge(nsegtypes))
-
 
         ! chain stuctural quantities
         

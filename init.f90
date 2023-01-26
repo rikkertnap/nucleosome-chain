@@ -565,107 +565,22 @@ end subroutine init_guess_multi_born
 
 
 
-! .. copy solution of previous solution ( distance ) to create new guess
-! .. data x=(pi,psi) and pi and psi order and split into  blocks
+! .. copy solution of previous solution to create new guess
 
 
 subroutine make_guess_from_xstored(xguess,xstored)
 
-    use globals, only : neq, neqmax, systype, runtype,bcflag, LEFT, RIGHT, nsize, nsegtypes
-    use volume, only : nz, nzstep, nsurf
-
+    use globals, only : neq
 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potentia
     real(dp), intent(in) :: xstored(:)
 
     !   .. local variables
-    integer :: i, neq_bc, t, k
-
-    neq_bc=0  
-      
-    if(bcflag(RIGHT)/="cc") neq_bc=neq_bc+nsurf
-    if(bcflag(LEFT)/="cc") neq_bc=neq_bc+nsurf 
-
-    if(runtype=="rangedist") then ! loop over distances
-
-        select case (systype)
-        case ("elect")       
-            do i=1,nsize
-                xguess(i)=xstored(i)                                ! volume fraction solvent 
-                xguess(i+  nsize)=xstored(i+   nsize+nsurf*nzstep)       ! potential
-                xguess(i+2*nsize)=xstored(i+2*(nsize+nsurf*nzstep))  
-                xguess(i+3*nsize)=xstored(i+3*(nsize+nsurf*nzstep))  
-            enddo
-            
-            do i=1,neq_bc
-                xguess(4*nsize+i)=xstored(4*(nsize+nsurf*nzstep)+i) 
-            enddo
-
-        case ("electdouble") 
-            ! assume xstored xsol,psi symetric xsol(1)=xsol(nsize) etc     
-            do i=1,nsize/2
-                xguess(i)=xstored(i)                                ! volume fraction solvent 
-                xguess(i+nsize)=xstored(i+nsize+nsurf*nzstep)       ! potential
-                xguess(i+2*nsize)=xstored(i+2*(nsize+nsurf*nzstep))  
-                xguess(i+3*nsize)=xstored(i+3*(nsize+nsurf*nzstep))  
-            enddo
-            do i=nsize/2+1,nsize  ! shift by nzstep
-                xguess(i)=xstored(i+nsurf*nzstep)    
-                xguess(i+  nsize)=xstored(i+  nsize+2*nsurf*nzstep)      
-                xguess(i+2*nsize)=xstored(i+2*nsize+3*nsurf*nzstep)  
-                xguess(i+3*nsize)=xstored(i+3*nsize+4*nsurf*nzstep)  
-            enddo       
-
-            do i=1,neq_bc
-                xguess(4*nsize+i)=xstored(4*(nsize+nsurf*nzstep)+i) 
-            enddo
-        case ("neutral")  
-
-            do t=0,nsegtypes
-                k=t*nsize
-                do i=1,nsize/2
-                    xguess(i+k)=xstored(i+k+t*nsurf*nzstep)                               
-                enddo
-            enddo 
-            do t=0,nsegtypes
-                k=t*nsize 
-                do i=nsize/2+1,nsize
-                    xguess(i+k)=xstored(i+k+(t+1)*nsurf*nzstep)                             
-                enddo
-            enddo    
-        
-        case ("brush_mulnoVdw")       
-            
-            do i=1,nsize
-                xguess(i)=xstored(i)                                ! volume fraction solvent 
-                xguess(i+  nsize)=xstored(i+   nsize+nsurf*nzstep)       ! potential
-            enddo
-
-        case ("neutralnoVdW") 
-            do i=1,nsize/2
-                xguess(i)=xstored(i)                                ! volume fraction solvent 
-            enddo
-            do i=nsize/2+1,nsize  ! shift by nzstep
-                xguess(i)=xstored(i+nsurf*nzstep)    
-            enddo       
-        case ("brush_mul","brushdna","brushborn")
-           
-            print*,"make_guess_from_xstored: this systype not implemented for runtype=rangedist"
-
-        case default
-
-            print*,"Error : make_guess_from_xstored wrong systype"
-            print*,"systype",systype
-            stop
-        end select
-
-    else
-        
-        do i=1,neq
-            xguess(i)=xstored(i)     
-        enddo
-
-    endif      
+    integer :: i
+   
+    do i=1,neq
+        xguess(i)=xstored(i)     
+    enddo 
 
 end subroutine make_guess_from_xstored
 

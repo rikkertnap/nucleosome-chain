@@ -929,16 +929,13 @@ contains
         do t=1,nsegtypes
             if(ismonomer_chargeable(t)) then
                 if(t/=ta) then
-                    if(zpol(t,1)==0) then  !  acid
+                    if(type_of_charge(t)=="A") then  !  acid
                      
                         do i=1,n
 
-                             !fdis(i,t)  = 1.0_dp/(1.0_dp+xHplus(i)/(K0a(t)*xsol(i)))      
-                             !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
-
                             xA(1) = xHplus(i)/(K0a(t)*xsol(i))           ! AH/A!
-                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i))   ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
-                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))     ! AK/A-
+                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i)) ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
+                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))   ! AK/A-
                             sgxA =  1.0_dp+xA(1)+xA(2)+xA(3)  
                             
                             gdisA(i,1,t) = 1.0_dp/sgxA                    ! A^- 
@@ -950,14 +947,13 @@ contains
 
                             fdis(i,t) = gdisA(i,1,t)
 
-                            !print*,xA(1),xA(2),xA(3)
-
                         enddo 
 
                     else !  base
+
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
-                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))    ! BHCl/BH+
+                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))  ! BHCl/BH+
                             sgxB =  1.0_dp+xB(1)+xB(2)  
                             gdisB(i,1,t) = 1.0_dp/sgxB                    ! BH^+
                             gdisB(i,2,t) = gdisB(i,1,t)*xB(1)             ! B
@@ -967,13 +963,11 @@ contains
 
                             fdis(i,t) = gdisB(i,2,t)  
 
-                            !fdis(i,t)  = 1.0_dp/(1.0_dp+xHplus(i)/(K0a(t)*xsol(i)))  
-                            !lnexppi(i,t) = log(xsol(i))*vpol(t) -zpol(t,2)*psi(i) -log(fdis(i,t))   ! auxilary variable palpha
-                            
 
                         enddo
             
-                    endif       
+                    endif 
+
                 else
                 
                     do i=1,n  
@@ -1003,11 +997,14 @@ contains
                         fdis(i,t)   = fdisA(i,1) 
                     enddo  
                 endif
-            else    
+
+            else
+
                 do i=1,n
                     fdis(i,t)  = 0.0_dp
                     lnexppi(i,t)  = log(xsol(i))*vpol(t)
                 enddo  
+
             endif   
         enddo      
                
@@ -1207,7 +1204,7 @@ contains
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use volume, only : volcell
-        use chains, only : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable     
+        use chains, only : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable ,type_of_charge    
         use field, only : xsol,xpol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only : psi,gdisA,gdisB,fdis,fdisA
         use field, only : q, lnproshift
@@ -1308,7 +1305,7 @@ contains
         do t=1,nsegtypes
             if(ismonomer_chargeable(t)) then
                 if(t/=ta) then
-                    if(zpol(t,1)==0) then  !  acid
+                    if(type_of_charge(t)=="A") then  !  acid
                      
                         do i=1,n
 
@@ -1346,8 +1343,8 @@ contains
                 else
                     ! t=ta : phosphate
 
-
                     do i=1,n  
+
                         xA(1)= xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      ! AH/A-
                         xA(2)= (xNa(i)/vNa)/(K0aAA(2)*(xsol(i)**deltavAA(2)))   ! ANa/A-
                         xA(3)= (xCa(i)/vCa)/(K0aAA(3)*(xsol(i)**deltavAA(3)))   ! ACa+/A-
@@ -1479,7 +1476,7 @@ contains
                 if(ismonomer_chargeable(t)) then 
 
                     if(t/=ta) then
-                        if(zpol(t,1)==0) then ! acid                                        
+                        if(type_of_charge(t)=="A") then ! acid                                        
 
                             do i=1,n
                                 rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
@@ -1501,29 +1498,14 @@ contains
 
                     else
 
-                        if(DEBUG.eqv..false.) then  
+                        do i=1,n
+                            rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
+                            rhoqpol(i)   = rhoqpol(i) -gdisA(i,1,t)*rhopol(i,t)*vsol 
+                        enddo
 
-                            do i=1,n
-                                rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t 
-                                rhoqpol(i)   = rhoqpol(i) + (- fdisA(i,1)+fdisA(i,4)+fdisA(i,6) )*rhopol(i,t)*vsol 
-                                do k=1,4               ! polymer volume fraction
-                                    xpol(i) = xpol(i)+rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol   
-                                enddo
-                                xpol(i)=xpol(i)+rhopol(i,t)*(fdisA(i,5)*vpolAA(5)/2.0_dp + &
-                                                         fdisA(i,6)*vpolAA(6) + &
-                                                         fdisA(i,7)*vpolAA(7)/2.0_dp +fdisA(i,8)*vpolAA(8) )*vsol 
+                        call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xpol)
                             
-                            enddo
-                        else  
-
-                            do i=1,n
-                                rhopol(i,t)  = rhopol0 * rhopol(i,t)               ! density polymer of type t  
-                                rhoqpol(i)   = rhoqpol(i) -gdisA(i,1,t)*rhopol(i,t)*vsol 
-                            enddo
-
-                            call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xpol)
                             
-                        endif    
                     endif    
                 else  
 

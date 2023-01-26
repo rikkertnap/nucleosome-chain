@@ -14,14 +14,12 @@ module chaingenerator
     integer :: conf_write
     real(dp) :: xgraftloop(3,2)
 
-    private :: lenfname, conf_write
-    private :: pbc 
-    private :: xgraftloop
+    private 
 
-    private :: read_chains_XYZ_nucl
-
-    public :: make_chains,make_chains_mc,read_chains_XYZ
-   
+    public :: make_chains, make_chains_mc,read_chains_XYZ, chain_filter
+    public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
+    public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
+    
 contains
 
 
@@ -44,7 +42,7 @@ subroutine make_chains(chainmethod)
     case ("FILE_XYZ")
         call read_chains_xyz(info)  
     case default
-        text="chainmethod not equal to MC, FILE_lammps_XYZ, FILE_lammps_trj or FILKE_XYZ"
+        text="chainmethod not equal to MC or FILE_XYZ"
         call print_to_log(LogUnit,text)
         print*,text
         info=myio_err_chainmethod
@@ -261,8 +259,10 @@ end subroutine
 
 
 
-! Reads confomations from a file called traj.xyz
-! Format repeated lammps trajectory file 
+! Reads conformations from a file called traj.<rank>.xyz
+! Reads energy of the conformation from a file called energy.<rank>.ene
+! Reading of energy file only if isChainEnergyFile==.true.
+! Format conformation file : lammps trajectory file xyz file
 ! number of ATOMS much equal nseg  
 
 subroutine read_chains_XYZ_nucl(info)
@@ -769,10 +769,10 @@ subroutine read_sequence_copoly_from_file(info)
 end subroutine read_sequence_copoly_from_file
 
 
-! select indexchain and energy that have a weightchain=.true.
+! Select indexchain and energy that have a weightchain=.true.
 ! return actual number of conformations
 ! rational: need identical set of confors for loop of distance /volumesizes
-! ! Allows modeling of brush compressesd by second surface at z=nz
+! Allows modeling of brush compressesd by second surface at z=nz
  
 subroutine chain_filter()
     
@@ -812,7 +812,7 @@ end subroutine  chain_filter
 
 ! Compute weight chain w=e^E/Tre^E and normalize
 ! layout conformations : there are  nset of conformations thus total nodes = nset 
-! Each set hodl differnte conformations
+! Each set hold different conformations
 
 subroutine normed_weightchains()
 
@@ -838,8 +838,6 @@ subroutine normed_weightchains()
     do c=1,cuantas
         logweightchain(c)=energychain(c)-logtotalsum
     enddo    
-
-    !call make_histogram(400)
 
 end subroutine
 

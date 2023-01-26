@@ -13,13 +13,10 @@ module volume
     integer :: nz                   ! nz number of lattice sites in z-direction 
     integer :: nx                   ! nx number of lattice sites in x-direction 
     integer :: ny                   ! ny number of lattice sites in y-direction 
-    integer :: nsurf                ! nsurf numer of lattice site  at z=0 ore z=nz*delta
-    integer :: nzmax                ! nzmax  maximum number of lattice sites in z-direction
-    integer :: nzmin                ! nzmin minimumal number of lattice sites in z-direction  
-    integer :: nzstep               ! nzstep number of lattice sites stepped over or reduced
+    integer :: nsurf                ! nsurf number of lattice site  at z=0 ore z=nz*delta
     real(dp) :: volcell             ! volcell=delta**3
     real(dp) :: areacell            ! areacell=delta**2
-    real(dp) :: areasurf            ! area surfaces spanned by x and y direction
+    real(dp) :: areasurf            ! area surfaces spanned in x- and y- direction
     real(dp) :: gamma               ! angle between oblique basis vectors u and v: cubic = gamma=90=pi/2 hexagonl gamma=60=2pi/3                          
     real(dp) :: beta                ! related beta = (pi/2- gamma)/2, angle between basis vector u and x and v and y
     real(dp) :: cos_two_beta        ! sqrt(cos(beta)**2 - sin(beta)**2)=cos(2beta) scales u and v coordinates 
@@ -33,9 +30,16 @@ module volume
 
     ! hash table
     integer, dimension(:,:,:), allocatable :: coordtoindex 
-    integer, dimension(:,:), allocatable :: indextocoord
+    integer, dimension(:,:), allocatable   :: indextocoord
 
-    private :: beta
+    private
+    
+    public :: delta,nx,ny,nz,volcell,areacell,geometry, sgraftpts, nsurf
+    public :: gamma,cos_two_beta, sin_two_beta
+    public :: coordtoindex,indextocoord
+    public :: coordinateFromLinearIndex, linearIndexFromCoordinate
+    public :: xt, yt, ut, vt, ipbc
+    public :: make_geometry
 
 contains
     
@@ -57,7 +61,7 @@ contains
         sin_two_beta=sin(2.0_dp*beta)
 
         ! cubic lattice  or prism surface in x-y direction at z=0 and z=nz  
-        nz=nzmax
+        ! nz=nzmax
         nsize = nx*ny*nz                       ! total number of cells or layers
         volcell = delta*delta*delta*1.0_dp     ! volume of one latice volume 
         areacell = delta*delta
@@ -253,8 +257,6 @@ contains
         endif
 
     end function
-
-
 
 end module volume
   
