@@ -20,8 +20,10 @@
     real(dp) :: vpolA(5),deltavA(4)  ! volume of one polymer segment, vpol  in units of vsol
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
-    real(dp), dimension(:), allocatable :: vpol  ! volume of polymer segment of given type, vpol in units of vsol
+    real(dp), dimension(:), allocatable :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
+    real(dp), dimension(:,:), allocatable :: vnucl  ! volume of segment s element j  
+    integer, dimension(:), allocatable :: nelem     ! number of elements of segment s
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -42,10 +44,11 @@
     real(dp) :: RMg
 
      !    .. charges 
-    integer :: zpolAA(8)
     integer, dimension(:,:), allocatable :: zpol          ! valence charge polymer
+    integer :: zpolAA(8)
     integer :: zpolA(5)          ! valence charge polymer
     integer :: zpolB(5)          ! valence charge polymer
+
     integer :: zNa               ! valence charge positive ion 
     integer :: zK                ! valence charge positive ion 
     integer :: zRb               ! valence charge positive ion 

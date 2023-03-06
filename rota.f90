@@ -204,7 +204,7 @@ subroutine rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
 
     do s=1,nseg
         chain_rot(:,s)=Matmul(Rmat,chain(:,s))
-    enddo   
+    enddo  
 
 
 end subroutine rotate_nucl_chain

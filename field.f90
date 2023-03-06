@@ -5,10 +5,11 @@ module field
 
     implicit none
     
-    real(dp), dimension(:), allocatable :: xpol     ! volume fraction of polymer 
-    real(dp), dimension(:,:), allocatable :: rhopol ! density  monomer of polymer in layer i of type t
+    real(dp), dimension(:), allocatable   :: xpol     ! volume fraction of polymer 
+    real(dp), dimension(:,:), allocatable :: xpol_t   ! volume fraction of polymer in layer i of type t
+    real(dp), dimension(:,:), allocatable :: rhopol   ! density monomer of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopolin 
-    real(dp), dimension(:), allocatable :: rhoqpol  ! charge density  monomer of polymer in layer i 
+    real(dp), dimension(:), allocatable   :: rhoqpol  ! charge density  monomer of polymer in layer i 
 
     real(dp), dimension(:), allocatable :: xsol     ! volume fraction solvent
     real(dp), dimension(:), allocatable :: psi      ! electrostatic potential 
@@ -27,10 +28,10 @@ module field
     real(dp), dimension(:), allocatable :: epsfcn   ! relative dielectric constant 
     real(dp), dimension(:), allocatable :: Depsfcn  ! relative derivative dielectric constant
 
-    real(dp), dimension(:,:), allocatable :: fdis    ! degree of dissociation of acid monomer and base monomer
-                                                     ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
-    real(dp), dimension(:,:), allocatable :: fdisA   ! degree of dissociation of acid including condensed states
-    real(dp), dimension(:,:), allocatable :: fdisB   ! degree of dissociation
+    real(dp), dimension(:,:), allocatable   :: fdis    ! degree of dissociation of acid monomer and base monomer
+                                                       ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
+    real(dp), dimension(:,:), allocatable   :: fdisA   ! degree of dissociation of acid including condensed states
+    real(dp), dimension(:,:), allocatable   :: fdisB   ! degree of dissociation
     real(dp), dimension(:,:,:), allocatable :: gdisA   ! degree of dissociation of acid including condensed states  
     real(dp), dimension(:,:,:), allocatable :: gdisB   ! degree of dissociation of base including condensed states  
 
@@ -45,16 +46,19 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,nsegtypes
         
         integer :: N
-        integer :: ier(24), i
+        integer :: ier(25), i
 
         N=Nx*Ny*Nz
 
         allocate(xpol(N),stat=ier(1))
+        allocate(xpol_t(N,nsegtypes),stat=ier(25))
         allocate(rhopol(N,nsegtypes),stat=ier(2)) 
         allocate(rhopolin(N,nsegtypes),stat=ier(3)) 
         allocate(rhoqpol(N),stat=ier(4)) 
         allocate(xsol(N),stat=ier(5))
         allocate(psi(N+2*Nx*Ny),stat=ier(6))
+        !allocate(psi(N),stat=ier(6))
+
         allocate(xNa(N),stat=ier(7))
         allocate(xK(N),stat=ier(8))
         allocate(xRb(N),stat=ier(9))
@@ -67,14 +71,15 @@ contains
         allocate(xOHmin(N),stat=ier(16))
         allocate(rhoq(N),stat=ier(17))
         allocate(epsfcn(N),stat=ier(18))    
-        allocate(Depsfcn(N),stat=ier(19))   
+        allocate(Depsfcn(N),stat=ier(19))  
+
         allocate(fdis(N,nsegtypes),stat=ier(20))
         allocate(fdisA(N,8),stat=ier(21))
         allocate(fdisB(N,5),stat=ier(22))
         allocate(gdisA(N,4,nsegtypes),stat=ier(23))
         allocate(gdisB(N,3,nsegtypes),stat=ier(24))
        
-        do i=1,24
+        do i=1,25
             if( ier(i)/=0 ) then
                 print*, 'Allocation error : stat =', ier(i),' for i= ',i
                 stop
@@ -87,6 +92,7 @@ contains
     subroutine deallocate_field()
         
         deallocate(xpol)
+        deallocate(xpol_t)
         deallocate(rhopol)
         deallocate(rhoqpol)
         deallocate(xsol)
@@ -102,7 +108,6 @@ contains
         deallocate(rhoq)
         deallocate(epsfcn)
         deallocate(Depsfcn)
-
         deallocate(fdis)
         deallocate(fdisA)
         deallocate(fdisB)
@@ -127,6 +132,7 @@ contains
     subroutine init_field()
 
         xpol=0.0_dp
+        xpol_t=0.0_dp
         rhopol=0.0_dp
         rhoqpol=0.0_dp
         xsol=0.0_dp
@@ -256,7 +262,7 @@ contains
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, qpol, qpol_tot, tA
-        use chains, only : ismonomer_chargeable 
+        use chains, only : ismonomer_chargeable, type_of_charge 
 
         integer :: i, t
 
@@ -265,21 +271,21 @@ contains
         do t=1,nsegtypes
             qpol(t)=0.0_dp
             if(ismonomer_chargeable(t)) then 
-                if(t/=tA) then 
-                    if(zpol(t,1)==0) then    
+              if(type_of_charge(t)=="A") then   ! acid 
+                    if(t/=ta) then
                         do i=1,nsize
                             qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
                         enddo
-                    else
+                    else ! phosphate
                         do i=1,nsize
-                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
-                        enddo
-                    endif    
-                else
+                            qpol(ta)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,t)
+                        enddo    
+                    endif
+                else  ! base   
                     do i=1,nsize
-                        qpol(t)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,tA)
+                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
                     enddo
-                endif    
+                endif        
             endif    
             qpol(t)=qpol(t)*volcell
             qpol_tot=qpol_tot+qpol(t)
@@ -293,7 +299,7 @@ contains
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, qpol, qpol_tot, tA
-        use chains, only : ismonomer_chargeable 
+        use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
 
@@ -302,21 +308,21 @@ contains
         do t=1,nsegtypes
             qpol(t)=0.0_dp
             if(ismonomer_chargeable(t)) then 
-                if(t/=tA) then 
-                    if(zpol(t,1)==0) then    
+                if(type_of_charge(t)=="A") then   ! acid 
+                    if(t/=ta) then
                         do i=1,nsize
                             qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
                         enddo
-                    else
+                    else ! phosphate
                         do i=1,nsize
-                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
-                        enddo
-                    endif    
-                else
+                            qpol(ta)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,t)
+                        enddo    
+                    endif
+                else  ! base   
                     do i=1,nsize
-                        qpol(t)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,tA)
+                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
                     enddo
-                endif    
+                endif        
             endif    
             qpol(t)=qpol(t)*volcell
             qpol_tot=qpol_tot+qpol(t)

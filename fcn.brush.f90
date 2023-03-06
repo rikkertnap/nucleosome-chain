@@ -1568,6 +1568,193 @@ contains
 
     end subroutine fcnnucl_ionbin_sv
 
+    ! Nucleosome of AA and dna polymers distributed volume
+    ! neutral system
+
+    subroutine fcnnucl_neutral_sv(x,f,nn)
+
+        use mpivars
+        use precision_definition
+        use globals, only : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
+        use parameters, only : vsol,vpol, vnucl, nelem
+        use parameters, only : iter
+        use volume, only : volcell
+        use chains, only : indexconf, type_of_monomer, logweightchain   
+        use field, only : xsol, xpol=>xpol_t
+        use field, only : q, lnproshift
+        use vectornorm, only : L2norm_f90
+        
+
+        ! .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        ! .. array arguments
+
+        real(dp), intent(in)  :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        ! .. local variables
+        
+        real(dp) :: local_xpol(nsize,nsegtypes),xpol_tot(nsize)
+        real(dp) :: local_q
+        real(dp) :: lnexppi(nsize)                    ! auxilairy variable for computing P(\alpha)  
+        real(dp) :: pro,lnpro
+        integer  :: i,j,k,c,s,t                       ! dummy indices
+        real(dp) :: norm, normvol
+        real(dp) :: xpol0 
+        real(dp) :: locallnproshift(2), globallnproshift(2)
+      
+        ! .. executable statements 
+
+        ! .. communication between processors 
+
+        if (rank.eq.0) then 
+            flag_solver = 1      !  continue program  
+            do i = 1, numproc-1
+                dest = i
+                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+            enddo
+        endif
+ 
+        do i=1,nsize                     
+            xsol(i) = x(i)        ! volume fraction solvent
+        enddo  
+    
+        !  .. assign global and local polymer volume fraction 
+        do t=1,nsegtypes
+            do i=1,nsize
+                xpol(i,t)=0.0_dp 
+                local_xpol(i,t)=0.0_dp
+            enddo    
+        enddo    
+       
+        do i=1,nsize                              
+            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable
+        enddo      
+               
+    
+        !  .. computation polymer density fraction      
+ 
+        local_q = 0.0_dp    ! init q
+        lnpro   = 0.0_dp
+        
+        do c=1,cuantas                           ! loop over cuantas
+            lnpro=lnpro+logweightchain(c)        ! internal weight
+            do s=1,nseg                          ! loop over segments 
+                t=type_of_monomer(s)                
+                do j=1,nelem(s)                  ! loop over element of segment
+                    k=indexconf(s,c)%elem(j)
+                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)
+                enddo    
+            enddo 
+        enddo
+
+        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(2)=rank  
+    
+        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+       
+        lnproshift=globallnproshift(1)
+              
+        do c=1,cuantas                        ! loop over cuantas
+            lnpro = logweightchain(c) 
+            do s=1,nseg                       ! loop over segments 
+                do j=1,nelem(s)               ! loop over elements of segment  
+                    k = indexconf(s,c)%elem(j)
+                    lnpro = lnpro +lnexppi(k)*vnucl(j,s)              
+                enddo
+            enddo     
+
+            pro = exp(lnpro-lnproshift)   
+            local_q = local_q+pro
+            
+            do s=1,nseg
+                t=type_of_monomer(s)
+                do j=1,nelem(s)
+                    k = indexconf(s,c)%elem(j) 
+                    local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,s) 
+                enddo
+            enddo
+
+        enddo    
+
+        !   .. import results 
+
+        if (rank==0) then 
+
+            q = 0.0_dp 
+            q = local_q
+            
+             do i=1, numproc-1
+                source = i
+                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
+                q = q + local_q
+            enddo
+
+            ! conformation on rank zero 
+            do t=1,nsegtypes
+                do i=1,nsize
+                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction 
+                enddo
+            enddo
+           
+            do i=1, numproc-1
+                source = i
+                do t=1,nsegtypes
+                    call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                    do k=1,nsize
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer volume fraction
+                    enddo
+                enddo
+            enddo     
+
+            !  .. construction of fcn and volume fraction polymer 
+            !  .. normalization volume polymer segment per volume cell
+
+            xpol0=(1.0_dp/volcell)/q 
+
+            do t=1, nsegtypes           ! volumer fraction of polymer of type t 
+                do i=1,nsize
+                    xpol(i,t)  = xpol0 * xpol(i,t)    
+                enddo   
+            enddo    
+
+            do i=1,nsize
+                xpol_tot(i)=0.0_dp
+                do t=1,nsegtypes
+                    xpol_tot(i)  = xpol_tot(i) + xpol(i,t)    
+                enddo  
+
+                f(i) = xpol_tot(i)+xsol(i)-1.0_dp
+            enddo
+          
+            ! .. end computation polymer volume fraction 
+
+            norm = l2norm_f90(f)
+            iter = iter + 1 
+                         
+            print*,'iter=', iter ,'norm=',norm
+            
+        else                      ! Export results 
+            
+            dest = 0 
+
+            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+
+            do t=1,nsegtypes
+                call MPI_SEND(local_xpol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+            enddo
+
+        endif
+
+    end subroutine fcnnucl_neutral_sv
+
+
+
+
     ! brush of multiblock copolymers
     ! with ion charegeable group being an acid with counterion binding etc 
 
@@ -3050,6 +3237,8 @@ contains
             fcnptr => fcnnucl_ionbin  
         case ("nucl_ionbin_sv")
             fcnptr => fcnnucl_ionbin_sv  
+         case ("nucl_neutral_sv")
+            fcnptr => fcnnucl_neutral_sv    
         case ("brushborn")
             fcnptr => fcnbrushborn    
         case ("elect")                  ! copolymer weak polyacid, no VdW

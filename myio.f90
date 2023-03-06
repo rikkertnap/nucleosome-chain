@@ -739,19 +739,17 @@ subroutine check_value_chainmethod(chainmethod,info)
     integer, intent(out),optional :: info
 
     logical :: flag
-    character(len=15) :: chainmethodstr(4)
+    character(len=15) :: chainmethodstr(2)
     integer :: i
 
     ! permissible values of chainmethod
 
     chainmethodstr(1)="MC"
-    chainmethodstr(2)="FILE_lammps_xyz"
-    chainmethodstr(3)="FILE_lammps_trj"
-    chainmethodstr(3)="FILE_XYZ"
+    chainmethodstr(2)="FILE_XYZ"
 
     flag=.FALSE.
 
-    do i=1,4
+    do i=1,2
         if(chainmethod==chainmethodstr(i)) flag=.TRUE.
     enddo
 
@@ -1107,7 +1105,7 @@ subroutine output()
     case("brush_mul","brush_mulnoVdW","brushdna","brushborn",&
         "nucl_ionbin","nucl_ionbin_sv")
 
-        call output_brush_mul
+        call output_nucl_mul
         call output_individualcontr_fe
 
 
@@ -1121,7 +1119,7 @@ subroutine output()
 end subroutine output
 
 
-subroutine output_brush_mul
+subroutine output_nucl_mul
 
     !     .. variables and constant declaractions
     use globals
@@ -1177,26 +1175,26 @@ subroutine output_brush_mul
     !     .. make label filenames f
     call make_filename_label(fnamelabel)
 
-    sysfilename='system.'//trim(fnamelabel)
-    xpolfilename='xpol.'//trim(fnamelabel)
-    xsolfilename='xsol.'//trim(fnamelabel)
-    xNafilename='xNaions.'//trim(fnamelabel)
-    xKfilename='xKions.'//trim(fnamelabel)
-    xCafilename='xCaions.'//trim(fnamelabel)
-    xMgfilename='xMgions.'//trim(fnamelabel)
-    xNaClfilename='xNaClionpair.'//trim(fnamelabel)
-    xKClfilename='xKClionpair.'//trim(fnamelabel)
-    xClfilename='xClions.'//trim(fnamelabel)
-    potentialfilename='potential.'//trim(fnamelabel)
-    chargefilename='charge.'//trim(fnamelabel)
-    xHplusfilename='xHplus.'//trim(fnamelabel)
-    xOHminfilename='xOHmin.'//trim(fnamelabel)
-    densfracfilename='densityfrac.'//trim(fnamelabel)
-    densfracPfilename='densityfracP.'//trim(fnamelabel)
-    densfracionfilename='densityfracion.'//trim(fnamelabel)
-    densfracionpairfilename='densityfracionpair.'//trim(fnamelabel)
-    anglesfilename='angles.'//trim(fnamelabel)
-    spacingfilename='spacing.'//trim(fnamelabel)
+    sysfilename    = 'system.'//trim(fnamelabel)
+    xpolfilename   = 'xpol.'//trim(fnamelabel)
+    xsolfilename   = 'xsol.'//trim(fnamelabel)
+    xNafilename    = 'xNaions.'//trim(fnamelabel)
+    xKfilename     = 'xKions.'//trim(fnamelabel)
+    xCafilename    = 'xCaions.'//trim(fnamelabel)
+    xMgfilename    = 'xMgions.'//trim(fnamelabel)
+    xNaClfilename  = 'xNaClionpair.'//trim(fnamelabel)
+    xKClfilename   = 'xKClionpair.'//trim(fnamelabel)
+    xClfilename    = 'xClions.'//trim(fnamelabel)
+    potentialfilename = 'potential.'//trim(fnamelabel)
+    chargefilename = 'charge.'//trim(fnamelabel)
+    xHplusfilename = 'xHplus.'//trim(fnamelabel)
+    xOHminfilename = 'xOHmin.'//trim(fnamelabel)
+    densfracfilename = 'densityfrac.'//trim(fnamelabel)
+    densfracPfilename = 'densityfracP.'//trim(fnamelabel)
+    densfracionfilename = 'densityfracion.'//trim(fnamelabel)
+    densfracionpairfilename = 'densityfracionpair.'//trim(fnamelabel)
+    anglesfilename = 'angles.'//trim(fnamelabel)
+    spacingfilename = 'spacing.'//trim(fnamelabel)
 
     !     .. opening files
 
@@ -1306,7 +1304,6 @@ subroutine output_brush_mul
     write(un_sys,*)'nsegtypes   = ',nsegtypes
     write(un_sys,*)'nnucl       = ',nnucl
     write(un_sys,*)'sgraftpts   = ',(sgraftpts(t),t=1,3)
-    write(un_sys,*)'lseg        = ',(lsegAA(t),t=1,nsegtypes)
     write(un_sys,*)'cuantas     = ',cuantas
     write(un_sys,*)'denspol     = ',denspol
 
@@ -1340,11 +1337,15 @@ subroutine output_brush_mul
     write(un_sys,*)'pHbulk      = ',pHbulk
 
     ! disociation constants
-    write(un_sys,*)'pKa         = ',(pKa(t),t=1,nsegtypes)
+    do t=1,nsegtypes
+        write(un_sys,*)'pKa(',t,')  = ',pKa(t)
+    enddo    
     !
     if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
         .or.systype=="brushborn") then
-       write(un_sys,'(A15,7ES25.16)')'pKaAA       = ',(pKaAA(t),t=1,7)
+        do k=1,7
+            write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k)
+        enddo
     endif
 
     write(un_sys,*)'KionNa      = ',KionNa
@@ -1366,8 +1367,11 @@ subroutine output_brush_mul
     write(un_sys,*)'zCl         = ',zCl
     
     ! volume
+    do t=1,nsegtypes
+        write(un_sys,*)'vpol(',t,')     = ',vpol(t)
+    enddo 
+
     write(un_sys,*)'vsol        = ',vsol
-    write(un_sys,*)'vpol        = ',(vpol(t)*vsol,t=1,nsegtypes)
     write(un_sys,*)'vNa         = ',vNa*vsol
     write(un_sys,*)'vCl         = ',vCl*vsol
     write(un_sys,*)'vCa         = ',vCa*vsol
@@ -1375,6 +1379,10 @@ subroutine output_brush_mul
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
+
+    do t=1,nsegtypes
+        write(un_sys,*)'lseg(',t,')     = ',lsegAA(t)
+    enddo    
 
     ! structure and thermo 
     write(un_sys,*)'free energy = ',FE
@@ -1384,7 +1392,9 @@ subroutine output_brush_mul
     write(un_sys,*)'q residual  = ',qres
     write(un_sys,*)'tol_conv    = ',tol_conv
     write(un_sys,*)'denspol     = ',denspol
-    write(un_sys,*)'sumphi      = ',(sumphi(t),t=1,nsegtypes)
+    do t=1,nsegtypes
+        write(un_sys,*)'sumphi(',t,')    = ',sumphi(t)
+    enddo    
     write(un_sys,*)'check phi   = ',checkphi
     write(un_sys,*)'FEq         = ',FEq
     write(un_sys,*)'FEpi        = ',FEpi
@@ -1398,23 +1408,35 @@ subroutine output_brush_mul
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'qpol        = ',(qpol(t),t=1,nsegtypes)
+    do t=1,nsegtypes
+        write(un_sys,*)'qpol(',t,')      = ',qpol(t)
+    enddo
     write(un_sys,*)'qpoltot     = ',qpol_tot
 
     if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
         .or.systype=="brushborn")then
-        write(un_sys,'(A15,8ES25.16)')'avfdisA      = ',(avfdisA(k),k=1,8)
-        write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
+        do k=1,8
+            write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k)
+        enddo
+        do t=1,nsegtypes
+            write(un_sys,*)'avfdis(',t,')    = ',avfdis(t)
+        enddo    
     else
-        write(un_sys,*)'avfdis      = ',(avfdis(t),t=1,nsegtypes)
+        do t=1,nsegtypes
+            write(un_sys,*)'avfdis(',t,')    = ',avfdis(t)
+        enddo
     endif
     if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")then
         do k=1,4
-            write(un_sys,*)'avgdisA(',k,')      = ',(avgdisA(t,k),t=1,nsegtypes)
+            do t=1,nsegtypes
+                write(un_sys,*)'avgdisA(',k,')  = ',avgdisA(t,k)
+            enddo
         enddo 
-        do k=1,3   
-            write(un_sys,*)'avgdisB(',k,')      = ',(avgdisB(t,k),t=1,nsegtypes)
-        enddo
+        do k=1,3 
+            do t=1,nsegtypes
+                write(un_sys,*)'avgdisB(',k,')  = ',avgdisB(t,k)
+            enddo
+        enddo    
     endif
     
 
@@ -1480,7 +1502,7 @@ subroutine output_brush_mul
         close(un_xOHmin)
     endif
 
-end subroutine output_brush_mul
+end subroutine output_nucl_mul
 
 
 subroutine output_elect
@@ -1521,7 +1543,7 @@ subroutine output_elect
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
-    integer :: i,j,k          ! dummy indexes
+    integer :: i,j,k,t          ! dummy indexes
     real(dp) :: denspol
 
     ! .. executable statements
@@ -1633,7 +1655,6 @@ subroutine output_elect
     endif
     write(un_sys,*)'nseg        = ',nseg
     write(un_sys,*)'nnucl       = ',nnucl
-    write(un_sys,*)'lseg        = ',lseg
     write(un_sys,*)'chainperiod = ',chainperiod
     write(un_sys,*)'cuantas     = ',cuantas
     write(un_sys,*)'denspol     = ',denspol
@@ -1647,8 +1668,8 @@ subroutine output_elect
     write(un_sys,*)'ny          = ',ny
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
-
     write(un_sys,*)'tol_conv    = ',tol_conv
+
     ! concentration
     write(un_sys,*)'cNaCl       = ',cNaCl
     write(un_sys,*)'cKCl        = ',cKCl
@@ -1699,6 +1720,7 @@ subroutine output_elect
     write(un_sys,*)'zCa         = ',zCa
     write(un_sys,*)'zK          = ',zK
     write(un_sys,*)'zCl         = ',zCl
+
      ! volume
     write(un_sys,*)'vsol        = ',vsol
     write(un_sys,*)'vpolA(1)    = ',vpolA(1)*vsol
@@ -1717,7 +1739,9 @@ subroutine output_elect
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
-
+    do t=1,nsegtypes
+        write(un_sys,*)'vpol(',t,')       = ',vpol(t)*vsol
+    enddo   
     write(un_sys,*)'free energy = ',FE
     write(un_sys,*)'energy bulk = ',FEbulk
     write(un_sys,*)'deltafenergy = ',deltaFE
@@ -1908,7 +1932,6 @@ subroutine output_neutral
     endif
     write(un_sys,*)'nseg        = ',nseg
     write(un_sys,*)'nnucl       = ',nnucl
-    write(un_sys,*)'lseg        = ',lseg
     write(un_sys,*)'chainperiod = ',chainperiod
     write(un_sys,*)'cuantas     = ',cuantas
     write(un_sys,*)'maxnchainsrot      = ',maxnchainsrotations
@@ -1924,9 +1947,14 @@ subroutine output_neutral
     write(un_sys,*)'tol_conv    = ',tol_conv
     ! other physical parameters
     write(un_sys,*)'T           = ',Tref
+     do t=1,nsegtypes
+        write(un_sys,*)'lseg(',t,')        = ',lseg
+    enddo 
     ! volume
     write(un_sys,*)'vsol        = ',vsol
-    write(un_sys,*)'vpol        = ',(vpol(t)*vsol,t=1,nsegtypes)
+    do t=1,nsegtypes
+        write(un_sys,*)'vpol(',t,')        = ',vpol(t)*vsol
+    enddo 
     write(un_sys,*)'isVdW       = ',isVdW
 
     write(un_sys,*)'free energy = ',FE
@@ -1949,7 +1977,7 @@ subroutine output_neutral
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'iterations  = ',iter
-    write(un_sys,*)'VdWscale%val= ',VdWscale%val
+    write(un_sys,*)'VdWscale%val = ',VdWscale%val
 
     ! .. closing files
     

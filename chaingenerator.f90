@@ -16,7 +16,7 @@ module chaingenerator
 
     private 
 
-    public :: make_chains, make_chains_mc,read_chains_XYZ, chain_filter
+    public :: make_chains, make_chains_mc,read_chains_XYZ
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     
@@ -168,7 +168,7 @@ subroutine make_chains_mc()
                     zi = int(chain_rot(1,s)/delta)+1
                     
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
-                    indexchain_init(s,conf) = idx
+                    indexchain(s,conf) = idx
                     if(idx<=0) then
                         print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                     endif
@@ -207,7 +207,7 @@ subroutine make_chains_mc()
                     zi = int(chain_rot(1,s)/delta)+1
 
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
-                    indexchain_init(s,conf) = idx
+                    indexchain(s,conf) = idx
                     if(idx<=0) then
                         print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                     endif
@@ -240,7 +240,7 @@ subroutine make_chains_mc()
         close(un_ene)
     endif   
 
-    energychain_init=0.0_dp ! no internal energy 
+    energychain=0.0_dp ! no internal energy 
 
 end subroutine make_chains_mc
 
@@ -255,8 +255,6 @@ subroutine read_chains_XYZ(info)
     call read_chains_XYZ_nucl(info)
 
 end subroutine
-
-
 
 
 ! Reads conformations from a file called traj.<rank>.xyz
@@ -398,7 +396,7 @@ subroutine read_chains_XYZ_nucl(info)
             endif    
         endif
         
-        do s=1,nseg              ! .. read form  trajecotory file
+        do s=1,nseg              ! .. read form  trajectory file
     
             read(un,*,iostat=ios)xc,yc,zc
             if(ios/=0) isReadGood=.false. 
@@ -442,7 +440,7 @@ subroutine read_chains_XYZ_nucl(info)
                         
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
-                    indexchain_init(s,conf) = idx
+                    indexchain(s,conf) = idx
 
                     if(idx<=0.or.idx>nsize) then   
 
@@ -456,7 +454,7 @@ subroutine read_chains_XYZ_nucl(info)
                     
                 enddo
 
-                energychain_init(conf)=energy
+                energychain(conf)      = energy
 
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -490,7 +488,7 @@ subroutine read_chains_XYZ_nucl(info)
                         
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
-                    indexchain_init(s,conf) = idx
+                    indexchain(s,conf) = idx
 
                     if(idx<=0.or.idx>nsize) then    
                         text="Conformation outside box:"
@@ -503,7 +501,7 @@ subroutine read_chains_XYZ_nucl(info)
                     
                 enddo
                 
-                energychain_init(conf)=energy
+                energychain(conf)      = energy
 
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -546,11 +544,16 @@ subroutine read_chains_XYZ_nucl(info)
     text="isVdWintEne = "//trim(adjustl(istr))
     call print_to_log(LogUnit,text)
 
-    if(.not.(isChainEnergyFile)) energychain_init=0.0_dp
+    if(.not.(isChainEnergyFile)) energychain=0.0_dp
 
     close(un) 
     if(isChainEnergyFile) close(un_ene)
-    
+
+
+    call normed_weightchains()     
+
+    deallocate(energychain) ! free unused variables 
+
     
 end subroutine read_chains_XYZ_nucl
 
@@ -767,47 +770,6 @@ subroutine read_sequence_copoly_from_file(info)
     end if
 
 end subroutine read_sequence_copoly_from_file
-
-
-! Select indexchain and energy that have a weightchain=.true.
-! return actual number of conformations
-! rational: need identical set of confors for loop of distance /volumesizes
-! Allows modeling of brush compressesd by second surface at z=nz
- 
-subroutine chain_filter()
-    
-    use globals, only : nseg, cuantas, max_confor
-    use chains, only : indexchain,indexchain_init,energychain,energychain_init
-    use volume, only : nz,coordinateFromLinearIndex
-
-    integer :: conf, c, s,  count_seg
-    integer :: indx, ix, iy, iz 
-
-    c=0           ! counts allowed conformations 
-   
-    do conf=1,max_confor      ! loop of all polymer conformations to filter out allowed ones 
-        count_seg=0
-        do s=1,nseg
-            indx=indexchain_init(s,conf)
-            call coordinateFromLinearIndex(indx,ix,iy,iz)
-            if(iz<=nz) count_seg=count_seg+1
-        end do
-
-        if (count_seg.eq.nseg) then
-            c= c+1 ! conformation  is allowed  
-            energychain(c)=energychain_init(conf)
-            do s=1,nseg
-                indexchain(s,c)=indexchain_init(s,conf)
-            end do
-        end if    
-    end do    
-
-    cuantas=c ! actual number of conformation   
-
-    call normed_weightchains()
-
-
-end subroutine  chain_filter
 
 
 ! Compute weight chain w=e^E/Tre^E and normalize
@@ -1200,10 +1162,10 @@ logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
         is_polymer_neutral=.false. 
     endif
 
-end  function is_polymer_neutral
+end function is_polymer_neutral
 
 
-! make a lammps trajectory file based on  indexchain_init
+! make a lammps trajectory file based on  indexchain
 
 subroutine write_indexchain_lammps_trj(info)
 
@@ -1211,7 +1173,7 @@ subroutine write_indexchain_lammps_trj(info)
     use globals, only : nseg, cuantas
     use myutils, only : newunit, lenText
     use volume, only : delta, nz, coordinateFromLinearIndex
-    use chains, only : indexchain_init, type_of_monomer
+    use chains, only : indexchain, type_of_monomer
     use myio, only : myio_err_chainsfile
 
     integer, optional, intent(inout) :: info
@@ -1254,7 +1216,7 @@ subroutine write_indexchain_lammps_trj(info)
         write(un_trj,*)'ITEM: ATOMS id mol type xs ys zs ix iy iz'
         !  determine xs, ys, zs,
         do item=1,nseg
-            idx=indexchain_init(item,conf)
+            idx=indexchain(item,conf)
             call coordinateFromLinearIndex(idx, i, j, k)
             xs=(i-0.5_dp)*delta/xbox1
             ys=(j-0.5_dp)*delta/xbox1

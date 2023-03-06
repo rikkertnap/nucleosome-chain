@@ -204,9 +204,9 @@ contains
         logical :: val
 
         if ( mod(number, 2) ==0) then
-            val=.True. 
+            val= .True. 
         else
-            val=.False.
+            val= .False.
         endif 
    
     end function

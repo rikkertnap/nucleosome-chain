@@ -137,7 +137,6 @@ program main
     endif  
 
     call make_chains(chainmethod)   
-    call chain_filter()
     call allocate_field(nx,ny,nz,nsegtypes)
     call init_field()
     call init_surface(bcflag,nsurf)
@@ -216,14 +215,7 @@ program main
     endif
 
     call set_fcn()
-    call chain_filter() 
      
-    ! free unused variables 
-    deallocate(energychain)
-    deallocate(energychain_init)
-    deallocate(indexchain_init) 
-
-
     loopstepsizebegin=loop%stepsize
     list_val=list(1)                ! get value from array
     nlist_elem=1

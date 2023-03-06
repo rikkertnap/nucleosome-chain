@@ -13,7 +13,7 @@ module globals
     integer  :: nsize         ! size lattice, numer of layers
     integer  :: nnucl         ! number of nucleosome
     integer  :: nseg          ! number of segment 
-    integer  :: nsegtypes     ! number of segment types 
+    integer  :: nsegtypes     ! number of segment types
     integer  :: cuantas       ! number of configurations
     integer  :: max_confor    ! maximum number of configurations
    
