@@ -101,7 +101,7 @@ program main
     call make_geometry()                        ! generate volume elements lattice
     call allocate_chain_parameters()            !  
     call init_matrices()                        ! init matrices for MC chain generation
-    call allocate_chains(cuantas,nnucl,nseg,nsegtypes,maxnchainsrotations,maxnchainsrotationsxy)
+    call allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchainsrotations,maxnchainsrotationsxy)
     call init_chain_parameters()                                   ! reads pKa, pKaions zpol and vpol from file
     call make_sequence_chain(chainperiod,chaintype)                ! set isAmonomer, type_of_monomer and  type_of_monomer_char
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)    ! set ismonomer_chargeable,
@@ -114,7 +114,12 @@ program main
         call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
         call make_deltavnucl()
     endif    
-    
+    if(systype=="nucl_neutral_sv") then          ! init distributed volume = deltavnucl 
+        call allocate_vnucl()              ! ismonomer_chargable etc needs to be set 
+        call init_vnucl()
+    endif   
+
+
     call make_VdWeps(info) 
     if(info/=0) then
         write(istr,'(I3)')info
@@ -136,7 +141,7 @@ program main
         endif   
     endif  
 
-    call make_chains(chainmethod)   
+    call make_chains(chainmethod,systype)   
     call allocate_field(nx,ny,nz,nsegtypes)
     call init_field()
     call init_surface(bcflag,nsurf)

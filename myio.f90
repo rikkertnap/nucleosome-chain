@@ -26,6 +26,7 @@ module myio
     integer, parameter ::  myio_err_conf      = 19
     integer, parameter ::  myio_err_nseg      = 20
     integer, parameter ::  myio_err_inputlabel = 21
+    integer, parameter ::  myio_err_readfile  = 22
 
 
     integer :: num_cNaCl   ! number of salt concentration considered
@@ -57,7 +58,7 @@ module myio
 
     public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output, write_chain_config
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
-    public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg
+    public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile
     public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
     public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
     public :: set_value_isVdW_on_values
@@ -71,6 +72,7 @@ subroutine read_inputfile(info)
     use parameters
     use surface
     use myutils, only : newunit
+    use chains, only : sgraftpts
 
     integer, intent(out), optional :: info
 
@@ -192,8 +194,12 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) nnucl   
             case ('nseg')
                 read(buffer,*,iostat=ios) nseg
+            case ('nsegAA')
+                read(buffer,*,iostat=ios) nsegAA
             case ('nsegtypes')
                 read(buffer,*,iostat=ios) nsegtypes        ! carefully need to be overwriiten depending on value systype and or chainmethod
+            case ('nsegtypesAA')
+                read(buffer,*,iostat=ios) nsegtypesAA  
             case ('cuantas')
                 read(buffer,*,iostat=ios) max_confor
             case ('chainperiod')
@@ -337,20 +343,25 @@ subroutine read_inputfile(info)
 
     !  .. set input values
 
-    !call set_value_nzmin(runtype,nzmin,nzmax)
     call set_value_isVdW(systype,isVdW)
     call set_value_isVdWintEne(systype, isVdWintEne)
     call set_value_nsegtypes(nsegtypes,chaintype,systype,info)
 
     !  .. set input values: use of default or based on input.in
 
-    call set_value_maxnchains(maxnchainsrotations,isSet_maxnchains)
-    call set_value_maxnchainsxy(maxnchainsrotationsxy,isSet_maxnchainsxy)
-    call set_value_precondition(precondition,isSet_precondition)
-    call set_value_isEnergyShift(isEnergyShift,isSet_EnergyShift)
+    call set_value_int_var(maxnchainsrotations,isSet_maxnchains,1)
+    call set_value_int_var(maxnchainsrotationsxy,isSet_maxnchainsxy,12)
+    call set_value_logical_var(precondition,isSet_precondition,.false.)
+    call set_value_logical_var(isEnergyShift,isSet_EnergyShift,.false.)
+    call set_value_int_var(maxfkfunevals,isSet_maxfkfunevals,1000)
+    call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
 
-    call set_value_maxfkfunevals(maxfkfunevals,isSet_maxfkfunevals)
-    call set_value_maxniter(maxniter,isSet_maxniter)
+!    call set_value_maxnchains(maxnchainsrotations,isSet_maxnchains)
+!    call set_value_maxnchainsxy(maxnchainsrotationsxy,isSet_maxnchainsxy)
+!    call set_value_precondition(precondition,isSet_precondition)
+!    call set_value_isEnergyShift(isEnergyShift,isSet_EnergyShift)
+!    call set_value_maxfkfunevals(maxfkfunevals,isSet_maxfkfunevals)
+!    call set_value_maxniter(maxniter,isSet_maxniter)
 
     ! after set_value_isVdW
     call check_value_VdWeps(systype,isVdW,info_VdWeps)
@@ -359,7 +370,7 @@ subroutine read_inputfile(info)
         return
     endif
 
-    ! overide certain input values
+    ! .. override certain input values
     if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul".or.&
         systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
         KionNa   = 0.0_dp
@@ -374,7 +385,7 @@ subroutine check_value_systype(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=15) :: systypestr(10)
+    character(len=15) :: systypestr(11)
     integer :: i
     logical :: flag
 
@@ -390,10 +401,11 @@ subroutine check_value_systype(systype,info)
     systypestr(8)="neutralnoVdW"
     systypestr(9)="nucl_ionbin"
     systypestr(10)="nucl_ionbin_sv"
+    systypestr(11)="nucl_neutral_sv"
 
     flag=.FALSE.
 
-    do i=1,10
+    do i=1,11
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -833,7 +845,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(6)
+    character(len=15) :: systypestr(7)
     integer :: i
     logical :: flag
 
@@ -847,8 +859,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(4)="brushborn"
         systypestr(5)="nucl_ionbin"
         systypestr(6)="nucl_ionbin_sv"
+        systypestr(7)="nucl_neutral_sv"
 
-        do i=1,6
+        do i=1,7
             if(systype==systypestr(i)) flag=.true.
         enddo
 
@@ -1067,6 +1080,7 @@ subroutine set_value_isEnergyShift(isEnergyShift,isSet_EnergyShift)
 
 end subroutine set_value_isEnergyShift
 
+
 subroutine set_value_logical_var(var,isSet_var,default_value_var)
 
     logical, intent(inout) :: var
@@ -1086,6 +1100,26 @@ subroutine set_value_int_var(var,isSet_var,default_value_var)
     if(.not.isSet_var) var=default_value_var! default value
 
 end subroutine set_value_int_var
+
+subroutine set_value_int8_var(var,isSet_var,default_value_var)
+
+    integer(8), intent(inout) :: var
+    logical, intent(in) :: isSet_var
+    integer(8), intent(in) :: default_value_var
+
+    if(.not.isSet_var) var=default_value_var! default value
+
+end subroutine set_value_int8_var
+
+subroutine set_value_double_var(var,isSet_var,default_value_var)
+
+    real(dp), intent(inout) :: var
+    logical, intent(in) :: isSet_var
+    real(dp), intent(in) :: default_value_var
+
+    if(.not.isSet_var) var=default_value_var ! default value
+
+end subroutine set_value_double_var
 
 
 subroutine output()
@@ -1108,6 +1142,9 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
+    case("nucl_neutral_sv")
+
+        call output_neutral()   
 
     case default
 
@@ -1130,7 +1167,7 @@ subroutine output_nucl_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
     
     !     .. local arguments
 
@@ -2122,9 +2159,14 @@ subroutine make_filename_label(fnamelabel)
         write(rstr,'(F7.3)')pHbulk
         fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))//".dat"
 
-    case("neutral","neutralnoVdW")
+    case("neutral","neutralnoVdW","nucl_neutral_sv")
 
-        write(rstr,'(F5.3)')denspol
+        if(denspol>=0.001) then
+            write(rstr,'(F5.3)')denspol
+        else
+            write(rstr,'(ES9.2E2)')denspol
+        endif
+
         fnamelabel="phi"//trim(adjustl(rstr))
         write(rstr,'(F5.3)')VdWscale%val
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
@@ -2310,7 +2352,12 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call output()           
-        if(DEBUG) call check_volume_xpol()     
+        if(DEBUG) call check_volume_xpol() 
+
+     case ("nucl_neutral_sv")
+
+        call fcnenergy()
+        call output()           
 
     case default
 

@@ -89,7 +89,10 @@ contains
         case ("brushborn")
             print*,"energy born not completed yet "   
             call fcnenergy_electbrush_mul() 
-            call fcnenergy_elect_alternative()    
+            call fcnenergy_elect_alternative()   
+
+        case ("nucl_neutral_sv")  
+            call fcnenergy_neutral_sv() 
 
         case default  
 
@@ -500,6 +503,84 @@ contains
     end subroutine fcnenergy_electbrush_mul
 
 
+    subroutine fcnenergy_neutral_sv()
+
+        !  .. variable and constant declaractions 
+    
+        use globals, only : nsize, nseg, nsegtypes
+        use volume, only : volcell
+        use parameters
+        use field, only : xsol, rhopol, q, lnproshift
+        use VdW, only : VdW_energy
+    
+
+        !     .. local arguments 
+    
+        integer  :: i,j,t,g             ! dummy variables 
+        real(dp) :: volumelat          ! volume lattice 
+        integer  :: ier
+        logical  :: alloc_fail
+
+        if (.not. allocated(sumphi))  then 
+            allocate(sumphi(nsegtypes),stat=ier)
+            if( ier/=0 ) alloc_fail=.true.
+        endif
+
+        !     .. computation of free energy 
+    
+        FEpi  = 0.0_dp
+        FErho = 0.0_dp
+        FEq = 0.0_dp
+        FEVdW = 0.0_dp 
+        FEel  = 0.0_dp
+        FEelsurf = 0.0_dp
+        FEbind = 0.0_dp
+        FEchem = 0.0_dp
+
+        qres = 0.0_dp
+        sumphi= 0.0_dp
+
+        do i=1,nsize
+            FEpi = FEpi  + log(xsol(i))
+            FErho = FErho - xsol(i) 
+        enddo
+
+        checkphi=nseg
+        do t=1,nsegtypes
+            sumphi(t)=0.0_dp
+            do i=1,nsize    
+                sumphi(t) = sumphi(t) + rhopol(i,t)
+            enddo
+            sumphi(t) = volcell*sumphi(t)
+            checkphi = checkphi-sumphi(t)
+        enddo
+    
+        FEpi  = (volcell/vsol)*FEpi
+        FErho = (volcell/vsol)*FErho
+    
+        ! .. calcualtion of FEVdW
+        if(isVdW) then 
+            FEVdW=-VdW_energy(rhopol)
+        else   
+            FEVdW=0.0_dp
+        endif
+
+        ! .. shift in palpha  i.e q 
+        Eshift=lnproshift
+    
+        FEq=-log(q)    
+       
+        !  .. total free energy 
+
+        FE = FEq + FEpi + FErho + FEVdW -Eshift
+        
+       
+        volumelat= volcell*nsize  ! volume lattice divide by area surface
+        FEbulk = log(xbulk%sol)-xbulk%sol
+        FEbulk = volumelat*FEbulk/(vsol)
+        deltaFE  = FE -FEbulk
+    
+    end subroutine fcnenergy_neutral_sv
 
     subroutine fcnenergy_neutral()
 

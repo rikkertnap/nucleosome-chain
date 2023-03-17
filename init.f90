@@ -70,6 +70,8 @@ subroutine init_guess(x, xguess)
             call init_guess_multinoVdW(x,xguess)
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv")  
             call init_guess_multi(x,xguess)
+        case ("nucl_neutral_sv")  
+            call init_guess_nucl_neutral_sv(x,xguess)
         case ("brushborn") 
             call init_guess_multi_born(x,xguess)
         case default   
@@ -77,8 +79,6 @@ subroutine init_guess(x, xguess)
     end select 
 
 end subroutine init_guess
-
-         
 
 
 !     purpose: initalize x and xguess
@@ -162,6 +162,61 @@ subroutine init_guess_elect(x, xguess)
 end subroutine init_guess_elect
 
 
+subroutine init_guess_nucl_neutral_sv(x, xguess)
+    
+    use globals, only : neqint,nsize,nsegtypes
+    use volume, only : nz
+    use field, only : xsol,rhopol,xpol
+    use parameters, only : xbulk, infile, isrhoselfconsistent
+    use myutils, only : newunit
+  
+    real(dp) :: x(:)       ! volume fraction solvent iteration vector 
+    real(dp) :: xguess(:)  ! guess fraction  solvent 
+  
+    !     ..local variables 
+    integer :: n, i, k, t
+    character(len=8) :: fname
+    integer :: ios,un_file,count_scf
+  
+    !     .. init guess all xbulk      
+
+    do i=1,neqint
+        x(i)=0.0_dp    
+    enddo
+
+    do i=1,nsize
+        x(i)=xbulk%sol
+    enddo
+
+
+    if (infile.eq.1) then   ! infile is read in from file/stdio  
+        write(fname,'(A7)')'xsol.in'
+       
+        open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
+        if(ios >0 ) then
+            print*, 'file number =',un_file,' file name =',fname
+            print*, 'Error opening file : iostat =', ios                                
+            stop
+        endif
+        do i=1,nsize
+            read(un_file,*)xsol(i) ! solvent
+            x(i) = xsol(i)            ! placing xsol  in vector x
+        enddo
+        
+        close(un_file)
+        close(un_file)
+
+    endif
+    !     .. end init from file 
+  
+    do i=1,neqint
+        xguess(i)=x(i)
+    enddo
+    
+end subroutine init_guess_nucl_neutral_sv
+
+
+
 subroutine init_guess_neutral(x, xguess)
     
     use globals, only : neqint,nsize,nsegtypes
@@ -228,7 +283,6 @@ subroutine init_guess_neutral(x, xguess)
     enddo
     
 end subroutine init_guess_neutral
-
 
 subroutine init_guess_neutralnoVdW(x, xguess)
     

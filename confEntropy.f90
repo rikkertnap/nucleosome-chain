@@ -43,6 +43,8 @@ contains
             call FEconf_brush_mulnoVdW(FEconf,Econf)
         case ("brushborn")
             call FEconf_brush_born(FEconf,Econf) 
+        case ("nucl_neutral_sv")
+            print*,"FEconfig_entropy not yet implemented for systype=",systype
         case default
             text="FEconf_entropy: wrong systype: "//systype//"stopping program"
             call print_to_log(LogUnit,text)

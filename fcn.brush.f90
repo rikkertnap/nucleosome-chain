@@ -1548,8 +1548,8 @@ contains
             norm=l2norm_f90(f)
             iter=iter+1
                         
-            normvol=L2norm_f90(f(1:neqint/2))
-            normPE=L2norm_f90(f(neqint/2+1:neqint))
+            normvol = L2norm_f90(f(1:neqint/2))
+            normPE  = L2norm_f90(f(neqint/2+1:neqint))
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
             
@@ -1576,10 +1576,10 @@ contains
         use mpivars
         use precision_definition
         use globals, only : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
-        use parameters, only : vsol,vpol, vnucl, nelem
+        use parameters, only : vsol,vpol, vnucl
         use parameters, only : iter
         use volume, only : volcell
-        use chains, only : indexconf, type_of_monomer, logweightchain   
+        use chains, only : indexconf, type_of_monomer, logweightchain, nelem  
         use field, only : xsol, xpol=>xpol_t
         use field, only : q, lnproshift
         use vectornorm, only : L2norm_f90
@@ -1664,7 +1664,7 @@ contains
             do s=1,nseg                       ! loop over segments 
                 do j=1,nelem(s)               ! loop over elements of segment  
                     k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppi(k)*vnucl(j,s)              
+                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
                 enddo
             enddo     
 
@@ -1675,10 +1675,9 @@ contains
                 t=type_of_monomer(s)
                 do j=1,nelem(s)
                     k = indexconf(s,c)%elem(j) 
-                    local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,s) 
+                    local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t) 
                 enddo
             enddo
-
         enddo    
 
         !   .. import results 
@@ -3078,7 +3077,7 @@ contains
     end subroutine fcnneutralnoVdW
 
 
-    !     .. function solves for bulk volume fraction 
+    !  .. function solves for bulk volume fraction 
 
     subroutine fcnbulk(x,f,nn)   
 
@@ -3192,7 +3191,7 @@ contains
                     constr(i+3*nsize)=1.0_dp   ! number density B 
                 enddo  
 
-            case ("neutral","neutralnoVdW")    ! neutral polymers
+            case ("neutral","neutralnoVdW","nucl_neutral_sv")    ! neutral polymers
             
                 do i=1,nsize
                     constr(i)=1.0_dp

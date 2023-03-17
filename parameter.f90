@@ -23,7 +23,6 @@
     real(dp), dimension(:), allocatable :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
     real(dp), dimension(:,:), allocatable :: vnucl  ! volume of segment s element j  
-    integer, dimension(:), allocatable :: nelem     ! number of elements of segment s
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -213,6 +212,8 @@ contains
                     if(isrhoselfconsistent(t)) numeq=numeq+1
                 enddo    
                 neq = (2+numeq) * nsize 
+            case ("nucl_neutral_sv")
+                neq =  nsize 
             case ("brushborn")
                 numeq=0 
                 do t=1,nsegtypes
@@ -441,7 +442,7 @@ contains
       
 
     ! init variables specific for systype=brush, brushborn etc 
-    ! variable are  constants, deltaG and K for sytyep=brush,bruhborn etc.
+    ! variable are  constants, deltaG and K for sytype=brush,bruhborn etc.
     ! pre : nsegtype, vsol,vpol, vNa etc and ismonomer_chargable need to be set 
     ! post : equlibriuem constant and volume set for charge state of 
     !       carboxylic group of systype ==brushborn are initliazed 
@@ -874,6 +875,10 @@ contains
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
+        case ("nucl_neutral_sv") 
+            ! call init_dna() 
+            call init_expmu_neutral()
+            call set_VdWeps_scale(VdWscale)
         case("brushborn") 
             call init_dna
             call init_expmu_elect()  
@@ -931,6 +936,27 @@ contains
         
     end subroutine init_volume_pol
         
+
+    subroutine allocate_vnucl
+
+        use globals, only : nsegtypes,systype
+
+        print*,nsegtypes
+
+        if(systype=="nucl_neutral_sv") allocate(vnucl(20,nsegtypes))
+
+    end subroutine allocate_vnucl   
+
+    subroutine init_vnucl  
+
+        use globals, only : systype
+        if(systype=="nucl_neutral_sv") vnucl=0.01_dp ! init
+    
+    
+    end subroutine init_vnucl
+
+
+
 
     subroutine allocate_deltavnucl
 
@@ -1063,7 +1089,9 @@ contains
     end subroutine read_lseg
 
 
-    !  .. assign vpolfrom values in file named filename
+
+
+    !  .. assign vpol from values in file named filename
     !  .. values vpol are normalized by vsol
     !  .. checked if file exists- content and length not checked     
 
@@ -1073,25 +1101,24 @@ contains
 
         implicit none 
         
-        !     .. arguments 
+        ! .. arguments 
         real(dp), intent(inout)  :: vpol(:) 
         real(dp), intent(in) :: vsol 
         character(40), intent(in) :: filename  
         integer,  intent(in) :: ntypes 
 
-        !      .. local variables
+        ! .. local variables
         integer :: ios, un  ! un = unit number
         integer :: t 
         character(80) :: istr,str
 
-    
-        !     .. reading in of variables from file
+        ! .. reading in of variables from file
         open(unit=newunit(un),file=filename,iostat=ios,status='old')
         if(ios/=0 ) then
             write(istr,'(I2)')ios
             str='Error read_volume_pol: opening file '//trim(adjustl(filename))//' : iostat = '//istr
             print*,str
-        !      .. local variables
+        !  .. local variables
             stop
         endif
     
@@ -1379,7 +1406,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

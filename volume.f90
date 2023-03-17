@@ -1,5 +1,5 @@
 !     makes volume elements 
-!     for spherical coordinates 
+
 module volume      
 
     use precision_definition
@@ -10,10 +10,10 @@ module volume
     !     .. variables
    
     real(dp) :: delta               ! delta  spacing of lattice site in x-, y- and z-direction  
-    integer :: nz                   ! nz number of lattice sites in z-direction 
-    integer :: nx                   ! nx number of lattice sites in x-direction 
-    integer :: ny                   ! ny number of lattice sites in y-direction 
-    integer :: nsurf                ! nsurf number of lattice site  at z=0 ore z=nz*delta
+    integer  :: nz                  ! nz number of lattice sites in z-direction 
+    integer  :: nx                  ! nx number of lattice sites in x-direction 
+    integer  :: ny                  ! ny number of lattice sites in y-direction 
+    integer  :: nsurf               ! nsurf number of lattice site  at z=0 ore z=nz*delta
     real(dp) :: volcell             ! volcell=delta**3
     real(dp) :: areacell            ! areacell=delta**2
     real(dp) :: areasurf            ! area surfaces spanned in x- and y- direction
@@ -25,8 +25,8 @@ module volume
 
     ! variable for grafting position
 
-    integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
-    integer, dimension(:), allocatable :: sRg ! unit numbers of AA in histone close to cm of : nmumber of number = nnucl
+    ! integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
+    ! integer, dimension(:), allocatable :: sRg ! unit numbers of AA in histone close to cm of : number of number = nnucl
 
     ! hash table
     integer, dimension(:,:,:), allocatable :: coordtoindex 
@@ -34,7 +34,7 @@ module volume
 
     private
     
-    public :: delta,nx,ny,nz,volcell,areacell,geometry, sgraftpts, nsurf
+    public :: delta,nx,ny,nz,volcell,areacell,geometry, nsurf
     public :: gamma,cos_two_beta, sin_two_beta
     public :: coordtoindex,indextocoord
     public :: coordinateFromLinearIndex, linearIndexFromCoordinate

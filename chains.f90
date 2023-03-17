@@ -1,15 +1,21 @@
 !     .. module file of chains variables
+
+
 module chains
   
     use globals
     implicit none
 
-    type var_array
+    type var_darray
+        real(dp), allocatable :: elem(:)
+    end type var_darray
+
+    type var_iarray
         integer, allocatable :: elem(:)
-    end type var_array
+    end type var_iarray
     
-    type(var_array), allocatable                :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
-                                                                            ! used for distrubuted volume 
+    type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
+                                                                            ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
     logical, dimension(:), allocatable          :: isAmonomer               ! isAmonomer(s) =.true. if s is a "A" monomoer  
     integer, dimension(:), allocatable          :: type_of_monomer          ! type of monomer represented as a number
@@ -24,7 +30,14 @@ module chains
     real(dp), dimension(:),   allocatable       :: logweightchain           !  
     logical                                     :: isHomopolymer
     double precision, dimension(:),allocatable  :: lsegseq                  ! segment length only needed for copolymer
+    
+    ! sgraftpts used be in volume.f90
+    integer                                     :: sgraftpts(3)             ! triplet of unit number of histone that is rotated into fixed orientation
+    integer, dimension(:,:), allocatable        :: orientation_triplets     ! triplet of unit number for all nnucl histone
+    integer, dimension(:), allocatable          :: nelem                    ! number of elements of every segment
+    integer, dimension(:), allocatable          :: nelemAA                  ! number of elements of every AA segment
 
+    integer, dimension(:), allocatable          :: typeAA                   ! type of number of elements of every AA segment
 
     ! chain stuctural quantities
 
@@ -43,9 +56,9 @@ module chains
 contains
 
 
-    subroutine allocate_chains(cuantas,nnucl,nseg,nsegtypes,maxnchains,maxnchainsxy)
+    subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy)
 
-        integer, intent(in) :: cuantas,nnucl,nseg,nsegtypes
+        integer, intent(in) :: cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA
         integer, intent(in) :: maxnchains,maxnchainsxy
 
         integer :: maxcuantas
@@ -74,6 +87,13 @@ contains
         allocate(avnucl_spacing(nnucl-1)) 
         allocate(avbond_angle(nnucl-2))
         allocate(avdihedral_angle(nnucl-3))  
+
+        ! rotational and orientational segments 
+        allocate(orientation_triplets(nnucl,3))
+        allocate(nelem(nseg))
+        allocate(nelemAA(nsegAA))
+        allocate(typeAA(nsegtypesAA))
+
           
     end subroutine allocate_chains
  
@@ -100,6 +120,13 @@ contains
     end subroutine allocate_indexconf
 
    
+    subroutine allocate_nelemAA(nsegAA)
+
+        integer, intent(in) :: nsegAA
+
+        allocate(nelem(nsegAA))
+                  
+    end subroutine allocate_nelemAA
 
 
 end module chains
