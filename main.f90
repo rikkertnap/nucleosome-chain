@@ -62,7 +62,7 @@ program main
     call MPI_INIT(ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numproc, ierr)
-    size=numproc !! temporary
+    size=numproc !! temporary needs to be removed
 
     ! .. logfile
     
@@ -114,8 +114,9 @@ program main
         call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
         call make_deltavnucl()
     endif    
-    if(systype=="nucl_neutral_sv") then          ! init distributed volume = deltavnucl 
-        call allocate_vnucl()              ! ismonomer_chargable etc needs to be set 
+    if(systype=="nucl_neutral_sv") then         ! init distributed volume = deltavnucl 
+        call init_vnucl_type() 
+        call allocate_vnucl()                   ! ismonomer_chargable etc needs to be set 
         call init_vnucl()
     endif   
 

@@ -22,7 +22,9 @@
     real(dp) :: vpolAA(8),deltavAA(7)
     real(dp), dimension(:), allocatable :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
-    real(dp), dimension(:,:), allocatable :: vnucl  ! volume of segment s element j  
+    real(dp), dimension(:,:), allocatable       :: vnucl      ! volume of segment s element j  
+    character(len=3), dimension(:), allocatable :: vnucl_type_char
+    real(dp), dimension(:),   allocatable       :: vnucl_type
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -71,6 +73,7 @@
      !  .. input filenames 
     integer, parameter :: lenfname=40
     character(len=lenfname) :: chainfname,vpolfname,pKafname,pKaionfname,typesfname,lsegfname,segcmfname
+    character(len=lenfname) :: mtpdbfname,vnuclfname,orientfname
 
     ! .. other physical quanties
   
@@ -182,11 +185,17 @@
     integer, parameter ::  err_pKdfile         = 2 
     integer, parameter ::  err_pKderror        = 3
 
+    !  return error  
+    integer, parameter ::  err_file_noexist = 1
+    integer, parameter ::  err_file         = 2 
+    integer, parameter ::  err_error        = 3
+
     ! unit conversion : converts unit of input conformation to nm unit!
 
     real(dp) :: unit_conv
 
-    private :: err_pKdfile_noexist,err_pKdfile,err_pKderror  
+    private :: err_pKdfile_noexist,err_pKdfile,err_pKderror
+    private :: err_file_noexist,err_file,err_error    
 
 contains
 
@@ -941,22 +950,35 @@ contains
 
         use globals, only : nsegtypes,systype
 
-        print*,nsegtypes
-
-        if(systype=="nucl_neutral_sv") allocate(vnucl(20,nsegtypes))
+        if(systype=="nucl_neutral_sv") allocate(vnucl(13,nsegtypes))
 
     end subroutine allocate_vnucl   
 
-    subroutine init_vnucl  
+    subroutine allocate_vnucl_type(nelemtypes)
+
+        use globals, only : systype
+
+        integer, intent(in) :: nelemtypes
+
+        if(systype=="nucl_neutral_sv") then 
+            allocate(vnucl_type(nelemtypes))
+            allocate(vnucl_type_char(nelemtypes))
+        endif    
+
+    end subroutine allocate_vnucl_type  
+
+    subroutine init_vnucl_type 
+
+        call read_vnucl_type(vnucl_type,vnucl_type_char,vsol,vnuclfname)
+        
+    end subroutine init_vnucl_type
+
+    subroutine init_vnucl
 
         use globals, only : systype
         if(systype=="nucl_neutral_sv") vnucl=0.01_dp ! init
-    
-    
+
     end subroutine init_vnucl
-
-
-
 
     subroutine allocate_deltavnucl
 
@@ -1020,8 +1042,8 @@ contains
 
         use globals, only : nsegtypes
 
-        pKa  =0.0_dp
-        zpol =0.0_dp
+        pKa  = 0.0_dp
+        zpol = 0.0_dp
     
         call read_pKas_and_zpol(pKa,zpol,pKafname, nsegtypes) 
        
@@ -1032,7 +1054,7 @@ contains
 
         use globals, only : nsegtypes, systype
 
-        pKaion =0.0_dp
+        pKaion = 0.0_dp
         
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
@@ -1087,8 +1109,6 @@ contains
         close(un)
    
     end subroutine read_lseg
-
-
 
 
     !  .. assign vpol from values in file named filename
@@ -1294,6 +1314,70 @@ contains
         
 
     end subroutine read_pKds
+
+  
+    subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vsol,fname)
+
+        use  myutils
+        
+        ! .. arguments 
+        real(dp), intent(inout), allocatable          :: vnucl_type(:)
+        character(len=3), intent(inout),allocatable   :: vnucl_type_char(:)
+        real(dp), intent(in)                          :: vsol 
+        character(lenfname), intent(in)               :: fname  
+        
+        ! .. local variables
+        integer :: ios, un, info, line, maxline
+        integer :: nelemtypes
+        character(len=80) :: istr,str
+        logical :: exist
+        character(len=3) :: vol_char
+        integer :: vol_int
+        real(dp) :: vol
+
+        ! .. reading in of variables from file
+        inquire(file=fname,exist=exist)
+        if(exist) then
+            open(unit=newunit(un),file=fname,iostat=ios,status='old')
+            if(ios/=0 ) then
+                write(istr,'(I2)')ios
+                str='Error read_vnucl_type: opening file '//trim(adjustl(fname))//' : iostat = '//istr
+                print*,str
+                info = err_error
+            endif
+        else 
+            str='Error read_vnucl_type: file '//trim(adjustl(fname))//' : does not exist'
+            print*,str
+            info= err_file_noexist 
+            return
+        endif    
+    
+        ios  = 0
+        read(un,*,iostat=ios)nelemtypes                    ! read first line
+        call allocate_vnucl_type(nelemtypes) ! allocate vnucl_type,vnucl_type_char
+
+        line = 0
+        ios  = 0
+        maxline = nelemtypes
+        do while (line<maxline.and.ios==0)
+            line=line+1
+            read(un,*,iostat=ios)vol_char,vol_int,vol
+            vnucl_type(vol_int)=vol/vsol
+            vnucl_type_char(vol_int)=vol_char
+        enddo  
+
+        if(line/=maxline.or.ios/=0) then 
+            str="reached end of file before all elements read or ios error"
+            print*,str
+            str="read file "//trim(adjustl(fname))//" failed"
+            print*,str
+            info = err_error
+            return
+        endif
+
+        close(un)
+   
+    end subroutine read_vnucl_type
 
 
 

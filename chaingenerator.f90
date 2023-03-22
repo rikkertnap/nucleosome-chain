@@ -10,7 +10,7 @@ module chaingenerator
     use precision_definition   
     implicit none
 
-    integer, parameter :: lenfname=40
+   ! integer, parameter :: lenfname=40
     integer :: conf_write
     real(dp) :: xgraftloop(3,2)
 
@@ -610,11 +610,11 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! .. local variables
 
     integer :: i,j,s,rot,g,gn,k     ! dummy indices
-    integer :: idx                 ! index label
-    integer :: ix,iy,iz,idxtmp,ntheta
-    integer :: nchains              ! number of rotations
-    integer :: maxnchains           ! number of rotations
-    integer :: maxntheta            ! maximum number of rotation in xy-plane
+    integer :: idx                  ! index label
+    integer :: ix,iy,iz,idxtmp !,ntheta
+    !integer :: nchains              ! number of rotations
+    !integer :: maxnchains           ! number of rotations
+    !integer :: maxntheta            ! maximum number of rotation in xy-plane
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
@@ -626,7 +626,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer  :: xi,yi,zi, ri(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(sp) :: xc,yc,zc               
+    real(sp) :: xc,yc,zc            ! coordinates in single precision            
     real(dp) :: energy                                             
     character(len=25) :: fname
     character(lenText):: fname2
@@ -642,8 +642,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: nrotpts
     character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     integer :: nelem2(3),nsegAA2 
-    integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
-    integer :: orient_triplet_ref(3)
+    integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
+    integer  :: orient_triplet_ref(3)
     real(dp) :: orient_vector_ref(3)
     real(dp) :: orient_vectors(3,nnucl)
 
@@ -699,7 +699,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
-    seed=435672               ! seed for random number generator                                                                               
+    seed=435672              ! seed for random number generator                                                                               
     
     ios=0
 
@@ -717,14 +717,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     !nrotpts=rotation_triplets(1)
     
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
-    fname2="MTpdb.txt"
 
-    call read_nucl_elements(fname2,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
+    call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
     call print_nucl_elements(nsegAA,nelemAA,chain_elem)
-    
-    fname2="nucl_orient.in"   
-    call read_nucl_orient_triplets(fname2,nnucl,orientation_triplets,info)
-
+    call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
 
     call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
     call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
@@ -1444,7 +1440,8 @@ end function number_Amonomers
 subroutine read_type_of_monomer(type_of_monomer, type_of_monomer_char,filename, nseg)
 
     use mpivars
-    use  myutils
+    use myutils, only : newunit
+    use parameters, only : lenfname
     
     !     .. arguments 
     integer, intent(inout) :: type_of_monomer(:)
@@ -1566,8 +1563,6 @@ end subroutine make_type_of_charge_table
 
 
 logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
-    
-    implicit none
  
     logical, intent(in) :: ismonomer_chargeable(:)
     integer, intent(in) :: nsegtypes
@@ -2165,7 +2160,8 @@ end function crossproduct
 subroutine make_segcom(segcom,nnucl,filename)
 
     use mpivars
-    use  myutils
+    use myutils
+    use parameters, only : lenfname
     
     !     .. arguments 
     integer, intent(inout) :: segcom(:)
@@ -2251,7 +2247,6 @@ subroutine write_chain_struct(write_struct,info)
             write(un_bond,*)(bond_angle(s,c),s=1,nangles)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
             write(un_dist,*)(nucl_spacing(s,c),s=1,nbonds)
-
         enddo 
 
         close(un_dihedral)
@@ -2347,24 +2342,24 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
     use globals, only : DEBUG
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
+    use parameters, only : lenfname
     use chains, only : var_darray ! type def  
 
-    character(lenText),    intent(in) :: fname
+    character(lenfname),   intent(in) :: fname
     integer, intent(in)               :: nsegAA
     integer, dimension(:), intent(in) :: typeAA
     integer, dimension(:), intent(inout) :: nelemAA
-    
     type(var_darray), dimension(:,:), allocatable, intent(inout) :: chain_elem
-
     real(dp), dimension(:,:) , intent(inout)        :: vnucl
     integer, intent(out),optional  :: info 
 
     ! local arguments
 
     integer   :: ios, un, s, AAid, j, k
-    character(len=3) :: vol_type
+    character(len=3) :: elem_type(20), voltype
     real(dp)  :: x(3)
     logical   :: isReadGood
+    integer   :: num_elem_CA
 
     if (present(info)) info = 0
 
@@ -2389,17 +2384,37 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
             allocate(chain_elem(k,s)%elem(nelemAA(s)))
         enddo     
         
-        print*,chain_elem(1,s)%elem(1)
-
+        elem_type=""
         do j=1,nelemAA(s)    
-            read(un,*,iostat=ios)vol_type,x(1),x(2),x(3) 
+            read(un,*,iostat=ios)elem_type(j),x(1),x(2),x(3) 
             do k=1,3
                 chain_elem(k,s)%elem(j)=x(k)
             enddo    
-            !  vnucl(j,s)=find_vol_nucl(vol_type)  need to define function
+            vnucl(j,s)=find_vol_elem(elem_type(j))
             if(ios/=0) isReadGood=.false.
-        enddo    
-            
+        enddo 
+
+        num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
+       
+        ! place CA element in to first position j=1
+       
+        ! print*,"elem_type=",elem_type
+        ! print*,"num_elem_CA=",num_elem_CA
+
+        if(num_elem_CA/=1) then  ! swapping
+            call swap_char3(elem_type(num_elem_CA),elem_type(1))
+            call swap_real(vnucl(num_elem_CA,s), vnucl(1,s))
+            do k=1,3
+                call swap_real(chain_elem(k,s)%elem(num_elem_CA),chain_elem(k,s)%elem(1))
+            enddo
+        endif        
+        num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
+
+        if(DEBUG) then 
+            print*,"elem_type = ",elem_type
+            print*,"num_elem_CA = ",num_elem_CA
+        endif
+
     enddo
     
     if(DEBUG) then 
@@ -2446,12 +2461,105 @@ subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
 end subroutine shift_nucl_elements
 
 
+function find_CA_elem(elem_type,nelem)result(elem)
+
+    character(len=3), intent(in) :: elem_type(:)
+    integer, intent(in) :: nelem
+
+    integer :: elem, j 
+    logical :: IsNotFound
+
+    IsNotFound=.true.
+    j=0
+    do while (IsNotFound.and.j<=nelem)
+        j=j+1
+        if(elem_type(j)=="CA") IsNotFound=.false.
+    enddo 
+
+    elem=j 
+    if(j==0) print*,"error No CA found "
+
+end function find_CA_elem
+
+
+
+! Assign/finds volume that matches with elem_type
+! return : vol_elem
+!          if no match found vol_elem is set to 0   
+
+function find_vol_elem(elem_type)result(vol_elem)
+
+    use parameters, only : vnucl_type, vnucl_type_char
+
+    character(len=3), intent(in) :: elem_type
+
+    real(dp):: vol_elem
+
+    integer :: elem, j , nelem_types
+    logical :: IsNotFound
+
+    nelem_types=size(vnucl_type)
+    IsNotFound=.true.
+    j=0
+
+    do while (IsNotFound.and.j<=nelem_types)
+        j=j+1
+        ! print*,j,vnucl_type_char(j),elem_type,vnucl_type_char(j)==elem_type
+        if(vnucl_type_char(j)==elem_type) IsNotFound=.false.
+    enddo 
+
+    if(j/=0) then
+        vol_elem=vnucl_type(j)
+    else 
+        vol_elem=0.0_dp
+        print*,"error vol nucl not found "
+    endif    
+
+end function find_vol_elem
+
+
+subroutine swap_int(a,b)
+    
+    integer, intent(inout) :: a, b
+    integer :: tmp 
+
+    tmp = a
+    a = b 
+    b = tmp 
+
+end subroutine  swap_int   
+
+
+subroutine swap_real(a,b)
+    
+    real(dp), intent(inout) :: a, b
+    real(dp) :: tmp 
+
+    tmp = a
+    a = b 
+    b = tmp 
+    
+end subroutine 
+
+subroutine swap_char3(a,b)
+    
+    character(len=3), intent(inout) :: a, b
+    character(len=3) :: tmp 
+
+    tmp = a
+    a = b 
+    b = tmp 
+
+end subroutine  swap_char3
+
+
 subroutine read_nucl_orient_triplets(fname,nnucl,nuc_orient_triplet,info)
 
     use myutils, only : newunit, lenText
+    use parameters, only : lenfname
     use myio, only : myio_err_chainsfile, myio_err_readfile 
 
-    character(lenText),    intent(in)      :: fname
+    character(lenfname),    intent(in)      :: fname
     integer, intent(in)                    :: nnucl
     integer, dimension(:,:), intent(inout) :: nuc_orient_triplet
     integer, intent(out), optional         :: info

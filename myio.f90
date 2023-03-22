@@ -216,6 +216,12 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) lsegfname
             case('segcmfname')
                 read(buffer,*,iostat=ios) segcmfname
+            case('mtpdbfname')
+                read(buffer,*,iostat=ios) mtpdbfname
+            case('vnuclfname')
+                read(buffer,*,iostat=ios) vnuclfname
+            case('orientfname')
+                read(buffer,*,iostat=ios) orientfname
             case ('nx')
                 read(buffer,*,iostat=ios) nx
             case ('ny')

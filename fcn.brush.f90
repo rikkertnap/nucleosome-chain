@@ -22,9 +22,7 @@ module fcnpointer
 
     procedure(fcn), pointer :: fcnptr => null()
 
-
 end module fcnpointer
-
 
 module listfcn
    
@@ -1631,7 +1629,7 @@ contains
         enddo    
        
         do i=1,nsize                              
-            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable
+            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable DO not divide by vsol not nessary !!!!!!!!!
         enddo      
                
     
