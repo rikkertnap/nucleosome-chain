@@ -32,9 +32,7 @@ contains
         case ("elect")
             call FEconf_elect(FEconf,Econf)
         case ("neutral")
-            print*,"FEconf"
             call FEconf_neutral(FEconf,Econf)
-            print*,"end FEconf"
         case ("neutralnoVdW")
             call FEconf_neutral_noVdW(FEconf,Econf)
         case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv")
@@ -44,7 +42,6 @@ contains
         case ("brushborn")
             call FEconf_brush_born(FEconf,Econf) 
         case ("nucl_neutral_sv")
-            print*,"FEconfig_entropy not yet implemented for systype=",systype
             call FEconf_nucl_neutral_sv(FEconf,Econf)
         case default
             text="FEconf_entropy: wrong systype: "//systype//"stopping program"
@@ -1023,7 +1020,7 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vnucl, isVdW,  isrhoselfconsistent
+        use parameters, only : vsol, vnucl, isVdW,  isrhoselfconsistent
         use VdW, only : VdW_contribution_lnexp
 
         real(dp), intent(out) :: FEconf,Econf
@@ -1063,7 +1060,7 @@ contains
         !     .. executable statements 
 
         do i=1,nsize
-            lnexppi(i) = log(xsol(i)) 
+            lnexppi(i) = log(xsol(i)/vsol) 
         enddo    
         
        ! if(isVdW) then 
@@ -1089,15 +1086,17 @@ contains
         do c=1,cuantas                        ! loop over cuantas
             lnpro = logweightchain(c) 
             do s=1,nseg                       ! loop over segments 
+                t=type_of_monomer(s)   
                 do j=1,nelem(s)               ! loop over elements of segment  
                     k = indexconf(s,c)%elem(j)
                     lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
                 enddo
             enddo     
 
-            pro = exp(lnpro-lnproshift)   
-
+            pro = exp(lnpro-lnproshift)  
+        
             FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+    
             Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  

@@ -1674,7 +1674,7 @@ contains
             xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
 
-            lnexppivw(i) = log(xsol(i))      ! auxilary variable DO not divide by vsol not nessary !!!!!!!!!
+            lnexppivw(i) = log(xsol(i)/vsol)                      ! auxilary variable DO  divide by vsol  !!!!!!!!!
  
         enddo
 
@@ -1896,7 +1896,7 @@ contains
                             do i=1,n
                                 xpol(i,t)  = rhopol0 * xpol(i,t)                                 ! volume fraction nucleosome of type t
                                 rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)               ! density nucleosome of type t  
-                                rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome
+                                rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
                             enddo
 
                         else  ! base                                        
@@ -1904,7 +1904,7 @@ contains
                             do i=1,n
                                 xpol(i,t)  = rhopol0 * xpol(i,t)
                                 rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t chargeable 
-                                rhoqpol(i)   = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol  ! total charge density nucleosome
+                                rhoqpol(i)   = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol  ! total charge density nucleosome in units of vsol 
                             enddo 
                             
                         endif     
@@ -1914,7 +1914,7 @@ contains
                         do i=1,n
                             xpol(i,t)  = rhopol0 * xpol(i,t)
                             rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)                    ! density nucleosome of type t chargeable 
-                            rhoqpol(i)   = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol      ! total charge density nucleosome
+                            rhoqpol(i)   = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol      ! total charge density nucleosome in units of vsol 
                         enddo
                             
                     endif    
@@ -2051,7 +2051,7 @@ contains
         enddo    
        
         do i=1,nsize                              
-            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable DO not divide by vsol not nessary !!!!!!!!!
+            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable do devide by vsol vnucl not doivide by 
         enddo      
                
     
@@ -2078,10 +2078,11 @@ contains
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
         lnproshift=globallnproshift(1)
-              
+        
         do c=1,cuantas                        ! loop over cuantas
             lnpro = logweightchain(c) 
             do s=1,nseg                       ! loop over segments 
+                t=type_of_monomer(s)   
                 do j=1,nelem(s)               ! loop over elements of segment  
                     k = indexconf(s,c)%elem(j)
                     lnpro = lnpro +lnexppi(k)*vnucl(j,t)              

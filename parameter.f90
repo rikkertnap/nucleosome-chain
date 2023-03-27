@@ -1366,7 +1366,7 @@ contains
         do while (line<maxline.and.ios==0)
             line=line+1
             read(un,*,iostat=ios)vol_char,vol_int,vol,isChargeable
-            vnucl_type(vol_int)=vol/vsol
+            vnucl_type(vol_int)=vol !/vsol
             vnucl_type_char(vol_int)=vol_char
             vnucl_type_isChargeable(vol_int)=isChargeable
         enddo  
