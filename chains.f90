@@ -36,8 +36,9 @@ module chains
     integer, dimension(:,:), allocatable        :: orientation_triplets     ! triplet of unit number for all nnucl histone
     integer, dimension(:), allocatable          :: nelem                    ! number of elements of every segment
     integer, dimension(:), allocatable          :: nelemAA                  ! number of elements of every AA segment
-
     integer, dimension(:), allocatable          :: typeAA                   ! type of number of elements of every AA segment
+    integer, dimension(:), allocatable          :: elem_charge              ! element number that is chargeable 
+
 
     ! chain stuctural quantities
 
@@ -77,7 +78,6 @@ contains
         allocate(type_of_charge(nsegtypes))
 
         ! chain stuctural quantities
-        
         allocate(segcm(nnucl))
         allocate(Rgsqr(maxcuantas))
         allocate(Rendsqr(maxcuantas))
@@ -93,6 +93,7 @@ contains
         allocate(nelem(nseg))
         allocate(nelemAA(nsegAA))
         allocate(typeAA(nsegtypesAA))
+        allocate(elem_charge(nseg))
 
           
     end subroutine allocate_chains

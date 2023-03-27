@@ -20,11 +20,12 @@
     real(dp) :: vpolA(5),deltavA(4)  ! volume of one polymer segment, vpol  in units of vsol
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
-    real(dp), dimension(:), allocatable :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
+    real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
     real(dp), dimension(:,:), allocatable       :: vnucl      ! volume of segment s element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
+    logical , dimension(:),   allocatable       :: vnucl_type_isChargeable
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -963,13 +964,14 @@ contains
         if(systype=="nucl_neutral_sv") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
+            allocate(vnucl_type_isChargeable(nelemtypes))
         endif    
 
     end subroutine allocate_vnucl_type  
 
     subroutine init_vnucl_type 
 
-        call read_vnucl_type(vnucl_type,vnucl_type_char,vsol,vnuclfname)
+        call read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vsol,vnuclfname)
         
     end subroutine init_vnucl_type
 
@@ -1316,13 +1318,14 @@ contains
     end subroutine read_pKds
 
   
-    subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vsol,fname)
+    subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vsol,fname)
 
         use  myutils
         
         ! .. arguments 
         real(dp), intent(inout), allocatable          :: vnucl_type(:)
         character(len=3), intent(inout),allocatable   :: vnucl_type_char(:)
+        logical, intent(inout),allocatable            :: vnucl_type_isChargeable(:)
         real(dp), intent(in)                          :: vsol 
         character(lenfname), intent(in)               :: fname  
         
@@ -1334,6 +1337,7 @@ contains
         character(len=3) :: vol_char
         integer :: vol_int
         real(dp) :: vol
+        logical  :: isChargeable
 
         ! .. reading in of variables from file
         inquire(file=fname,exist=exist)
@@ -1361,9 +1365,10 @@ contains
         maxline = nelemtypes
         do while (line<maxline.and.ios==0)
             line=line+1
-            read(un,*,iostat=ios)vol_char,vol_int,vol
+            read(un,*,iostat=ios)vol_char,vol_int,vol,isChargeable
             vnucl_type(vol_int)=vol/vsol
             vnucl_type_char(vol_int)=vol_char
+            vnucl_type_isChargeable(vol_int)=isChargeable
         enddo  
 
         if(line/=maxline.or.ios/=0) then 

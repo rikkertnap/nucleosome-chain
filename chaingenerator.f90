@@ -718,7 +718,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
 
-    call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
+                                 
+
+    call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
     call print_nucl_elements(nsegAA,nelemAA,chain_elem)
     call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
 
@@ -2337,21 +2339,22 @@ end subroutine set_mapping_num_to_char
 !        : nelem(s) = array of integer number of elements of AA number s
 !        : info     = integer val=0 assignment  succesfull val/=0 error              
 
-subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
+subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
 
     use globals, only : DEBUG
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
     use parameters, only : lenfname
-    use chains, only : var_darray ! type def  
+    use chains, only : var_darray, ismonomer_chargeable 
 
-    character(lenfname),   intent(in) :: fname
-    integer, intent(in)               :: nsegAA
-    integer, dimension(:), intent(in) :: typeAA
-    integer, dimension(:), intent(inout) :: nelemAA
+    character(lenfname),   intent(in)                            :: fname
+    integer,               intent(in)                            :: nsegAA
+    integer, dimension(:), intent(in)                            :: typeAA
+    integer, dimension(:), intent(inout)                         :: nelemAA
     type(var_darray), dimension(:,:), allocatable, intent(inout) :: chain_elem
-    real(dp), dimension(:,:) , intent(inout)        :: vnucl
-    integer, intent(out),optional  :: info 
+    real(dp), dimension(:,:) , intent(inout)                     :: vnucl
+    integer, dimension(:), allocatable, intent(inout)            :: elem_charge
+    integer, intent(out),optional                                :: info 
 
     ! local arguments
 
@@ -2395,6 +2398,12 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,info)
         enddo 
 
         num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
+
+        if(ismonomer_chargeable(s)) then 
+            elem_charge(s)=find_chargeable_elem(elem_type,nelemAA(s))
+        else 
+            elem_charge(s)=-1
+        endif      
        
         ! place CA element in to first position j=1
        
@@ -2516,6 +2525,44 @@ function find_vol_elem(elem_type)result(vol_elem)
     endif    
 
 end function find_vol_elem
+
+function find_chargeable_elem(elem_type,nelem)result(elem)
+
+    use parameters, only : vnucl_type, vnucl_type_char,vnucl_type_isChargeable
+
+    character(len=3), intent(in) :: elem_type(:)
+    integer, intent(in) :: nelem
+
+    integer :: elem, j, k, ncharge, num_elem_charge, nelem_types 
+    logical :: IsNotFound
+
+    nelem_types=size(vnucl_type)
+    ncharge=0
+    do k=1,nelem
+        IsNotFound=.true.
+        j=0
+        do while (IsNotFound.and.j<=nelem_types)
+            j=j+1
+            if(elem_type(k)==vnucl_type_char(j)) IsNotFound=.false.
+        enddo 
+        if(vnucl_type_isChargeable(j)) then  ! j element is charged 
+            ncharge=ncharge+1  
+            num_elem_charge=j 
+       endif
+    enddo
+    if(ncharge==1) then ! oke should be only one charge
+        elem = num_elem_charge
+    else if (ncharge >1 ) then 
+        elem =  -1
+        print*,"Error found more then one element AA charged"
+    else 
+        elem = -1
+        print*,"Error found no element AA charged"
+    endif    
+
+end function find_chargeable_elem
+
+
 
 
 subroutine swap_int(a,b)
