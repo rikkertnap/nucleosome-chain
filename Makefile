@@ -105,47 +105,6 @@ else ifeq ($(shell hostname),quser31)
 
 	is_quest = yes
 
-
-else ifeq ($(shell hostname),thetalogin1)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),thetalogin2)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),thetalogin3)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),thetalogin4)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),thetalogin5)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),thetalogin6)
-
-        is_theta = yes
-
-else ifeq ($(shell hostname),cooleylogin1)
-
-        is_cooley = yes
-
-else ifeq ($(shell hostname),cooleylogin2)
-
-        is_cooley = yes
-
-else ifeq ($(shell hostname),cooleylogin3)
-
-        is_cooley = yes
-
-else ifeq ($(shell hostname),cooleylogin4)
-
-        is_cooley = yes
-
 else 
 
 
@@ -165,20 +124,6 @@ FF= mpif90
 endif
 
 
-ifdef is_theta
-
-FFLAGS=  -cpp -DVERSION=\"$(GIT_VERSION)\"  -O3
-
-
-LDFLAGS=-lm /usr/lib64/librt.a -L/lus/theta-fs0/projects/FDTD_Cancer_2a/sundials/sundial-2.6.1/lib -lsundials_fkinsol -lsundials_kinsol -lsundials_fnvecserial -lsundials_nvecserial     -Wl,-rpath,/lus/theta-fs0/projects/FDTD_Cancer_2a/sundials/sundial-2.6.1/lib
-
-LFFLAGS=$(LDFLAGS)
-
-FF= ftn
-
-endif 
-
-
 ifdef is_quest 
 
 
@@ -188,20 +133,6 @@ FFLAGS=  -std=f2008  -cpp -DVERSION=\"$(GIT_VERSION)\"  -O3 # -fcheck=all -fboun
 LDFLAGS= -lm /usr/lib64/librt.so -L/projects/p31445/sundials/sundials-2.6.1-openmpi-gfortran/lib -lsundials_fkinsol -lsundials_kinsol -lsundials_fnvecserial -lsundials_nvecserial     -Wl,-rpath,/projects/p31445/sundials/sundials-2.6.1-openmpi-gfortran/lib
 
 
-
-LFFLAGS=$(LDFLAGS)
-
-FF= mpif90
-
-endif
-
-
-ifdef is_cooley
-
-FFLAGS=  -cpp -DVERSION=\"$(GIT_VERSION)\"  -O3
-
-LDFLAGS=  -lm /usr/lib64/librt.so -L/lus/theta-fs0/projects/FDTD_Cancer_2a/sundials/sundial-2.6.1-cooley/lib -lsundials_fkinsol -lsundials_kinsol -lsundials_fnvecserial -lsun
-dials_nvecserial     -Wl,-rpath,/lus/theta-fs0/projects/FDTD_Cancer_2a/sundials/sundial-2.6.1-cooley/lib
 
 LFFLAGS=$(LDFLAGS)
 
