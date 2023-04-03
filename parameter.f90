@@ -21,7 +21,7 @@
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
     real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
-    real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
+    ! real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
     real(dp), dimension(:,:), allocatable       :: vnucl      ! volume of segment s element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
@@ -951,7 +951,7 @@ contains
 
         use globals, only : nsegtypes,systype
 
-        if(systype=="nucl_neutral_sv") allocate(vnucl(13,nsegtypes))
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") allocate(vnucl(13,nsegtypes))
 
     end subroutine allocate_vnucl   
 
@@ -961,7 +961,7 @@ contains
 
         integer, intent(in) :: nelemtypes
 
-        if(systype=="nucl_neutral_sv") then 
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
@@ -971,24 +971,40 @@ contains
 
     subroutine init_vnucl_type 
 
-        call read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vsol,vnuclfname)
+        use myutils, only : lenText,print_to_log,LogUnit 
+        use mpivars
+
+        integer :: info
+        character(len=lenText) :: istr,text
+
+        call read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vnuclfname,info)
+        if(info/=0) then
+            write(istr,'(I3)')info
+            text="Error in init_vnucl_type : info = "//istr//" : end program."
+            call print_to_log(LogUnit,text)
+            print*,text
+            call MPI_FINALIZE(ierr)
+        stop
+        endif
         
     end subroutine init_vnucl_type
 
     subroutine init_vnucl
 
         use globals, only : systype
-        if(systype=="nucl_neutral_sv") vnucl=0.01_dp ! init
+
+        if(systype=="nucl_neutral_sv") vnucl=0.0_dp !vnucl=0.01_dp ! init
+        if(systype=="nucl_ionbin_sv") vnucl=0.0_dp 
 
     end subroutine init_vnucl
 
-    subroutine allocate_deltavnucl
+    ! subroutine allocate_deltavnucl
 
-        use globals, only : nsegtypes,systype
+    !     use globals, only : nsegtypes,systype
 
-        if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
+    !     if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
 
-    end subroutine allocate_deltavnucl    
+    ! end subroutine allocate_deltavnucl    
 
     ! splits volume of monomer type over neighboring cell (8) evenly 
     ! only when systype=="nucl_ionbin_sv"
@@ -997,48 +1013,48 @@ contains
     ! pre :  called for ismonomer_chargeable
     ! post: deltavnucl for all monomore types
 
-    subroutine make_deltavnucl   
+    ! subroutine make_deltavnucl   
 
-        use globals, only : nsegtypes,systype
-        use chains, only : ismonomer_chargeable
+    !     use globals, only : nsegtypes,systype
+    !     use chains, only : ismonomer_chargeable
 
-        integer :: ix,iy,iz,t,state
+    !     integer :: ix,iy,iz,t,state
 
 
-        if(systype=="nucl_ionbin_sv") then 
+    !     if(systype=="nucl_ionbin_sv") then 
 
-            deltavnucl=0.0_dp ! init
+    !         deltavnucl=0.0_dp ! init
     
-            do t=1,nsegtypes
-                do state=1,4
-                    do ix=1,1!2 
-                        do iy=1,1!2 
-                            do iz=1,1!2
-                                deltavnucl(ix,iy,iz,state,t)=vpol(t) !/8.0_dp
-                            enddo    
-                        enddo
-                    enddo
-                enddo   
+    !         do t=1,nsegtypes
+    !             do state=1,4
+    !                 do ix=1,1!2 
+    !                     do iy=1,1!2 
+    !                         do iz=1,1!2
+    !                             deltavnucl(ix,iy,iz,state,t)=vpol(t) !/8.0_dp
+    !                         enddo    
+    !                     enddo
+    !                 enddo
+    !             enddo   
                 
-                if(ismonomer_chargeable(t)) then
-                    ix=1 ! locatation charge center
-                    iy=1
-                    iz=1
-                    if(zpol(t,1)==0) then  !  acid
-                        ! state: 1==A^-  2 ==AH 3== ANa  4=AK
-                         deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vNa
-                         deltavnucl(ix,iy,iz,4,t)=deltavnucl(ix,iy,iz,4,t)+vK
-                    else !  base
-                        ! state:  1==BH^+ 2== B 3 = BHCl
-                        deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vCl
-                    endif       
-                endif  
+    !             if(ismonomer_chargeable(t)) then
+    !                 ix=1 ! locatation charge center
+    !                 iy=1
+    !                 iz=1
+    !                 if(zpol(t,1)==0) then  !  acid
+    !                     ! state: 1==A^-  2 ==AH 3== ANa  4=AK
+    !                      deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vNa
+    !                      deltavnucl(ix,iy,iz,4,t)=deltavnucl(ix,iy,iz,4,t)+vK
+    !                 else !  base
+    !                     ! state:  1==BH^+ 2== B 3 = BHCl
+    !                     deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vCl
+    !                 endif       
+    !             endif  
 
-            enddo    
+    !         enddo    
 
-        endif        
+    !     endif        
 
-    end subroutine make_deltavnucl         
+    ! end subroutine make_deltavnucl         
 
     subroutine init_pKas_and_zpol
 
@@ -1256,8 +1272,8 @@ contains
 
     end subroutine read_pKaions
 
-    ! read pKd for acid group tA including acid-base equilbrium Na condensation etc
-    ! four return value 
+    ! Read pKd for acid group tA including acid-base equilbrium Na condensation etc
+    ! Four return values 
     ! info=0 , correct, 
     ! info= err_pKdfile,err_pKdfile_noexist or err_pKderror : failure
 
@@ -1317,27 +1333,37 @@ contains
 
     end subroutine read_pKds
 
-  
-    subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vsol,fname)
+    ! Processes input file containing the type, volume and chargeable of volume elements of AA
+    ! input: character(lenfname) fname = filename of input file    
+    ! input/output: real(dp)         vnucl_type(:)
+    !               character(len=3) vnucl_type_char(:)
+    !               logical vnucl_type_isChargeable(:)
+    ! output : integer info
+    !          return value  info=0 , correct, 
+    !                        info/=0, failure info= err_error or err_file_noexist
+
+    subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,fname,info)
 
         use  myutils
         
         ! .. arguments 
         real(dp), intent(inout), allocatable          :: vnucl_type(:)
         character(len=3), intent(inout),allocatable   :: vnucl_type_char(:)
-        logical, intent(inout),allocatable            :: vnucl_type_isChargeable(:)
-        real(dp), intent(in)                          :: vsol 
+        logical, intent(inout),allocatable            :: vnucl_type_isChargeable(:) 
         character(lenfname), intent(in)               :: fname  
+        integer, intent(out)                          :: info   
         
         ! .. local variables
-        integer :: ios, un, info, line, maxline
+        integer :: ios, un, line, maxline
         integer :: nelemtypes
-        character(len=80) :: istr,str
+        character(len=90) :: istr,str
         logical :: exist
         character(len=3) :: vol_char
         integer :: vol_int
         real(dp) :: vol
         logical  :: isChargeable
+
+        info = 0 ! return 
 
         ! .. reading in of variables from file
         inquire(file=fname,exist=exist)
@@ -1366,7 +1392,7 @@ contains
         do while (line<maxline.and.ios==0)
             line=line+1
             read(un,*,iostat=ios)vol_char,vol_int,vol,isChargeable
-            vnucl_type(vol_int)=vol !/vsol
+            vnucl_type(vol_int)=vol 
             vnucl_type_char(vol_int)=vol_char
             vnucl_type_isChargeable(vol_int)=isChargeable
         enddo  

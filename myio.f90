@@ -1472,12 +1472,12 @@ subroutine output_nucl_mul
     if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")then
         do k=1,4
             do t=1,nsegtypes
-                write(un_sys,*)'avgdisA(',k,')  = ',avgdisA(t,k)
+                write(un_sys,'(A8,I5,A,I5,A5,ES25.16)')'avgdisA(',t,',',k,')  = ',avgdisA(t,k)
             enddo
         enddo 
         do k=1,3 
             do t=1,nsegtypes
-                write(un_sys,*)'avgdisB(',k,')  = ',avgdisB(t,k)
+                write(un_sys,'(A8,I5,A,I5,A5,ES25.16)')'avgdisB(',t,',',k,')  = ',avgdisB(t,k)
             enddo
         enddo    
     endif

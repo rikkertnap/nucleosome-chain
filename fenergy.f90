@@ -92,6 +92,7 @@ contains
             call fcnenergy_elect_alternative()   
 
         case ("nucl_neutral_sv")  
+            
             call fcnenergy_neutral_sv() 
 
         case default  
@@ -503,6 +504,8 @@ contains
     end subroutine fcnenergy_electbrush_mul
 
 
+    ! fcnenergy_neutral_sv  equal to fcnenergy_neutral !! 
+    
     subroutine fcnenergy_neutral_sv()
 
         !  .. variable and constant declaractions 
@@ -526,7 +529,7 @@ contains
             if( ier/=0 ) alloc_fail=.true.
         endif
 
-        !     .. computation of free energy 
+        ! .. computation of free energy 
     
         FEpi  = 0.0_dp
         FErho = 0.0_dp
@@ -935,11 +938,11 @@ contains
         use volume, only : volcell
         use parameters, only : vsol, vpol,vpolAA, zpol, zpolAA, lb, bornrad 
         use parameters, only : vNa,vCl,vRb,vCa, vK,vMg,zNa,zK,zCl,zRb,zCa,zMg, tA
-        use parameters, only : deltavnucl
+        ! use parameters, only : deltavnucl
         use chains, only : ismonomer_chargeable,type_of_charge
         use dielectric_const, only : born
         use Poisson, only :  grad_pot_sqr_eps_cubic
-        use fcnaux, only : compute_xpol_chargeable, integral_betapi
+        ! use fcnaux, only : compute_xpol_chargeable, integral_betapi
 
         real(dp) :: FEchem_react
 
@@ -1149,8 +1152,8 @@ contains
                         
                         xvol=0.0_dp
 
-                        call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
-                        call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
+                    !    call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
+                    !    call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
                            
                         do i=1,nsize
 
@@ -1167,8 +1170,8 @@ contains
                             
                             xvol=0.0_dp
 
-                            call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
-                            call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
+                        !    call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
+                        !    call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
                            
                             do i=1,nsize
 
@@ -1185,8 +1188,8 @@ contains
 
                             xvol=0.0_dp
 
-                            call integral_betapi(xsol,deltavnucl(:,:,:,2,t),sumbetapi)
-                            call compute_xpol_chargeable(rhopol(:,t),gdisB(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
+                        !    call integral_betapi(xsol,deltavnucl(:,:,:,2,t),sumbetapi)
+                        !    call compute_xpol_chargeable(rhopol(:,t),gdisB(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
                            
                             do i=1,nsize
 

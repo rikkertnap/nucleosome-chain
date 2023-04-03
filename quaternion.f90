@@ -144,7 +144,7 @@ contains
 !  associated with rotation axis u  and rotation angle  theta
 !  q = cos(theta/2) + (u1 i + u2 j + u3 k ) sin(theta/2)
 !  input  real(dp) u(3) and real(dp) theta 
-!  vecotr u assumed to have unit length||u||=1) and theta in radians
+!  vector u assumed to have unit length||u||=1) and theta in radians
 
     function rot_axis_angle_to_quat(u, theta) result(q)
 
