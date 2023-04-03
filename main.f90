@@ -110,11 +110,11 @@ program main
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
     
-    if(systype=="nucl_ionbin_sv") then          ! init distributed volume = deltavnucl 
-        call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
-        call make_deltavnucl()
-    endif    
-    if(systype=="nucl_neutral_sv") then         ! init distributed volume = deltavnucl 
+    ! if(systype=="nucl_ionbin_sv") then          ! init distributed volume = deltavnucl 
+    !     call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
+    !     call make_deltavnucl()
+    ! endif    
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then         ! init distributed volume = deltavnucl 
         call init_vnucl_type() 
         call allocate_vnucl()                   ! ismonomer_chargable etc needs to be set 
         call init_vnucl()

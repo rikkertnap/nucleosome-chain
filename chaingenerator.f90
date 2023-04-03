@@ -40,10 +40,8 @@ subroutine make_chains(chainmethod,systype)
     select case (chainmethod)
     case ("MC")
         call make_chains_mc()
-    case ("FILE_XYZ")
-        
-        call read_chains_xyz(systype,info)  
-         
+    case ("FILE_XYZ")      
+        call read_chains_xyz(systype,info)       
     case default
         text="chainmethod not equal to MC or FILE_XYZ"
         call print_to_log(LogUnit,text)
@@ -255,7 +253,7 @@ subroutine read_chains_xyz(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out) :: info
 
-    if(systype=="nucl_neutral_sv") then 
+    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") then 
         call read_chains_xyz_nucl_volume(info)
     else
         call read_chains_xyz_nucl(info)

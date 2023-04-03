@@ -204,8 +204,6 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
         enddo
         
         close(un_file)
-        close(un_file)
-
     endif
     !     .. end init from file 
   
