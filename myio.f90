@@ -277,6 +277,16 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) write_struct
             case ('write_rotations')
                 read(buffer,*,iostat=ios) write_rotations
+            case ('dielectscale%val')
+                read(buffer,*,iostat=ios) dielectscale%val
+            case ('dielectscale%min')
+                read(buffer,*,iostat=ios) dielectscale%min
+            case ('dielectscale%max')
+                read(buffer,*,iostat=ios) dielectscale%max
+            case ('dielectscale%stepsize')
+                read(buffer,*,iostat=ios) dielectscale%stepsize
+            case ('dielectscale%delta')
+                read(buffer,*,iostat=ios) dielectscale%delta
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped
@@ -422,7 +432,7 @@ subroutine check_value_systype(systype,info)
         print*,"systype = ",systype
         if (present(info)) info = myio_err_systype
         return
-    end if
+    endif
 
 end subroutine check_value_systype
 
@@ -432,7 +442,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(5)
+    character(len=15) :: runtypestr(6)
     integer :: i
     logical :: flag
 
@@ -443,10 +453,11 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(3)="inputcsKClpH"
     runtypestr(4)="rangepKd"
     runtypestr(5)="rangeVdWeps"
+    runtypestr(6)="rangedielect"
 
     flag=.FALSE.
 
-    do i=1,5
+    do i=1,6
         if(runtype==runtypestr(i)) flag=.TRUE.
     enddo
 
@@ -457,7 +468,7 @@ subroutine check_value_runtype(runtype,info)
         print*,"runtype = ",runtype
         if (present(info)) info = myio_err_runtype
         return
-    end if
+    endif
 
 end subroutine check_value_runtype
 
@@ -506,7 +517,7 @@ subroutine check_value_bcflag(bcflag,info)
         print*,"bcflag(LEFT) = ",bcflag(LEFT)
         if (present(info)) info = myio_err_bcflag
         !if(present(fcnname)) print*,"Error in ",fcnname
-        stop
+        ! stop
     endif
 
 end subroutine check_value_bcflag
@@ -514,12 +525,12 @@ end subroutine check_value_bcflag
 
 subroutine set_value_NaCl(runtype,info)
 
-    use mpivars
+    !use mpivars
     !use parameters, only : num_cNaCl,cNaCl_array
     use myutils, only : newunit
 
     character(len=12), intent(in) :: runtype
-    integer, intent(out),optional :: info
+    integer, intent(out) :: info
 
     ! local variables
     character(len=7) :: fname
@@ -527,43 +538,32 @@ subroutine set_value_NaCl(runtype,info)
     integer :: i
     integer :: un_cs
 
-    if (present(info)) info = 0 ! init 
+    info = 0 ! init 
 
-    if(runtype=="defaultpH".or.runtype=="defaultT".or.runtype=="defaultsigma") then
-
-        num_cNaCl=6
-        allocate(cNaCl_array(num_cNaCl))
-
-        cNaCl_array(1)=0.25_dp
-        cNaCl_array(2)=0.20_dp
-        cNaCl_array(3)=0.15_dp
-        cNaCl_array(4)=0.10_dp
-        cNaCl_array(5)=0.05_dp
-        cNaCl_array(6)=0.01_dp
-
-    else if(runtype=="inputcspH".or.runtype=="inputcsT".or.runtype=="inputcssigma") then
+    if(runtype=="inputcspH".or.runtype=="rangedielect") then
 
         !     .. read salt concentrations from file
         write(fname,'(A7)')'salt.in'
         open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
         if(ios > 0 ) then
             print*, 'Error opening file salt.in : iostat =', ios
-            call MPI_FINALIZE(ierr)
-            if (present(info)) then
-                info = myio_err_inputfile
-                return
-            else
-                stop
-            endif
-         endif
+            info = myio_err_inputfile
+            return
+        endif
 
-         read(un_cs,*)num_cNaCl ! read number of salt concentration form file
-         allocate(cNaCl_array(num_cNaCl))
+        read(un_cs,*)num_cNaCl ! read number of salt concentration form file
+        allocate(cNaCl_array(num_cNaCl))
 
-         do i=1,num_cNaCl     ! read value salt concentration
+        do i=1,num_cNaCl     ! read value salt concentration
              read(un_cs,*)cNaCl_array(i)
-         enddo
-         close(un_cs)
+        enddo
+        close(un_cs)
+    
+    else
+
+        print*, 'Error wrong runtype in set_value_NaCl'
+        info = myio_err_runtype
+    
     endif
 
 end subroutine  set_value_NaCl
@@ -2123,7 +2123,7 @@ end subroutine output_individualcontr_fe
 subroutine make_filename_label(fnamelabel)
 
     use globals, only : LEFT,RIGHT, systype, runtype
-    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd
+    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
 
     character(len=*), intent(inout) :: fnamelabel
 
@@ -2136,8 +2136,8 @@ subroutine make_filename_label(fnamelabel)
     !     .. make label filename
 
     select case(systype)
-    case("elect","electnopoly","electA")
 
+    case("elect","electnopoly","electA")
 
         write(rstr,'(F5.3)')denspol
         fnamelabel="phi"//trim(adjustl(rstr))
@@ -2152,7 +2152,6 @@ subroutine make_filename_label(fnamelabel)
             endif
             fnamelabel=trim(fnamelabel)//"cKCl"//trim(adjustl(rstr))
         endif
-
 
         if(cCaCl2>=0.001) then
             write(rstr,'(F5.3)')cCaCl2
@@ -2222,8 +2221,6 @@ subroutine make_filename_label(fnamelabel)
                 write(rstr,'(F3.1)')cMgCl2
             endif
 
-
-
             fnamelabel=trim(fnamelabel)//"cMgCl2"//trim(adjustl(rstr))
         endif
 
@@ -2238,9 +2235,14 @@ subroutine make_filename_label(fnamelabel)
             endif
             fnamelabel=trim(fnamelabel)//"pKd"//trim(adjustl(rstr))//".dat"
 
-        elseif(runtype=="rangeVdWeps")then
+        elseif(runtype=="rangeVdWeps") then
             write(rstr,'(F5.3)')VdWscale%val
             fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
+
+        elseif(runtype=="rangedielect") then
+            write(rstr,'(ES9.2E2)')dielectscale%val
+            fnamelabel=trim(fnamelabel)//"dielectscale"//trim(adjustl(rstr))//".dat"
+
         else
             fnamelabel=trim(fnamelabel)//".dat"
         endif

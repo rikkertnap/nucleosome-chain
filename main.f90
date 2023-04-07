@@ -1,3 +1,4 @@
+
 ! ---------------------------------------------------------------|
 ! Solves the SCMFT eqs for WEAK polyelectrolytes polymers        |
 ! coated onto a planar surface,                                  |
@@ -69,11 +70,12 @@ program main
     write(istr,'(I4)')rank
     if( size>9999) then 
         text="Error: size to large for status file number"
-        call print_to_log(LogUnit,text)
+        ! call print_to_log(LogUnit,text)
         print*,text
         call MPI_FINALIZE(ierr)
         stop
     endif
+
     fname='status.'//trim(adjustl(istr))//'.log'
     call open_logfile(logUnit,fname)
     write(istr,'(I4)')rank
@@ -88,14 +90,7 @@ program main
     ! .. init
 
     call read_inputfile(info)
-    if(info/=0) then
-        write(istr,'(I3)')info
-        text="Error in input file: info = "//istr//" : end program."
-        call print_to_log(LogUnit,text)
-        print*,text
-        call MPI_FINALIZE(ierr)
-        stop
-    endif
+    call error_handler(info,"read_inputfile")
 
     call init_constants()
     call make_geometry()                        ! generate volume elements lattice
@@ -109,37 +104,22 @@ program main
     call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
-    
-    ! if(systype=="nucl_ionbin_sv") then          ! init distributed volume = deltavnucl 
-    !     call allocate_deltavnucl()              ! ismonomer_chargable etc needs to be set 
-    !     call make_deltavnucl()
-    ! endif    
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then         ! init distributed volume = deltavnucl 
+       
+    ! init distributed volume  
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then    
         call init_vnucl_type() 
         call allocate_vnucl()                   ! ismonomer_chargable etc needs to be set 
         call init_vnucl()
     endif   
 
-
     call make_VdWeps(info) 
-    if(info/=0) then
-        write(istr,'(I3)')info
-        text="Error in make_VdWeps: info = "//trim(adjustl(istr))//" : end program."
-        call print_to_log(LogUnit,text)
-        print*,text
-        stop
-    endif   
+    call error_handler(info,"make_VdWeps")
+     
     call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
     
     if(isVdW) then 
         call make_VdWcoeff(info)
-        if(info/=0) then
-            write(istr,'(I3)')info
-            text="Error in make_VdWcoeff: info = "//trim(adjustl(istr))//" : end program."
-            call print_to_log(LogUnit,text)
-            print*,text
-            stop
-        endif   
+        call error_handler(info,"make_VdWepscoeff")
     endif  
 
     call make_chains(chainmethod,systype)   
@@ -160,8 +140,7 @@ program main
     allocate(xguess(neq))
     allocate(fvec(neq))
         
-    ! loop over pH, or pKd etc  values
-
+    ! .. loop over pH, or pKd etc  values
 
     if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH") then 
         loop => pH
@@ -171,38 +150,34 @@ program main
         loop => deltaGd  
     else if(runtype=="rangeVdWeps") then 
         loop => VdWscale    
+    else if(runtype=="rangedielect") then 
+        loop => dielectscale   
     else
-        if(associated(loop)) nullify(loop) ! make explict that no association is made
+        if(associated(loop)) nullify(loop) ! make explicit that no association is made
     endif  
 
-     ! .. select variable with which list_array to associate
+    ! .. select variable with which list_array to associate
 
     if (runtype=="inputMgpH".or.runtype=="rangepKd".or.runtype=="rangeVdWeps".or.runtype=="rangedeltaGd") then
         call set_value_MgCl2(runtype,info)
-        if(info/=0) then
-            print*,"Error in set_value_MgCl2: info = ",info," : end program."
-            stop
-        endif
+        call error_handler(info,"set_value_MgCl2")
+
         num=num_cMgCl2
         list=>cMgCl2_array
         list_val => cMgCl2
 
     else if(runtype=="inputcsKClpH") then
         call set_value_KCl(runtype,info)
-        if(info/=0) then
-            print*,"Error in set_value_KCl: info = ",info," : end program."
-            stop
-        endif
+        call error_handler(info,"set_value_KCl")
+        
         num=num_cKCl
         list=>cKCl_array
         list_val => cKCl
 
     else 
         call set_value_NaCl(runtype,info)
-        if(info/=0) then
-            print*,"Error in set_value_NaCl: info = ",info," : end program."
-            stop
-        endif
+        print*,"info=",info
+        call error_handler(info,"set_value_NaCl")
         num=num_cNaCl
         list=>cNaCl_array
         list_val => cNaCl ! pointer points to target  cNaCl
@@ -211,7 +186,7 @@ program main
 
 
     isfirstguess = .true.
-    use_xstored = .false.        ! with both flags set false make_guess will set xguess equal to x
+    use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
     iter = 0                    ! iteration counter
 
     if(loop%stepsize>0) then
@@ -223,6 +198,9 @@ program main
     call set_fcn()
      
     loopstepsizebegin=loop%stepsize
+
+    print*,"loopstepsizebegin=",loopstepsizebegin
+
     list_val=list(1)                ! get value from array
     nlist_elem=1
     maxlist_elem=num

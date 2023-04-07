@@ -75,8 +75,6 @@ contains
 
     end subroutine open_logfile
 
-
-
     subroutine close_logfile(UnitNum)
 
         implicit none
@@ -87,6 +85,26 @@ contains
 
     end subroutine close_logfile
         
+
+    subroutine error_handler(info,message)
+        
+        use mpivars
+
+        integer, intent(in) :: info
+        character(len=*), intent(in) :: message
+
+        character(len=lenText) :: text, istr
+
+        if(info/=0) then
+            write(istr,'(I3)')info
+            text="Error in "//trim(adjustl(message))//" input file: info = "//istr//" : end program."
+            call print_to_log(LogUnit,text)
+            print*,text
+            call MPI_FINALIZE(ierr)
+            stop
+        endif
+
+    end subroutine error_handler
 
     ! in fortran 2008 newunit is provided 
  

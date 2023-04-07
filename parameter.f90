@@ -68,9 +68,9 @@
     real(dp) :: VdWcutoffdelta    ! cutoff VdW interaction in units of delta
     real(dp), parameter :: Vdwepsilon=1.0e-5_dp ! thresholds below which VdWeps is assumed to be zero
     logical, dimension(:), allocatable :: isrhoselfconsistent
-    type(looplist), target :: VdWscale ! scale factor in VdW interaction
+    type(looplist), target :: VdWscale     ! scale factor in VdW interaction
+    type(looplist), target :: dielectscale ! scale factor in dielectric constant: used for loop of eps to descrease elect interactions
 
-  
      !  .. input filenames 
     integer, parameter :: lenfname=40
     character(len=lenfname) :: chainfname,vpolfname,pKafname,pKaionfname,typesfname,lsegfname,segcmfname
@@ -83,7 +83,8 @@
     real(dp) :: dielectP            ! dielectric constant of hydrocarbons/PA
     character(len=15) :: dielect_env ! selects dielectric fun 
     real(dp) :: lb,lb0           ! Bjerrum lengtin water and vacuum   
-    real(dp) :: constqW          ! constant in Poisson eq dielectric constant of water       
+    real(dp) :: constqW          ! constant in Poisson eq dielectric constant of water  
+    real(dp) :: constqWin        ! constant in Poisson eq dielectric constant of water  stored for loop dielect   
     real(dp) :: constq0          ! constant in Poisson eq dielectric constant of vacuum 
     real(dp) :: constqE          ! electrostatic pre-factor in pdf 
   
@@ -252,7 +253,7 @@ contains
     end subroutine set_size_neq
 
     
-    real(dp) function BjerrumLenght(T)
+    function BjerrumLenght(T)result(lb)
 
         use mathconst
         use physconst
@@ -264,7 +265,6 @@ contains
 
         lb=(elemcharge**2)/(4.0_dp*pi*dielectW*dielect0*kBoltzmann*T) ! bjerrum length in water=solvent in m
         lb=lb/1.0e-9_dp              ! bjerrum length in water in nm
-        BjerrumLenght=lb
 
     end function BjerrumLenght
         
@@ -562,7 +562,6 @@ contains
     end subroutine init_dna
      
 
-
     function dielectric_constant_water(Temp) result(eps)
         implicit none
         real(dp), intent(in) :: Temp ! temperature in Kelvin
@@ -590,9 +589,9 @@ contains
 
         lb0=(elemcharge**2)/(4.0_dp*pi*dielect0*kBoltzmann*Temp) ! bjerrum length in vacum in m
         lb0= lb0/1.0e-9_dp                          ! bjerrum length in vacum in nm
-        constq0 = delta*delta*(4.0_dp*pi*lb0)/vsol ! multiplicative constant Poisson Eq. 
-        constqE = 1.0_dp /( 8.0_dp *constqW)      ! factor in PDF
-
+        constq0 = delta*delta*(4.0_dp*pi*lb0)/vsol  ! multiplicative constant Poisson Eq. 
+        constqE = 1.0_dp /( 8.0_dp *constqW)        ! factor in PDF
+        constqWin = constqW                         ! assignment for  loop of dielect
         ! sigmaqSurf = sigmaqSurfin * 4.0_dp*pi*lb *delta ! dimensionless surface charge 
 
     end subroutine init_elect_constants
@@ -873,18 +872,21 @@ contains
         select case (systype)
         case ("elect")
             call init_expmu_elect()
-            call set_VdWepsAAandBB() ! specail assigemnt of VdWepsAA etc  
+            call set_VdWepsAAandBB() ! special assigemnt of VdWepsAA etc  
             call set_VdWeps_scale(VdWscale)
+            call set_dielect_scale(dielectscale)
         case ("neutral","neutralnoVdW")
             call init_expmu_neutral()   
             call set_VdWeps_scale(VdWscale)
         case ("brush_mul","brush_mulnoVdW") 
             call init_expmu_elect() 
-            call set_VdWeps_scale(VdWscale)     
+            call set_VdWeps_scale(VdWscale) 
+            call set_dielect_scale(dielectscale)    
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
+            call set_dielect_scale(dielectscale)
         case ("nucl_neutral_sv") 
             ! call init_dna() 
             call init_expmu_neutral()
@@ -1542,5 +1544,22 @@ contains
         call set_VdWepsAAandBB
 
     end subroutine set_VdWeps_scale
+
+    
+    ! special assignment of constqw for runtype==rangedielect
+    
+    subroutine set_dielect_scale(dielectscale)
+
+        use globals, only : runtype
+
+        type(looplist), intent(in) :: dielectscale
+
+        if(runtype=="rangedielect") then 
+            constqW=constqWin/dielectscale%val
+        endif    
+
+        print*,"constqW=",constqW," dielectWscale%val=",dielectscale%val,"dielect=",dielectW*dielectscale%val
+
+    end subroutine set_dielect_scale
 
  end module parameters
