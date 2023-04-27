@@ -198,9 +198,6 @@ program main
     call set_fcn()
      
     loopstepsizebegin=loop%stepsize
-
-    print*,"loopstepsizebegin=",loopstepsizebegin
-
     list_val=list(1)                ! get value from array
     nlist_elem=1
     maxlist_elem=num

@@ -27,6 +27,7 @@ module myio
     integer, parameter ::  myio_err_nseg      = 20
     integer, parameter ::  myio_err_inputlabel = 21
     integer, parameter ::  myio_err_readfile  = 22
+    integer, parameter ::  myio_err_file_exist = 23
 
 
     integer :: num_cNaCl   ! number of salt concentration considered
@@ -525,18 +526,16 @@ end subroutine check_value_bcflag
 
 subroutine set_value_NaCl(runtype,info)
 
-    !use mpivars
-    !use parameters, only : num_cNaCl,cNaCl_array
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, LogUnit, print_to_log
 
     character(len=12), intent(in) :: runtype
     integer, intent(out) :: info
 
     ! local variables
     character(len=7) :: fname
-    integer :: ios
-    integer :: i
-    integer :: un_cs
+    integer :: ios, i, un_cs
+    logical :: exist
+    character(len=lenText) :: text, istr
 
     info = 0 ! init 
 
@@ -544,9 +543,23 @@ subroutine set_value_NaCl(runtype,info)
 
         !     .. read salt concentrations from file
         write(fname,'(A7)')'salt.in'
-        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        inquire(file=fname,exist=exist)
+
+        if(exist) then
+            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        else
+            text='File :'//trim(fname)//' does not exit'
+            call print_to_log(LogUnit,text)
+            print*,text
+            info = myio_err_file_exist
+            return
+        endif
+
         if(ios > 0 ) then
-            print*, 'Error opening file salt.in : iostat =', ios
+            write(istr,'(I4)')ios
+            text='Error opening file salt.in : iostat ='//trim(istr)
+            call print_to_log(LogUnit,text)
+            print*,text
             info = myio_err_inputfile
             return
         endif
@@ -560,8 +573,9 @@ subroutine set_value_NaCl(runtype,info)
         close(un_cs)
     
     else
-
-        print*, 'Error wrong runtype in set_value_NaCl'
+        text='Error wrong runtype in set_value_NaCl'
+        call print_to_log(LogUnit,text)
+        print*, text 
         info = myio_err_runtype
     
     endif
@@ -571,34 +585,42 @@ end subroutine  set_value_NaCl
 
 subroutine set_value_KCl(runtype,info)
 
-    use mpivars
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, LogUnit, print_to_log
 
     character(len=12), intent(in) :: runtype
-    integer, intent(out),optional :: info
+    integer, intent(out) :: info
 
     ! local variables
     character(len=7) :: fname
-    integer :: ios
-    integer :: i
-    integer :: un_cs
+    integer :: ios, i, un_cs
+    logical :: exist
+    character(len=lenText) :: text, istr
 
-    if (present(info)) info = 0
+    info = 0
 
     if(runtype=="inputcsKClpH") then
 
         !     .. read salt concentrations from file
         write(fname,'(A7)')'salt.in'
-        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        inquire(file=fname,exist=exist)
+
+        if(exist) then
+            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        else
+            text='File :'//trim(fname)//' does not exit'
+            call print_to_log(LogUnit,text)
+            print*, text 
+            info = myio_err_file_exist
+            return
+        endif
+
         if(ios > 0 ) then
-            print*, 'Error opening file salt.in : iostat =', ios
-            call MPI_FINALIZE(ierr)
-            if (present(info)) then
-                info = myio_err_inputfile
-                return
-            else
-                stop
-            endif
+            write(istr,'(I4)')ios
+            text='Error opening file salt.in : iostat ='//trim(istr)
+            call print_to_log(LogUnit,text)
+            print*, text 
+            info = myio_err_inputfile
+            return
         endif
 
         read(un_cs,*)num_cKCl ! read number of salt concentration form file
@@ -609,54 +631,47 @@ subroutine set_value_KCl(runtype,info)
         enddo
         close(un_cs)
 
-
     else
-        print*,'Error wrong runtype in set_value_KCl'
-        call MPI_FINALIZE(ierr)
-        if (present(info)) then
-            info = myio_err_inputfile
-            return
-        else
-            stop
-        endif
-
+        text='Error wrong runtype in set_value_KCl'
+        call print_to_log(LogUnit,text)
+        print*, text 
+        info = myio_err_inputfile
     endif
-
 
 end subroutine set_value_KCl
 
 subroutine set_value_MgCl2(runtype,info)
 
-    use mpivars
-    !use parameters, only : num_cMgCl2,cMgCl2_array
     use myutils, only : newunit
 
     character(len=12), intent(in) :: runtype
-    integer, intent(out),optional :: info
-
+    integer, intent(out) :: info
 
     ! local variables
     character(len=9) :: fname
-    integer :: ios
-    integer :: i
-    integer :: un_cs
+    integer :: ios, i, un_cs
+    logical :: exist
 
-    if (present(info)) info=0
+    info=0
 
     if(runtype=="inputMgpH".or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
 
         !     .. read salt concentrations from file
         write(fname,'(A9)')'saltMg.in'
-        open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        inquire(file=fname,exist=exist)
+
+        if(exist) then
+            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        else
+            print*,' File :',fname,' does not exit'
+            info = myio_err_file_exist
+            return
+        endif
+
         if(ios > 0 ) then
             print*, 'Error opening file saltMg.in : iostat =', ios
-            call MPI_FINALIZE(ierr)
-            if (present(info)) then
-                info = myio_err_inputfile
-                return
-            else
-                stop
-            endif
+            info = myio_err_inputfile
+            return
         endif
 
         read(un_cs,*)num_cMgCl2 ! read number of salt concentration form file
@@ -668,18 +683,11 @@ subroutine set_value_MgCl2(runtype,info)
         close(un_cs)
 
     else
-
+        
         print*,'Error wrong runtype in set_value_MgCl2'
-        call MPI_FINALIZE(ierr)
-        if (present(info)) then
-            info = myio_err_inputfile
-            return
-        else
-            stop
-        endif
-
+        info = myio_err_inputfile
+    
     endif
-
 
 end subroutine  set_value_MgCl2
 
@@ -1396,6 +1404,9 @@ subroutine output_nucl_mul
     write(un_sys,*)'K0ionNa     = ',K0ionNa
     write(un_sys,*)'K0ionK      = ',K0ionK
     write(un_sys,*)'dielectW    = ',dielectW
+    if(runtype=="rangedielect") then 
+        write(un_sys,*)'dielectscale = ',dielectscale%val
+    endif    
     write(un_sys,*)'lb          = ',lb
     write(un_sys,*)'T           = ',Tref
 
@@ -1740,7 +1751,10 @@ subroutine output_elect
     write(un_sys,*)'KionK       = ',KionK
     write(un_sys,*)'K0ionNa     = ',K0ionNa
     write(un_sys,*)'K0ionK      = ',K0ionK
-    write(un_sys,*)'dielectW    = ',dielectW
+    write(un_sys,*)'dielectW    = ',dielectW 
+    if(runtype=="rangedielect") then 
+        write(un_sys,*)'dielectscale = ',dielectscale%val
+    endif  
     write(un_sys,*)'lb          = ',lb
     write(un_sys,*)'T           = ',Tref
     if(isVdW) then

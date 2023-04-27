@@ -25,8 +25,7 @@ contains
 
 subroutine make_chains(chainmethod,systype)
 
-    use mpivars, only : ierr
-    use myutils, only : print_to_log, LogUnit, lenText
+    use myutils, only : print_to_log, LogUnit, lenText, error_handler
     use myio, only : myio_err_chainmethod
 
     character(len=15), intent(in) :: chainmethod
@@ -49,14 +48,7 @@ subroutine make_chains(chainmethod,systype)
         info=myio_err_chainmethod
     end select
 
-    if(info/=0) then
-        write(istr,'(I3)')info
-        text="Error make_chains: chain generation failed: info = "//istr//" : end program."
-        call print_to_log(LogUnit,text)
-        print*,text
-        call MPI_FINALIZE(ierr)
-        stop
-    endif    
+    if(info/=0) call error_handler(info,"make_chains")
 
 end subroutine make_chains
 

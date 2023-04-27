@@ -479,11 +479,11 @@ contains
             
         do t=1,nsegtypes
             ! init 
-            avfdis(t)=0.0_dp
-            do k=1,4
-                avgdisA(t,k)=0.0_dp
+            avfdis(t)=0.0_dp ! A^-
+            do k=1,4               ! A^-, AH, ANa, AK for AA that are acid
+                avgdisA(t,k)=0.0_dp 
             enddo
-            do k=1,3
+            do k=1,3 !             ! BH^+, B, BHCl for AA that are base
                 avgdisB(t,k)=0.0_dp
             enddo
                         
@@ -711,7 +711,7 @@ contains
     end subroutine average_density_z
 
 
-    ! computes ion_exces , gamma_i per unit area 
+    ! Computes ion_exces , gamma_i 
     ! gamma_i = \int dV (\rho_i(r) -\rho_bulk)
 
     function fcn_ion_excess(xion,xionbulk,vol) result(ionexcess)
@@ -757,6 +757,8 @@ contains
          ion_excess%Hplus -ion_excess%OHmin
         
     end subroutine make_ion_excess
+
+    
     
   
 end module field

@@ -1558,8 +1558,6 @@ contains
             constqW=constqWin/dielectscale%val
         endif    
 
-        print*,"constqW=",constqW," dielectWscale%val=",dielectscale%val,"dielect=",dielectW*dielectscale%val
-
     end subroutine set_dielect_scale
 
  end module parameters
