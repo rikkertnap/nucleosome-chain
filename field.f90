@@ -758,7 +758,13 @@ contains
         
     end subroutine make_ion_excess
 
-    
+    subroutine beta_calculations
+
+        use parameters, only : xbulk, ion_excess, sum_ion_excess, beta_ion_excess
+        print*,"Here we calculate Beta"
+        
+
+    end subroutine beta_calculations    
     
   
 end module field

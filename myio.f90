@@ -1527,7 +1527,13 @@ subroutine output_nucl_mul
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
-
+    write(un_sys,*)'beta%Na         = ',beta_ion_excess%Na
+    write(un_sys,*)'beta%Cl         = ',beta_ion_excess%Cl
+    write(un_sys,*)'beta%K          = ',beta_ion_excess%K
+    write(un_sys,*)'beta%Ca         = ',beta_ion_excess%Ca
+    write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg
+    write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
+    write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
     ! .. closing files
 
@@ -2341,7 +2347,7 @@ subroutine compute_vars_and_output()
 
     use globals, only : systype,DEBUG
     use energy, only : fcnenergy,check_volume_xpol
-    use field, only : charge_polymer,average_charge_polymer,make_ion_excess
+    use field, only : charge_polymer,average_charge_polymer,make_ion_excess,beta_calculations
 
     select case (systype)
     case ("elect")
@@ -2350,6 +2356,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
+        call beta_calculations()
         call output()
 
     case ("neutral","neutralnoVdW")
@@ -2364,6 +2371,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
+        call beta_calculations()
         call output()  
         if(DEBUG) call check_volume_xpol()        
 
@@ -2373,6 +2381,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
+        call beta_calculations()
         call output()           
         if(DEBUG) call check_volume_xpol() 
 
