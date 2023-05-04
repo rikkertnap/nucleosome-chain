@@ -14,12 +14,16 @@ module chaingenerator
     integer :: conf_write
     real(dp) :: xgraftloop(3,2)
 
+    real(dp), parameter :: eps_equilat=1.0e-8_dp
+
     private 
 
     public :: make_chains, make_chains_mc,read_chains_XYZ
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     
+    private ::  eps_equilat
+
 contains
 
 
@@ -279,8 +283,9 @@ subroutine read_chains_xyz_nucl(info)
     use volume, only :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
     use myio, only : myio_err_chainsfile, myio_err_energyfile, myio_err_index
-    use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry
+    use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
+    use Eqtriangle
 
     ! .. argument
 
@@ -318,6 +323,7 @@ subroutine read_chains_xyz_nucl(info)
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
     character(len=80), parameter  :: fmt3reals = "(5F25.16)"
+    real(dp) :: equilat, equilat_rot
 
     ! .. executable statements   
 
@@ -424,10 +430,24 @@ subroutine read_chains_xyz_nucl(info)
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
 
+
+          
             ! rotate chain 
-            !call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
+            
+            ! call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
             call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations)                
 
+            ! extra test rotation
+            equilat=equilateralness_vectors(chain(:,sgraftpts(1)),chain(:,sgraftpts(2)),chain(:,sgraftpts(3)))
+            equilat_rot=equilateralness_vectors(chain_rot(:,sgraftpts(1)),chain_rot(:,sgraftpts(2)),chain_rot(:,sgraftpts(3)))
+ 
+            if( abs(equilat-equilat_rot)>=eps_equilat )  then
+                text="Equilateralness test failed : stop program"
+                call print_to_log(LogUnit,text)
+                info=myio_err_equilat 
+                return
+            endif    
+            
 
             select case (geometry)
             case ("cubic")
@@ -583,15 +603,15 @@ subroutine read_chains_xyz_nucl_volume(info)
     use mpivars, only  : rank,size                                                                                   
     use globals
     use chains
-    use random
+    !use random
     use parameters
     use volume, only   :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test 
     use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
-    use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry
+    use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
-
+    use Eqtriangle
 
     ! .. argument
 
@@ -631,6 +651,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     logical :: isReadGood
     integer :: nrotpts
     character(len=80), parameter  :: fmt3reals = "(5F25.16)"
+    real(dp) :: equilat,equilat_rot
     integer :: nelem2(3),nsegAA2 
     integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     integer  :: orient_triplet_ref(3)
@@ -689,7 +710,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
-    seed=435672              ! seed for random number generator                                                                               
+    !seed=435672              ! seed for random number generator                                                                               
     
     ios=0
 
@@ -787,6 +808,17 @@ subroutine read_chains_xyz_nucl_volume(info)
             
             call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations) 
            
+            ! extra test rotation
+            equilat=equilateralness_vectors(chain(:,sgraftpts(1)),chain(:,sgraftpts(2)),chain(:,sgraftpts(3)))
+            equilat_rot=equilateralness_vectors(chain_rot(:,sgraftpts(1)),chain_rot(:,sgraftpts(2)),chain_rot(:,sgraftpts(3)))
+ 
+            if( abs(equilat-equilat_rot)>=eps_equilat )  then
+                text="Equilateralness test failed : stop program"
+                call print_to_log(LogUnit,text)
+                info=myio_err_equilat 
+                return
+            endif  
+
             ! 1. determine orientation chain_rot : n 
             ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of reference in chain_elem
                 

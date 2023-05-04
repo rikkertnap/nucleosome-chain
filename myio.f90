@@ -28,6 +28,7 @@ module myio
     integer, parameter ::  myio_err_inputlabel = 21
     integer, parameter ::  myio_err_readfile  = 22
     integer, parameter ::  myio_err_file_exist = 23
+    integer, parameter ::  myio_err_equilat   = 24 
 
 
     integer :: num_cNaCl   ! number of salt concentration considered
@@ -59,7 +60,7 @@ module myio
 
     public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output, write_chain_config
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
-    public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile
+    public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile, myio_err_equilat 
     public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
     public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
     public :: set_value_isVdW_on_values
