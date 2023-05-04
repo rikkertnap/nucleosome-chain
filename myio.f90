@@ -1158,7 +1158,8 @@ subroutine output()
 
     case("nucl_neutral_sv")
 
-        call output_neutral()   
+        call output_neutral  
+        call output_individualcontr_fe 
 
     case default
 
@@ -1964,11 +1965,20 @@ subroutine output_neutral
     open(unit=newunit(un_dist),file=spacingfilename)
 
     !  .. writting files
+    if(systype=="neutralnoVdW") then
+        do i=1,nsize
+            write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+            write(un_xsol,fmt1reals)xsol(i)
+        enddo
+    endif 
+    if(systype=="nucl_neutral_sv") then
+        do i=1,nsize
+            !write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+            write(un_xpol,fmtNplus1reals)xpol(i),(xpol_t(i,t)/vnucl(1,t),t=1,nsegtypes)
+            write(un_xsol,fmt1reals)xsol(i)
+        enddo
+    endif 
 
-    do i=1,nsize
-       write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-       write(un_xsol,fmt1reals)xsol(i)
-    enddo
 
     !  .. output of bond and dihedral angles
    
@@ -2035,6 +2045,7 @@ subroutine output_neutral
     write(un_sys,*)'FEpi        = ',FEpi
     write(un_sys,*)'FErho       = ',FErho
     write(un_sys,*)'FEVdW       = ',FEVdW
+    write(un_sys,*)'Eshift      = ',Eshift
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'mu          = ',-log(q)
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
@@ -2405,7 +2416,7 @@ subroutine write_chain_config()
 
     use mpivars, only : rank
     use globals, only: nseg, nsegtypes
-    use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer,type_of_charge
+    use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer,type_of_charge, ismonomer_chargeable 
     use chains, only : mapping_num_to_char
     use parameters, only : lseg,lsegAA,vpol, vsol
     use myutils, only : newunit
@@ -2423,9 +2434,9 @@ subroutine write_chain_config()
         open(unit=newunit(un_cc),file=fname)
 
         write(un_cc,*)"chain configuration summary"
-        write(un_cc,*)"#nsegtypes char charge type "
+        write(un_cc,*)"#nsegtypes char charge_type chargeable"
         do i=1,nsegtypes
-            write(un_cc,*)i,mapping_num_to_char(i),' ',type_of_charge(i)
+            write(un_cc,*)i,mapping_num_to_char(i),' ',type_of_charge(i),' ',ismonomer_chargeable(i) 
         enddo
         write(un_cc,*)"###"
         write(un_cc,*)"lseg=",lseg

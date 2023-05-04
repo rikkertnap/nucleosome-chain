@@ -106,11 +106,8 @@ program main
     call set_mapping_num_to_char(mapping_num_to_char)
        
     ! init distributed volume  
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then    
-        call init_vnucl_type() 
-        call allocate_vnucl()                   ! ismonomer_chargable etc needs to be set 
-        call init_vnucl()
-    endif   
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") call init_vnucl_type() ! ismonomer_chargable etc needs to be set 
+        
 
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
@@ -132,7 +129,7 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info)
-
+   
     !  .. computation starts
 
     allocate(xstored(neq))
@@ -162,24 +159,24 @@ program main
         call set_value_MgCl2(runtype,info)
         call error_handler(info,"set_value_MgCl2")
 
-        num=num_cMgCl2
-        list=>cMgCl2_array
+        num = num_cMgCl2
+        list => cMgCl2_array
         list_val => cMgCl2
 
     else if(runtype=="inputcsKClpH") then
         call set_value_KCl(runtype,info)
         call error_handler(info,"set_value_KCl")
         
-        num=num_cKCl
-        list=>cKCl_array
+        num = num_cKCl
+        list => cKCl_array
         list_val => cKCl
 
     else 
+
         call set_value_NaCl(runtype,info)
-        print*,"info=",info
         call error_handler(info,"set_value_NaCl")
-        num=num_cNaCl
-        list=>cNaCl_array
+        num = num_cNaCl
+        list => cNaCl_array
         list_val => cNaCl ! pointer points to target  cNaCl
 
     endif
@@ -190,19 +187,19 @@ program main
     iter = 0                    ! iteration counter
 
     if(loop%stepsize>0) then
-        loop%val=loop%min
+        loop%val = loop%min
     else
-        loop%val=loop%max
+        loop%val = loop%max
     endif
 
     call set_fcn()
      
-    loopstepsizebegin=loop%stepsize
-    list_val=list(1)                ! get value from array
-    nlist_elem=1
-    maxlist_elem=num
-    nlist_step=0
-    maxlist_step=99
+    loopstepsizebegin = loop%stepsize
+    list_val = list(1)                ! get value from array
+    nlist_elem = 1
+    maxlist_elem = num
+    nlist_step = 0
+    maxlist_step = 99
 
     do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
 

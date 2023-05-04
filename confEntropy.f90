@@ -1066,7 +1066,7 @@ contains
 
         !     .. executable statements 
         do i=1,nsize   
-            lnexppivw(i) = log(xsol(i)/vsol)
+            lnexppivw(i) = log(xsol(i))/vsol
         enddo
             
         do t=1,nsegtypes
@@ -1222,7 +1222,7 @@ contains
         !     .. executable statements 
 
         do i=1,nsize
-            lnexppi(i) = log(xsol(i)/vsol) 
+            lnexppi(i) = log(xsol(i))/vsol 
         enddo    
         
        ! if(isVdW) then 

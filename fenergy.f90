@@ -24,7 +24,7 @@ module energy
     real(dp) :: FEelsurf(2)         ! electrostatics energy from  surface
     real(dp) :: FEelvar             ! electrostatics energy contrbution to total free energy from palpha due to varying dielectric 
     real(dp) :: FEelvarborn         ! electrostatics energy contrbution to total free energy from palpha due to Born self-energy 
-    real(dp) :: FEborn             ! Born self-ßenergy  
+    real(dp) :: FEborn              ! Born self-energy  
     real(dp) :: FEchemsurf(2)       ! chemical free energy surface
     real(dp) :: FEchem
     real(dp) :: FEbind,FEbindA,FEbindB    ! complexation contribution
@@ -94,6 +94,7 @@ contains
         case ("nucl_neutral_sv")  
             
             call fcnenergy_neutral_sv() 
+            call fcnenergy_neutral_sv_alternative() 
 
         case default  
 
@@ -513,7 +514,7 @@ contains
         use globals, only : nsize, nseg, nsegtypes
         use volume, only : volcell
         use parameters
-        use field, only : xsol, rhopol, q, lnproshift
+        use field, only : xsol, xpol_t, rhopol, q, lnproshift
         use VdW, only : VdW_energy
     
 
@@ -523,6 +524,7 @@ contains
         real(dp) :: volumelat          ! volume lattice 
         integer  :: ier
         logical  :: alloc_fail
+        real(dp) :: vnucltot
 
         if (.not. allocated(sumphi))  then 
             allocate(sumphi(nsegtypes),stat=ier)
@@ -548,16 +550,15 @@ contains
             FErho = FErho - xsol(i) 
         enddo
 
-        checkphi=nseg
+        ! for systype=nucl_neutral_sv no rhopol used !!
+
         do t=1,nsegtypes
-            sumphi(t)=0.0_dp
-            do i=1,nsize    
-                sumphi(t) = sumphi(t) + rhopol(i,t)
-            enddo
-            sumphi(t) = volcell*sumphi(t)
-            checkphi = checkphi-sumphi(t)
+            sumphi(t) = sum(xpol_t(:,t))
+            vnucltot  = sum(vnucl(:,t))
+            sumphi(t) = volcell*sumphi(t)/vnucltot
         enddo
-    
+        checkphi=nseg-sum(sumphi)
+
         FEpi  = (volcell/vsol)*FEpi
         FErho = (volcell/vsol)*FErho
     
@@ -688,7 +689,7 @@ contains
         ! .. summing all contributions
         
         FEalt = FEtrans%sol + FEchempot%sol 
-        FEalt= FEalt +FEconf -FEVdW+Econf
+        FEalt = FEalt +FEconf -FEVdW+Econf
 
     
         ! .. delta translational entropy
@@ -704,8 +705,8 @@ contains
         FEbulkalt = volumelat*FEbulkalt
 
         ! .. delta
-        deltaFEtrans%sol   = FEtrans%sol  - FEtransbulk%sol * volumelat
-        deltaFEchempot%sol   = FEchempot%sol  - FEchempotbulk%sol * volumelat
+        deltaFEtrans%sol = FEtrans%sol  - FEtransbulk%sol * volumelat
+        deltaFEchempot%sol = FEchempot%sol  - FEchempotbulk%sol * volumelat
 
         ! .. differences
 
@@ -713,6 +714,54 @@ contains
 
     
     end subroutine fcnenergy_neutral_alternative
+
+    subroutine fcnenergy_neutral_sv_alternative()
+
+        !  .. variable and constant declaractions 
+    
+        use globals, only : nsize, nseg, nsegtypes
+        use volume, only : volcell
+        use parameters
+        use field
+        use VdW
+        use conform_entropy
+ 
+        real(dp) :: volumelat          ! volume lattice 
+        
+        ! .. translational entropy
+        FEtrans%sol=FEtrans_entropy(xsol,xbulk%sol,vsol,"w") 
+       
+        ! .. chemical potential + standard chemical potential 
+        FEchempot%sol   = 0.0_dp ! by construction 
+
+    
+        ! .. summing all contributions
+        
+        FEalt = FEtrans%sol + FEchempot%sol + FEconf - FEVdW + Econf
+
+    
+        ! .. delta translational entropy
+        FEtransbulk%sol = FEtrans_entropy_bulk(xbulk%sol,vsol,"w") 
+
+        ! .. delta chemical potential + standard chemical potential 
+        FEchempotbulk%sol = 0.0_dp ! by construction 
+        
+        ! .. bulk free energy
+        volumelat = volcell*nsize   ! volume lattice 
+        FEbulkalt = FEtransbulk%sol +FEchempotbulk%sol 
+
+        FEbulkalt = volumelat*FEbulkalt
+
+        ! .. delta
+        deltaFEtrans%sol = FEtrans%sol  - FEtransbulk%sol * volumelat
+        deltaFEchempot%sol = FEchempot%sol  - FEchempotbulk%sol * volumelat
+
+        ! .. differences
+
+        deltaFEalt = FEalt - FEbulkalt
+
+    
+    end subroutine fcnenergy_neutral_sv_alternative
 
 
     real(dp) function FEtrans_entropy(xvol,xvolbulk,vol,flag)
@@ -725,19 +774,17 @@ contains
         real(dp), intent(in) :: xvol(nsize)
         real(dp), intent(in) :: xvolbulk 
         real(dp), intent(in) :: vol    
-        character(len=1), optional :: flag    
+        character(len=1), optional, intent(in) :: flag    
 
         integer :: i
 
-
         if(xvolbulk==0.0_dp) then 
-            FEtrans_entropy=0.0_dp
+            FEtrans_entropy = 0.0_dp
         else
-            FEtrans_entropy=0.0_dp
-            if(present(flag)) then
-            ! water special case because vsol treated different then vi  
+            FEtrans_entropy = 0.0_dp
+            if(present(flag)) then   ! water special case because vsol treated different then vi  
                 do i=1,nsize
-                    FEtrans_entropy=FEtrans_entropy + xvol(i)*(log(xvol(i))-1.0_dp)
+                    FEtrans_entropy = FEtrans_entropy + xvol(i)*(log(xvol(i))-1.0_dp)
                 enddo 
                 FEtrans_entropy = volcell*FEtrans_entropy/vol
             else 
@@ -761,7 +808,7 @@ contains
         real(dp), intent(in) :: xvol(nsize)
         real(dp), intent(in) :: expchempot 
         real(dp), intent(in) :: vol    
-        character(len=1), optional :: flag    
+        character(len=1), optional, intent(in) :: flag    
 
         ! .. local 
         integer :: i
@@ -769,21 +816,21 @@ contains
         real(dp) :: sumdens 
 
         if(expchempot==0.0_dp) then 
-            FEchem_pot=0.0_dp
+            FEchem_pot = 0.0_dp
         else     
             sumdens=0.0_dp
             if(present(flag)) then  ! water special case because vsol treated diffetent then vi
                 chempot = -log(expchempot)    
                 do i=1,nsize
-                    sumdens=sumdens +xvol(i)
+                    sumdens = sumdens +xvol(i)
                 enddo
-                FEchem_pot=volcell*chempot*sumdens/vol            
+                FEchem_pot = volcell*chempot*sumdens/vol            
             else
                 chempot = -log(expchempot/vol)    
                 do i=1,nsize
-                    sumdens=sumdens +xvol(i)
+                    sumdens = sumdens +xvol(i)
                 enddo
-                FEchem_pot=volcell*chempot*sumdens/(vol*vsol)               
+                FEchem_pot = volcell*chempot*sumdens/(vol*vsol)               
             endif
         endif
 
@@ -798,10 +845,9 @@ contains
 
         real(dp), intent(in) :: xvolbulk 
         real(dp), intent(in) :: vol    
-        character(len=1), optional :: flag    
+        character(len=1), optional, intent(in) :: flag    
 
         integer :: i
-
 
         if(xvolbulk==0.0_dp) then 
             FEtrans_entropy_bulk=0.0_dp
@@ -827,7 +873,7 @@ contains
         real(dp), intent(in) :: xvolbulk
         real(dp), intent(in) :: expchempot 
         real(dp), intent(in) :: vol    
-        character(len=1), optional :: flag    
+        character(len=1), optional, intent(in) :: flag    
 
         ! .. local 
         integer :: i
@@ -835,12 +881,12 @@ contains
         real(dp) :: sumdens 
 
         if(expchempot==0.0_dp) then 
-            FEchem_pot_bulk=0.0_dp
+            FEchem_pot_bulk = 0.0_dp
         else     
             if(present(flag)) then  ! water special case because vsol treated diffetent then vi
-                FEchem_pot_bulk=-log(expchempot)*xvolbulk/vol            
+                FEchem_pot_bulk = -log(expchempot)*xvolbulk/vol            
             else
-                FEchem_pot_bulk=-log(expchempot/vol)*xvolbulk/(vol*vsol)               
+                FEchem_pot_bulk = -log(expchempot/vol)*xvolbulk/(vol*vsol)               
             endif
         endif
 

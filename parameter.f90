@@ -949,11 +949,13 @@ contains
     end subroutine init_volume_pol
         
 
-    subroutine allocate_vnucl
+    subroutine allocate_vnucl(nelemtypes)
 
         use globals, only : nsegtypes,systype
 
-        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") allocate(vnucl(13,nsegtypes))
+        integer, intent(in) :: nelemtypes
+
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") allocate(vnucl(nelemtypes,nsegtypes))
 
     end subroutine allocate_vnucl   
 
@@ -1387,6 +1389,8 @@ contains
         ios  = 0
         read(un,*,iostat=ios)nelemtypes                    ! read first line
         call allocate_vnucl_type(nelemtypes) ! allocate vnucl_type,vnucl_type_char
+        call allocate_vnucl(nelemtypes) ! allocate vnucl
+        call init_vnucl()
 
         line = 0
         ios  = 0

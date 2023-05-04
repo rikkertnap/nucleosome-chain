@@ -155,7 +155,6 @@ contains
     end subroutine init_field
 
 
-    !  debug routine
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
@@ -163,6 +162,7 @@ contains
         use globals, only : nsize, systype, nseg, nsegtypes
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
+
         integer :: t,i
         real(dp) :: intrhopol
 

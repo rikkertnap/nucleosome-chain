@@ -1297,7 +1297,7 @@ contains
             xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
 
-            lnexppivw(i) = log(xsol(i)/vsol)                      ! auxilary variable DO  divide by vsol  !!!!!!!!!
+            lnexppivw(i) = log(xsol(i))/vsol                      ! auxilary variable DO  divide by vsol  !!!!!!!!!
  
         enddo
 
@@ -1623,7 +1623,7 @@ contains
         use parameters, only : iter
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem  
-        use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol
+        use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t xpol_tot pointer to xpol !!!
         use field, only      : q, lnproshift
         use vectornorm, only : L2norm_f90
 
@@ -1674,7 +1674,7 @@ contains
         enddo    
        
         do i=1,nsize                              
-            lnexppi(i) = log(xsol(i)/vsol)      ! auxilary variable do devide by vsol vnucl not doivide by 
+            lnexppi(i) = log(xsol(i))/vsol      ! auxilary variable, devide by vsol because vnucl not devide by vsol 
         enddo      
                
     
@@ -3001,7 +3001,7 @@ contains
         do t=1,nsegtypes
             do i=1,n
                 !fdis(i,t)  = 0.0_dp
-                lnexppi(i,t) = log(xsol(i))*vpol(t)  
+                lnexppi(i,t) = log(xsol(i))*vpol(t) 
             enddo
         enddo      
 

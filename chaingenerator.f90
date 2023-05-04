@@ -707,9 +707,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     !nrotpts=rotation_triplets(1)
     
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
-
-                                 
-
+                        
     call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
     call print_nucl_elements(nsegAA,nelemAA,chain_elem)
     call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
@@ -717,16 +715,17 @@ subroutine read_chains_xyz_nucl_volume(info)
     call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
     call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
 
-    !do i=1,nnucl
-    !    print*," sAAstart ",segnumAAstart(i)," sAAend ",segnumAAend(i)
-    !enddo    
+    do i=1,nnucl
+        print*," sAAstart ",segnumAAstart(i)," sAAend ",segnumAAend(i)
+    enddo    
 
     ! compare ORDER of sgraftpts and orientation triplets !!!!!!!
     do i=1,3
         orient_triplet_ref(i)=orientation_triplets(1,i)-segnumAAstart(1)+1
+        print*,"orient_triplet_ref(",i,")=",orient_triplet_ref(i)," original ",orientation_triplets(1,i)
     enddo
 
-    ! make chain_elem realative to CA of AA of CM rotation i.e., sgraftpts
+    ! make chain_elem relative to CA of AA of CM rotation i.e., sgraftpts
     call shift_nucl_elements(nsegAA,nelemAA,orient_triplet_ref(1),chain_elem)
     call print_nucl_elements(nsegAA,nelemAA,chain_elem)
 
@@ -789,7 +788,7 @@ subroutine read_chains_xyz_nucl_volume(info)
             call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations) 
            
             ! 1. determine orientation chain_rot : n 
-            ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of referece in chain_elem
+            ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of reference in chain_elem
                 
             call orientation_vector(chain_rot,orientation_triplets,orient_vectors)
 
@@ -849,7 +848,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                         
                         call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
-                        indexconf(s,conf)%elem(j) = idx ! CA element
+                        indexconf(s,conf)%elem(j) = idx ! all other element
 
                         if(idx<=0.or.idx>nsize) then   
 
@@ -861,7 +860,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                             return
                         endif
 
-                    enddo 
+                    enddo
                     
                 enddo
 
@@ -938,13 +937,13 @@ subroutine read_chains_xyz_nucl_volume(info)
     conf=conf-1  ! lower by one  
 
     if(conf<max_confor) then
-        print*,"subroutine make_chains_XYZ_nucl :" 
+        print*,"subroutine make_chains_xyz_nucl_volume :" 
         print*,"conf     = ",conf," less then imposed max cuantas     = ",max_confor
         print*,"conffile = ",conffile
         cuantas=conf   
         info=myio_err_conf        
     else
-        text="Chains generated: subroutine make_chains_XYZ_nucl"
+        text="Chains generated: subroutine make_chains_xyz_nucl_volume"
         call print_to_log(LogUnit,text)
         readinchains=conffile
         info=0
@@ -964,8 +963,6 @@ subroutine read_chains_xyz_nucl_volume(info)
     call normed_weightchains()     
 
     deallocate(energychain) ! free unused variables 
-    print*,"--> end of read chains_xyz_nucl_volume" 
-
     
 end subroutine read_chains_xyz_nucl_volume
 
@@ -2322,20 +2319,21 @@ end subroutine set_mapping_num_to_char
 ! reads in MT pdb file to assign 
 ! input  : fname   = char(*)  filename of MTpdb file ) 
 !        : nsegAA  = integer = number of AA residues
-!        : typesAA = array of integer the s element given number of AA type
-! output : chain_elem(3,s)%elem(j) = position of jthe element of AA number s. Enumarate the AA inorder
-!        : vnucl(j,s) = real(dp) volume of AA  element j of AA number s '
+!        : typesAA = array of integer:  the s element gives number of AA type
+!        : nelemAA = array of integer:  teh s element  gives number of element the sth AA consits of
+! output : chain_elem(3,s)%elem(j) = position of jthe element of AA number s. Enumarate the AA in order
+!        : vnucl(j,t) = real(dp) volume of AA  element j of AA type number t
 !        : nsegAA   = integer = number of AAs
 !        : nelem(s) = array of integer number of elements of AA number s
 !        : info     = integer val=0 assignment  succesfull val/=0 error              
 
 subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
 
-    use globals, only : DEBUG
+    use globals, only : DEBUG, nsegtypes,nsegtypesAA
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
-    use parameters, only : lenfname
-    use chains, only : var_darray, ismonomer_chargeable 
+    use parameters, only : lenfname, vpol, vsol
+    use chains, only : var_darray, ismonomer_chargeable, mapping_num_to_char
 
     character(lenfname),   intent(in)                            :: fname
     integer,               intent(in)                            :: nsegAA
@@ -2348,11 +2346,15 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     ! local arguments
 
-    integer   :: ios, un, s, AAid, j, k
+    integer   :: ios, un, s, j, k, ttype ,t
     character(len=3) :: elem_type(20), voltype
     real(dp)  :: x(3)
     logical   :: isReadGood
     integer   :: num_elem_CA
+    character(len=3) :: list_type_char_DNA(6)  ! list of DNA elements in char
+    integer          :: list_type_int_DNA(6)   ! list of DNA elements in integer 
+    integer          ::  AAid, DNAid
+    character(len=3) :: type_char  
 
     if (present(info)) info = 0
 
@@ -2366,9 +2368,10 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
     allocate(chain_elem(3,nsegAA))
 
     do s=1,nsegAA
+
         read(un,*,iostat=ios) ! comment
         if(ios/=0) isReadGood=.false.
-        read(un,*,iostat=ios) AAid
+        read(un,*,iostat=ios) AAid ! type number
         if(ios/=0) isReadGood=.false.
         read(un,*,iostat=ios) nelemAA(s)
         if(ios/=0) isReadGood=.false.
@@ -2379,17 +2382,26 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
         
         elem_type=""
         do j=1,nelemAA(s)    
+            
             read(un,*,iostat=ios)elem_type(j),x(1),x(2),x(3) 
+            
             do k=1,3
                 chain_elem(k,s)%elem(j)=x(k)
-            enddo    
-            vnucl(j,s)=find_vol_elem(elem_type(j))
+            enddo  
+            
+            vnucl(j,AAid)=find_vol_elem(elem_type(j))  
+            ! assignment doubles since multiple s (AAs) corresponds to same type ( AAid) 
+            
             if(ios/=0) isReadGood=.false.
+
         enddo 
 
         num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
 
-        if(ismonomer_chargeable(s)) then 
+    
+        print*,"AAId=", AAid," chargeable ",ismonomer_chargeable(AAid)
+
+        if(ismonomer_chargeable(AAid )) then ! ismonomer_chargeable has type number as input !! 
             elem_charge(s)=find_chargeable_elem(elem_type,nelemAA(s))
         else 
             elem_charge(s)=-1
@@ -2400,13 +2412,17 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
         ! print*,"elem_type=",elem_type
         ! print*,"num_elem_CA=",num_elem_CA
 
-        if(num_elem_CA/=1) then  ! swapping
+        if(num_elem_CA/=1) then 
+            ! swapping
             call swap_char3(elem_type(num_elem_CA),elem_type(1))
-            call swap_real(vnucl(num_elem_CA,s), vnucl(1,s))
+            !call swap_real(vnucl(num_elem_CA,s), vnucl(1,s))
+            call swap_real(vnucl(num_elem_CA,AAid), vnucl(1,AAid))
+
             do k=1,3
                 call swap_real(chain_elem(k,s)%elem(num_elem_CA),chain_elem(k,s)%elem(1))
             enddo
-        endif        
+        endif  
+
         num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
 
         if(DEBUG) then 
@@ -2416,7 +2432,35 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     enddo
     
+    ! .. assign volume to vnucl that is from  DNA elements 
+    ! .. above loops ssign vnucl only includes AA that are in the MT pdb file  
+    
+    list_type_char_DNA = (/"P  ","S  ","A  ","C  ","G  ","T  "/)
+    list_type_int_DNA  = 0
+
+    ! .. make list_type_int_DNA"
+
+    do k=1,6                                ! 6 = number DNA elements 
+        type_char= list_type_char_DNA(k)
+        do t=1,nsegtypes
+            if( mapping_num_to_char(t) == type_char)  then 
+                list_type_int_DNA(k)=t
+            endif
+        enddo 
+    enddo
+
+    do k=1,6
+        DNAid=list_type_int_DNA(k)
+        print*,"DNAid=",DNAid
+        if(DNAid/=0) then  ! in case the conformation is incomplete adn does not 
+            vnucl(1,DNAid) = vpol(DNAid)*vsol
+        endif
+    enddo 
+
+    ! .. end assignment DNA volume 
+
     if(DEBUG) then 
+        print*,"DEBUG: output of read_nucl_elements"
         do s=1,nsegAA
             do k=1,3
                 do j=1,nelemAA(s)
@@ -2426,10 +2470,20 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
         enddo
     endif     
         
+    if(DEBUG) then 
+        print*,"DEBUG: output of read_nucl_elements volumes"
+        do t=1,nsegtypes
+            do j=1,nsegtypesAA
+                print*,"j=",j," t=",t," ",vnucl(j,t)
+            enddo 
+        enddo
+    endif       
+
+
 
 end subroutine read_nucl_elements
 
-! Shift chain_elem(k,s)%elem(j) by position of tehr CA of AA that is the origin of the "CM" rotation triplet
+! Shift chain_elem(k,s)%elem(j) by position of the CA of AA that is the origin of the "CM" rotation triplet
 ! translation vector is chain_CA(k)=chain_elem(k,segnumcm)%elem(1)
 
 subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
@@ -2444,6 +2498,8 @@ subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
     integer :: s,k,j,i
     real(dp) :: chain_CA(3)
 
+    print*,"segnumcm=",segnumcm
+ 
     ! translation vector
     do i=1,3 
         chain_CA(i)=chain_elem(i,segnumcm)%elem(1) ! 1= CA
@@ -2554,7 +2610,6 @@ end function find_chargeable_elem
 
 
 
-
 subroutine swap_int(a,b)
     
     integer, intent(inout) :: a, b
@@ -2588,6 +2643,7 @@ subroutine swap_char3(a,b)
     b = tmp 
 
 end subroutine  swap_char3
+
 
 
 subroutine read_nucl_orient_triplets(fname,nnucl,nuc_orient_triplet,info)
@@ -2768,7 +2824,7 @@ end subroutine compute_segnumAAstart
 ! Computes segment numbers that correspond to last AA of nth nucleosome.
 ! inputs : nnucl     = number of nuclesomes
 !          nsegAA    = number of AA segments per nucleosome
-!          segnumAAstart = segment numbers that correspond to last AA of nth nucleosome.
+!          segnumAAstart = segment numbers that correspond to first AA of nth nucleosome.
 ! output : segnumAAsend = array of integer = nth val= segment number that is last AA of nth nucleosome
 
 subroutine compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
@@ -2809,6 +2865,19 @@ subroutine make_nelem(nseg,nsegAA,nnucl,segnumAAstart,nelemAA,nelem)
 end subroutine make_nelem
 
 
+! Computes chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j
+! by adding chain_elem_rot to chain_rot(k,s)
+! Note chain_elem_rot distance relative to cm such be relative to location CA of every AA  
+! inputs : nseg      = number of segments
+!          nsegAA    = number of AA segments per nucleosome
+!          nnucl     = number of nucleosomes
+!          segnumAAstart = segment numbers that corresponds to first AA of nth nucleosome
+!          segnumAAsend  = segment numbers that corresponds to last AA of nth nucleosome
+!          nelemAA   = array list number elements for each segments
+!          chain_rot = array of coordinates of chain for AA only the CA elements
+!          chain_elem_rot => chain_elem_rot(k,sn,n)%elem(j) orienteted AA elements for n nucleosome
+! output : chain_elem_index => chain_index(k,s)%elem(j) = coordinate (component k) of segment s and element j
+
 
 subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
     chain_rot,chain_elem_rot,chain_elem_index) 
@@ -2827,13 +2896,15 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
 
     integer :: n, s, j, k, sn
 
+    ! chain_elem_rot distance relative to cm such be relative to location CA of every AA  
+
     ! AA coordinates
-    do n=1,nnucl 
-        do sn=1,nsegAA
-            s=sn+segnumAAstart(n)-1
-            do j=1,nelemAA(sn)
+    do n=1,nnucl                    ! loop over number of nucleosomes
+        do sn=1,nsegAA              ! loop over number of AA 
+            s=sn+segnumAAstart(n)-1 ! segment number 
+            do j=1,nelemAA(sn)      ! loop over number of chain elements for segment s 
                 do k=1,3
-                    chain_elem_index(k,s)%elem(j)= chain_rot(k,s)+chain_elem_rot(k,sn,n)%elem(j)
+                    chain_elem_index(k,s)%elem(j)= chain_rot(k,s)+(chain_elem_rot(k,sn,n)%elem(j)-chain_elem_rot(k,sn,n)%elem(1))
                 enddo
             enddo 
         enddo 
