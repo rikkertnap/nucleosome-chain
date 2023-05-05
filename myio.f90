@@ -2358,8 +2358,8 @@ end subroutine copy_solution
 subroutine compute_vars_and_output()
 
     use globals, only : systype,DEBUG
-    use energy, only : fcnenergy,check_volume_xpol
-    use field, only : charge_polymer,average_charge_polymer,make_ion_excess,beta_calculations
+    use energy, only : fcnenergy,check_volume_xpol,sumphi
+    use field, only : charge_polymer,average_charge_polymer,make_ion_excess,make_beta
 
     select case (systype)
     case ("elect")
@@ -2368,7 +2368,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
-        call beta_calculations()
+        call make_beta(sumphi)
         call output()
 
     case ("neutral","neutralnoVdW")
@@ -2383,7 +2383,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
-        call beta_calculations()
+        call make_beta(sumphi)
         call output()  
         if(DEBUG) call check_volume_xpol()        
 
@@ -2393,7 +2393,7 @@ subroutine compute_vars_and_output()
         call charge_polymer()
         call average_charge_polymer()
         call make_ion_excess()
-        call beta_calculations()
+        call make_beta(sumphi)
         call output()           
         if(DEBUG) call check_volume_xpol() 
 

@@ -155,6 +155,7 @@ contains
     end subroutine init_field
 
 
+    !  debug routine
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
@@ -162,7 +163,6 @@ contains
         use globals, only : nsize, systype, nseg, nsegtypes
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
-
         integer :: t,i
         real(dp) :: intrhopol
 
@@ -758,14 +758,48 @@ contains
         
     end subroutine make_ion_excess
 
-    subroutine beta_calculations
+    ! pre : make_ion_excess needed to be called ion_excess
+    ! input numberelem :  array contain the total elements of all types
+    ! output assigns : beta_ion_excess  
+  
+    subroutine make_beta(numberelem)
 
-        use parameters, only : xbulk, ion_excess, sum_ion_excess, beta_ion_excess
-        print*,"Here we calculate Beta"
+        use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
+        use globals, only : nsegtypes
+        use molecules, only : moleclist
+        ! argument list
+
+        real(dp), dimension(:) , allocatable :: numberelem ! array contain the total elements of all types
         
+        ! local variable
 
-    end subroutine beta_calculations    
+        type(moleclist) :: ion_excess_tot 
+        real(dp) :: qnucl
+        integer :: t
+
+
+        ! run part
+
+        do t=1,nsegtypes
+              ion_excess_tot%Na = ion_excess_tot%Na + ion_excess%Na + (avgdisA(t,3) * numberelem(t)) 
+              ion_excess_tot%K  = ion_excess_tot%K  + ion_excess%K  + (avgdisA(t,4) * numberelem(t))
+              ion_excess_tot%Cl = ion_excess_tot%Cl + ion_excess%Cl + (avgdisB(t,3) * numberelem(t)) 
+        enddo
+
+        ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(17)) ! Na-phosphate 
+        ion_excess_tot%K  = ion_excess_tot%K + (avfdisA(8)*numberelem(17)) ! K-phosphate
+        
+       ! Calculating little q 
+
+       qnucl = ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl
+
+       ! Calculating individual betas
+
+       beta_ion_excess%Na =  ion_excess_tot%Na / abs(qnucl)
+       beta_ion_excess%K =   ion_excess_tot%K  / abs(qnucl)
+       beta_ion_excess%Cl = -ion_excess_tot%Cl / abs(qnucl)
     
+    end subroutine make_beta    
   
 end module field
 
