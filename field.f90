@@ -758,15 +758,18 @@ contains
         
     end subroutine make_ion_excess
 
-    ! pre : make_ion_excess needed to be called ion_excess
+    ! pre : make_ion_excess needed to be called before ion_excess
     ! input numberelem :  array contain the total elements of all types
     ! output assigns : beta_ion_excess  
+    ! definitions beta_i = z_i * \Gamma_i / |qnucl|
   
     subroutine make_beta(numberelem)
 
         use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
+        use parameters, only : index_Phos=>ta ! index of phosphate 
         use globals, only : nsegtypes
         use molecules, only : moleclist
+
         ! argument list
 
         real(dp), dimension(:) , allocatable :: numberelem ! array contain the total elements of all types
@@ -786,8 +789,8 @@ contains
               ion_excess_tot%Cl = ion_excess_tot%Cl + ion_excess%Cl + (avgdisB(t,3) * numberelem(t)) 
         enddo
 
-        ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(17)) ! Na-phosphate 
-        ion_excess_tot%K  = ion_excess_tot%K + (avfdisA(8)*numberelem(17)) ! K-phosphate
+        ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
+        ion_excess_tot%K  = ion_excess_tot%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
         
        ! Calculating little q 
 

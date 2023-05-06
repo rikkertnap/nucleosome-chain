@@ -1187,8 +1187,6 @@ contains
     end subroutine fcnnucl_ionbin
 
 
-    
-
 
     ! nucleosome of AA and dna polymers
     ! with ion charegeable group being on one acid (tA) with counterion binding etc 
@@ -1280,6 +1278,7 @@ contains
             do i=1,n
                 xpol(i,t)  = 0.0_dp 
                 rhopol(i,t)= 0.0_dp 
+                local_xpol(i,t)=0.0_dp
                 local_rhopol(i,t)=0.0_dp
                 local_rhopol_charge(i,t)=0.0_dp
             enddo    
@@ -1389,7 +1388,7 @@ contains
             else  
 
                 fdis(:,t)  = 0.0_dp
-                lnexppi(i,t) = 0.0_dp
+                lnexppi(:,t) = 0.0_dp
 
             endif   
         enddo      
@@ -1410,13 +1409,16 @@ contains
 
             lnpro = lnpro+logweightchain(c) 
             do s=1,nseg                       ! loop over segments 
-                do j=1,nelem(s)               ! loop over elements of segment  
+                t=type_of_monomer(s)
+                do j=1,nelem(s)               ! loop over elements of segment 
                     k = indexconf(s,c)%elem(j)
                     lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
                 enddo
-                k = indexconf(s,c)%elem(1)
-                t = type_of_monomer(s)                
-                lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                if(ismonomer_chargeable(t)) then
+                    jcharge=elem_charge(t)
+                    k = indexconf(s,c)%elem(jcharge) 
+                    lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                endif
             enddo     
 
         enddo
@@ -1432,13 +1434,16 @@ contains
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c) 
             do s=1,nseg                       ! loop over segments 
-                do j=1,nelem(s)               ! loop over elements of segment  
+                t = type_of_monomer(s) 
+                do j=1,nelem(s)               ! loop over elements of segment 
                     k = indexconf(s,c)%elem(j)
                     lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
                 enddo
-                k = indexconf(s,c)%elem(1)
-                t = type_of_monomer(s)                
-                lnpro = lnpro + lnexppi(k,t)  !  extra elect, VdW, and chemical contribution
+                if(ismonomer_chargeable(t)) then
+                    jcharge=elem_charge(t)
+                    k = indexconf(s,c)%elem(jcharge)
+                    lnpro = lnpro + lnexppi(k,t)            !  elect and chemical contribution
+                endif
             enddo     
 
             pro=exp(lnpro-lnproshift)   
@@ -1451,7 +1456,7 @@ contains
                     local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)  ! unnormed polymer volume fraction 
                 enddo
                 if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(s)
+                    jcharge=elem_charge(t)
                     k = indexconf(s,c)%elem(jcharge) 
                     local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
                 endif    

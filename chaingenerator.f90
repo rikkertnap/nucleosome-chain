@@ -2352,11 +2352,10 @@ end subroutine set_mapping_num_to_char
 ! input  : fname   = char(*)  filename of MTpdb file ) 
 !        : nsegAA  = integer = number of AA residues
 !        : typesAA = array of integer:  the s element gives number of AA type
-!        : nelemAA = array of integer:  teh s element  gives number of element the sth AA consits of
-! output : chain_elem(3,s)%elem(j) = position of jthe element of AA number s. Enumarate the AA in order
+! output : nelemAA = array of integer:  teh s element  gives number of element the sth AA consits of
+!        : chain_elem(3,s)%elem(j) = position of jthe element of AA number s. Enumarate the AA in order
 !        : vnucl(j,t) = real(dp) volume of AA  element j of AA type number t
-!        : nsegAA   = integer = number of AAs
-!        : nelem(s) = array of integer number of elements of AA number s
+!        : elem_charge(s) = array of integers: the element of AA element of AA s that is chargeable
 !        : info     = integer val=0 assignment  succesfull val/=0 error              
 
 subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
@@ -2378,7 +2377,7 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     ! local arguments
 
-    integer   :: ios, un, s, j, k, ttype ,t
+    integer   :: ios, un, s, sAA, j, k, ttype ,t
     character(len=3) :: elem_type(20), voltype
     real(dp)  :: x(3)
     logical   :: isReadGood
@@ -2399,44 +2398,47 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     allocate(chain_elem(3,nsegAA))
 
-    do s=1,nsegAA
+    do sAA=1,nsegAA
 
         read(un,*,iostat=ios) ! comment
         if(ios/=0) isReadGood=.false.
         read(un,*,iostat=ios) AAid ! type number
         if(ios/=0) isReadGood=.false.
-        read(un,*,iostat=ios) nelemAA(s)
+        read(un,*,iostat=ios) nelemAA(sAA)
         if(ios/=0) isReadGood=.false.
         
         do k=1,3
-            allocate(chain_elem(k,s)%elem(nelemAA(s)))
+            allocate(chain_elem(k,sAA)%elem(nelemAA(sAA)))
         enddo     
         
         elem_type=""
-        do j=1,nelemAA(s)    
+        do j=1,nelemAA(sAA)    
             
             read(un,*,iostat=ios)elem_type(j),x(1),x(2),x(3) 
             
             do k=1,3
-                chain_elem(k,s)%elem(j)=x(k)
+                chain_elem(k,sAA)%elem(j)=x(k)
             enddo  
             
             vnucl(j,AAid)=find_vol_elem(elem_type(j))  
-            ! assignment doubles since multiple s (AAs) corresponds to same type ( AAid) 
+            ! assignment doubles since multiple sAA  corresponds to same type 
             
             if(ios/=0) isReadGood=.false.
 
         enddo 
 
-        num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
+        num_elem_CA=find_CA_elem(elem_type,nelemAA(sAA))
 
     
         print*,"AAId=", AAid," chargeable ",ismonomer_chargeable(AAid)
+        print*,"elem_type=",elem_type
 
-        if(ismonomer_chargeable(AAid )) then ! ismonomer_chargeable has type number as input !! 
-            elem_charge(s)=find_chargeable_elem(elem_type,nelemAA(s))
+        ! assignment doubles since multiple sAA  corresponds to same type 
+
+        if(ismonomer_chargeable(AAid)) then ! ismonomer_chargeable has type number as input !! 
+            elem_charge(AAid)=find_chargeable_elem(elem_type,nelemAA(sAA))
         else 
-            elem_charge(s)=-1
+            elem_charge(AAid)=-1
         endif      
        
         ! place CA element in to first position j=1
@@ -2451,11 +2453,11 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
             call swap_real(vnucl(num_elem_CA,AAid), vnucl(1,AAid))
 
             do k=1,3
-                call swap_real(chain_elem(k,s)%elem(num_elem_CA),chain_elem(k,s)%elem(1))
+                call swap_real(chain_elem(k,sAA)%elem(num_elem_CA),chain_elem(k,sAA)%elem(1))
             enddo
         endif  
 
-        num_elem_CA=find_CA_elem(elem_type,nelemAA(s))
+        num_elem_CA=find_CA_elem(elem_type,nelemAA(sAA))
 
         if(DEBUG) then 
             print*,"elem_type = ",elem_type
@@ -2464,9 +2466,10 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     enddo
     
+
     ! .. assign volume to vnucl that is from  DNA elements 
-    ! .. above loops ssign vnucl only includes AA that are in the MT pdb file  
-    
+    ! .. above loops assign vnucl only for the AAs 
+
     list_type_char_DNA = (/"P  ","S  ","A  ","C  ","G  ","T  "/)
     list_type_int_DNA  = 0
 
@@ -2476,7 +2479,7 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
         type_char= list_type_char_DNA(k)
         do t=1,nsegtypes
             if( mapping_num_to_char(t) == type_char)  then 
-                list_type_int_DNA(k)=t
+                list_type_int_DNA(k) = t
             endif
         enddo 
     enddo
@@ -2484,12 +2487,28 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
     do k=1,6
         DNAid=list_type_int_DNA(k)
         print*,"DNAid=",DNAid
-        if(DNAid/=0) then  ! in case the conformation is incomplete adn does not 
+        if(DNAid/=0) then  ! in case the conformation is incomplete and does not 
             vnucl(1,DNAid) = vpol(DNAid)*vsol
         endif
     enddo 
 
     ! .. end assignment DNA volume 
+
+    ! .. assign index to elem_charge  that is from  DNA elements 
+    ! .. above loops assign elem_charge only for the AAs
+
+    do k=1,6
+        DNAid=list_type_int_DNA(k)
+        print*,"DNAid=",DNAid
+        if(DNAid/=0) then  ! in case the conformation is incomplete and does not 
+            if(list_type_char_DNA(k)=="P") then 
+                elem_charge(DNAid) = 1
+            else 
+                elem_charge(DNAid) = -1
+            endif
+        endif
+    enddo 
+
 
     if(DEBUG) then 
         print*,"DEBUG: output of read_nucl_elements"
@@ -2547,6 +2566,9 @@ subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
 
 end subroutine shift_nucl_elements
 
+! Function find array index of  elem_type that matches CA
+! input  : character(3) elem_type : array of characters denoting type
+! return : integer elem : index 
 
 function find_CA_elem(elem_type,nelem)result(elem)
 
@@ -2570,9 +2592,9 @@ end function find_CA_elem
 
 
 
-! Assign/finds volume that matches with elem_type
-! return : vol_elem
-!          if no match found vol_elem is set to 0   
+! Function assign/finds volume that matches with elem_type
+! input  : character(3) elem_type : array of characters denoting type
+! return : real(dp) vol_elem      : if no match found vol_elem is set to 0   
 
 function find_vol_elem(elem_type)result(vol_elem)
 
@@ -2604,6 +2626,11 @@ function find_vol_elem(elem_type)result(vol_elem)
 
 end function find_vol_elem
 
+! Function locates the array index of the elem_type element of AA that is chargeable 
+! input  : character(3) elem_type(*) : sequence or array of characters denoting type 
+!        : integer nelem : number of elements
+! return : integer elem : array index          
+
 function find_chargeable_elem(elem_type,nelem)result(elem)
 
     use parameters, only : vnucl_type, vnucl_type_char,vnucl_type_isChargeable
@@ -2614,8 +2641,8 @@ function find_chargeable_elem(elem_type,nelem)result(elem)
     integer :: elem, j, k, ncharge, num_elem_charge, nelem_types 
     logical :: IsNotFound
 
-    nelem_types=size(vnucl_type)
-    ncharge=0
+    nelem_types = size(vnucl_type)
+    ncharge = 0
     do k=1,nelem
         IsNotFound=.true.
         j=0
@@ -2623,12 +2650,13 @@ function find_chargeable_elem(elem_type,nelem)result(elem)
             j=j+1
             if(elem_type(k)==vnucl_type_char(j)) IsNotFound=.false.
         enddo 
-        if(vnucl_type_isChargeable(j)) then  ! j element is charged 
-            ncharge=ncharge+1  
-            num_elem_charge=j 
+        if(vnucl_type_isChargeable(j)) then  ! kth element of elem_type is charged 
+            ncharge = ncharge+1  ! raise
+            num_elem_charge = k  ! this the index of elem_type
        endif
     enddo
-    if(ncharge==1) then ! oke should be only one charge
+
+    if(ncharge==1) then !  Should be only one chargeable element  in sequence
         elem = num_elem_charge
     else if (ncharge >1 ) then 
         elem =  -1

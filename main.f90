@@ -137,6 +137,14 @@ program main
     allocate(xguess(neq))
     allocate(fvec(neq))
         
+
+    ! temp override
+    print*,"elemcharge"
+    do i=1,nsegtypes
+       print*,"elemcharge(",i,")=",elem_charge(i),"type=",mapping_num_to_char(i)
+    enddo   
+
+
     ! .. loop over pH, or pKd etc  values
 
     if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH") then 

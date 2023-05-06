@@ -93,7 +93,7 @@ contains
         allocate(nelem(nseg))
         allocate(nelemAA(nsegAA))
         allocate(typeAA(nsegtypesAA))
-        allocate(elem_charge(nseg))
+        allocate(elem_charge(nsegtypes))
 
           
     end subroutine allocate_chains

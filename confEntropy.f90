@@ -1018,7 +1018,7 @@ contains
         !  .. variables and constant declaractions 
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
-        use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain
+        use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
@@ -1031,7 +1031,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: i,j, t,g,gn,c,s,k       ! dummy indices
+        integer  :: i,j, t,g,gn,c,s,k, jcharge       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -1101,13 +1101,16 @@ contains
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c)     
             do s=1,nseg        ! loop over segments                     
+                t = type_of_monomer(s)                
                 do j=1,nelem(s)               ! loop over elements of segment  
                     k = indexconf(s,c)%elem(j)
                     lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
                 enddo
-                k = indexconf(s,c)%elem(1)
-                t = type_of_monomer(s)                
-                lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                if(ismonomer_chargeable(t)) then
+                    jcharge=elem_charge(t)
+                    k = indexconf(s,c)%elem(jcharge) 
+                    lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                endif
             enddo 
 
             pro=exp(lnpro-lnproshift)      
