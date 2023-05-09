@@ -44,12 +44,13 @@ module energy
     type(moleclist) :: FEtrans,FEchempot,FEtransbulk,FEchempotbulk
     type(moleclist) :: deltaFEtrans,deltaFEchempot
 
-    real(dp), dimension(:), allocatable :: sumphi, sumxpol ! integral over phi and xpol
+    real(dp), dimension(:), allocatable :: sumphi, sumxpol, sumrhocharge ! integral over phi and xpol
 
     real(dp) :: sumphiA             ! check integral over phiA
     real(dp) :: sumphiB             ! check integral over phiB
     real(dp) :: qres                ! charge charge
     real(dp) :: checkphi            ! check integrate over phi
+    real(dp) :: checkrhocharge
     
 !   real(dp), parameter :: sigmaTOL = 0.00000001_dp     ! tolerance of surface coverage below no polymers 
 
@@ -366,28 +367,29 @@ contains
         use surface
         use dielectric_const, only : born
         use Poisson, only :  grad_pot_sqr_eps_cubic
+        use chains, only : ismonomer_chargeable,type_of_monomer,type_of_charge
 
         !  .. local arguments 
     
-        ! real(dp) :: sigmaq0,psi0
-        ! real(dp) :: qsurf(2)           ! total charge on surface 
-        !real(dp) :: qsurfg             ! total charge on grafting surface  
         integer  :: i,j,s,g,t          ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        !integer  :: nzadius
-        !real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
         real(dp) :: FEchemSurftmp
         integer  :: ier
         logical  :: alloc_fail
         real(dp) :: sqrgradpsi(nsize)
         real(dp) :: Etotself,lbr
+        real(dp) :: vnucltot
+        integer  :: ncharge
 
         
         if (.not. allocated(sumphi))  then 
             allocate(sumphi(nsegtypes),stat=ier)
             if( ier/=0 ) alloc_fail=.true.
         endif
-
+        if (.not. allocated(sumrhocharge))  then 
+            allocate(sumrhocharge(nsegtypes),stat=ier)
+            if( ier/=0 ) alloc_fail=.true.
+        endif
 
         !  .. computation of free energy
 
@@ -411,16 +413,41 @@ contains
             qres = qres + rhoq(i)
         enddo
 
-        checkphi=nseg
-        do t=1,nsegtypes
-            sumphi(t)=0.0_dp
-            do i=1,nsize    
-                sumphi(t) = sumphi(t) + rhopol(i,t)
+        if(systype/="nucl_ionbin_sv") then
+            do t=1,nsegtypes
+                sumphi(t) = sum(rhopol(:,t))
+                sumphi(t) = volcell*sumphi(t)
             enddo
-            sumphi(t) = volcell*sumphi(t)
-            checkphi = checkphi-sumphi(t)
-        !    print*,"fcnenergy brush mul rank=",rank,"t=",t,"sum= ",sumphi(t),"check=",checkphi
-        enddo
+            checkphi = nseg -sum(sumphi)
+
+         else    
+            ! for systype=nucl_ionbin_sv no rhopol used !!
+            do t=1,nsegtypes
+                sumphi(t) = sum(xpol_t(:,t))
+                vnucltot  = sum(vnucl(:,t))
+                sumphi(t) = volcell*sumphi(t)/vnucltot
+            enddo
+            checkphi=nseg-sum(sumphi)
+       
+        endif   
+
+        if(systype=="nucl_ionbin_sv") then
+            ncharge=0
+            do s=1,nseg
+                t=type_of_monomer(s)
+                if(ismonomer_chargeable(t)) ncharge=ncharge+1 
+            enddo
+            checkrhocharge = ncharge 
+            do t=1,nsegtypes
+                sumrhocharge(t) = sum(rhopol_charge(:,t))
+                sumrhocharge(t) = volcell*sumrhocharge(t)
+                checkrhocharge = checkrhocharge -sumrhocharge(t)
+                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
+            enddo
+            checkrhocharge = ncharge -sum(sumrhocharge)
+
+        endif 
+
 
         FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully check this
         FEpi  = (volcell/vsol)*FEpi
@@ -503,6 +530,182 @@ contains
         deltaFE = FE - FEbulk
     
     end subroutine fcnenergy_electbrush_mul
+
+
+
+    subroutine fcnenergy_ionbin_sv()
+
+        use globals ! , only : systype, nsize,nsegtypes
+        use volume
+        use parameters
+        use field
+        use VdW
+        use surface
+        use dielectric_const, only : born
+        use Poisson, only :  grad_pot_sqr_eps_cubic
+        use chains, only : ismonomer_chargeable,type_of_monomer,type_of_charge
+
+        !  .. local arguments 
+    
+        integer  :: i,j,s,g,t          ! dummy variables 
+        real(dp) :: volumelat          ! volume lattice 
+        real(dp) :: FEchemSurftmp
+        integer  :: ier
+        logical  :: alloc_fail
+        real(dp) :: sqrgradpsi(nsize)
+        real(dp) :: Etotself,lbr
+        real(dp) :: vnucltot
+        integer  :: ncharge
+
+        
+        if (.not. allocated(sumphi))  then 
+            allocate(sumphi(nsegtypes),stat=ier)
+            if( ier/=0 ) alloc_fail=.true.
+        endif
+        if (.not. allocated(sumrhocharge))  then 
+            allocate(sumrhocharge(nsegtypes),stat=ier)
+            if( ier/=0 ) alloc_fail=.true.
+        endif
+
+        !  .. computation of free energy
+
+        FEpi  = 0.0_dp
+        FErho = 0.0_dp
+        FEel  = 0.0_dp
+        FEelsurf = 0.0_dp
+        sumphi = 0.0_dp
+ 
+        FEq    = 0.0_dp
+        FEbind = 0.0_dp
+        FEchem = 0.0_dp
+        FEVdW  = 0.0_dp
+        qres   = 0.0_dp
+
+        do i=1,nsize
+            FEpi = FEpi  + log(xsol(i))
+            FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl )                 ! sum over  rho_i 
+            FEel  = FEel  - rhoq(i) * psi(i)
+            qres = qres + rhoq(i)
+        enddo
+
+        if(systype/="nucl_ionbin_sv") then
+            do t=1,nsegtypes
+                sumphi(t) = sum(rhopol(:,t))
+                sumphi(t) = volcell*sumphi(t)
+            enddo
+            checkphi = nseg -sum(sumphi)
+
+         else    
+            ! for systype=nucl_ionbin_sv no rhopol used !!
+            do t=1,nsegtypes
+                sumphi(t) = sum(xpol_t(:,t))
+                vnucltot  = sum(vnucl(:,t))
+                sumphi(t) = volcell*sumphi(t)/vnucltot
+            enddo
+            checkphi=nseg-sum(sumphi)
+       
+        endif   
+
+        if(systype=="nucl_ionbin_sv") then
+            ncharge=0
+            do s=1,nseg
+                t=type_of_monomer(s)
+                if(ismonomer_chargeable(t)) ncharge=ncharge+1 
+            enddo
+            checkrhocharge = ncharge 
+            do t=1,nsegtypes
+                sumrhocharge(t) = sum(rhopol_charge(:,t))
+                sumrhocharge(t) = volcell*sumrhocharge(t)
+                checkrhocharge = checkrhocharge -sumrhocharge(t)
+                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
+            enddo
+            checkrhocharge = ncharge -sum(sumrhocharge)
+
+        endif 
+
+
+        FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully check this
+        FEpi  = (volcell/vsol)*FEpi
+        FErho = (volcell/vsol)*FErho
+        qres  = (volcell/vsol)*qres
+
+
+        ! .. calcualtion of FEVdW
+        if(isVdW) then 
+            FEVdW=-VdW_energy(rhopol)
+        else   
+            FEVdW=0.0_dp
+        endif
+
+        !  .. calcium and magnesium binding contribution to minimized free energy  
+
+        if(systype/="brush_mul".and.systype/="brush_mulnoVdW") then 
+            do i=1,nsize
+                FEbind = FEbind + (fdisA(i,5)+fdisA(i,7))*rhopol(i,tA)
+            enddo                
+            FEbind = volcell*FEbind /2.0_dp                                 
+        endif      
+
+        if(systype=="brushborn") then
+
+            ! .. scaled gradient potential contribution 
+            call grad_pot_sqr_eps_cubic(psi,epsfcn, Depsfcn,sqrgradpsi)
+
+            FEelvar = 0.0_dp           
+            do i=1,nsize
+                FEelvar=FEelvar + xpol(i)*sqrgradpsi(i)  
+            enddo 
+            FEelvar=FEelvar*volcell/vsol ! vsol divsion because of constqE definition in grad_pot_sqr_eps_cubic( 
+            
+            !  needs to  checked vocell  prefactor
+
+
+            FEelvarborn=0.0_dp
+
+            do i=1,nsize
+                lbr = lb/epsfcn(i)     ! local Bjerrum length
+                Etotself = &        ! total self energy  
+                    born(lbr,bornrad%pol  ,zpolAA(1))*fdisA(i,1)*rhopol(i,tA) + &
+                    born(lbr,bornrad%polCa,zpolAA(4))*fdisA(i,4)*rhopol(i,tA) + &
+                    born(lbr,bornrad%polMg,zpolAA(6))*fdisA(i,6)*rhopol(i,tA) + &
+                    born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
+                    born(lbr,bornrad%K,zK)*xK(i)/(vK*vsol)     + & 
+                    born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
+                    born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)     + & 
+                    born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
+                    born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + & 
+                    born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &
+                    born(lbr,bornrad%OHmin,-1)*xOHmin(i)/vsol  
+
+                FEelvarborn=FEelvarborn+Etotself*(Depsfcn(i)/epsfcn(i))*xpol(i)*volcell
+            enddo     
+
+        endif    
+
+        ! .. calcualtion of FEq
+     
+        FEq=-log(q)    
+    
+     
+        ! .. Shift in palpha  i.e q 
+        Eshift=lnproshift !*ngr
+       
+        ! .. total free energy per area of surface 
+
+        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind + FEelvar + FEelvarborn - Eshift
+        
+        
+        volumelat= volcell*nsize   ! volume lattice
+
+        FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
+            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl )
+        
+        FEbulk = volumelat*FEbulk/vsol
+
+        deltaFE = FE - FEbulk
+    
+    end subroutine fcnenergy_ionbin_sv
 
 
     ! fcnenergy_neutral_sv  equal to fcnenergy_neutral !! 
@@ -1515,9 +1718,9 @@ contains
 
     
 
-     ! debug routine for systtype= "nucl_ion_sv"   
+     ! debug routine for systype= "nucl_ionbin"   
 
-    subroutine check_volume_xpol
+    subroutine check_volume_nucl_ionbin()
 
         use globals, only : nsegtypes,nsize
         use field, only : rhopol,fdisA,gdisA,gdisB,xpol
@@ -1616,6 +1819,53 @@ contains
         print*,"checksumxpoltot=",checksumxpoltot
 
 
-    end subroutine 
+    end subroutine check_volume_nucl_ionbin
+
+
+    ! debug routine for systtype= "nucl_ion_sv_general"  
+
+    subroutine check_volume_nucl_ionbin_sv()
+
+        use globals, only : nsegtypes,nsize
+        use field, only : xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t ,xpol_tot pointer to xpol !!!
+        use volume, only : volcell 
+
+        integer :: t,i,ier
+        real(dp) :: sumtmp,sumxpoltot,checksumxpoltot
+
+        if (.not. allocated(sumxpol))  then 
+            allocate(sumxpol(nsegtypes),stat=ier)
+            if( ier/=0 ) print*,"allocation failure in check_volume_xpol"
+        endif
+
+        
+        do t=1,nsegtypes
+            sumtmp=0.0_dp
+            do i=1,nsize
+                sumtmp = sumtmp + xpol(i,t)
+            enddo
+            sumxpol(t)=sumtmp
+        enddo   
+
+        print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
+
+        sumtmp=0.0_dp
+        do i=1,nsize
+            sumtmp = sumtmp + xpol_tot(i)
+        enddo
+        sumxpoltot = sumtmp
+        
+        print*,"sumxpoltot=",sumxpoltot
+
+        checksumxpoltot=0.0_dp
+        do t=1,nsegtypes
+            checksumxpoltot=checksumxpoltot+sumxpol(t)
+        enddo  
+        checksumxpoltot=checksumxpoltot- sumxpoltot
+
+        print*,"checksumxpoltot=",checksumxpoltot
+
+
+    end subroutine check_volume_nucl_ionbin_sv
 
 end module energy

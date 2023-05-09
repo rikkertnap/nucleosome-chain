@@ -1321,6 +1321,7 @@ subroutine output_nucl_mul
         enddo    
         do t=1,nsegtypes
             if(type_of_charge(t)=="B") then 
+                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
                 do i=1,nsize
                     write(un_fdision,*)(gdisB(i,k,t),k=1,3)
                 enddo
@@ -2210,8 +2211,13 @@ subroutine make_filename_label(fnamelabel)
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
         "brushborn")
-
-        write(rstr,'(F5.3)')denspol
+        
+        if(denspol>=0.001) then
+            write(rstr,'(F5.3)')denspol
+        else
+            write(rstr,'(ES9.2E2)')denspol
+        endif
+        
         fnamelabel="phi"//trim(adjustl(rstr))
         write(rstr,'(F5.3)')cNaCl
         fnamelabel=trim(fnamelabel)//"cNaCl"//trim(adjustl(rstr))
@@ -2357,9 +2363,9 @@ end subroutine copy_solution
 
 subroutine compute_vars_and_output()
 
-    use globals, only : systype,DEBUG
-    use energy, only : fcnenergy,check_volume_xpol,sumphi
-    use field, only : charge_polymer,average_charge_polymer,make_ion_excess,make_beta
+    use globals, only : systype, DEBUG
+    use energy, only : fcnenergy, check_volume_nucl_ionbin_sv, check_volume_nucl_ionbin, sumphi
+    use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
 
     select case (systype)
     case ("elect")
@@ -2376,8 +2382,16 @@ subroutine compute_vars_and_output()
         call fcnenergy()
         call output()           
 
-    case ("brush_mul","brush_mulnoVdW","brushdna",&
-        "nucl_ionbin","brushborn")
+    case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
+
+        call fcnenergy()
+        call charge_polymer()
+        call average_charge_polymer()
+        call make_ion_excess()
+        call make_beta(sumphi)
+        call output()        
+
+    case ("nucl_ionbin")
 
         call fcnenergy()
         call charge_polymer()
@@ -2385,7 +2399,7 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call output()  
-        if(DEBUG) call check_volume_xpol()        
+        if(DEBUG) call check_volume_nucl_ionbin_sv()       
 
     case ("nucl_ionbin_sv")
 
@@ -2395,12 +2409,13 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call output()           
-        if(DEBUG) call check_volume_xpol() 
+        if(DEBUG) call check_volume_nucl_ionbin_sv() 
 
      case ("nucl_neutral_sv")
 
         call fcnenergy()
-        call output()           
+        call output() 
+         if(DEBUG) call check_volume_nucl_ionbin_sv()           
 
     case default
 

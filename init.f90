@@ -184,6 +184,8 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
         x(i)=0.0_dp    
     enddo
 
+    print*,"xbulk%sol=",xbulk%sol
+
     do i=1,nsize
         x(i)=xbulk%sol
     enddo

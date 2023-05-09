@@ -137,11 +137,10 @@ program main
     allocate(xguess(neq))
     allocate(fvec(neq))
         
-
-    ! temp override
     print*,"elemcharge"
     do i=1,nsegtypes
-       print*,"elemcharge(",i,")=",elem_charge(i),"type=",mapping_num_to_char(i)
+       print*,"elemcharge(",i,")=",elem_charge(i)," type= ",mapping_num_to_char(i),&
+            " type of charge=" ,type_of_charge(i)
     enddo   
 
 

@@ -1205,7 +1205,7 @@ contains
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge    
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
-        use field, only      : psi,gdisA,gdisB,fdis,fdisA
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
         use VdW, only        : VdW_contribution_lnexp
@@ -1225,7 +1225,7 @@ contains
         real(dp) :: local_rhopol(nsize,nsegtypes)                     ! local density nucleosome
         real(dp) :: local_xpol(nsize,nsegtypes)                       ! local volumer fraction nucleosome
         real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable 
-        real(dp) :: rhopol_charge(nsize,nsegtypes)
+        ! real(dp) :: rhopol_charge(nsize,nsegtypes)
         real(dp) :: local_q                                           ! local normalization q 
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
@@ -1239,7 +1239,7 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
         integer  :: count_scf
 
-        real(dp) :: g(neq/2)
+       ! real(dp) :: g(neq/2)
 
         ! .. executable statements 
 
@@ -1281,6 +1281,7 @@ contains
                 local_xpol(i,t)=0.0_dp
                 local_rhopol(i,t)=0.0_dp
                 local_rhopol_charge(i,t)=0.0_dp
+                rhopol_charge(i,t)=0.0_dp
             enddo    
         enddo    
        
@@ -1296,7 +1297,7 @@ contains
             xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
 
-            lnexppivw(i) = log(xsol(i))/vsol                      ! auxilary variable DO  divide by vsol  !!!!!!!!!
+            lnexppivw(i) = log(xsol(i))/vsol                      ! auxilary variable  divide by vsol  !!
  
         enddo
 
@@ -1326,7 +1327,7 @@ contains
                             gdisA(i,4,t) = gdisA(i,1,t)*xA(3)             ! AK
                        
                             fdis(i,t) = gdisA(i,1,t)
-                            lnexppi(i,t) = psi(i) -log(gdisA(i,1,t))         ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
+                            lnexppi(i,t) = psi(i) -log(gdisA(i,1,t))      ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
                         enddo
 
                     else !  base
@@ -1339,7 +1340,7 @@ contains
                             gdisB(i,2,t) = gdisB(i,1,t)*xB(1)             ! B
                             gdisB(i,3,t) = gdisB(i,1,t)*xB(2)             ! BHCl     
                     
-                            lnexppi(i,t) = -log(gdisB(i,2,t))   !    auxilary variable palpha lo 
+                            lnexppi(i,t) = -log(gdisB(i,2,t))             ! auxilary variable palpha lo 
 
                             fdis(i,t) = gdisB(i,2,t)  
                         enddo
@@ -1478,12 +1479,12 @@ contains
 
             ! first graft point 
             do t=1,nsegtypes
-                do i=1,n
+                do i=1,nsize
                     xpol(i,t)=local_xpol(i,t) ! polymer volume fraction density 
                 enddo
                 if(ismonomer_chargeable(t)) then
-                    do i=1,n
-                        rhopol_charge(k,t)=local_rhopol_charge(k,t)   ! polymer density of charge center
+                    do i=1,nsize
+                        rhopol_charge(i,t)=local_rhopol_charge(i,t)   ! polymer density of charge center
                     enddo    
                 endif   
             enddo
@@ -1607,11 +1608,12 @@ contains
 
             do t=1,nsegtypes
                 if(ismonomer_chargeable(t)) then
-                    call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                    call MPI_SEND(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,dest,tag,MPI_COMM_WORLD,ierr)
                 endif
             enddo
 
         endif
+
 
 
     end subroutine fcnnucl_ionbin_sv_general

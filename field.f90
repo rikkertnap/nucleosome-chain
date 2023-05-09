@@ -9,6 +9,7 @@ module field
     real(dp), dimension(:,:), allocatable :: xpol_t   ! volume fraction of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopol   ! density monomer of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopolin 
+    real(dp), dimension(:,:), allocatable :: rhopol_charge ! density chargeable monomer of polymer in layer i of type t
     real(dp), dimension(:), allocatable   :: rhoqpol  ! charge density  monomer of polymer in layer i 
 
     real(dp), dimension(:), allocatable :: xsol     ! volume fraction solvent
@@ -46,7 +47,7 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,nsegtypes
         
         integer :: N
-        integer :: ier(25), i
+        integer :: ier(26), i
 
         N=Nx*Ny*Nz
 
@@ -54,6 +55,7 @@ contains
         allocate(xpol_t(N,nsegtypes),stat=ier(25))
         allocate(rhopol(N,nsegtypes),stat=ier(2)) 
         allocate(rhopolin(N,nsegtypes),stat=ier(3)) 
+        allocate(rhopol_charge(N,nsegtypes),stat=ier(26)) 
         allocate(rhoqpol(N),stat=ier(4)) 
         allocate(xsol(N),stat=ier(5))
         allocate(psi(N+2*Nx*Ny),stat=ier(6))
@@ -79,7 +81,7 @@ contains
         allocate(gdisA(N,4,nsegtypes),stat=ier(23))
         allocate(gdisB(N,3,nsegtypes),stat=ier(24))
        
-        do i=1,25
+        do i=1,26
             if( ier(i)/=0 ) then
                 print*, 'Allocation error : stat =', ier(i),' for i= ',i
                 stop
@@ -95,6 +97,7 @@ contains
         deallocate(xpol_t)
         deallocate(rhopol)
         deallocate(rhoqpol)
+        deallocate(rhopol_charge)
         deallocate(xsol)
         deallocate(psi)
         deallocate(xNa)
@@ -135,6 +138,7 @@ contains
         xpol_t=0.0_dp
         rhopol=0.0_dp
         rhoqpol=0.0_dp
+        rhopol_charge=0.0_dp
         xsol=0.0_dp
         xNa=0.0_dp
         xK=0.0_dp
@@ -214,9 +218,7 @@ contains
         case ("nucl_ionbin")
             call charge_nucl_ionbin()
         case ("nucl_ionbin_sv")
-            print*,"warning charge_polymer subroutine"    
-            print*,"Not yet implemented for  systype : ", systype
-            call charge_nucl_ionbin()   
+            call charge_nucl_ionbin_sv()   
         case ("elect")  
             call charge_polymer_binary()
         case default
@@ -271,7 +273,7 @@ contains
         do t=1,nsegtypes
             qpol(t)=0.0_dp
             if(ismonomer_chargeable(t)) then 
-              if(type_of_charge(t)=="A") then   ! acid 
+                if(type_of_charge(t)=="A") then   ! acid 
                     if(t/=ta) then
                         do i=1,nsize
                             qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
@@ -302,34 +304,53 @@ contains
         use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
+        real(dp) :: qpoltmp
 
         qpol_tot=0.0_dp
 
         do t=1,nsegtypes
+            write(100+t,*)"t= ",t," ismonomer_chargeable= ",ismonomer_chargeable(t)
+            if(ismonomer_chargeable(t)) then
+                do i=1,nsize
+                    write(100+t,*)rhopol_charge(i,t),gdisA(i,1,t)
+                enddo 
+            endif
+        enddo           
+
+        do t=1,nsegtypes
             qpol(t)=0.0_dp
-            if(ismonomer_chargeable(t)) then 
+            print*,"ismonomer_chargeable",ismonomer_chargeable(t)
+            if(ismonomer_chargeable(t)) then
+                print*,"type_of_charge=",type_of_charge(t)
                 if(type_of_charge(t)=="A") then   ! acid 
+                    print*,"t=",t,"tA=",tA
                     if(t/=ta) then
                         do i=1,nsize
-                            qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol(i,t)
+                            write(300+t,*)gdisA(i,1,t),rhopol_charge(i,t)
+                            qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol_charge(i,t)
                         enddo
                     else ! phosphate
                         do i=1,nsize
-                            qpol(ta)=qpol(t)+ (-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol(i,t)
+                            qpoltmp=(-fdisA(i,1)+fdisA(i,4)+fdisA(i,6))*rhopol_charge(i,t)
+                            qpol(t)=qpol(t)+ qpoltmp
                         enddo    
                     endif
                 else  ! base   
                     do i=1,nsize
-                            qpol(t)=qpol(t)+gdisB(i,1,t)*rhopol(i,t)
+                        qpoltmp=gdisB(i,1,t)*rhopol_charge(i,t)
+                         write(200+t,*)qpoltmp
+                        qpol(t)=qpol(t)+qpoltmp
                     enddo
                 endif        
-            endif    
+            endif  
+            print*,qpol  
             qpol(t)=qpol(t)*volcell
             qpol_tot=qpol_tot+qpol(t)
         enddo
+        print*,qpol
+        print*,qpol_tot
 
     end subroutine charge_nucl_ionbin_sv
-
 
 
     subroutine charge_polymer_multi()
@@ -389,9 +410,13 @@ contains
 
             call average_charge_polymer_dna()
 
-        case ("nucl_ionbin","nucl_ionbin_sv")
+        case ("nucl_ionbin")
 
             call average_charge_nucl_ionbin()
+
+        case ("nucl_ionbin_sv")
+
+            call average_charge_nucl_ionbin_sv()
 
         case ("elect","electA","electVdWAB","electdouble") 
 
@@ -527,6 +552,80 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_nucl_ionbin
+
+
+    subroutine average_charge_nucl_ionbin_sv()
+
+        use globals, only : nseg,nsize,nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
+        use chains, only: type_of_monomer,ismonomer_chargeable
+
+        integer, dimension(:), allocatable   :: npol
+        integer :: i,s,t,k
+        real(dp) :: sumrhopolt ! average density of polymer of type t 
+
+        allocate(npol(nsegtypes))
+        
+        npol=0
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            npol(t)=npol(t)+1
+        enddo   
+            
+        do t=1,nsegtypes
+            ! init 
+            avfdis(t)=0.0_dp ! A^-
+            do k=1,4               ! A^-, AH, ANa, AK for AA that are acid
+                avgdisA(t,k)=0.0_dp 
+            enddo
+            do k=1,3 !             ! BH^+, B, BHCl for AA that are base
+                avgdisB(t,k)=0.0_dp
+            enddo
+                        
+            if(ismonomer_chargeable(t)) then 
+                sumrhopolt=npol(t)/volcell
+                if(npol(t)/=0) then
+                    if(t/=tA) then 
+                        if(zpol(t,1)==0) then ! acid
+                            do k=1,4
+                                avgdisA(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisA(t,k)=avgdisA(t,k)/sumrhopolt  
+                            enddo
+                            avfdis(t)=zpol(t,2)*avgdisA(t,1) ! signed charged fraction   
+                        else ! base
+                            do k=1,3
+                                avgdisB(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisB(t,k)=avgdisB(t,k)/sumrhopolt 
+                            enddo
+                            avfdis(t)=zpol(t,1)*avgdisB(t,1) 
+                        endif            
+                    else
+                        do k=1,8
+                            avfdisA(k)=0.0_dp
+                            do i=1,nsize
+                                avfdisA(k)=avfdisA(k)+fdisA(i,k)*rhopol_charge(i,t)
+                            enddo
+                            avfdisA(k)=avfdisA(k)/sumrhopolt  
+                        enddo
+                        avfdis(t)=avfdisA(1)
+                    endif               
+                endif
+            endif    
+        enddo         
+
+        deallocate(npol)    
+
+    end subroutine average_charge_nucl_ionbin_sv
+
+
 
     subroutine average_charge_polymer_multi()
 
@@ -736,6 +835,88 @@ contains
 
     end function fcn_ion_excess
 
+    ! pre : make_ion_excess needed to be called before ion_excess
+    ! input numberelem :  array contain the total elements of all types
+    ! output assigns : beta_ion_excess  
+    ! definitions beta_i = z_i * \Gamma_i / |qnucl|
+  
+    subroutine make_beta_new(numberelem)
+
+        use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
+        use parameters, only : index_Phos=>ta ! index of phosphate 
+        use globals, only : nsegtypes
+        use molecules, only : moleclist, init_zero_moleclist
+        use chains, only : mapping_num_to_char
+
+        ! argument list
+
+        real(dp), dimension(:) , allocatable :: numberelem ! array contain the total elements of all types
+        
+        ! local variable
+
+        type(moleclist) :: ion_excess_tot ,ion_excess_ads
+        real(dp) :: qnucl
+        integer :: t
+
+
+        ! calculate ion_excess_tot
+        
+        ! init 
+        call init_zero_moleclist(ion_excess_ads)
+        ion_excess_tot = ion_excess ! free ion_excess
+
+        do t=1,nsegtypes
+            ion_excess_tot%Na = ion_excess_tot%Na  + (avgdisA(t,3) * numberelem(t)) 
+            ion_excess_tot%K  = ion_excess_tot%K   + (avgdisA(t,4) * numberelem(t))
+            ion_excess_tot%Cl = ion_excess_tot%Cl  + (avgdisB(t,3) * numberelem(t)) 
+        enddo
+
+        ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
+        ion_excess_tot%K  = ion_excess_tot%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
+        
+        ! Calculate qnucl 
+        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl)
+    
+        ! Calculate individual betas
+
+        beta_ion_excess%Na =  ion_excess_tot%Na / qnucl
+        beta_ion_excess%K  =  ion_excess_tot%K  / qnucl
+        beta_ion_excess%Cl = -ion_excess_tot%Cl / qnucl
+
+        ! seperate ion_excess adsorped
+
+        do t=1,nsegtypes
+            ion_excess_ads%Na = ion_excess_ads%Na  + (avgdisA(t,3) * numberelem(t)) 
+            ion_excess_ads%K  = ion_excess_ads%K   + (avgdisA(t,4) * numberelem(t))
+            ion_excess_ads%Cl = ion_excess_ads%Cl  + (avgdisB(t,3) * numberelem(t)) 
+        enddo
+  
+        ion_excess_ads%Na = ion_excess_ads%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
+        ion_excess_ads%K  = ion_excess_ads%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
+
+        ! .. print stdio
+
+        print*,"qnucl=",qnucl
+        print*," Na ",ion_excess_tot%Na, ion_excess_ads%Na
+        print*," K ", ion_excess_tot%K, ion_excess_ads%K
+        print*," Cl ",ion_excess_tot%Cl, ion_excess_ads%Cl
+        
+        do t=1,nsegtypes
+            if(t/=index_Phos) then
+                print*,"t=",mapping_num_to_char(t)," Na ",(avgdisA(t,3) * numberelem(t)) 
+                print*,"t=",mapping_num_to_char(t)," K ", (avgdisA(t,4) * numberelem(t))
+                print*,"t=",mapping_num_to_char(t)," Cl ",(avgdisB(t,3) * numberelem(t)) 
+            else
+                print*,"t=",mapping_num_to_char(t)," Na ",(avfdisA(3) * numberelem(t)) 
+                print*,"t=",mapping_num_to_char(t)," K ", (avfdisA(8) * numberelem(t))
+                print*,"t=",mapping_num_to_char(t)," Cl ",(0.0_dp) 
+            endif
+        enddo
+        ! ..end print 
+
+            
+    end subroutine make_beta_new
+
 
 
     subroutine make_ion_excess
@@ -757,6 +938,7 @@ contains
          ion_excess%Hplus -ion_excess%OHmin
         
     end subroutine make_ion_excess
+
 
     ! pre : make_ion_excess needed to be called before ion_excess
     ! input numberelem :  array contain the total elements of all types
@@ -802,7 +984,8 @@ contains
        beta_ion_excess%K =   ion_excess_tot%K  / abs(qnucl)
        beta_ion_excess%Cl = -ion_excess_tot%Cl / abs(qnucl)
     
-    end subroutine make_beta    
+    end subroutine make_beta 
+    
   
 end module field
 
