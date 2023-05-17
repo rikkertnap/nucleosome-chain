@@ -84,7 +84,7 @@ program main
     call print_to_log(LogUnit,text)
     write(istr,'(A40)')VERSION
     text='program version     = '//istr
-    call print_to_log(LogUnit,text)
+    call print_to_log(LogUnit,'program version     = '//istr)
     if(rank==0) print*,text
 
     ! .. init
@@ -106,9 +106,11 @@ program main
     call set_mapping_num_to_char(mapping_num_to_char)
        
     ! init distributed volume  
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") call init_vnucl_type() ! ismonomer_chargable etc needs to be set 
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then 
+        call init_vnucl_type(info) ! ismonomer_chargable etc needs to be set
+        call error_handler(info,"init_vnucl_type")
+    endif 
         
-
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
      
@@ -137,11 +139,11 @@ program main
     allocate(xguess(neq))
     allocate(fvec(neq))
         
-    print*,"elemcharge"
-    do i=1,nsegtypes
-       print*,"elemcharge(",i,")=",elem_charge(i)," type= ",mapping_num_to_char(i),&
-            " type of charge=" ,type_of_charge(i)
-    enddo   
+    ! print*,"elemcharge"
+    ! do i=1,nsegtypes
+    !    print*,"elemcharge(",i,")=",elem_charge(i)," type= ",mapping_num_to_char(i),&
+    !         " type of charge=" ,type_of_charge(i)
+    ! enddo   
 
 
     ! .. loop over pH, or pKd etc  values

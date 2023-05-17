@@ -46,15 +46,15 @@ module energy
 
     real(dp), dimension(:), allocatable :: sumphi, sumxpol, sumrhocharge ! integral over phi and xpol
 
-    real(dp) :: sumphiA             ! check integral over phiA
-    real(dp) :: sumphiB             ! check integral over phiB
-    real(dp) :: qres                ! charge charge
-    real(dp) :: checkphi            ! check integrate over phi
-    real(dp) :: checkrhocharge
+    real(dp) :: sumphiA             ! integral over phiA
+    real(dp) :: sumphiB             ! integral over phiB
+    real(dp) :: qres                ! residual charge
+    real(dp) :: checkphi            ! check integral over phi
+    real(dp) :: checkrhocharge      ! check integral over rhocharge
     
-!   real(dp), parameter :: sigmaTOL = 0.00000001_dp     ! tolerance of surface coverage below no polymers 
+    real(dp), parameter :: epsilon_sumxpol = 1.0e-10_dp     ! tolerance of surface coverage below no polymers 
 
-!   private :: sigmaTOL
+    private :: epsilon_sumxpol
 
 contains
 
@@ -442,7 +442,7 @@ contains
                 sumrhocharge(t) = sum(rhopol_charge(:,t))
                 sumrhocharge(t) = volcell*sumrhocharge(t)
                 checkrhocharge = checkrhocharge -sumrhocharge(t)
-                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
+    !            print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
             enddo
             checkrhocharge = ncharge -sum(sumrhocharge)
 
@@ -618,7 +618,7 @@ contains
                 sumrhocharge(t) = sum(rhopol_charge(:,t))
                 sumrhocharge(t) = volcell*sumrhocharge(t)
                 checkrhocharge = checkrhocharge -sumrhocharge(t)
-                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
+!                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
             enddo
             checkrhocharge = ncharge -sum(sumrhocharge)
 
@@ -1718,25 +1718,24 @@ contains
 
     
 
-     ! debug routine for systype= "nucl_ionbin"   
+    ! debug routine for systype= "nucl_ionbin"   
 
     subroutine check_volume_nucl_ionbin()
 
         use globals, only : nsegtypes,nsize
-        use field, only : rhopol,fdisA,gdisA,gdisB,xpol
+        use field, only   : rhopol, fdisA, gdisA, gdisB, xpol
         use parameters, only : vpolAA,vpol,vsol,zpol,vNa,vK,vCl,ta
         use volume, only : volcell 
         use chains, only : ismonomer_chargeable
 
 
         integer :: t,i,k,state,ier
-        real(dp) :: vpolstate(4),sumtmp,sumxpoltot,checksumxpoltot
+        real(dp):: vpolstate(4), sumtmp, sumxpoltot, checksumxpoltot
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
-            if( ier/=0 ) print*,"allocation failure in check_volume_xpol"
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin"
         endif
-
 
         do t=1,nsegtypes
 
@@ -1792,30 +1791,19 @@ contains
                     endif    
                 endif
             else ! neutral
-                sumtmp=0.0_dp
-                do i=1,nsize
-                    sumtmp = sumtmp + rhopol(i,t)
-                enddo
+                
+                sumtmp = sum(rhopol(:,t))
                 sumxpol(t)=sumtmp*vpol(t)*vsol*volcell
+
             endif
         enddo   
 
+
+        sumxpoltot=sum(xpol)*volcell
+        checksumxpoltot=sum(sumxpol)- sumxpoltot
+
         print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
-
-        sumtmp=0.0_dp
-        do i=1,nsize
-            sumtmp = sumtmp + xpol(i)
-        enddo
-        sumxpoltot=sumtmp*volcell
-        
         print*,"sumxpoltot=",sumxpoltot
-
-        checksumxpoltot=0.0_dp
-        do t=1,nsegtypes
-            checksumxpoltot=checksumxpoltot+sumxpol(t)
-        enddo  
-        checksumxpoltot=checksumxpoltot- sumxpoltot
-
         print*,"checksumxpoltot=",checksumxpoltot
 
 
@@ -1826,7 +1814,7 @@ contains
 
     subroutine check_volume_nucl_ionbin_sv()
 
-        use globals, only : nsegtypes,nsize
+        use globals, only : nsegtypes, nsize
         use field, only : xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t ,xpol_tot pointer to xpol !!!
         use volume, only : volcell 
 
@@ -1835,36 +1823,20 @@ contains
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
-            if( ier/=0 ) print*,"allocation failure in check_volume_xpol"
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin_sv"
         endif
 
-        
-        do t=1,nsegtypes
-            sumtmp=0.0_dp
-            do i=1,nsize
-                sumtmp = sumtmp + xpol(i,t)
-            enddo
-            sumxpol(t)=sumtmp
-        enddo   
-
-        print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
-
-        sumtmp=0.0_dp
-        do i=1,nsize
-            sumtmp = sumtmp + xpol_tot(i)
+        do t=1,nsegtypes 
+            sumxpol(t) = sum(xpol(:,t))*volcell       
         enddo
-        sumxpoltot = sumtmp
+        sumxpoltot = sum(xpol_tot)*volcell   
+        checksumxpoltot=sum(sumxpol)- sumxpoltot
         
-        print*,"sumxpoltot=",sumxpoltot
-
-        checksumxpoltot=0.0_dp
-        do t=1,nsegtypes
-            checksumxpoltot=checksumxpoltot+sumxpol(t)
-        enddo  
-        checksumxpoltot=checksumxpoltot- sumxpoltot
-
-        print*,"checksumxpoltot=",checksumxpoltot
-
+        if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+            print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
+            print*,"sumxpoltot=",sumxpoltot
+            print*,"checksumxpoltot=",checksumxpoltot
+        endif
 
     end subroutine check_volume_nucl_ionbin_sv
 

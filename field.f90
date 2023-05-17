@@ -307,26 +307,17 @@ contains
         real(dp) :: qpoltmp
 
         qpol_tot=0.0_dp
-
-        do t=1,nsegtypes
-            write(100+t,*)"t= ",t," ismonomer_chargeable= ",ismonomer_chargeable(t)
-            if(ismonomer_chargeable(t)) then
-                do i=1,nsize
-                    write(100+t,*)rhopol_charge(i,t),gdisA(i,1,t)
-                enddo 
-            endif
-        enddo           
+     
 
         do t=1,nsegtypes
             qpol(t)=0.0_dp
-            print*,"ismonomer_chargeable",ismonomer_chargeable(t)
+           
             if(ismonomer_chargeable(t)) then
-                print*,"type_of_charge=",type_of_charge(t)
+           
                 if(type_of_charge(t)=="A") then   ! acid 
-                    print*,"t=",t,"tA=",tA
+           
                     if(t/=ta) then
                         do i=1,nsize
-                            write(300+t,*)gdisA(i,1,t),rhopol_charge(i,t)
                             qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol_charge(i,t)
                         enddo
                     else ! phosphate
@@ -338,18 +329,14 @@ contains
                 else  ! base   
                     do i=1,nsize
                         qpoltmp=gdisB(i,1,t)*rhopol_charge(i,t)
-                         write(200+t,*)qpoltmp
                         qpol(t)=qpol(t)+qpoltmp
                     enddo
                 endif        
             endif  
-            print*,qpol  
             qpol(t)=qpol(t)*volcell
             qpol_tot=qpol_tot+qpol(t)
         enddo
-        print*,qpol
-        print*,qpol_tot
-
+        
     end subroutine charge_nucl_ionbin_sv
 
 
@@ -812,6 +799,10 @@ contains
 
     ! Computes ion_exces , gamma_i 
     ! gamma_i = \int dV (\rho_i(r) -\rho_bulk)
+    ! input  xion     : array of real(dp) containing volume fraction of ion
+    !        xionbulk : real(dp) bulk volume fraction of ion
+    !        vol      : real(dp) relative vol ion : true volume vol*vsol
+    ! output assigns : ionexcess
 
     function fcn_ion_excess(xion,xionbulk,vol) result(ionexcess)
 
@@ -840,7 +831,7 @@ contains
     ! output assigns : beta_ion_excess  
     ! definitions beta_i = z_i * \Gamma_i / |qnucl|
   
-    subroutine make_beta_new(numberelem)
+    subroutine make_beta(numberelem)
 
         use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
         use parameters, only : index_Phos=>ta ! index of phosphate 
@@ -858,32 +849,14 @@ contains
         real(dp) :: qnucl
         integer :: t
 
-
         ! calculate ion_excess_tot
         
         ! init 
-        call init_zero_moleclist(ion_excess_ads)
-        ion_excess_tot = ion_excess ! free ion_excess
-
-        do t=1,nsegtypes
-            ion_excess_tot%Na = ion_excess_tot%Na  + (avgdisA(t,3) * numberelem(t)) 
-            ion_excess_tot%K  = ion_excess_tot%K   + (avgdisA(t,4) * numberelem(t))
-            ion_excess_tot%Cl = ion_excess_tot%Cl  + (avgdisB(t,3) * numberelem(t)) 
-        enddo
-
-        ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
-        ion_excess_tot%K  = ion_excess_tot%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
+        call init_zero_moleclist(ion_excess_ads) 
+        call init_zero_moleclist(ion_excess_tot)
+        call init_zero_moleclist(beta_ion_excess)
         
-        ! Calculate qnucl 
-        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl)
-    
-        ! Calculate individual betas
-
-        beta_ion_excess%Na =  ion_excess_tot%Na / qnucl
-        beta_ion_excess%K  =  ion_excess_tot%K  / qnucl
-        beta_ion_excess%Cl = -ion_excess_tot%Cl / qnucl
-
-        ! seperate ion_excess adsorped
+        ! ion_excess adsorped
 
         do t=1,nsegtypes
             ion_excess_ads%Na = ion_excess_ads%Na  + (avgdisA(t,3) * numberelem(t)) 
@@ -893,29 +866,25 @@ contains
   
         ion_excess_ads%Na = ion_excess_ads%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
         ion_excess_ads%K  = ion_excess_ads%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
-
-        ! .. print stdio
-
-        print*,"qnucl=",qnucl
-        print*," Na ",ion_excess_tot%Na, ion_excess_ads%Na
-        print*," K ", ion_excess_tot%K, ion_excess_ads%K
-        print*," Cl ",ion_excess_tot%Cl, ion_excess_ads%Cl
         
-        do t=1,nsegtypes
-            if(t/=index_Phos) then
-                print*,"t=",mapping_num_to_char(t)," Na ",(avgdisA(t,3) * numberelem(t)) 
-                print*,"t=",mapping_num_to_char(t)," K ", (avgdisA(t,4) * numberelem(t))
-                print*,"t=",mapping_num_to_char(t)," Cl ",(avgdisB(t,3) * numberelem(t)) 
-            else
-                print*,"t=",mapping_num_to_char(t)," Na ",(avfdisA(3) * numberelem(t)) 
-                print*,"t=",mapping_num_to_char(t)," K ", (avfdisA(8) * numberelem(t))
-                print*,"t=",mapping_num_to_char(t)," Cl ",(0.0_dp) 
-            endif
-        enddo
-        ! ..end print 
+        ! calculate ion_excess_tot = sum of free adsorped ion excess
+        
+        ion_excess_tot%Na = ion_excess%Na  + ion_excess_ads%Na   
+        ion_excess_tot%K  = ion_excess%K   + ion_excess_ads%K   
+        ion_excess_tot%Cl = ion_excess%Cl  + ion_excess_ads%Cl   
+        
+        
+        ! Calculate qnucl 
+        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl)
+    
+        ! Calculate individual betas
 
+        beta_ion_excess%Na =  ion_excess_tot%Na / qnucl
+        beta_ion_excess%K  =  ion_excess_tot%K  / qnucl
+        beta_ion_excess%Cl = -ion_excess_tot%Cl / qnucl
+        
             
-    end subroutine make_beta_new
+    end subroutine make_beta
 
 
 
@@ -945,7 +914,7 @@ contains
     ! output assigns : beta_ion_excess  
     ! definitions beta_i = z_i * \Gamma_i / |qnucl|
   
-    subroutine make_beta(numberelem)
+    subroutine make_beta_old(numberelem)
 
         use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
         use parameters, only : index_Phos=>ta ! index of phosphate 
@@ -966,9 +935,12 @@ contains
         ! run part
 
         do t=1,nsegtypes
+
               ion_excess_tot%Na = ion_excess_tot%Na + ion_excess%Na + (avgdisA(t,3) * numberelem(t)) 
               ion_excess_tot%K  = ion_excess_tot%K  + ion_excess%K  + (avgdisA(t,4) * numberelem(t))
               ion_excess_tot%Cl = ion_excess_tot%Cl + ion_excess%Cl + (avgdisB(t,3) * numberelem(t)) 
+              print*,"t=", t," ion_excess_tot%Cl=", ion_excess_tot%Cl,"ion_excess Cl bound =",&
+              avgdisB(t,3)*numberelem(t) 
         enddo
 
         ion_excess_tot%Na = ion_excess_tot%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
@@ -977,6 +949,7 @@ contains
        ! Calculating little q 
 
        qnucl = ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl
+       
 
        ! Calculating individual betas
 
@@ -984,7 +957,7 @@ contains
        beta_ion_excess%K =   ion_excess_tot%K  / abs(qnucl)
        beta_ion_excess%Cl = -ion_excess_tot%Cl / abs(qnucl)
     
-    end subroutine make_beta 
+    end subroutine make_beta_old
     
   
 end module field

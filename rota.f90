@@ -11,6 +11,10 @@ module chain_rotation
   
     implicit none
 
+    real(dp), parameter  :: epsAngle = 0.0000000000001_dp
+
+    private :: epsAngle 
+
 contains  
 
 !Euler rotation Z1X2Z3
@@ -379,44 +383,56 @@ subroutine rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations
              
 end subroutine rotate_nucl_chain_test
 
+! Calculation the orientation vector: 
+! Orientation vector defined as  the normal vector to the plane spanned three points
+! input: real(dp)  chain(3,nseg)           : coordiantes of all nseg segments 
+!        integer   orient_triplet(nnucl,3) : segment id (s) of triplet of point ( plane ) 1=origin=CA
+! output: real(dp) orient_vectors(3,nnucl) : normal vector; first index cartesian coordinate second index nucleosome  
+
 subroutine orientation_vector(chain,orient_triplets,orient_vectors)
 
     use globals, only    : nnucl, nseg
     use quaternions, only : crossproduct
 
     real(dp), intent(in) :: chain(3,nseg)  
-    integer , intent(in) :: orient_triplets(3,nnucl) 
+    integer , intent(in) :: orient_triplets(nnucl,3) 
     real(dp), intent(inout) :: orient_vectors(3,nnucl)
 
     integer :: triplet(3), n
     real(dp) :: u1(3),u2(3),u3(3)
 
     do n=1,nnucl     
-        triplet=orient_triplets(1:3,n) 
+        triplet=orient_triplets(n,1:3) 
+        !triplet=orient_triplets(1:3,n) 
         u1(1:3)=chain(1:3,triplet(1))
         u2(1:3)=chain(1:3,triplet(2))
         u3(1:3)=chain(1:3,triplet(3))
         orient_vectors(:,n)=crossproduct(u2-u1, u3-u1)
 
-       ! print*,"triplet=",triplet
-       ! print*,"u1=", u1
-       ! print*,"u2=", u2
-       ! print*,"u3=", u3
-       ! print*,"orient_vector(",n,")=", orient_vectors(:,n)
+        print*,"triplet=",triplet
+        print*,"u1=", u1
+        print*,"u2=", u2
+        print*,"u3=", u3
+        print*,"orient_vector(",n,")=", orient_vectors(:,n)
 
     enddo
-
 
 end subroutine orientation_vector
 
 
-subroutine orientation_vector_ref(chain_elem,orient_triplet,orient_vector)
+! Calculation the orientation vector  of reference histone  
+! Orientation vector defined as the normal vector to the plane spanned three points
+! input: real(dp)  chain_elem(3,nseg)%elem()  : coordiantes of AA chain elems segments need on CA=> elem(1) 
+!        integer   orient_triplet_ref(3)      : AA segment id (sAA) of triplet of point ( plane ) 1=origin=CA 
+! output: real(dp) orient_vector(3)           : normal vector  
+
+subroutine orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector)
 
     use quaternions, only : crossproduct
     use chains, only : var_darray
 
     type(var_darray), dimension(:,:), intent(in) :: chain_elem
-    integer , intent(in) :: orient_triplet(3) 
+    integer , intent(in) :: orient_triplet_ref(3) 
     real(dp), intent(inout) :: orient_vector(3)
 
     real(dp) :: u1(3),u2(3),u3(3)
@@ -425,65 +441,159 @@ subroutine orientation_vector_ref(chain_elem,orient_triplet,orient_vector)
     !print*,"orient_triplet=",orient_triplet
 
     do k=1,3
-        u1(k)=chain_elem(k,orient_triplet(1))%elem(1)
-        u2(k)=chain_elem(k,orient_triplet(2))%elem(1)
-        u3(k)=chain_elem(k,orient_triplet(3))%elem(1)
+        u1(k)=chain_elem(k,orient_triplet_ref(1))%elem(1)
+        u2(k)=chain_elem(k,orient_triplet_ref(2))%elem(1)
+        u3(k)=chain_elem(k,orient_triplet_ref(3))%elem(1)
     enddo    
     orient_vector=crossproduct(u2-u1, u3-u1)
 
     
-    !print*,"orient_vector_ref=", orient_vector
-    !print*,"u1=", u1
-    !print*,"u2=", u2
-    !print*,"u3=", u3
+    print*,"orient_vector_ref=", orient_vector
+    print*,"u1=", u1
+    print*,"u2=", u2
+    print*,"u3=", u3
 
 end subroutine orientation_vector_ref
 
+! Get coordinates of for all orientation triplets of all nucleosomes,
+! All triplets coordinate translated such that first coordiant ( CA) over every triplet is (0,0,0)
+! input:  real(dp)  chain_rot(3,nseg)       : coordiantes of all nseg segments 
+!         integer   orient_triplet(nnucl,3) : segment id of triplet of point ( plane ) 1=origin=CA
+! output: real(dp)  orient_vectors(3,nnucl) : normal vector; first index cartesian coordinate second index nucleosome
 
-subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,segAAstart,nelemAA,chain_elem,chain_elem_rot)
+subroutine orientation_coordinates(chain_rot,orientation_triplets,triangle_orient_vectors)
+    
+    use globals, only : nnucl
+
+    real(dp), dimension(:,:),  intent(in)    :: chain_rot               ! (k,s) 
+    integer, dimension(:,:) ,  intent(in)    :: orientation_triplets    ! (nnucl,3)
+    real(dp),dimension(:,:,:), intent(inout) :: triangle_orient_vectors ! (3,3,nnucl)
+
+    ! local arguments
+
+    integer :: n, tri, s, s0
+
+    do n=1,nnucl 
+        do tri=1,3
+            print*,"tri=",tri
+            s  = orientation_triplets(n,tri)
+            s0 = orientation_triplets(n,1) 
+            triangle_orient_vectors(:,tri,n) = chain_rot(:,s)-chain_rot(:,s0)
+            print*,"triangle ="
+            print*,triangle_orient_vectors(:,tri,n)  
+        enddo
+    enddo
+
+end subroutine 
+
+
+
+! Make rotation axis/angle for all nnucl nucleosome
+! Apply rotation for all nucleosome to chain_elem retruned in chain_elem_rot
+
+
+subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem,chain_elem_rot,&
+    orientation_triplets,triangle_orient_vectors,segnumAAstart)
     
     use mathconst
-    use globals, only    : nnucl, nseg, nsegAA
-    use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
-    use chains, only : var_darray
+    use globals, only     : nnucl, nseg, nsegAA
+    use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm 
+    use quaternions, only : print_rotation_matrix
+    use chains, only      : var_darray
 
     real(dp), intent(in) :: orient_vector_ref(3) 
     real(dp), intent(in) :: orient_vectors(3,nnucl)
-    integer, intent(in)  :: segAAstart(nnucl)
     integer, intent(in)  :: nelemAA(nsegAA)
     type(var_darray), dimension(:,:), intent(in) :: chain_elem
-    type(var_darray), dimension(:,:,:), intent(inout) :: chain_elem_rot
+    type(var_darray), dimension(:,:,:), intent(inout) :: chain_elem_rot 
+    integer, dimension(:,:) ,  intent(in) :: orientation_triplets       ! (nnucl,3)
+    real(dp),dimension(:,:,:), intent(in) :: triangle_orient_vectors    ! (3,3,nnucl)
+    integer, dimension(:), intent(in) :: segnumAAstart
 
     ! local arguments 
 
-    integer  :: s, j, n, k
-    real(dp) :: a(3), b(3), u(3), unorm, angle 
+    integer  :: sAA, j, n, k
+    real(dp) :: a(3), b(3), u(3), unorm, angle, a_rot(3)
     real(dp) :: q(4)
-    real(dp) :: Rmat(3,3)
+    real(dp) :: Rmat1(3,3),Rmat2(3,3),Rmat_comb(3,3)
     real(dp) :: xvec(3), wvec(3)
 
     do n=1,nnucl                      ! loop over nucleosomes 
 
-        a = orient_vector_ref          ! vector to rotate
-        b = orient_vectors(3,n)       ! target vector
+        ! rotation of orientation vector  
+
+        a = orient_vector_ref         ! vector to rotate
+        b = orient_vectors(:,n)       ! target vector
+
+        print*,"a axis=",a 
+        print*,"b axis=",b
+
         call rot_axis_angle(a, b, u, angle)
         unorm = vec_norm(u)
-        u(1:3) = u(1:3)/unorm 
-        ! print*,"rot axis:",u 
-        ! print*,"rot angle:",angle*180.0_dp/pi
+        u(1:3) = u(1:3)/unorm         ! rotation axis 
+
+        print*,"rot axis:",u 
+        print*,"rot angle:",angle*180.0_dp/pi
+
+        if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
+
         q = rot_axis_angle_to_quat(u, angle)   ! rotation quaternion
-        call rotation_matrix_from_quat(q,Rmat) 
-        do s=1, nsegAA
-            do j = 1, nelemAA(s) 
+        call rotation_matrix_from_quat(q,Rmat1)  
+
+        ! apply second in plane rotation to get coordinate to coincede
+
+        sAA=orientation_triplets(n,2) -segnumAAstart(n)+1 ! second element of triplet 
+        print*,"sAA=",sAA
+
+        do k=1,3 
+            a(k)=chain_elem(k,sAA)%elem(1) ! vector to rotate
+        enddo     
+        a_rot = matmul(Rmat1,a) ! apply rotation
+        b = triangle_orient_vectors(:,sAA,n)
+        
+        call rot_axis_angle(a_rot, b, u, angle)
+        unorm = vec_norm(u)
+        u(1:3) = u(1:3)/unorm         ! rotation axis 
+
+        print*,"rot axis:",u 
+        print*,"rot angle:",angle*180.0_dp/pi
+
+        if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
+
+        q = rot_axis_angle_to_quat(u, angle)   ! rotation quaternion
+        call rotation_matrix_from_quat(q,Rmat2)  
+
+        Rmat_comb=matmul(Rmat2,Rmat1) ! Rmat_comb= Rmat2 x Rmat1
+     
+
+        ! apply rotation to chain_elem
+
+        do sAA=1, nsegAA
+            do j = 1, nelemAA(sAA)  
                 do k=1,3 
-                    xvec(k)=chain_elem(k,s)%elem(j)
+                    xvec(k)=chain_elem(k,sAA)%elem(j)
                 enddo       
-                wvec=matmul(Rmat,xvec)
+        
+                wvec=matmul(Rmat_comb,xvec)
+        
                 do k=1,3
-                    chain_elem_rot(k,s,n)%elem(j)=wvec(k)
+                    chain_elem_rot(k,sAA,n)%elem(j)=wvec(k)  ! assign rotation
                 enddo    
             enddo 
-        enddo     
+        enddo   
+
+        print*,"print chain_elem(k,s) and rotated chain_elem_rot(k,s,n)"
+
+        do sAA=1,nsegAA
+            do j=1,nelemAA(sAA)
+                do k=1,3
+                    print*,"sAA=",sAA,"j=",j,"k=",k," ",chain_elem(k,sAA)%elem(j),chain_elem_rot(k,sAA,n)%elem(j)
+                enddo 
+                print*,""    
+            enddo
+        enddo  
+
+        
     enddo  
 
 end subroutine rotate_chain_elem 

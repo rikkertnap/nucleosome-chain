@@ -52,7 +52,7 @@ subroutine make_chains(chainmethod,systype)
         info=myio_err_chainmethod
     end select
 
-    if(info/=0) call error_handler(info,"make_chains")
+    call error_handler(info,"make_chains")
 
 end subroutine make_chains
 
@@ -603,10 +603,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     use mpivars, only  : rank,size                                                                                   
     use globals
     use chains
-    !use random
     use parameters
     use volume, only   :  nx, ny,nz, delta
-    use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test 
+    use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
     use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
@@ -619,12 +618,9 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. local variables
 
-    integer :: i,j,s,rot,g,gn,k     ! dummy indices
+    integer :: i,j,s,rot,g,gn,k,sAA  ! dummy indices
     integer :: idx                  ! index label
-    integer :: ix,iy,iz,idxtmp !,ntheta
-    !integer :: nchains              ! number of rotations
-    !integer :: maxnchains           ! number of rotations
-    !integer :: maxntheta            ! maximum number of rotation in xy-plane
+    integer :: ix,iy,iz,idxtmp 
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
@@ -636,7 +632,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer  :: xi,yi,zi, ri(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(sp) :: xc,yc,zc            ! coordinates in single precision            
+    real(sp) :: xc,yc,zc             ! coordinates in single precision            
     real(dp) :: energy                                             
     character(len=25) :: fname
     character(lenText):: fname2
@@ -657,9 +653,19 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer  :: orient_triplet_ref(3)
     real(dp) :: orient_vector_ref(3)
     real(dp) :: orient_vectors(3,nnucl)
+    real(dp) :: triangle_orient_vectors(3,3,nnucl)
 
-    type(var_darray), dimension(:,:), allocatable :: chain_elem, chain_elem_index
+    ! chain_elem(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth AA of reference histone protein 
+    ! chain_elem_rot(k,s,n)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth AA of nth nucleosome 
+    ! chain_elem_index(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth segement (AA and DNA) 
+   
+    type(var_darray), dimension(:,:), allocatable   :: chain_elem  
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
+    type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
+    
+    integer :: un_traj, info_traj
+
+    real(dp) :: chain_lammps(3,nseg,1)
 
     ! .. executable statements   
 
@@ -710,8 +716,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
-    !seed=435672              ! seed for random number generator                                                                               
-    
+  
     ios=0
 
     Lz= nz*delta            ! maximum height box 
@@ -729,8 +734,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
                         
-    call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
+    call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
+
     call print_nucl_elements(nsegAA,nelemAA,chain_elem)
+    
     call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
 
     call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
@@ -741,9 +748,12 @@ subroutine read_chains_xyz_nucl_volume(info)
     enddo    
 
     ! compare ORDER of sgraftpts and orientation triplets !!!!!!!
+    ! check indices
+
     do i=1,3
         orient_triplet_ref(i)=orientation_triplets(1,i)-segnumAAstart(1)+1
         print*,"orient_triplet_ref(",i,")=",orient_triplet_ref(i)," original ",orientation_triplets(1,i)
+        print*,"orientation_triplets=",orientation_triplets
     enddo
 
     ! make chain_elem relative to CA of AA of CM rotation i.e., sgraftpts
@@ -794,6 +804,12 @@ subroutine read_chains_xyz_nucl_volume(info)
 
         if(isReadGood) then ! read was succesfull  
 
+            chain_lammps(:,:,1)=xseg
+
+            un_traj=open_chain_lammps_trj(info_traj)
+            call write_chain_lammps_trj(un_traj,chain_lammps,1)
+            close(un_traj)  
+
             conffile=conffile +1 
            
             ! -1. translation such that chain(:,nrotpts) in origin
@@ -804,10 +820,12 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
             enddo
 
+
+            print*,"nrotpts= ",nrotpts
             ! 0. rotate chain 
             
             call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations) 
-           
+
             ! extra test rotation
             equilat=equilateralness_vectors(chain(:,sgraftpts(1)),chain(:,sgraftpts(2)),chain(:,sgraftpts(3)))
             equilat_rot=equilateralness_vectors(chain_rot(:,sgraftpts(1)),chain_rot(:,sgraftpts(2)),chain_rot(:,sgraftpts(3)))
@@ -818,21 +836,47 @@ subroutine read_chains_xyz_nucl_volume(info)
                 info=myio_err_equilat 
                 return
             endif  
+            
+            do k=1,nseg
+                print*,"chain_rot(",k,")=",chain_rot(:,k)
+            enddo    
 
             ! 1. determine orientation chain_rot : n 
             ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of reference in chain_elem
                 
             call orientation_vector(chain_rot,orientation_triplets,orient_vectors)
 
+            print*,"orient_vectors=",orient_vectors
+            print*," "
+
+            ! 2.a. get coordinates of for all orientation triplets of all nucleosomes   
+
+            call orientation_coordinates(chain_rot,orientation_triplets,triangle_orient_vectors)
+
             ! 3. make rotation axis/angle for all nnuclnucleosome
             ! 4. apply rotation for all nucleosome to chain_elem
                 
-            call rotate_chain_elem(orient_vector_ref,orient_vectors,segnumAAstart,nelemAA,chain_elem,chain_elem_rot)
-        
+            call rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem,chain_elem_rot,&
+                orientation_triplets,triangle_orient_vectors,segnumAAstart)
+
+
+
+            print*,"orientation triangle: "
+            ! indices 
+            do sAA=1,nsegAA
+                do k=1,3
+                    print*,"sAA=",sAA,"k=",k," ",chain_elem_rot(k,sAA,1)%elem(1),chain_rot(k,sAA+3)
+                enddo 
+            enddo  
             ! 5. add chain+chain_elem_rot together
             
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
                 chain_rot,chain_elem_rot,chain_elem_index) 
+
+
+            un_traj=open_chain_elem_index_lammps_trj(info_traj)
+            call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
+            close(un_traj) 
 
             ! 6. make indexconfig i.e. place onto lattice
 
@@ -859,7 +903,8 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                         text="Conformation outside box:"
                         call print_to_log(LogUnit,text)  
-                        print*,text                          
+                        print*,text    
+                        print*,"chain_pbc=",chain_pbc(:,s)                      
                         print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
@@ -886,13 +931,20 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
-                            print*,text                          
+                            print*,text  
+                            print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
+                            print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
                             print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                             info= myio_err_index
                             return
                         endif
 
-                    enddo
+                    enddo    
+
+                    un_traj=open_chain_elem_index_lammps_trj(info_traj)
+                    call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
+                    close(un_traj) 
+
                     
                 enddo
 
@@ -1605,7 +1657,8 @@ logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
 end function is_polymer_neutral
 
 
-! make a lammps trajectory file based on  indexchain
+! Make a lammps trajectory file based on indexchain
+! The lammps trajectory uses a molecular ATOM Style
 
 subroutine write_indexchain_lammps_trj(info)
 
@@ -1614,22 +1667,23 @@ subroutine write_indexchain_lammps_trj(info)
     use myutils, only : newunit, lenText
     use volume, only : delta, nz, coordinateFromLinearIndex
     use chains, only : indexchain, type_of_monomer
-    use myio, only : myio_err_chainsfile
+    use myio, only   : myio_err_chainsfile
 
     integer, optional, intent(inout) :: info
 
     character(len=lenText) :: text, istr
     character(len=25) :: fname
     integer :: ios, un_trj 
-    real(dp):: xs, ys, zs
+    real(dp):: x, y, z
     integer :: ix, iy, iz, i, j, k, idx
     real(dp) :: xbox0, xbox1
     integer :: idatom, item, moltype, conf
 
-    ! open file 
+    if (present(info)) info=0
 
+    ! open file 
     write(istr,'(I4)')rank
-    fname='traj.'//trim(adjustl(istr))//'.lammpstrj'
+    fname='traj_indexchain_'//trim(adjustl(istr))//'.lammpstrj'
     open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
     if(ios >0 ) then
         print*, 'Error opening : ',fname,' file : iostat =', ios
@@ -1637,9 +1691,6 @@ subroutine write_indexchain_lammps_trj(info)
         return
     endif
 
-    ix=0
-    iy=0
-    iz=0
     xbox0=0.0_dp
     xbox1=nz*delta
     
@@ -1653,17 +1704,17 @@ subroutine write_indexchain_lammps_trj(info)
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)'ITEM: ATOMS id mol type xs ys zs ix iy iz'
-        !  determine xs, ys, zs,
+        write(un_trj,*)'ITEM: ATOMS id mol type x y z '
+        !  determine x, y, z,
         do item=1,nseg
             idx=indexchain(item,conf)
             call coordinateFromLinearIndex(idx, i, j, k)
-            xs=(i-0.5_dp)*delta/xbox1
-            ys=(j-0.5_dp)*delta/xbox1
-            zs=(k-0.5_dp)*delta/xbox1
+            x=(i-0.5_dp)*delta
+            y=(j-0.5_dp)*delta
+            z=(k-0.5_dp)*delta
             idatom=1
             moltype=type_of_monomer(item) 
-            write(un_trj,*)item,idatom,moltype,xs,ys,zs,ix,iy,iz
+            write(un_trj,*)item,idatom,moltype,x,y,z
         enddo    
     enddo
         
@@ -1672,6 +1723,10 @@ subroutine write_indexchain_lammps_trj(info)
 
 end subroutine write_indexchain_lammps_trj
 
+
+! Creates and opens file for lammps trajectory film
+! Writing do by write_chain_lammps_trj
+! retrun integer : un_trj : unit nubmer of file
 
 function open_chain_lammps_trj(info)result(un_trj)
 
@@ -1688,19 +1743,21 @@ function open_chain_lammps_trj(info)result(un_trj)
     integer :: ios
     logical :: exist
     
+    if (present(info)) info = 0    
+
     write(istr,'(I4)')rank
-    fname='traj.'//trim(adjustl(istr))//'.lammpstrj'
+    fname='trajchain'//trim(adjustl(istr))//'.lammpstrj'
     inquire(file=fname,exist=exist)
     if(.not.exist) then
         open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
-        if(ios >0 ) then
+        if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             if (present(info)) info = myio_err_chainsfile
             return
         endif
     else
         open(unit=newunit(un_trj),file=fname,status='old',iostat=ios)
-        if(ios >0 ) then
+        if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             if (present(info)) info = myio_err_chainsfile
             return
@@ -1708,6 +1765,57 @@ function open_chain_lammps_trj(info)result(un_trj)
     endif    
 end function
 
+
+
+! Creates and opens file for lammps trajectory film
+! Writing done by write_chain_elem_index_lammps_trj
+! retrun integer : un_trj : unit nubmer of file
+
+function open_chain_elem_index_lammps_trj(info)result(un_trj)
+
+    use mpivars, only : rank
+    use myutils, only : newunit, lenText
+    use myio, only : myio_err_chainsfile
+
+    integer, optional, intent(inout) :: info
+
+    integer :: un_trj
+    ! local
+    character(len=lenText) :: istr
+    character(len=35) :: fname
+    integer :: ios
+    logical :: exist
+    
+    if (present(info)) info = 0    
+
+    write(istr,'(I4)')rank
+    fname='trajchainelemindex'//trim(adjustl(istr))//'.lammpstrj'
+    inquire(file=fname,exist=exist)
+    if(.not.exist) then
+        open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
+        if(ios > 0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    else
+        open(unit=newunit(un_trj),file=fname,status='old',iostat=ios)
+        if(ios > 0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    endif    
+end function
+
+
+
+! Writes the coordinates of chain object to lammps a trajectory file.
+! pre : file opened with open_chain_lammps_trj
+! input: integer un_trj : unit number of file to write to.
+!       real(dp) chain(:,:,:) : index 1= coordinate 2= segment/atom numnber 3 number of dublicates conformations 
+!       integer nchains : number of confomations
+! return:  a lammpstrj file
 
 subroutine write_chain_lammps_trj(un_trj,chain,nchains)
 
@@ -1721,40 +1829,106 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
     integer , intent(in) :: un_trj
     
     character(len=lenText) :: istr
-    real(dp) :: xs, ys, zs
-    integer :: ix, iy, iz, i, j, k
+    real(dp) :: x, y, z
+    integer ::  i, j, k
     real(dp) :: xbox0, xbox1
     integer :: idatom, item, moltype, conf
 
-    ix=0
-    iy=0
-    iz=0
     xbox0=0.0_dp
     xbox1=nz*delta
+    conf_write=0
+
     do j=1,nchains   
         
         conf_write=conf_write+1 
         ! write preamble 
-        write(un_trj,*)'ITEM: TIMESTEP' 
+        write(un_trj,'(14A)')'ITEM: TIMESTEP' 
         write(un_trj,*)conf_write 
-        write(un_trj,*)'ITEM: NUMBER OF ATOMS' 
+        write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
         write(un_trj,*)nseg 
-        write(un_trj,*)'ITEM: BOX BOUNDS ff ff ff'
+        write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)'ITEM: ATOMS id mol type xs ys zs ix iy iz'
+        write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
         do item=1,nseg
-            zs = chain(1,item,j)/xbox1
-            xs = chain(2,item,j)/xbox1
-            ys = chain(3,item,j)/xbox1 
+         !   z = chain(1,item,j)/xbox1
+         !   x = chain(2,item,j)/xbox1
+         !   y = chain(3,item,j)/xbox1 
+            x = chain(1,item,j)
+            y = chain(2,item,j)
+            z = chain(3,item,j) 
             idatom=1
             moltype=type_of_monomer(item) 
-            write(un_trj,*)item,idatom,moltype,xs,ys,zs,ix,iy,iz
+            write(un_trj,*)item,idatom,moltype,x,y,z
         enddo    
     enddo
         
 end subroutine write_chain_lammps_trj
+
+! writes the coordinates of chain_elem_index object to a lammps trajectory file.
+! chain_elem_index(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth segement (AA and DNA) 
+!    type(var_darray), dimension(:,:), allocatable :: chain_elem_index
+! pre : file opened with open_chain_lammps_trj
+! input: integer un_trj : unit number of file to write to.
+!        chain_elem_index (:,:,:) : index 1= coordinate 2= segment/atom number 3 number of dublicates conformations 
+!    
+! return: a lammpstrj file
+
+subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
+
+    use globals, only : nseg
+    use myutils, only : newunit, lenText
+    use volume, only : delta, nz, coordinateFromLinearIndex
+    use chains, only : type_of_monomer, nelem,  nucl_elem_type
+    use chains, only : var_darray ! type def  
+
+    type(var_darray), allocatable, dimension(:,:), intent(in) :: chain_elem_index
+    integer, intent(in) :: un_trj
+    
+    character(len=lenText) :: istr
+    real(dp) :: x, y, z
+    integer ::  j, s
+    real(dp) :: xbox0, xbox1
+    integer :: idatom, item, conf, nsegtot
+    character(len=3) :: moltype
+
+    xbox0=0.0_dp
+    xbox1=nz*delta
+   
+    item=0
+    conf_write=1
+
+    nsegtot=0
+    do s=1,nseg
+        nsegtot=nsegtot+nelem(s)
+    enddo    
+
+    ! write preamble 
+    write(un_trj,'(14A)')'ITEM: TIMESTEP' 
+    write(un_trj,*)conf_write 
+    write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
+    write(un_trj,*)nsegtot 
+    write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
+    write(un_trj,*)xbox0,xbox1
+    write(un_trj,*)xbox0,xbox1
+    write(un_trj,*)xbox0,xbox1
+    write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
+    do s=1,nseg
+        do j=1,nelem(s)
+            x = chain_elem_index(1,s)%elem(j)
+            y = chain_elem_index(2,s)%elem(j)
+            z = chain_elem_index(3,s)%elem(j)
+        
+            idatom=1
+            moltype=nucl_elem_type(j,type_of_monomer(s))  
+            
+            item=item+1
+            write(un_trj,*)item,idatom,moltype,x,y,z
+        enddo    
+    enddo    
+    
+end subroutine write_chain_elem_index_lammps_trj
 
 
 function open_chain_energy(info)result(un_ene)
@@ -2352,19 +2526,20 @@ end subroutine set_mapping_num_to_char
 ! input  : fname   = char(*)  filename of MTpdb file ) 
 !        : nsegAA  = integer = number of AA residues
 !        : typesAA = array of integer:  the s element gives number of AA type
-! output : nelemAA = array of integer:  teh s element  gives number of element the sth AA consits of
+! output : nelemAA = array of integer:  the s element gives number of element the sth AA consits of
 !        : chain_elem(3,s)%elem(j) = position of jthe element of AA number s. Enumarate the AA in order
-!        : vnucl(j,t) = real(dp) volume of AA  element j of AA type number t
+!        : vnucl(j,t) = real(dp) volume of DNA or AA  element j of DNA or DNA type number t
+!        : nucl_elem_type(j,t) = character(len=3) type of DNA or AA element j of DNA or AA type number t
 !        : elem_charge(s) = array of integers: the element of AA element of AA s that is chargeable
 !        : info     = integer val=0 assignment  succesfull val/=0 error              
 
-subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_charge,info)
+subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
 
-    use globals, only : DEBUG, nsegtypes,nsegtypesAA
-    use myutils, only : newunit, lenText
-    use myio, only : myio_err_chainsfile
+    use globals, only    : DEBUG, nsegtypes,nsegtypesAA
+    use myutils, only    : newunit, lenText
+    use myio, only       : myio_err_chainsfile
     use parameters, only : lenfname, vpol, vsol
-    use chains, only : var_darray, ismonomer_chargeable, mapping_num_to_char
+    use chains, only     : var_darray, ismonomer_chargeable, mapping_num_to_char
 
     character(lenfname),   intent(in)                            :: fname
     integer,               intent(in)                            :: nsegAA
@@ -2372,22 +2547,24 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
     integer, dimension(:), intent(inout)                         :: nelemAA
     type(var_darray), dimension(:,:), allocatable, intent(inout) :: chain_elem
     real(dp), dimension(:,:) , intent(inout)                     :: vnucl
+    character(len=3), dimension(:,:), allocatable  , intent(inout) :: nucl_elem_type
     integer, dimension(:), allocatable, intent(inout)            :: elem_charge
     integer, intent(out),optional                                :: info 
 
-    ! local arguments
+    ! local variables
 
-    integer   :: ios, un, s, sAA, j, k, ttype ,t
-    character(len=3) :: elem_type(20), voltype
-    real(dp)  :: x(3)
-    logical   :: isReadGood
-    integer   :: num_elem_CA
+    integer          :: ios, un, s, sAA, j, k, ttype ,t
+    character(len=3) :: elem_type(nsegtypesAA), voltype
+    real(dp)         :: x(3)
+    logical          :: isReadGood
+    integer          :: num_elem_CA
     character(len=3) :: list_type_char_DNA(6)  ! list of DNA elements in char
     integer          :: list_type_int_DNA(6)   ! list of DNA elements in integer 
-    integer          ::  AAid, DNAid
+    integer          :: AAid, DNAid, nelem_types
     character(len=3) :: type_char  
 
     if (present(info)) info = 0
+
 
     open(unit=newunit(un),file=fname,status='old',iostat=ios)
     if(ios >0 ) then
@@ -2396,7 +2573,12 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
         return
     endif
 
+    ! allocate objects chain_elem and nucl_elem_type
+
     allocate(chain_elem(3,nsegAA))
+    nelem_types=size(vnucl,1)
+    allocate(nucl_elem_type(nelem_types,nsegtypes))
+    nucl_elem_type=" "
 
     do sAA=1,nsegAA
 
@@ -2421,17 +2603,21 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
             enddo  
             
             vnucl(j,AAid)=find_vol_elem(elem_type(j))  
+            nucl_elem_type(j,AAid)=elem_type(j) 
+
             ! assignment doubles since multiple sAA  corresponds to same type 
-            
+
             if(ios/=0) isReadGood=.false.
 
         enddo 
 
         num_elem_CA=find_CA_elem(elem_type,nelemAA(sAA))
 
-    
-        print*,"AAId=", AAid," chargeable ",ismonomer_chargeable(AAid)
-        print*,"elem_type=",elem_type
+ 
+        print*,"t=",sAA," AAId= ",AAid," chargeable ",ismonomer_chargeable(AAid)
+        print*,"elem_type   = ",elem_type
+        print*,"num_elem_CA = ",num_elem_CA
+        print*," "
 
         ! assignment doubles since multiple sAA  corresponds to same type 
 
@@ -2441,26 +2627,23 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
             elem_charge(AAid)=-1
         endif      
        
-        ! place CA element in to first position j=1
-       
-        ! print*,"elem_type=",elem_type
-        ! print*,"num_elem_CA=",num_elem_CA
-
+        
         if(num_elem_CA/=1) then 
             ! swapping
             call swap_char3(elem_type(num_elem_CA),elem_type(1))
-            !call swap_real(vnucl(num_elem_CA,s), vnucl(1,s))
             call swap_real(vnucl(num_elem_CA,AAid), vnucl(1,AAid))
 
             do k=1,3
                 call swap_real(chain_elem(k,sAA)%elem(num_elem_CA),chain_elem(k,sAA)%elem(1))
             enddo
+            call swap_char3(nucl_elem_type(num_elem_CA,AAid),nucl_elem_type(1,AAid)) 
         endif  
 
         num_elem_CA=find_CA_elem(elem_type,nelemAA(sAA))
 
         if(DEBUG) then 
-            print*,"elem_type = ",elem_type
+            print*,"check swapping "
+            print*,"elem_type   = ",elem_type
             print*,"num_elem_CA = ",num_elem_CA
         endif
 
@@ -2486,9 +2669,9 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     do k=1,6
         DNAid=list_type_int_DNA(k)
-        print*,"DNAid=",DNAid
         if(DNAid/=0) then  ! in case the conformation is incomplete and does not 
             vnucl(1,DNAid) = vpol(DNAid)*vsol
+            nucl_elem_type(1,DNAid)=list_type_char_DNA(k)  
         endif
     enddo 
 
@@ -2499,7 +2682,6 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
 
     do k=1,6
         DNAid=list_type_int_DNA(k)
-        print*,"DNAid=",DNAid
         if(DNAid/=0) then  ! in case the conformation is incomplete and does not 
             if(list_type_char_DNA(k)=="P") then 
                 elem_charge(DNAid) = 1
@@ -2510,32 +2692,52 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,elem_
     enddo 
 
 
+
     if(DEBUG) then 
-        print*,"DEBUG: output of read_nucl_elements"
+        print*,"DEBUG: output of read_nucl_elements : chain_elem"
+        print*," list DNAid"
+        do k=1,6
+            print*,"DNAid=",list_type_int_DNA(k)
+        enddo        
+        print*,"DEBUG: output of read_nucl_elements "
+        print*,"s              k                  j        chain_elem(k,s)%elem(j)" 
         do s=1,nsegAA
             do k=1,3
                 do j=1,nelemAA(s)
                     print*,"s=",s,"k=",k,"j=",j," ",chain_elem(k,s)%elem(j)  
                 enddo 
             enddo 
+            print*," "
         enddo
-    endif     
-        
-    if(DEBUG) then 
-        print*,"DEBUG: output of read_nucl_elements volumes"
+        print*," "
+        print*,"DEBUG: output of read_nucl_elements : vnucl  "
+        print*,"j               t               vnucl(j,t)"
         do t=1,nsegtypes
             do j=1,nsegtypesAA
                 print*,"j=",j," t=",t," ",vnucl(j,t)
             enddo 
         enddo
+
+        print*," "
+
+        print*,"DEBUG: output of read_nucl_elements : nucl_elem_type  "
+        print*,"j               t              nucl_elem_type  (j,t)"
+        do t=1,nsegtypes
+            do j=1,nsegtypesAA
+                print*,"j=",j," t=",t," ",nucl_elem_type(j,t)
+            enddo 
+        enddo
     endif       
-
-
 
 end subroutine read_nucl_elements
 
+
 ! Shift chain_elem(k,s)%elem(j) by position of the CA of AA that is the origin of the "CM" rotation triplet
 ! translation vector is chain_CA(k)=chain_elem(k,segnumcm)%elem(1)
+! input  : integer nsegAA : number of AA 
+!          integer nelemAA : array hold
+!          integer segnumcm  : segment number of cm or ration origin           
+! input/output : type(var_darray) : chain_elem
 
 subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
     
@@ -2549,6 +2751,7 @@ subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
     integer :: s,k,j,i
     real(dp) :: chain_CA(3)
 
+    print*,"DEBUG: output of shift_nucl_elements "
     print*,"segnumcm=",segnumcm
  
     ! translation vector
@@ -2610,10 +2813,10 @@ function find_vol_elem(elem_type)result(vol_elem)
     nelem_types=size(vnucl_type)
     IsNotFound=.true.
     j=0
-
+    print*,"size(vnucl_type)=",nelem_types
     do while (IsNotFound.and.j<=nelem_types)
         j=j+1
-        ! print*,j,vnucl_type_char(j),elem_type,vnucl_type_char(j)==elem_type
+        print*,j,vnucl_type_char(j),elem_type,vnucl_type_char(j)==elem_type
         if(vnucl_type_char(j)==elem_type) IsNotFound=.false.
     enddo 
 

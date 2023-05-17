@@ -21,11 +21,11 @@
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
     real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
-    ! real(dp), dimension(:,:,:,:,:), allocatable :: deltavnucl ! splitting of volume of vpol indices=x,y,z,chargestate,type
     real(dp), dimension(:,:), allocatable       :: vnucl      ! volume of segment s element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
     logical , dimension(:),   allocatable       :: vnucl_type_isChargeable
+
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -957,7 +957,8 @@ contains
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") allocate(vnucl(nelemtypes,nsegtypes))
 
-    end subroutine allocate_vnucl   
+    end subroutine allocate_vnucl  
+
 
     subroutine allocate_vnucl_type(nelemtypes)
 
@@ -973,24 +974,12 @@ contains
 
     end subroutine allocate_vnucl_type  
 
-    subroutine init_vnucl_type 
+    subroutine init_vnucl_type(info) 
 
-        use myutils, only : lenText,print_to_log,LogUnit 
-        use mpivars
-
-        integer :: info
-        character(len=lenText) :: istr,text
+        integer, intent(inout) :: info
 
         call read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,vnuclfname,info)
-        if(info/=0) then
-            write(istr,'(I3)')info
-            text="Error in init_vnucl_type : info = "//istr//" : end program."
-            call print_to_log(LogUnit,text)
-            print*,text
-            call MPI_FINALIZE(ierr)
-        stop
-        endif
-        
+
     end subroutine init_vnucl_type
 
     subroutine init_vnucl
@@ -1001,64 +990,7 @@ contains
         if(systype=="nucl_ionbin_sv") vnucl=0.0_dp 
 
     end subroutine init_vnucl
-
-    ! subroutine allocate_deltavnucl
-
-    !     use globals, only : nsegtypes,systype
-
-    !     if(systype=="nucl_ionbin_sv") allocate(deltavnucl(2,2,2,4,nsegtypes))
-
-    ! end subroutine allocate_deltavnucl    
-
-    ! splits volume of monomer type over neighboring cell (8) evenly 
-    ! only when systype=="nucl_ionbin_sv"
-    ! coorinate ix,iy,iz realtive to density location (ix,iy,iz)=(0,0,0)
-    ! pre : init_volume_pol called for  vpol
-    ! pre :  called for ismonomer_chargeable
-    ! post: deltavnucl for all monomore types
-
-    ! subroutine make_deltavnucl   
-
-    !     use globals, only : nsegtypes,systype
-    !     use chains, only : ismonomer_chargeable
-
-    !     integer :: ix,iy,iz,t,state
-
-
-    !     if(systype=="nucl_ionbin_sv") then 
-
-    !         deltavnucl=0.0_dp ! init
-    
-    !         do t=1,nsegtypes
-    !             do state=1,4
-    !                 do ix=1,1!2 
-    !                     do iy=1,1!2 
-    !                         do iz=1,1!2
-    !                             deltavnucl(ix,iy,iz,state,t)=vpol(t) !/8.0_dp
-    !                         enddo    
-    !                     enddo
-    !                 enddo
-    !             enddo   
-                
-    !             if(ismonomer_chargeable(t)) then
-    !                 ix=1 ! locatation charge center
-    !                 iy=1
-    !                 iz=1
-    !                 if(zpol(t,1)==0) then  !  acid
-    !                     ! state: 1==A^-  2 ==AH 3== ANa  4=AK
-    !                      deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vNa
-    !                      deltavnucl(ix,iy,iz,4,t)=deltavnucl(ix,iy,iz,4,t)+vK
-    !                 else !  base
-    !                     ! state:  1==BH^+ 2== B 3 = BHCl
-    !                     deltavnucl(ix,iy,iz,3,t)=deltavnucl(ix,iy,iz,3,t)+vCl
-    !                 endif       
-    !             endif  
-
-    !         enddo    
-
-    !     endif        
-
-    ! end subroutine make_deltavnucl         
+       
 
     subroutine init_pKas_and_zpol
 
@@ -1358,7 +1290,7 @@ contains
         integer, intent(out)                          :: info   
         
         ! .. local variables
-        integer :: ios, un, line, maxline
+        integer :: ios, un, line, maxline, i
         integer :: nelemtypes
         character(len=90) :: istr,str
         logical :: exist
@@ -1389,7 +1321,8 @@ contains
         ios  = 0
         read(un,*,iostat=ios)nelemtypes                    ! read first line
         call allocate_vnucl_type(nelemtypes) ! allocate vnucl_type,vnucl_type_char
-        call allocate_vnucl(nelemtypes) ! allocate vnucl
+        
+        call allocate_vnucl(nelemtypes) ! allocate vnucl this is wrong palace to allocate it th is is a side effect 
         call init_vnucl()
 
         line = 0
@@ -1413,7 +1346,12 @@ contains
         endif
 
         close(un)
-   
+    
+        print*,"i          vnucl_type        vnucl_type_char" 
+        do i=1,nelemtypes
+            print*,i," ",vnucl_type(i), " ",vnucl_type_char(i)
+        enddo    
+
     end subroutine read_vnucl_type
 
 

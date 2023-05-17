@@ -14,6 +14,10 @@ module chains
         integer, allocatable :: elem(:)
     end type var_iarray
     
+    type var_char3array
+        character(len=3), allocatable :: elem(:)
+    end type var_char3array
+
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
@@ -31,14 +35,14 @@ module chains
     logical                                     :: isHomopolymer
     double precision, dimension(:),allocatable  :: lsegseq                  ! segment length only needed for copolymer
     
-    ! sgraftpts used be in volume.f90
+    ! sgraftpts used to be in volume.f90
     integer                                     :: sgraftpts(3)             ! triplet of unit number of histone that is rotated into fixed orientation
     integer, dimension(:,:), allocatable        :: orientation_triplets     ! triplet of unit number for all nnucl histone
     integer, dimension(:), allocatable          :: nelem                    ! number of elements of every segment
     integer, dimension(:), allocatable          :: nelemAA                  ! number of elements of every AA segment
     integer, dimension(:), allocatable          :: typeAA                   ! type of number of elements of every AA segment
     integer, dimension(:), allocatable          :: elem_charge              ! element number that is chargeable 
-
+    character(len=3), dimension(:,:), allocatable :: nucl_elem_type         ! type of nuclesome element in character 
 
     ! chain stuctural quantities
 
@@ -101,8 +105,8 @@ contains
 
     ! Allocates indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
     ! used for distrubuted volume
-    ! When used indexchain not need and can be deallocated
-    ! inputs: dimension of indexconf: nseg, cuantas, nelem  
+    ! When used indexchain is not neededd and can be deallocated
+    ! inputs: dimension of indexconf: cuantas, nseg and  nelem(:)   
 
     subroutine allocate_indexconf(cuantas,nseg,nelem)
 
@@ -128,6 +132,8 @@ contains
         allocate(nelem(nsegAA))
                   
     end subroutine allocate_nelemAA
+
+   
 
 
 end module chains

@@ -156,7 +156,7 @@ contains
 
     end function rot_axis_angle_to_quat
 
-!  Computes 3D rotataion matrix associated with quaternion q = s + xi + yj + zk
+!  Computes 3D rotatation matrix associated with quaternion q = s + xi + yj + zk
 !  with quaternion multiplication p'=q p q^-1 = R p   and p = xp i +yp j+zp k scalar(p) = sp =0  
 !  assumes ||q||=1 
 
@@ -210,6 +210,7 @@ contains
 
     ! Inner product of vectors a and b with dimenstion 3
     ! similar to intrisic function dotproduct
+    ! dotprod = a.b
 
     function dotproduct(a,b) result(dotprod)
        
@@ -220,7 +221,9 @@ contains
 
     end function dotproduct
 
-
+    ! Cross product of vectors a and b with dimenstion 3
+    ! crossprod = a x b 
+    
     function crossproduct(a,b)result(crossprod)
       
       real(dp), intent(in), dimension(3) :: a, b
@@ -231,6 +234,19 @@ contains
       crossprod(3) = a(1)*b(2) - a(2)*b(1)
 
     end function crossproduct
+
+    ! print rotation matrix RMat 3x3
+     
+    subroutine print_rotation_matrix(Rmat)
+
+        real(dp), intent(in) :: Rmat(3,3)
+          
+        integer :: i,j 
+
+        do i=1,3
+            print*,(Rmat(i,j),j=1,3)
+        enddo  
+    end subroutine print_rotation_matrix
 
 
 end module quaternions

@@ -1595,6 +1595,8 @@ contains
             normPE  = L2norm_f90(f(neqint/2+1:neqint))
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+
+            call locate_xpol_lager_one(xpol_tot)
             
         else                      ! Export results 
             
@@ -1654,6 +1656,7 @@ contains
         real(dp) :: xpol0 
         real(dp) :: locallnproshift(2)
         real(dp) :: globallnproshift(2)
+
       
         ! .. executable statements 
 
@@ -1787,7 +1790,10 @@ contains
             iter = iter + 1 
                          
             print*,'iter=', iter ,'norm=',norm
-            
+
+            call locate_xpol_lager_one(xpol_tot)
+
+
         else                      ! Export results 
             
             dest = 0 
@@ -3195,6 +3201,37 @@ contains
     !    print*,'iter=', iter ,'norm=',norm
 
     end subroutine fcnbulk
+
+
+    subroutine locate_xpol_lager_one(xpol)
+        
+        use precision_definition
+        use globals, only : nsize
+
+        real(dp), intent(in), dimension(:) :: xpol
+
+        ! local arguments
+
+        real(dp) :: maxxpol
+        integer :: i, j
+    
+        ! .. executable statements 
+    
+        ! find maximum 
+        maxxpol=maxval(xpol)
+        print*," max xpol= ",maxxpol
+
+        ! find all elements of xpol larger 1.0
+        j=0
+        do i=1,nsize
+            if(xpol(i) >= 1.0_dp) then 
+                j=j+1
+                print*,"i=",i,"xpol=",xpol(i)                
+            endif
+        enddo         
+        print*,"total number of lattice cell =",j
+
+     end subroutine       
 
 
     !     set constrains on vector x  depending on systype value
