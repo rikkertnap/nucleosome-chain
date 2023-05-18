@@ -370,8 +370,9 @@ subroutine rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations
     endif
     
     if(info/=0.or.write_rotations) then
+        print*,"Write Euler rotations:"
         print*,"alpha=",alpha
-        print*,"beta=",beta
+        print*,"beta =",beta
         print*,"gamma=",gamma
         do s=1,3
             do i=1,3 
@@ -403,18 +404,10 @@ subroutine orientation_vector(chain,orient_triplets,orient_vectors)
 
     do n=1,nnucl     
         triplet=orient_triplets(n,1:3) 
-        !triplet=orient_triplets(1:3,n) 
         u1(1:3)=chain(1:3,triplet(1))
         u2(1:3)=chain(1:3,triplet(2))
         u3(1:3)=chain(1:3,triplet(3))
         orient_vectors(:,n)=crossproduct(u2-u1, u3-u1)
-
-        print*,"triplet=",triplet
-        print*,"u1=", u1
-        print*,"u2=", u2
-        print*,"u3=", u3
-        print*,"orient_vector(",n,")=", orient_vectors(:,n)
-
     enddo
 
 end subroutine orientation_vector
@@ -438,20 +431,12 @@ subroutine orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector)
     real(dp) :: u1(3),u2(3),u3(3)
     integer :: k
 
-    !print*,"orient_triplet=",orient_triplet
-
     do k=1,3
         u1(k)=chain_elem(k,orient_triplet_ref(1))%elem(1)
         u2(k)=chain_elem(k,orient_triplet_ref(2))%elem(1)
         u3(k)=chain_elem(k,orient_triplet_ref(3))%elem(1)
     enddo    
     orient_vector=crossproduct(u2-u1, u3-u1)
-
-    
-    print*,"orient_vector_ref=", orient_vector
-    print*,"u1=", u1
-    print*,"u2=", u2
-    print*,"u3=", u3
 
 end subroutine orientation_vector_ref
 
@@ -475,12 +460,11 @@ subroutine orientation_coordinates(chain_rot,orientation_triplets,triangle_orien
 
     do n=1,nnucl 
         do tri=1,3
-            print*,"tri=",tri
             s  = orientation_triplets(n,tri)
             s0 = orientation_triplets(n,1) 
             triangle_orient_vectors(:,tri,n) = chain_rot(:,s)-chain_rot(:,s0)
-            print*,"triangle ="
-            print*,triangle_orient_vectors(:,tri,n)  
+            !print*,"triangle ="
+            !print*,triangle_orient_vectors(:,tri,n)  
         enddo
     enddo
 
@@ -496,7 +480,7 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
     orientation_triplets,triangle_orient_vectors,segnumAAstart)
     
     use mathconst
-    use globals, only     : nnucl, nseg, nsegAA
+    use globals, only     : nnucl, nseg, nsegAA, DEBUG
     use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm 
     use quaternions, only : print_rotation_matrix
     use chains, only      : var_darray
@@ -525,15 +509,9 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
         a = orient_vector_ref         ! vector to rotate
         b = orient_vectors(:,n)       ! target vector
 
-        print*,"a axis=",a 
-        print*,"b axis=",b
-
         call rot_axis_angle(a, b, u, angle)
         unorm = vec_norm(u)
         u(1:3) = u(1:3)/unorm         ! rotation axis 
-
-        print*,"rot axis:",u 
-        print*,"rot angle:",angle*180.0_dp/pi
 
         if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
 
@@ -543,20 +521,16 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
         ! apply second in plane rotation to get coordinate to coincede
 
         sAA=orientation_triplets(n,2) -segnumAAstart(n)+1 ! second element of triplet 
-        print*,"sAA=",sAA
-
         do k=1,3 
             a(k)=chain_elem(k,sAA)%elem(1) ! vector to rotate
-        enddo     
+        enddo 
+
         a_rot = matmul(Rmat1,a) ! apply rotation
         b = triangle_orient_vectors(:,sAA,n)
         
         call rot_axis_angle(a_rot, b, u, angle)
         unorm = vec_norm(u)
         u(1:3) = u(1:3)/unorm         ! rotation axis 
-
-        print*,"rot axis:",u 
-        print*,"rot angle:",angle*180.0_dp/pi
 
         if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
 
@@ -582,17 +556,19 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
             enddo 
         enddo   
 
-        print*,"print chain_elem(k,s) and rotated chain_elem_rot(k,s,n)"
+        if(DEBUG) then 
+            print*,"Module : chain_rotation : rotate_chain_elem "
+            print*,"print chain_elem(k,s) and rotated chain_elem_rot(k,s,n)"
 
-        do sAA=1,nsegAA
-            do j=1,nelemAA(sAA)
-                do k=1,3
-                    print*,"sAA=",sAA,"j=",j,"k=",k," ",chain_elem(k,sAA)%elem(j),chain_elem_rot(k,sAA,n)%elem(j)
-                enddo 
-                print*,""    
-            enddo
-        enddo  
-
+            do sAA=1,nsegAA
+                do j=1,nelemAA(sAA)
+                    do k=1,3
+                        print*,"sAA=",sAA,"j=",j,"k=",k," ",chain_elem(k,sAA)%elem(j),chain_elem_rot(k,sAA,n)%elem(j)
+                    enddo 
+                    print*,""    
+                enddo
+            enddo  
+        endif    
         
     enddo  
 

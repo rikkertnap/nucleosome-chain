@@ -1596,7 +1596,7 @@ contains
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
 
-            call locate_xpol_lager_one(xpol_tot)
+            if(DEBUG) call locate_xpol_lager_one(xpol_tot)
             
         else                      ! Export results 
             

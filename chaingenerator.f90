@@ -736,7 +736,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                         
     call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
 
-    call print_nucl_elements(nsegAA,nelemAA,chain_elem)
+    if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
     
     call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
 
@@ -752,16 +752,23 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     do i=1,3
         orient_triplet_ref(i)=orientation_triplets(1,i)-segnumAAstart(1)+1
-        print*,"orient_triplet_ref(",i,")=",orient_triplet_ref(i)," original ",orientation_triplets(1,i)
-        print*,"orientation_triplets=",orientation_triplets
-    enddo
+    enddo 
+
+    if(DEBUG) then
+        print*,"Module : chaingenerator : read_chains_xyz_nucl_volume "
+        print*,"orient_triplets"
+        do i=1,3
+            print*,"orient_triplet_ref(",i,")=",orient_triplet_ref(i)," original ",orientation_triplets(1,i)
+            print*,"orientation_triplets=",orientation_triplets
+        enddo
+    endif    
 
     ! make chain_elem relative to CA of AA of CM rotation i.e., sgraftpts
     call shift_nucl_elements(nsegAA,nelemAA,orient_triplet_ref(1),chain_elem)
-    call print_nucl_elements(nsegAA,nelemAA,chain_elem)
-
+   
+    if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
+   
     call make_nelem(nseg,nsegAA,nnucl,segnumAAstart,nelemAA,nelem)
-  
     call allocate_indexconf(cuantas,nseg,nelem)
     call allocate_nucl_chain_elements(nnucl,nsegAA,nelemAA,chain_elem_rot) 
     call allocate_chain_elements(nseg,nelem,chain_elem_index)
@@ -820,11 +827,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
             enddo
 
-
-            print*,"nrotpts= ",nrotpts
             ! 0. rotate chain 
             
             call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations) 
+            
 
             ! extra test rotation
             equilat=equilateralness_vectors(chain(:,sgraftpts(1)),chain(:,sgraftpts(2)),chain(:,sgraftpts(3)))
@@ -836,18 +842,12 @@ subroutine read_chains_xyz_nucl_volume(info)
                 info=myio_err_equilat 
                 return
             endif  
-            
-            do k=1,nseg
-                print*,"chain_rot(",k,")=",chain_rot(:,k)
-            enddo    
+              
 
             ! 1. determine orientation chain_rot : n 
             ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of reference in chain_elem
                 
             call orientation_vector(chain_rot,orientation_triplets,orient_vectors)
-
-            print*,"orient_vectors=",orient_vectors
-            print*," "
 
             ! 2.a. get coordinates of for all orientation triplets of all nucleosomes   
 
@@ -860,14 +860,18 @@ subroutine read_chains_xyz_nucl_volume(info)
                 orientation_triplets,triangle_orient_vectors,segnumAAstart)
 
 
+            if(DEBUG)then
+                print*,"Module : chaingenerator : read_chains_xyz_nucl_volume "
+                print*,"orientation triangle: "
+                print*," sAA      k          chain_elem_rot(k,sAA,1)%elem(1)  chain_rot(k,sAA+3)"
+                ! indices 
+                do sAA=1,nsegAA
+                    do k=1,3
+                        print*," ",sAA," " ,k," ",chain_elem_rot(k,sAA,1)%elem(1),chain_rot(k,sAA+3)
+                    enddo 
+                enddo
+            endif      
 
-            print*,"orientation triangle: "
-            ! indices 
-            do sAA=1,nsegAA
-                do k=1,3
-                    print*,"sAA=",sAA,"k=",k," ",chain_elem_rot(k,sAA,1)%elem(1),chain_rot(k,sAA+3)
-                enddo 
-            enddo  
             ! 5. add chain+chain_elem_rot together
             
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
@@ -2613,12 +2617,6 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
 
         num_elem_CA=find_CA_elem(elem_type,nelemAA(sAA))
 
- 
-        print*,"t=",sAA," AAId= ",AAid," chargeable ",ismonomer_chargeable(AAid)
-        print*,"elem_type   = ",elem_type
-        print*,"num_elem_CA = ",num_elem_CA
-        print*," "
-
         ! assignment doubles since multiple sAA  corresponds to same type 
 
         if(ismonomer_chargeable(AAid)) then ! ismonomer_chargeable has type number as input !! 
@@ -2750,9 +2748,6 @@ subroutine shift_nucl_elements(nsegAA,nelemAA,segnumcm,chain_elem)
 
     integer :: s,k,j,i
     real(dp) :: chain_CA(3)
-
-    print*,"DEBUG: output of shift_nucl_elements "
-    print*,"segnumcm=",segnumcm
  
     ! translation vector
     do i=1,3 
@@ -2813,10 +2808,8 @@ function find_vol_elem(elem_type)result(vol_elem)
     nelem_types=size(vnucl_type)
     IsNotFound=.true.
     j=0
-    print*,"size(vnucl_type)=",nelem_types
     do while (IsNotFound.and.j<=nelem_types)
         j=j+1
-        print*,j,vnucl_type_char(j),elem_type,vnucl_type_char(j)==elem_type
         if(vnucl_type_char(j)==elem_type) IsNotFound=.false.
     enddo 
 
@@ -2949,8 +2942,10 @@ subroutine read_nucl_orient_triplets(fname,nnucl,nuc_orient_triplet,info)
 
 end subroutine read_nucl_orient_triplets
 
-! pre : nelem( s) has been assigned
-! post : chain_elem(k,s)%elem(s) allocated
+! Allocates object chain_elem
+! input : integer : nsegAA :  number of AAs, has to been assigned
+!         integer : nelem(s) : number of elems for AA number s, has been assigned 
+! output: type(var_darray) chain_elem(k,s)%elem(s) allocated
 
 subroutine allocate_chain_elements(nsegAA,nelemAA,chain_elem)
 
@@ -3131,15 +3126,15 @@ end subroutine make_nelem
 ! Computes chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j
 ! by adding chain_elem_rot to chain_rot(k,s)
 ! Note chain_elem_rot distance relative to cm such be relative to location CA of every AA  
-! inputs : nseg      = number of segments
-!          nsegAA    = number of AA segments per nucleosome
-!          nnucl     = number of nucleosomes
-!          segnumAAstart = segment numbers that corresponds to first AA of nth nucleosome
-!          segnumAAsend  = segment numbers that corresponds to last AA of nth nucleosome
-!          nelemAA   = array list number elements for each segments
-!          chain_rot = array of coordinates of chain for AA only the CA elements
-!          chain_elem_rot => chain_elem_rot(k,sn,n)%elem(j) orienteted AA elements for n nucleosome
-! output : chain_elem_index => chain_index(k,s)%elem(j) = coordinate (component k) of segment s and element j
+! inputs : integer nseg      = number of segments
+!          integer nsegAA    = number of AA segments per nucleosome
+!          integer nnucl     = number of nucleosomes
+!          integer segnumAAstart = segment numbers that corresponds to first AA of nth nucleosome
+!          integer segnumAAsend  = segment numbers that corresponds to last AA of nth nucleosome
+!          integer nelemAA    = array list number elements for each segments
+!          type(var_darray) chain_rot = array of coordinates of chain for AA only the CA elements
+!          type(var_darray) chain_elem_rot => chain_elem_rot(k,sn,n)%elem(j) oriented AA elements for nth nucleosome 
+! output : type(var_darray) chain_elem_index => chain_index(k,s)%elem(j) = coordinate (component k) of segment s and element j
 
 
 subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
@@ -3180,7 +3175,7 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
             chain_elem_index(k,s)%elem(1)= chain_rot(k,s)
         enddo  
     enddo        
-    do n=2,nnucl-1 
+    do n=1,nnucl-1 
         do s=segnumAAend(n)+1,segnumAAstart(n+1)-1 
             do k=1,3
                 chain_elem_index(k,s)%elem(1)= chain_rot(k,s)

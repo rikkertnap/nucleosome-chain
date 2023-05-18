@@ -1280,8 +1280,9 @@ contains
 
     subroutine read_vnucl_type(vnucl_type,vnucl_type_char,vnucl_type_isChargeable,fname,info)
 
-        use  myutils
-        
+        use myutils
+        use globals, only : DEBUG
+
         ! .. arguments 
         real(dp), intent(inout), allocatable          :: vnucl_type(:)
         character(len=3), intent(inout),allocatable   :: vnucl_type_char(:)
@@ -1347,10 +1348,13 @@ contains
 
         close(un)
     
-        print*,"i          vnucl_type        vnucl_type_char" 
-        do i=1,nelemtypes
-            print*,i," ",vnucl_type(i), " ",vnucl_type_char(i)
-        enddo    
+        if(DEBUG) then
+            print*,"Module : parameters : read_vnucl_type"
+            print*,"i          vnucl_type        vnucl_type_char" 
+            do i=1,nelemtypes
+                print*,i," ",vnucl_type(i), " ",vnucl_type_char(i)
+            enddo
+        endif        
 
     end subroutine read_vnucl_type
 
