@@ -86,6 +86,9 @@ contains
     end subroutine close_logfile
         
 
+    ! If info /= 0 program stops after writting text message to screen and in log file.
+    ! input iinteger info
+    
     subroutine error_handler(info,message)
         
         use mpivars
@@ -97,7 +100,7 @@ contains
 
         if(info/=0) then
             write(istr,'(I3)')info
-            text="Error in "//trim(adjustl(message))//" input file: info = "//istr//" : end program."
+            text="Error in "//trim(adjustl(message))//" : info = "//istr//" : end program."
             call print_to_log(LogUnit,text)
             print*,text
             call MPI_FINALIZE(ierr)

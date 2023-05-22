@@ -74,7 +74,7 @@ contains
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -1239,7 +1239,7 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
         integer  :: count_scf
 
-       ! real(dp) :: g(neq/2)
+        ! real(dp) :: g(neq/2)
 
         ! .. executable statements 
 
@@ -1471,7 +1471,7 @@ contains
             q=0.0_dp 
             q=local_q
             
-             do i=1, numproc-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
                 q=q+local_q

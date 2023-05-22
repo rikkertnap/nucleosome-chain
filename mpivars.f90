@@ -9,7 +9,7 @@ module mpivars
 
     integer :: rank              ! current node number
     integer :: size              ! total number of nodes 
-    integer  :: numproc           ! size  total number of nodes
+    integer :: numproc           ! size  total number of nodes
     integer :: ierr
     integer :: stat(MPI_STATUS_SIZE)
     integer :: source
@@ -18,7 +18,7 @@ module mpivars
     parameter(tag = 0)
     integer ::  err
 
-integer  flag_solver
+    integer  flag_solver
 
 
 end module mpivars

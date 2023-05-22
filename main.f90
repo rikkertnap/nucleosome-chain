@@ -63,7 +63,7 @@ program main
     call MPI_INIT(ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numproc, ierr)
-    size=numproc !! temporary needs to be removed
+    size=numproc ! needs to be removed !!!!!!!!!!
 
     ! .. logfile
     
@@ -234,7 +234,7 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                call solver(x, xguess, tol_conv, fnorm, isSolution)
+                !call solver(x, xguess, tol_conv, fnorm, isSolution)
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodes
                 do i = 1, size-1

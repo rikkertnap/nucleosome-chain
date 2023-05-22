@@ -521,12 +521,13 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
         ! apply second in plane rotation to get coordinate to coincede
 
         sAA=orientation_triplets(n,2) -segnumAAstart(n)+1 ! second element of triplet 
+        print*,"rotate_chain_elem: sAA=",sAA," orientation_triplets(n,2)=",orientation_triplets(n,2)
         do k=1,3 
             a(k)=chain_elem(k,sAA)%elem(1) ! vector to rotate
         enddo 
 
         a_rot = matmul(Rmat1,a) ! apply rotation
-        b = triangle_orient_vectors(:,sAA,n)
+        b = triangle_orient_vectors(:,2,n)
         
         call rot_axis_angle(a_rot, b, u, angle)
         unorm = vec_norm(u)
