@@ -6,12 +6,17 @@
 Uses the molecular theory approach to compute the structure and charge of a nucleosome n-mer in 3D in 
 cartesian and oblique (prism and hexagonal) coordinates. 
 The aqueous solution is characterized by pH, and salt concentration of NaCl, KCl, CaCl2 and MgCl2.
-The nucleoeosome chains or conformation are obtained from simulation using the 1CPN-model. 
-The 1CPN trajectory are inverted and mapped back to amino-acid unit resolution of the 3SPN-AIGC model, inwhich DNA is represented by 3 sites. Namly 
-P(phosphate), S( sugar) and an nucliotude (A, T, G, and C ). The amino-acid residue is represented by one site.
-Formation of Ca-bridges between phosphate monomer is taken into account.
-Program has inherited features and input variables of other codes such as srcf90-fdis5-3D, which solved in 3D a end-tethered polyelectroltye layer 
-of arbitrair composition. Hence beside nucleomse it can alos represent copolymers, whose confoamtions are generated internal using the RIS model. 
+
+The nucleosome chains or conformation are obtained from simulation using the 1CPN-model. 
+The 1CPN trajectory are inverted and mapped back to amino-acid unit resolution of the 3SPN-AIGC model, 
+inwhich DNA is represented by 3 sites. Namely 
+P(phosphate), S(sugar) and an nucliotude (A, T, G, and C ). The amino-acid residue is represented by one site.
+An refined representation of the core histone octomer is implemented (in v0.63). Here the amino-acids are represented 
+on atomistic level. It includes explicit the locations of the CA, CB, CD, NZ, NH1 etc. Positions are obtained for the 1kx5 pdb file.
+Acid-base chemical equlibrium of acidic DNA phosphates and the amino-acids are taken into account. Also,ioncondensation of monovalent ions is taken into account. 
+Formation of Mg- and Ca-bridges between phosphate monomers can be considered.
+
+The code has inherited features and input variables of other codes such as srcf90-fdis5-3D, which solved in 3D an end-tethered polyelectroltye layer of arbitrary sequence. Hence program can beside nucleomeses also represent copolymers, whose conformations are eihter generated externally or internally using the RIS model. 
 
 
 ### Prerequisites
@@ -72,7 +77,7 @@ A central configuration file is called 'input.in' that contain following key wor
 |pH%delta `real`            | Minimal allowed stepsize. Stopping criteria||
 |KionNa `real`              | dissociation constant of NaCl| __0__  : complete dissociation|
 |   	                       |                              | __0.60__ : suggested value for NaCl|
-|KionK `real`			            | dissociation constant of KCl | |
+|KionK `real`			            | dissociation constant of KCl   | |
 |cNaCl `real`               | concentration of NaCl value    |  |
 |cKCl `real`                | concentration of KCl value      |  |
 |cRbCl `real`               | concentration of RbCl value     |   | 
@@ -139,7 +144,7 @@ A central configuration file is called 'input.in' that contain following key wor
 
 Format other input files:
  
-* input file 'salt.in' if runtype="inputcspH" or "inputcsT" or "rangedielect. Values of salt concentration read in from file the input file. First line indicates the number of salt concentrations to be considered. Subsequent lines are the values of the salt concentrations.'
+* input file 'salt.in' if runtype="inputcspH" or "inputcsT" or "rangedielect". Values of salt concentration read in from file the input file. First line indicates the number of salt concentrations to be considered. Subsequent lines are the values of the salt concentrations.'
 * input file 'saltMg.in' contains Mg2+ concentrations  if runtype="inputMgpH" or "rangepKd" or "rangeVdWeps". Format similar to "salt.in".
 * Input file 'vdwcoeff_lseg\<val\>_\<geometry\>.dat'  contains distance dependent part VdW interaction.
 * Input file  'VdWeps.in' constains epsilon parameters of VdW interaction. Format matrix.
@@ -171,7 +176,7 @@ Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
 ## Versioning
 
-version 0.63 05-04-2023
+version 0.64 06-02-2023
 
 ## Authors
 
