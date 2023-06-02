@@ -21,7 +21,7 @@
     real(dp) :: vpolB(5),deltavB(4)
     real(dp) :: vpolAA(8),deltavAA(7)
     real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
-    real(dp), dimension(:,:), allocatable       :: vnucl      ! volume of segment s element j  
+    real(dp), dimension(:,:), allocatable       :: vnucl  ! volume of segment type t element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
     logical , dimension(:),   allocatable       :: vnucl_type_isChargeable

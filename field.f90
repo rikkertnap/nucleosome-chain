@@ -827,6 +827,7 @@ contains
     end function fcn_ion_excess
 
     ! pre : make_ion_excess needed to be called before ion_excess
+    ! pre : ion_excess needs to be computed. make_ion_excess called first
     ! input numberelem :  array contain the total elements of all types
     ! output assigns : beta_ion_excess  
     ! definitions beta_i = z_i * \Gamma_i / |qnucl|
@@ -910,7 +911,8 @@ contains
 
 
     ! pre : make_ion_excess needed to be called before ion_excess
-    ! input numberelem :  array contain the total elements of all types
+    ! pre : ion_excess needs to be computed. make_ion_excess called first
+    ! input numberelem :  array containing the total elements of all types
     ! output assigns : beta_ion_excess  
     ! definitions beta_i = z_i * \Gamma_i / |qnucl|
   

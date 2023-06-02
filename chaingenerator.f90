@@ -754,9 +754,11 @@ subroutine read_chains_xyz_nucl_volume(info)
     call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
     call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
 
-    do i=1,nnucl
-        print*," sAAstart ",segnumAAstart(i)," sAAend ",segnumAAend(i)
-    enddo    
+    if(DEBUG) then 
+        do i=1,nnucl
+            print*," sAAstart ",segnumAAstart(i)," sAAend ",segnumAAend(i)
+        enddo    
+    endif    
 
     ! compare ORDER of sgraftpts and orientation triplets !!!!!!!
     ! check indices
@@ -824,9 +826,11 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             chain_lammps(:,:,1)=xseg
 
-            un_traj=open_chain_lammps_trj(info_traj)
-            call write_chain_lammps_trj(un_traj,chain_lammps,1)
-            close(un_traj)  
+            if(DEBUG)then
+                un_traj=open_chain_lammps_trj(info_traj)
+                call write_chain_lammps_trj(un_traj,chain_lammps,1)
+                close(un_traj)
+            endif      
 
             conffile=conffile +1 
            
@@ -888,9 +892,11 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain_rot,chain_elem_rot,chain_elem_index) 
 
 
-            un_traj=open_chain_elem_index_lammps_trj(info_traj)
-            call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
-            close(un_traj) 
+            if(DEBUG)then
+                un_traj=open_chain_elem_index_lammps_trj(info_traj)
+                call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
+                close(un_traj)
+            endif     
 
             ! 6. make indexconfig i.e. place conformation on lattice
 
@@ -955,7 +961,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 enddo
 
-                call write_indexconf_lammps_trj(info_traj)
+                if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
                 energychain(conf)      = energy
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1700,6 +1706,7 @@ end function is_polymer_neutral
 
 ! Make a lammps trajectory file based on indexchain
 ! The lammps trajectory uses a molecular ATOM Style
+! Unit length in Angstrom
 
 subroutine write_indexchain_lammps_trj(info)
 
@@ -1750,9 +1757,9 @@ subroutine write_indexchain_lammps_trj(info)
         do item=1,nseg
             idx=indexchain(item,conf)
             call coordinateFromLinearIndex(idx, i, j, k)
-            x=(i-0.5_dp)*delta
-            y=(j-0.5_dp)*delta
-            z=(k-0.5_dp)*delta
+            x=(i-0.5_dp)*delta*10.0_dp
+            y=(j-0.5_dp)*delta*10.0_dp
+            z=(k-0.5_dp)*delta*10.0_dp
             idatom=1
             moltype=type_of_monomer(item) 
             write(un_trj,*)item,idatom,moltype,x,y,z
@@ -1768,6 +1775,7 @@ end subroutine write_indexchain_lammps_trj
 
 ! Make a lammps trajectory file based on indexchain
 ! the lammps trajectory uses a molecular ATOM Style
+! Unit length in Angstrom
 
 subroutine write_indexconf_lammps_trj(info)
 
@@ -1829,9 +1837,9 @@ subroutine write_indexconf_lammps_trj(info)
                 idx = indexconf(s,conf)%elem(em)
                 
                 call coordinateFromLinearIndex(idx, i, j, k)
-                x=(i-0.5_dp)*delta
-                y=(j-0.5_dp)*delta
-                z=(k-0.5_dp)*delta
+                x=(i-0.5_dp)*delta*10.0_dp
+                y=(j-0.5_dp)*delta*10.0_dp
+                z=(k-0.5_dp)*delta*10.0_dp
                 
                 item=s
                 idatom=type_of_monomer(s)
@@ -1937,6 +1945,7 @@ end function
 
 
 ! Writes the coordinates of chain object to lammps a trajectory file.
+! Unit length in Angstrom
 ! pre : file opened with open_chain_lammps_trj
 ! input: integer un_trj : unit number of file to write to.
 !       real(dp) chain(:,:,:) : index 1= coordinate 2= segment/atom numnber 3 number of dublicates conformations 
@@ -1981,9 +1990,9 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
          !   z = chain(1,item,j)/xbox1
          !   x = chain(2,item,j)/xbox1
          !   y = chain(3,item,j)/xbox1 
-            x = chain(1,item,j)
-            y = chain(2,item,j)
-            z = chain(3,item,j) 
+            x = chain(1,item,j)*10.0_dp
+            y = chain(2,item,j)*10.0_dp
+            z = chain(3,item,j)*10.0_dp
             idatom=1
             moltype=type_of_monomer(item) 
             write(un_trj,*)item,idatom,moltype,x,y,z
@@ -1995,6 +2004,7 @@ end subroutine write_chain_lammps_trj
 ! Writes the coordinates of chain_elem_index object to a lammps trajectory file.
 ! chain_elem_index(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth segement (AA and DNA) 
 !    type(var_darray), dimension(:,:), allocatable :: chain_elem_index
+! Unit length in Angstrom
 ! pre : file opened with open_chain_lammps_trj
 ! input: integer un_trj : unit number of file to write to.
 !        chain_elem_index (:,:,:) : index 1= coordinate 2= segment/atom number 3 number of dublicates conformations 
@@ -2042,9 +2052,9 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
     do s=1,nseg
         do j=1,nelem(s)
-            x = chain_elem_index(1,s)%elem(j)
-            y = chain_elem_index(2,s)%elem(j)
-            z = chain_elem_index(3,s)%elem(j)
+            x = chain_elem_index(1,s)%elem(j)*10.0_dp
+            y = chain_elem_index(2,s)%elem(j)*10.0_dp
+            z = chain_elem_index(3,s)%elem(j)*10.0_dp
         
             idatom=type_of_monomer(s)
             moltype=nucl_elem_type(j,type_of_monomer(s))  

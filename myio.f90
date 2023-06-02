@@ -993,7 +993,7 @@ subroutine set_value_nsegtypes(nsegtypes,chaintype,systype,info)
     integer :: i
 
     
-    ! two components
+    ! two components chain
     ! permissible values of chaintype
 
     chaintypestr(1)="diblockA"
@@ -1453,6 +1453,7 @@ subroutine output_nucl_mul
         write(un_sys,*)'sumphi(',t,')    = ',sumphi(t)
     enddo    
     write(un_sys,*)'check phi   = ',checkphi
+    write(un_sys,*)'check xpol  = ',checkxpol
     write(un_sys,*)'FEq         = ',FEq
     write(un_sys,*)'FEpi        = ',FEpi
     write(un_sys,*)'FErho       = ',FErho
@@ -1818,6 +1819,7 @@ subroutine output_elect
     write(un_sys,*)'sumphiA     = ',sumphiA
     write(un_sys,*)'sumphiB     = ',sumphiB
     write(un_sys,*)'check phi   = ',checkphi
+    write(un_sys,*)'check xpol  = ',checkxpol
     write(un_sys,*)'FEq         = ',FEq
     write(un_sys,*)'FEpi        = ',FEpi
     write(un_sys,*)'FErho       = ',FErho
@@ -2040,8 +2042,11 @@ subroutine output_neutral
     write(un_sys,*)'Econf       = ',Econf
     write(un_sys,*)'FEtrans%sol = ',FEtrans%sol
     write(un_sys,*)'fnorm       = ',fnorm
-    write(un_sys,*)'sumphi      = ',(sumphi(t),t=1,nsegtypes)
+    do t=1,nsegtypes
+        write(un_sys,*)'sumphi(',t,')    = ',sumphi(t)
+    enddo    
     write(un_sys,*)'check phi   = ',checkphi
+    write(un_sys,*)'check xpol  = ',checkxpol
     write(un_sys,*)'denspol     = ',denspol
     write(un_sys,*)'FEq         = ',FEq
     write(un_sys,*)'FEpi        = ',FEpi
@@ -2364,7 +2369,7 @@ end subroutine copy_solution
 subroutine compute_vars_and_output()
 
     use globals, only : systype, DEBUG
-    use energy, only : fcnenergy, check_volume_nucl_ionbin_sv, check_volume_nucl_ionbin, sumphi
+    use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
 
     select case (systype)
@@ -2399,7 +2404,7 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call output()  
-        if(DEBUG) call check_volume_nucl_ionbin_sv()       
+           
 
     case ("nucl_ionbin_sv")
 
@@ -2409,13 +2414,11 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call output()           
-        if(DEBUG) call check_volume_nucl_ionbin_sv() 
-
+    
      case ("nucl_neutral_sv")
 
         call fcnenergy()
-        call output() 
-         if(DEBUG) call check_volume_nucl_ionbin_sv()           
+        call output()           
 
     case default
 

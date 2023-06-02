@@ -90,7 +90,7 @@ subroutine init_guess_elect(x, xguess)
     use field, only : xsol,psi,rhopol
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -100,6 +100,7 @@ subroutine init_guess_elect(x, xguess)
     character(len=8) :: fname(4)
     integer :: ios,un_file(4)
     integer, parameter :: A=1, B=2   
+    character(len=lenText) :: text, istr, str
   
     ! .. init guess all xbulk     
 
@@ -119,12 +120,13 @@ subroutine init_guess_elect(x, xguess)
      
         do i=1,4 ! loop files
             open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
-            if(ios >0 ) then    
-                print*, 'file num ber =',un_file(i),' file name =',fname(i)
-                print*, 'Error opening file : iostat =', ios
-                stop
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_elect: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
             endif
         enddo
+
         if(bcflag(LEFT)/="cc") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
@@ -168,7 +170,7 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
     use volume, only : nz
     use field, only : xsol,rhopol,xpol
     use parameters, only : xbulk, infile, isrhoselfconsistent
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -176,6 +178,7 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
     !     ..local variables 
     integer :: n, i, k, t
     character(len=8) :: fname
+    character(len=lenText) :: text, istr
     integer :: ios,un_file,count_scf
   
     !     .. init guess all xbulk      
@@ -184,22 +187,19 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
         x(i)=0.0_dp    
     enddo
 
-    print*,"xbulk%sol=",xbulk%sol
-
     do i=1,nsize
         x(i)=xbulk%sol
     enddo
 
-
     if (infile.eq.1) then   ! infile is read in from file/stdio  
-        write(fname,'(A7)')'xsol.in'
-       
+        write(fname,'(A7)')'xsol.in'   
         open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
         if(ios >0 ) then
-            print*, 'file number =',un_file,' file name =',fname
-            print*, 'Error opening file : iostat =', ios                                
-            stop
+            write(istr,'(I5)')un_file
+            text='init_guess_neutral_sv: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname))
+            call error_handler(ios,text)
         endif
+
         do i=1,nsize
             read(un_file,*)xsol(i) ! solvent
             x(i) = xsol(i)            ! placing xsol  in vector x
@@ -223,7 +223,7 @@ subroutine init_guess_neutral(x, xguess)
     use volume, only : nz
     use field, only : xsol,rhopol,xpol
     use parameters, only : xbulk, infile, isrhoselfconsistent
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -231,6 +231,7 @@ subroutine init_guess_neutral(x, xguess)
     !     ..local variables 
     integer :: n, i, k, t
     character(len=8) :: fname(2)
+    character(len=lenText) :: text, istr, str
     integer :: ios,un_file(2),count_scf
   
     !     .. init guess all xbulk      
@@ -250,9 +251,9 @@ subroutine init_guess_neutral(x, xguess)
         do i=1,2 ! loop files
             open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
             if(ios >0 ) then
-                print*, 'file number =',un_file,' file name =',fname
-                print*, 'Error opening file : iostat =', ios                
-                stop
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_neutral: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
             endif
         enddo
         do i=1,nsize
@@ -290,7 +291,7 @@ subroutine init_guess_neutralnoVdW(x, xguess)
     use volume, only : nz
     use field, only : xsol,rhopol
     use parameters, only : xbulk, infile
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -298,6 +299,7 @@ subroutine init_guess_neutralnoVdW(x, xguess)
     !     ..local variables 
     integer :: n, i, t
     character(len=8) :: fname
+    character(len=lenText) :: text, istr
     integer :: ios,un_file
   
     !     .. init guess all xbulk      
@@ -315,9 +317,9 @@ subroutine init_guess_neutralnoVdW(x, xguess)
         write(fname,'(A7)')'xsol.in'
         open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
         if(ios >0 ) then
-            print*, 'file number =',un_file,' file name =',fname
-            print*, 'Error opening file : iostat =', ios                
-            stop
+            write(istr,'(I5)')un_file
+            text='init_guess_neutralnoVdW: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname))
+            call error_handler(ios,text)
         endif
         do i=1,nsize
             read(un_file,*)xsol(i) ! solvent
@@ -341,7 +343,7 @@ subroutine init_guess_multi(x, xguess)
     use field, only : xsol,psi,rhopol,xpol
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile, isrhoselfconsistent
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -350,7 +352,7 @@ subroutine init_guess_multi(x, xguess)
     integer :: n, i, k, t
     character(len=8) :: fname(4)
     integer :: ios,un_file(4),count_scf
-
+    character(len=lenText) :: text, istr
 
     ! .. init guess all xbulk     
 
@@ -371,12 +373,13 @@ subroutine init_guess_multi(x, xguess)
      
         do i=1,3 ! loop files
             open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
-            if(ios >0 ) then    
-                print*, 'file num ber =',un_file(i),' file name =',fname(i)
-                print*, 'Error opening file : iostat =', ios
-                stop
-            endif
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_multi: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
+            endif    
         enddo
+
         if(bcflag(LEFT)/="cc") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
@@ -430,7 +433,7 @@ subroutine init_guess_multinoVdW(x, xguess)
     use field, only : xsol,psi
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile
-    use myutils, only : newunit
+    use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
@@ -438,6 +441,7 @@ subroutine init_guess_multinoVdW(x, xguess)
     !     ..local variables 
     integer :: n, i, t
     character(len=8) :: fname(2)
+    character(len=lenText) :: text, istr
     integer :: ios,un_file(2)
   
     ! .. init guess all xbulk     
@@ -457,10 +461,10 @@ subroutine init_guess_multinoVdW(x, xguess)
      
         do i=1,2 ! loop files
             open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
-            if(ios >0 ) then    
-                print*, 'file num ber =',un_file(i),' file name =',fname(i)
-                print*, 'Error opening file : iostat =', ios
-                stop
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_multinoVdW: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
             endif
         enddo
         if(bcflag(LEFT)/="cc") then 
@@ -504,15 +508,15 @@ subroutine init_guess_multi_born(x, xguess)
     use field, only : xsol,psi,rhopol,xpol,rhopol,fdisA
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile, isrhoselfconsistent, tA
-    use myutils, only : newunit
-
+    use myutils, only : newunit, lenText, error_handler
     real(dp) ::  x(neq)       ! volume fraction solvent iteration vector 
     real(dp) ::  xguess(neq)  ! guess fraction  solvent 
 
     !     ..local variables 
     integer :: i, t, k, k1, k2, k3, k4, k5,neq_bc
     character(len=8) :: fname(4)
-    integer :: ios, nfile(4), count_sc
+    character(len=lenText) :: text, istr
+    integer :: ios, un_file(4), count_sc
     real(dp) :: val ! dummy variable for reading in files
 
 
@@ -531,12 +535,12 @@ subroutine init_guess_multi_born(x, xguess)
         write(fname(4),'(A8)')'fdisA.in'   
 
         do i=1,4
-            nfile(i)=newunit()
-            open(unit=nfile(i),file=fname(i),iostat=ios,status='old')
+            un_file(i)=newunit()
+            open(unit=un_file(i),file=fname(i),iostat=ios,status='old')
             if(ios >0 ) then
-                print*, 'file number =',nfile(i),' file name =',fname(i)
-                print*, 'Error opening file : iostat =', ios
-                stop
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_multi_born: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
             endif
         enddo
 
@@ -550,15 +554,15 @@ subroutine init_guess_multi_born(x, xguess)
 
         if(bcflag(RIGHT)/="cc") then
             do i=1,nsurf 
-                read(nfile(2),*)psisurfR(i)
+                read(un_file(2),*)psisurfR(i)
             enddo
         endif        
 
         do i=1,nsize
-            read(nfile(1),*)xsol(i) ! solvent
-            read(nfile(2),*)psi(i)
-            read(nfile(3),*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-            read(nfile(4),*)(fdisA(i,k),k=1,8)
+            read(un_file(1),*)xsol(i) ! solvent
+            read(un_file(2),*)psi(i)
+            read(un_file(3),*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+            read(un_file(4),*)(fdisA(i,k),k=1,8)
             
             x(i)    = xsol(i)   ! placing xsol in vector x
             x(i+k1) = psi(i)
@@ -570,7 +574,7 @@ subroutine init_guess_multi_born(x, xguess)
 
         if(bcflag(LEFT)/="cc") then 
             do i=1,nsurf
-                read(nfile(2),*)psisurfL(i)
+                read(un_file(2),*)psisurfL(i)
             enddo
         endif  
 
@@ -602,7 +606,7 @@ subroutine init_guess_multi_born(x, xguess)
 
 
         do i=1,4
-            close(nfile(i))
+            close(un_file(i))
         enddo
 
     endif

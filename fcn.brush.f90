@@ -1224,8 +1224,7 @@ contains
         
         real(dp) :: local_rhopol(nsize,nsegtypes)                     ! local density nucleosome
         real(dp) :: local_xpol(nsize,nsegtypes)                       ! local volumer fraction nucleosome
-        real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable 
-        ! real(dp) :: rhopol_charge(nsize,nsegtypes)
+        real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable         S
         real(dp) :: local_q                                           ! local normalization q 
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
@@ -1238,6 +1237,8 @@ contains
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
         integer  :: count_scf
+        real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
+        real(dp) :: deltaxpol
 
         ! real(dp) :: g(neq/2)
 
@@ -1520,30 +1521,56 @@ contains
                 if(ismonomer_chargeable(t)) then 
 
                     if(t/=ta) then
-                        if(type_of_charge(t)=="A") then ! acid                                        
+                        if(type_of_charge(t)=="A") then ! acid   
+
+                            deltavpolstateNa=vNa*vsol
+                            deltavpolstateK=vK*vsol                                     
 
                             do i=1,n
-                                xpol(i,t)  = rhopol0 * xpol(i,t)                                 ! volume fraction nucleosome of type t
+                               
                                 rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)               ! density nucleosome of type t  
                                 rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
+
+                                ! volume fraction only consider Na and K ionpairing
+                                deltaxpol = rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+gdisA(i,4,t)*deltavpolstateK)
+                                xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol
+
                             enddo
 
-                        else  ! base                                        
-                            
+                        else  ! base   
+
+                            deltavpolstateCl=vCl*vsol
+
                             do i=1,n
-                                xpol(i,t)  = rhopol0 * xpol(i,t)
+                                
                                 rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t chargeable 
                                 rhoqpol(i)   = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol  ! total charge density nucleosome in units of vsol 
+                                
+                                ! volume fraction only consider Cl ionpairing
+                                
+                                deltaxpol = rhopol_charge(i,t)*gdisB(i,3,t)*deltavpolstateCl
+                                xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol
+
                             enddo 
                             
                         endif     
 
                     else
+                        ! t=tAA phosphate 
+
+                        deltavpolstateNa=vNa*vsol
+                        deltavpolstateK=vK*vsol
 
                         do i=1,n
-                            xpol(i,t)  = rhopol0 * xpol(i,t)
+                            
                             rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)                    ! density nucleosome of type t chargeable 
-                            rhoqpol(i)   = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol      ! total charge density nucleosome in units of vsol 
+                            rhoqpol(i)   = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol      ! total charge density nucleosome in units of vsol
+                           
+                            ! volume fraction only consider Na and K ionpairing
+                             
+                            deltaxpol = rhopol_charge(i,t)*(fdisA(i,3)*deltavpolstateNa +fdisA(i,8)*deltavpolstateK)
+                            xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol
+
                         enddo
                             
                     endif    

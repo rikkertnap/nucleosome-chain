@@ -51,6 +51,7 @@ module energy
     real(dp) :: qres                ! residual charge
     real(dp) :: checkphi            ! check integral over phi
     real(dp) :: checkrhocharge      ! check integral over rhocharge
+    real(dp) :: checkxpol           ! check integral over xpol
     
     real(dp), parameter :: epsilon_sumxpol = 1.0e-10_dp     ! tolerance of surface coverage below no polymers 
 
@@ -74,7 +75,8 @@ contains
 
         case ("nucl_ionbin_sv")
         
-            call fcnenergy_electbrush_mul() 
+            call fcnenergy_ionbin_sv()
+            !call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
 
         case("elect")
@@ -413,23 +415,10 @@ contains
             qres = qres + rhoq(i)
         enddo
 
-        if(systype/="nucl_ionbin_sv") then
-            do t=1,nsegtypes
-                sumphi(t) = sum(rhopol(:,t))
-                sumphi(t) = volcell*sumphi(t)
-            enddo
-            checkphi = nseg -sum(sumphi)
+        sumphi=calculate_sumphi()
 
-         else    
-            ! for systype=nucl_ionbin_sv no rhopol used !!
-            do t=1,nsegtypes
-                sumphi(t) = sum(xpol_t(:,t))
-                vnucltot  = sum(vnucl(:,t))
-                sumphi(t) = volcell*sumphi(t)/vnucltot
-            enddo
-            checkphi=nseg-sum(sumphi)
-       
-        endif   
+        checkphi=nseg-sum(sumphi)
+        
 
         if(systype=="nucl_ionbin_sv") then
             ncharge=0
@@ -442,10 +431,8 @@ contains
                 sumrhocharge(t) = sum(rhopol_charge(:,t))
                 sumrhocharge(t) = volcell*sumrhocharge(t)
                 checkrhocharge = checkrhocharge -sumrhocharge(t)
-    !            print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
             enddo
             checkrhocharge = ncharge -sum(sumrhocharge)
-
         endif 
 
 
@@ -589,41 +576,32 @@ contains
             qres = qres + rhoq(i)
         enddo
 
-        if(systype/="nucl_ionbin_sv") then
+        sumphi=calculate_sumphi()
+        checkphi=nseg-sum(sumphi)
+
+        checkxpol=check_volume_nucl()
+   
+        ! charge 
+        ncharge=0
+        do s=1,nseg
+            t=type_of_monomer(s)
+            if(ismonomer_chargeable(t)) ncharge=ncharge+1 
+        enddo
+        checkrhocharge = ncharge 
+        do t=1,nsegtypes
+            sumrhocharge(t) = sum(rhopol_charge(:,t))
+            sumrhocharge(t) = volcell*sumrhocharge(t)
+            checkrhocharge = checkrhocharge -sumrhocharge(t)
+        enddo
+        checkrhocharge = ncharge -sum(sumrhocharge)
+
+        if(DEBUG) then
+            print*,"     t       sumrhocharge(t) checkrhocharge  ismonomer_chargeable(t) type_of_charge(t)"
             do t=1,nsegtypes
-                sumphi(t) = sum(rhopol(:,t))
-                sumphi(t) = volcell*sumphi(t)
+                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
             enddo
-            checkphi = nseg -sum(sumphi)
-
-         else    
-            ! for systype=nucl_ionbin_sv no rhopol used !!
-            do t=1,nsegtypes
-                sumphi(t) = sum(xpol_t(:,t))
-                vnucltot  = sum(vnucl(:,t))
-                sumphi(t) = volcell*sumphi(t)/vnucltot
-            enddo
-            checkphi=nseg-sum(sumphi)
-       
-        endif   
-
-        if(systype=="nucl_ionbin_sv") then
-            ncharge=0
-            do s=1,nseg
-                t=type_of_monomer(s)
-                if(ismonomer_chargeable(t)) ncharge=ncharge+1 
-            enddo
-            checkrhocharge = ncharge 
-            do t=1,nsegtypes
-                sumrhocharge(t) = sum(rhopol_charge(:,t))
-                sumrhocharge(t) = volcell*sumrhocharge(t)
-                checkrhocharge = checkrhocharge -sumrhocharge(t)
-!                print*,t,sumrhocharge(t),checkrhocharge, ismonomer_chargeable(t),type_of_charge(t)
-            enddo
-            checkrhocharge = ncharge -sum(sumrhocharge)
-
-        endif 
-
+        endif
+            
 
         FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully check this
         FEpi  = (volcell/vsol)*FEpi
@@ -647,53 +625,17 @@ contains
             FEbind = volcell*FEbind /2.0_dp                                 
         endif      
 
-        if(systype=="brushborn") then
-
-            ! .. scaled gradient potential contribution 
-            call grad_pot_sqr_eps_cubic(psi,epsfcn, Depsfcn,sqrgradpsi)
-
-            FEelvar = 0.0_dp           
-            do i=1,nsize
-                FEelvar=FEelvar + xpol(i)*sqrgradpsi(i)  
-            enddo 
-            FEelvar=FEelvar*volcell/vsol ! vsol divsion because of constqE definition in grad_pot_sqr_eps_cubic( 
-            
-            !  needs to  checked vocell  prefactor
-
-
-            FEelvarborn=0.0_dp
-
-            do i=1,nsize
-                lbr = lb/epsfcn(i)     ! local Bjerrum length
-                Etotself = &        ! total self energy  
-                    born(lbr,bornrad%pol  ,zpolAA(1))*fdisA(i,1)*rhopol(i,tA) + &
-                    born(lbr,bornrad%polCa,zpolAA(4))*fdisA(i,4)*rhopol(i,tA) + &
-                    born(lbr,bornrad%polMg,zpolAA(6))*fdisA(i,6)*rhopol(i,tA) + &
-                    born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
-                    born(lbr,bornrad%K,zK)*xK(i)/(vK*vsol)     + & 
-                    born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
-                    born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)     + & 
-                    born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
-                    born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + & 
-                    born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &
-                    born(lbr,bornrad%OHmin,-1)*xOHmin(i)/vsol  
-
-                FEelvarborn=FEelvarborn+Etotself*(Depsfcn(i)/epsfcn(i))*xpol(i)*volcell
-            enddo     
-
-        endif    
-
-        ! .. calcualtion of FEq
+        ! .. calculaltion of FEq
      
         FEq=-log(q)    
     
      
         ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift !*ngr
+        Eshift=lnproshift 
        
         ! .. total free energy per area of surface 
 
-        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind + FEelvar + FEelvarborn - Eshift
+        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind - Eshift
         
         
         volumelat= volcell*nsize   ! volume lattice
@@ -755,12 +697,11 @@ contains
 
         ! for systype=nucl_neutral_sv no rhopol used !!
 
-        do t=1,nsegtypes
-            sumphi(t) = sum(xpol_t(:,t))
-            vnucltot  = sum(vnucl(:,t))
-            sumphi(t) = volcell*sumphi(t)/vnucltot
-        enddo
+        sumphi=calculate_sumphi()
         checkphi=nseg-sum(sumphi)
+        print*,"checkphi=",checkphi
+        checkxpol =check_volume_nucl()
+        print*,"checkxpol=",checkxpol
 
         FEpi  = (volcell/vsol)*FEpi
         FErho = (volcell/vsol)*FErho
@@ -1183,10 +1124,12 @@ contains
 
         use globals, only : systype,nsize,nsegtypes
         use field, only : xsol,psi,rhopol,fdis,fdisA,gdisA,gdisB,epsfcn,Depsfcn
-        use field, only : xNa,xK,xCl,xHplus,xOHmin,xCa,xMg,xRb
+        use field, only : xNa,xK,xCl,xHplus,xOHmin,xCa,xMg,xRb,rhopol_charge
+        use chains,only : elem_charge 
         use volume, only : volcell
         use parameters, only : vsol, vpol,vpolAA, zpol, zpolAA, lb, bornrad 
         use parameters, only : vNa,vCl,vRb,vCa, vK,vMg,zNa,zK,zCl,zRb,zCa,zMg, tA
+        use parameters, only : vnucl
         ! use parameters, only : deltavnucl
         use chains, only : ismonomer_chargeable,type_of_charge
         use dielectric_const, only : born
@@ -1195,7 +1138,7 @@ contains
 
         real(dp) :: FEchem_react
 
-        integer  :: i, k, t
+        integer  :: i, k, t, jcharge
         real(dp) :: lambda,  rhopolq, betapi, xpol, Eself ,bornene, lbr, Ebornself
         real(dp) :: xvol(nsize),sumbetapi(nsize)
         real(dp) :: sqrgradpsi(nsize) ! make allocatable only for sytype=brushborn
@@ -1397,64 +1340,94 @@ contains
 
                 if(ismonomer_chargeable(t)) then
 
-                    if(t==ta) then ! phosphate
-                        
-                        xvol=0.0_dp
-
-                    !    call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
-                    !    call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
-                           
+                    if(t==ta) then 
                         do i=1,nsize
 
-                            betapi = -log(xsol(i))/vsol
-                            lambda = -log(gdisA(i,1,t)) +psi(i)-sumbetapi(i)
-                            rhopolq = -gdisA(i,1,t)*rhopol(i,t)
+                            betapi=-log(xsol(i))/vsol
+                            lambda=-log(fdisA(i,1)) -psi(i)*zpolAA(1)-betapi*vpolAA(1)*vsol
+                    
+                            rhopolq = 0.0_dp
+                            xpol=0.0_dp
+                            do k=1,4
+                                rhopolq=rhopolq+ zpolAA(k)*fdisA(i,k)*rhopol_charge(i,t)
+                                xpol  =xpol + rhopol_charge(i,t)*fdisA(i,k)*vpolAA(k)*vsol
+                            enddo   
+                            rhopolq=rhopolq+ zpolAA(6)*fdisA(i,6)*rhopol(i,t)
+
+                            xpol = xpol +rhopol_charge(i,t)*(fdisA(i,5)*vpolAA(5)*vsol/2.0_dp +&
+                                                      fdisA(i,6)*vpolAA(6)*vsol +&
+                                                      fdisA(i,7)*vpolAA(7)*vsol/2.0_dp+ &
+                                                      fdisA(i,8)*vpolAA(8)*vsol)
+
                 
-                            FEchem_react = FEchem_react -rhopol(i,t)*lambda-psi(i)*rhopolq-betapi*xvol(i)
+                            FEchem_react = FEchem_react + ( -rhopol_charge(i,t)*lambda &
+                                -psi(i)*rhopolq -betapi*xpol+(fdisA(i,5)+fdisA(i,7))*rhopol_charge(i,t)/2.0_dp)
                            
                         enddo
 
                     else
+                        !if(zpol(t,1)==0.and.zpol(t,2)==-1) then ! acid 
+                       
+                        jcharge=elem_charge(t)
+
                         if(type_of_charge(t)=="A") then ! acid 
                             
-                            xvol=0.0_dp
+                            vpolstate(1)=vnucl(jcharge,t)
+                            vpolstate(2)=vnucl(jcharge,t)
+                            vpolstate(3)=vnucl(jcharge,t)+vNa*vsol
+                            vpolstate(4)=vnucl(jcharge,t)+vK*vsol
 
-                        !    call integral_betapi(xsol,deltavnucl(:,:,:,1,t),sumbetapi)
-                        !    call compute_xpol_chargeable(rhopol(:,t),gdisA(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
-                           
+                            
                             do i=1,nsize
 
                                 betapi = -log(xsol(i))/vsol
-                                lambda = -log(gdisA(i,1,t)) +psi(i)-sumbetapi(i)
-                                rhopolq = -gdisA(i,1,t)*rhopol(i,t)
-                
-                                FEchem_react = FEchem_react &
-                                -rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*xvol(i)
-                           
+                             !   lambda = -log(gdisA(i,1,t)) + psi(i) -betapi*vpol(t)*vsol
+                                lambda = -log(gdisA(i,1,t)) + psi(i) -betapi*vpolstate(1)
+                                rhopolq= -gdisA(i,1,t)*rhopol_charge(i,t)
+                                
+                                xpol=0.0_dp
+                                do state=1,4
+                                    xpol = xpol + rhopol_charge(i,t)*gdisA(i,state,t)*vpolstate(state)
+                                enddo  
+                                !xpol=xpol*vsol
+
+            
+                                FEchem_react = FEchem_react + &
+                                (- rhopol_charge(i,t)*lambda -psi(i)*rhopolq -betapi*xpol )
                             enddo
-    
+                           
                         else if(type_of_charge(t)=="B") then ! base
 
-                            xvol=0.0_dp
-
-                        !    call integral_betapi(xsol,deltavnucl(:,:,:,2,t),sumbetapi)
-                        !    call compute_xpol_chargeable(rhopol(:,t),gdisB(:,:,t),deltavnucl(:,:,:,:,t),xvol)  
-                           
+                            jcharge=elem_charge(t)
+                            vpolstate(1)=vnucl(jcharge,t)
+                            vpolstate(2)=vnucl(jcharge,t)
+                            vpolstate(3)=vnucl(jcharge,t)+vCl*vsol
+                    
                             do i=1,nsize
 
                                 betapi = -log(xsol(i))/vsol
-                                lambda = -log(gdisB(i,2,t))-sumbetapi(i)
-                                rhopolq = gdisB(i,1,t)*rhopol(i,t)
-                
-                                FEchem_react = FEchem_react &
-                                -rhopol(i,t)*lambda -psi(i)*rhopolq -betapi*xvol(i)
+                                !lambda = -log(gdisB(i,2,t))  - betapi*vpol(t)*vsol
+                                lambda = -log(gdisB(i,2,t))  - betapi*vpolstate(2)
+                                rhopolq= gdisB(i,1,t)*rhopol_charge(i,t)
+
+                                xpol=0.0_dp
+                                do state=1,3
+                                    xpol = xpol + rhopol_charge(i,t)*gdisB(i,state,t)*vpolstate(state)
+                                enddo  
+                                !xpol=xpol*vsol
         
+
+                                FEchem_react = FEchem_react + &
+                                (- rhopol_charge(i,t)*lambda -psi(i)*rhopolq -betapi*xpol)
                             enddo
+                            
                         else 
                             print*,"Error in FEchem_react_multi for systype=nucl_ionbin"
                             print*,"Charged monomer ",t," not acid or base : zpol(1)=",zpol(t,1)," and zpol(2)=",zpol(t,2)
                         endif    
-                    endif        
+
+                    endif
+                        
                 endif        
             enddo
 
@@ -1717,10 +1690,82 @@ contains
     end function FE_selfenergy_brush
 
     
+    function calculate_sumphi()result(sumphi)
+    
+        use globals, only : nsegtypes, nseg
+        use chains, only : type_of_monomer
 
-    ! debug routine for systype= "nucl_ionbin"   
+        real(dp) :: sumphi(nsegtypes)
 
-    subroutine check_volume_nucl_ionbin()
+        ! local arguments
+        integer  :: s, t         
+        
+        sumphi=0
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            sumphi(t)=sumphi(t)+1
+        enddo
+
+    end function calculate_sumphi
+
+    
+
+    function calculate_sumvolnucl()result(sumvolnucl)
+
+
+        use globals, only : nseg
+        use chains, only : type_of_monomer, nelem 
+        use parameters, only : vnucl
+
+        real(dp) :: sumvolnucl
+
+        ! local arguments
+        integer  :: s, t, j        
+        
+        sumvolnucl=0
+        do s=1,nseg
+            t=type_of_monomer(s)
+            do j=1,nelem(s)
+                sumvolnucl=sumvolnucl+vnucl(j,t) 
+            enddo
+        enddo
+
+    end function calculate_sumvolnucl    
+
+    function check_volume_nucl()result(checksumxpoltot)
+
+        use globals, only : systype
+
+        real(dp) :: checksumxpoltot
+
+        select case (systype)
+        case ("nucl_ionbin_sv")
+
+            call check_volume_nucl_ionbin_sv(checksumxpoltot)
+
+        case ("nucl_neutral_sv ")
+
+            call check_volume_nucl_neutral_sv(checksumxpoltot)
+
+        case ("nucl_ionbin") 
+
+            call check_volume_nucl_ionbin(checksumxpoltot)
+
+        case default
+
+            print*,"Error: systype incorrect in check_volume_nucl"
+
+        end select
+
+    end function check_volume_nucl
+        
+
+    ! Check volume for systype="nucl_ionbin_sv"
+    ! Integral over xpol compared to expected outcome
+    ! output : real(dp)  checksumxpoltot : difference
+
+    subroutine check_volume_nucl_ionbin(checksumxpoltot)
 
         use globals, only : nsegtypes,nsize
         use field, only   : rhopol, fdisA, gdisA, gdisB, xpol
@@ -1728,9 +1773,11 @@ contains
         use volume, only : volcell 
         use chains, only : ismonomer_chargeable
 
+        real(dp),intent(inout) :: checksumxpoltot
+
 
         integer :: t,i,k,state,ier
-        real(dp):: vpolstate(4), sumtmp, sumxpoltot, checksumxpoltot
+        real(dp):: vpolstate(4), sumtmp, sumxpoltot
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -1798,44 +1845,143 @@ contains
             endif
         enddo   
 
-
         sumxpoltot=sum(xpol)*volcell
         checksumxpoltot=sum(sumxpol)- sumxpoltot
 
-        print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
-        print*,"sumxpoltot=",sumxpoltot
-        print*,"checksumxpoltot=",checksumxpoltot
-
+        print*,"sumxpol        = ",(sumxpol(t),t=1,nsegtypes)
+        print*,"sumxpoltot     = ",checksumxpoltot         
+        print*,"checksumxpoltot= ",checksumxpoltot
 
     end subroutine check_volume_nucl_ionbin
 
 
-    ! debug routine for systtype= "nucl_ion_sv_general"  
 
-    subroutine check_volume_nucl_ionbin_sv()
+    ! Check volume for systype="nucl_neutral_sv"
+    ! Integral over xpol compared to expected outcome
+    ! output : real(dp)  checksumxpoltot : difference
+    ! pre sumphi need to be computed 
 
-        use globals, only : nsegtypes, nsize
-        use field, only : xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t ,xpol_tot pointer to xpol !!!
-        use volume, only : volcell 
+    subroutine check_volume_nucl_neutral_sv(checksumxpoltot)
+
+        use globals, only : nsegtypes, nseg
+        use field, only   : xpol_t  
+        use volume, only  : volcell 
+
+        real(dp),intent(inout) :: checksumxpoltot
 
         integer :: t,i,ier
-        real(dp) :: sumtmp,sumxpoltot,checksumxpoltot
+        real(dp) :: sumvolnucl,sumxpoltot
+
+        if (.not. allocated(sumxpol))  then 
+            allocate(sumxpol(nsegtypes),stat=ier)
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_neutral_sv"
+        endif
+
+        do t=1,nsegtypes 
+            sumxpol(t) = sum(xpol_t(:,t))*volcell       
+        enddo
+
+        sumvolnucl=calculate_sumvolnucl()
+        
+        checksumxpoltot=sum(sumxpol)- sumvolnucl
+        
+        if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+            print*,"sumxpol        = ",(sumxpol(t),t=1,nsegtypes)
+            print*,"sumvolnucl     = ",sumvolnucl
+            print*,"checksumxpoltot= ",checksumxpoltot
+        endif
+
+    end subroutine check_volume_nucl_neutral_sv
+
+    ! Check volume for systype="nucl_ionbin_sv"
+    ! Integral over xpol compared to expected outcome
+    ! output : real(dp)  checksumxpoltot : difference
+
+    subroutine check_volume_nucl_ionbin_sv(checksumxpoltot)
+
+        use globals, only : nsegtypes, nsize
+        use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
+        use volume, only : volcell 
+        use parameters, only : ta
+        use parameters, only : vsol,vNa,vK,vCl
+        use chains, only     : ismonomer_chargeable, type_of_charge
+        
+        real(dp),intent(inout) :: checksumxpoltot
+
+        integer :: t,i,ier
+        real(dp) :: sumvolnucl,sumxpoltot
+        real(dp), dimension(:), allocatable ::  deltaxpol
+        real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
             if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin_sv"
         endif
 
+        if (.not. allocated(deltaxpol))  then 
+            allocate(deltaxpol(nsegtypes),stat=ier)
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin_sv"
+        endif
+
         do t=1,nsegtypes 
-            sumxpol(t) = sum(xpol(:,t))*volcell       
+            sumxpol(t) = sum(xpol_t(:,t))     
         enddo
-        sumxpoltot = sum(xpol_tot)*volcell   
-        checksumxpoltot=sum(sumxpol)- sumxpoltot
+        
+       ! add volume due to ion binding 
+
+        deltaxpol =0.0_dp
+
+        do t=1, nsegtypes
+            if(ismonomer_chargeable(t)) then 
+
+                if(t/=ta) then
+                    if(type_of_charge(t)=="A") then ! acid   
+
+                        deltavpolstateNa=vNa*vsol
+                        deltavpolstateK=vK*vsol                                     
+
+                        do i=1,nsize       
+                            ! volume fraction only consider Na and K ionpairing
+                            deltaxpol(t) = deltaxpol(t)+rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+&
+                                gdisA(i,4,t)*deltavpolstateK)
+                        enddo
+
+                    else  ! base   
+
+                        deltavpolstateCl=vCl*vsol
+
+                        do i=1,nsize
+                            ! volume fraction only consider Cl ionpairing
+                            deltaxpol(t) = deltaxpol(t)+rhopol_charge(i,t)*gdisB(i,3,t)*deltavpolstateCl
+                        enddo 
+                        
+                    endif     
+
+                else ! t=tAA phosphate 
+
+                    deltavpolstateNa=vNa*vsol
+                    deltavpolstateK=vK*vsol
+
+                    do i=1,nsize
+                        ! volume fraction only consider Na and K ionpairing
+                        deltaxpol(t) = deltaxpol(t)+rhopol_charge(i,t)*(fdisA(i,3)*deltavpolstateNa+&
+                            fdisA(i,8)*deltavpolstateK)
+                    enddo
+                        
+                endif    
+            endif
+        enddo 
+
+        sumvolnucl=calculate_sumvolnucl()
+        checksumxpoltot=sum(sumxpol)*volcell -sum(deltaxpol)*volcell - sumvolnucl
         
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
-            print*,"sumxpol=",(sumxpol(t),t=1,nsegtypes)
-            print*,"sumxpoltot=",sumxpoltot
-            print*,"checksumxpoltot=",checksumxpoltot
+            print*,"sumxpol(t)     = ",(sumxpol(t),t=1,nsegtypes)
+            print*,"sumxpol        = ",sum(sumxpol)*volcell
+            print*,"sumdeltaxpol   = ",sum(deltaxpol)*volcell
+            print*,"sumvolnucl     = ",sumvolnucl
+            print*,"checksumxpoltot= ",checksumxpoltot
+           
         endif
 
     end subroutine check_volume_nucl_ionbin_sv
