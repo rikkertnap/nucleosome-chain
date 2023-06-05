@@ -746,6 +746,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
                         
     call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
+    if(info/=0) return
 
     if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
     
@@ -2759,7 +2760,7 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
             elem_charge(AAid)=find_chargeable_elem(elem_type,nelemAA(sAA))
             if(elem_charge(AAid)==-1) then 
                 print*,"=> sAA=",sAA, "AAid=",AAid,"char=",mapping_num_to_char(AAid)
-                print*,"=>elem_type = ", elem_type
+                print*,"=> elem_type = ", elem_type
                 call error_handler(1,"read_nucl_elements")
             endif    
         else 
