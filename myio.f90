@@ -2224,7 +2224,13 @@ subroutine make_filename_label(fnamelabel)
         endif
         
         fnamelabel="phi"//trim(adjustl(rstr))
-        write(rstr,'(F5.3)')cNaCl
+
+        if(cNaCl>=0.001_dp) then
+            write(rstr,'(F5.3)')cNaCl
+        else
+            write(rstr,'(ES9.2E2)')cNaCl
+        endif
+        
         fnamelabel=trim(fnamelabel)//"cNaCl"//trim(adjustl(rstr))
 
         if(cKCl/=0.0_dp) then
