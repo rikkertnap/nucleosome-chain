@@ -1294,9 +1294,19 @@ subroutine output_nucl_mul
         write(un_psi,*)psi(i)
     enddo
 
-    do i=1,nsize
-        write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-    enddo
+
+    if(systype/="nucl_ionbin_sv") then
+        do i=1,nsize
+            write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+        enddo
+    else 
+        do i=1,nsize
+            write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)
+        enddo
+    endif    
+
+    
+
 
     if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv") then
         do i=1,nsize
