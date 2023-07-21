@@ -46,6 +46,7 @@ module myio
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
     integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
+    integer :: un_chargepol
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -113,6 +114,9 @@ subroutine read_inputfile(info)
     write_mc_chains   =.false.
     write_struct      =.false.
     write_rotations   =.false.
+    write_localcharge =.false.
+    write_iondensities =.false.
+
     
     ! default concentrations
     cKCl=0.0_dp
@@ -230,8 +234,10 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) ny
             case ('nz')
                 read(buffer,*,iostat=ios) nz
-            case ('verboseflag  ')
-                read(buffer,*,iostat=ios) verboseflag
+            case ('write_localcharge')
+                read(buffer,*,iostat=ios) write_localcharge
+            case ('write_iondensities')
+                read(buffer,*,iostat=ios) write_iondensities
             case ('delta')
                 read(buffer,*,iostat=ios) delta
             case('unit_conv')
@@ -1204,6 +1210,7 @@ subroutine output_nucl_mul
     character(len=90) :: xClfilename
     character(len=90) :: potentialfilename
     character(len=90) :: chargefilename
+    character(len=90) :: chargepolfilename
     character(len=90) :: xHplusfilename
     character(len=90) :: xOHminfilename
     character(len=90) :: densfracfilename
@@ -1240,6 +1247,7 @@ subroutine output_nucl_mul
     xClfilename    = 'xClions.'//trim(fnamelabel)
     potentialfilename = 'potential.'//trim(fnamelabel)
     chargefilename = 'charge.'//trim(fnamelabel)
+    chargepolfilename = 'chargepol.'//trim(fnamelabel)
     xHplusfilename = 'xHplus.'//trim(fnamelabel)
     xOHminfilename = 'xOHmin.'//trim(fnamelabel)
     densfracfilename = 'densityfrac.'//trim(fnamelabel)
@@ -1256,15 +1264,21 @@ subroutine output_nucl_mul
     open(unit=newunit(un_psi),file=potentialfilename)
     open(unit=newunit(un_xpol),file=xpolfilename)
     open(unit=newunit(un_fdis),file=densfracfilename)
+
     if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
         open(unit=newunit(un_fdisP),file=densfracPfilename)
     endif
+
     if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") open(unit=newunit(un_fdision),file=densfracionfilename)
     if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
     if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
         
+    if(write_localcharge) then
+        open(unit=newunit(un_charge),file=chargefilename)
+        open(unit=newunit(un_chargepol),file=chargepolfilename)
+    endif    
 
-    if(verboseflag=="yes") then
+    if(write_iondensities) then
         open(unit=newunit(un_xNa),file=xNafilename)
         open(unit=newunit(un_xK),file=xKfilename)
         open(unit=newunit(un_xCa),file=xCafilename)
@@ -1305,8 +1319,6 @@ subroutine output_nucl_mul
         enddo
     endif    
 
-    
-
 
     if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv") then
         do i=1,nsize
@@ -1339,7 +1351,14 @@ subroutine output_nucl_mul
         enddo
     endif
 
-    if(verboseflag=="yes") then
+    if(write_localcharge) then 
+        do i=1,nsize
+            write(un_charge,*)rhoq(i)
+            write(un_chargepol,*)rhoqpol(i)
+        enddo    
+    endif    
+
+    if(write_iondensities) then
         do i=1,nsize
             write(un_xNa,*)xNa(i)
             write(un_xK,*)xK(i)
@@ -1349,7 +1368,6 @@ subroutine output_nucl_mul
             write(un_xKCl,*)xKCl(i)
             write(un_xpair,*)(xNaCl(i)/vNaCl)/(xNa(i)/vNa+xCl(i)/vCl+xNaCl(i)/vNaCl)
             write(un_xCl,*)xCl(i)
-            write(un_charge,*)rhoq(i)
             write(un_xHplus,*)xHplus(i)
             write(un_xOHmin,*)xOHmin(i)
         enddo
@@ -1562,7 +1580,12 @@ subroutine output_nucl_mul
     if(nnucl>=3) close(un_angle)
     if(nnucl>=2) close(un_dist)
 
-    if(verboseflag=="yes") then
+    if(write_localcharge) then
+        close(un_charge)
+        close(un_chargepol)
+    endif
+
+    if(write_iondensities) then
         close(un_xNa)
         close(un_xK)
         close(un_xCa)
@@ -1571,7 +1594,6 @@ subroutine output_nucl_mul
         close(un_xKCl)
         close(un_xpair)
         close(un_xCl)
-        close(un_charge)
         close(un_xHplus)
         close(un_xOHmin)
     endif
@@ -1607,6 +1629,7 @@ subroutine output_elect
     character(len=90) :: xClfilename
     character(len=90) :: potentialfilename
     character(len=90) :: chargefilename
+    character(len=90) :: chargepolfilename
     character(len=90) :: xHplusfilename
     character(len=90) :: xOHminfilename
     character(len=90) :: densfracAfilename
@@ -1641,6 +1664,7 @@ subroutine output_elect
     xClfilename='xClions.'//trim(fnamelabel)
     potentialfilename='potential.'//trim(fnamelabel)
     chargefilename='charge.'//trim(fnamelabel)
+    chargepolfilename='chargepol.'//trim(fnamelabel)
     xHplusfilename='xHplus.'//trim(fnamelabel)
     xOHminfilename='xOHmin.'//trim(fnamelabel)
     densfracAfilename='densityAfrac.'//trim(fnamelabel)
@@ -1660,7 +1684,12 @@ subroutine output_elect
     open(unit=newunit(un_angle),file=anglesfilename)
     open(unit=newunit(un_dist),file=spacingfilename)
 
-    if(verboseflag=="yes") then
+    if(write_localcharge) then
+        open(unit=newunit(un_charge),file=chargefilename)
+        open(unit=newunit(un_chargepol),file=chargepolfilename)
+    endif    
+
+    if(write_iondensities) then
         open(unit=newunit(un_xNa),file=xNafilename)
         open(unit=newunit(un_xK),file=xKfilename)
         open(unit=newunit(un_xCa),file=xCafilename)
@@ -1700,7 +1729,14 @@ subroutine output_elect
         write(un_fdisB,fmt5reals)(fdisB(i,k),k=1,5)
     enddo
 
-    if(verboseflag=="yes") then
+    if(write_localcharge) then
+        do i=1,nsize
+            write(un_charge,*)rhoq(i)
+            write(un_chargepol,*)rhoqpol(i)
+        enddo
+    endif    
+
+    if(write_iondensities) then
         do i=1,nsize
             write(un_xNa,*)xNa(i)
             write(un_xK,*)xK(i)
@@ -1902,7 +1938,12 @@ subroutine output_elect
     close(un_angle)
     close(un_dist)
 
-    if(verboseflag=="yes") then
+    if(write_localcharge) then
+        close(un_charge)
+        close(un_chargepol)
+     endif   
+
+    if(write_iondensities) then
         close(un_xNa)
         close(un_xK)
         close(un_xCa)
@@ -2387,6 +2428,7 @@ subroutine compute_vars_and_output()
     use globals, only : systype, DEBUG
     use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
+    use field, only : distribution_charge_nucl_ionbin_sv
 
     select case (systype)
     case ("elect")

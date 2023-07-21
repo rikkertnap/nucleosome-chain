@@ -541,6 +541,8 @@ contains
     end subroutine average_charge_nucl_ionbin
 
 
+    ! compute average charge of nucleosome for systype nucl_ionbin_sv
+
     subroutine average_charge_nucl_ionbin_sv()
 
         use globals, only : nseg,nsize,nsegtypes
@@ -611,6 +613,47 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_nucl_ionbin_sv
+
+
+    ! computes local nucleosome charge distrubution fo systype=nucl_ionbin_sv"
+
+    subroutine distribution_charge_nucl_ionbin_sv(qpol_local)
+
+        use globals, only : nseg,nsize,nsegtypes
+        use parameters, only : zpol, tA
+        use chains, only: ismonomer_chargeable
+
+        real(dp), dimension(:), allocatable, intent(inout)  :: qpol_local
+
+       
+        integer :: i,t
+      
+        ! init 
+
+        qpol_local=0.0_dp
+
+
+        do i=1,nsize
+            do t=1,nsegtypes
+    
+                if(ismonomer_chargeable(t)) then 
+                    if(t/=tA) then ! not phosthate 
+                        if(zpol(t,1)==0) then ! acid
+                            qpol_local(i)=qpol_local(i)- gdisA(i,1,t)*rhopol_charge(i,t)
+                        else ! base
+                            qpol_local(i)=qpol_local(i)+gdisB(i,1,t)*rhopol_charge(i,t)
+                        endif            
+                    else
+                        qpol_local(i)=qpol_local(i)- fdisA(i,1)*rhopol_charge(i,t)
+                    endif               
+                endif
+
+            enddo    
+        enddo            
+
+    end subroutine distribution_charge_nucl_ionbin_sv
+
+
 
 
 

@@ -102,8 +102,11 @@
 
     !  .. output control
 
-    character(len=3) ::  verboseflag ! select verbosity of output if equal yes ion density also outputted
-    logical ::  write_rotations      ! if .true. extra information by chain rotation test_rotate_nucl_chain written 
+    !character(len=3) ::  verboseflag ! select verbosity of output if equal yes ion density also outputted
+
+    logical :: write_localcharge     ! if .true. rhoq and  rhoqpol also outputted
+    logical :: write_iondensities    ! if .true. density also outputted
+    logical :: write_rotations       ! if .true. extra information by chain rotation test_rotate_nucl_chain written 
 
     ! .. chain variables 
     real(dp) :: lseg              ! segment length of A polymer in nm
