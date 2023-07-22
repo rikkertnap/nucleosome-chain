@@ -1287,7 +1287,6 @@ subroutine output_nucl_mul
         open(unit=newunit(un_xKCl),file=xKClfilename)
         open(unit=newunit(un_xpair),file=densfracionpairfilename)
         open(unit=newunit(un_xCl),file=xClfilename)
-        open(unit=newunit(un_charge),file=chargefilename)
         open(unit=newunit(un_xHplus),file=xHplusfilename)
         open(unit=newunit(un_xOHmin),file=xOHminfilename)
     endif
@@ -1698,7 +1697,6 @@ subroutine output_elect
         open(unit=newunit(un_xKCl),file=xKClfilename)
         open(unit=newunit(un_xpair),file=densfracionpairfilename)
         open(unit=newunit(un_xCl),file=xClfilename)
-        open(unit=newunit(un_charge),file=chargefilename)
         open(unit=newunit(un_xHplus),file=xHplusfilename)
         open(unit=newunit(un_xOHmin),file=xOHminfilename)
     endif
@@ -1746,7 +1744,6 @@ subroutine output_elect
             write(un_xKCl,*)xKCl(i)
             write(un_xpair,*)(xNaCl(i)/vNaCl)/(xNa(i)/vNa+xCl(i)/vCl+xNaCl(i)/vNaCl)
             write(un_xCl,*)xCl(i)
-            write(un_charge,*)rhoq(i)
             write(un_xHplus,*)xHplus(i)
             write(un_xOHmin,*)xOHmin(i)
         enddo
@@ -1952,7 +1949,6 @@ subroutine output_elect
         close(un_xKCl)
         close(un_xpair)
         close(un_xCl)
-        close(un_charge)
         close(un_xHplus)
         close(un_xOHmin)
     endif
