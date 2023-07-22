@@ -1352,8 +1352,8 @@ subroutine output_nucl_mul
 
     if(write_localcharge) then 
         do i=1,nsize
-            write(un_charge,*)rhoq(i)
-            write(un_chargepol,*)rhoqpol(i)
+            write(un_charge,*)rhoq(i)/vsol
+            write(un_chargepol,*)rhoqpol(i)/vsol
         enddo    
     endif    
 
@@ -1729,8 +1729,8 @@ subroutine output_elect
 
     if(write_localcharge) then
         do i=1,nsize
-            write(un_charge,*)rhoq(i)
-            write(un_chargepol,*)rhoqpol(i)
+            write(un_charge,*)rhoq(i)/vsol
+            write(un_chargepol,*)rhoqpol(i)/vsol
         enddo
     endif    
 
