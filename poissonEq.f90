@@ -65,7 +65,7 @@ contains
 
         use globals, only : nsize, neq
         use parameters, only : constqW
-        use volume, only : nx,ny,nz, linearIndexFromCoordinate
+        use volume, only : nx,ny,nz, coordtoindex ! linearIndexFromCoordinate
 
         implicit none
 
@@ -86,13 +86,21 @@ contains
         do ix=1,nx
             do iy=1,ny
                 do iz=1,nz
-                    call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                    call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                    call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
-                    call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
-                    call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                    call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)
+                    !call linearIndexFromCoordinate(ix,           iy,iz  ,id)
+                    !call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
+                    !call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
+                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
+                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
+                    !call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
+                    !call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)            
+
+                    id     = coordtoindex(ix,           iy,iz)
+                    idxpls = coordtoindex(ipbc(ix+1,nx),iy,iz)
+                    idxmin = coordtoindex(ipbc(ix-1,nx),iy,iz)
+                    idzpls = coordtoindex(ix,           iy,ipbc(iz+1,nz))
+                    idzmin = coordtoindex(ix,           iy,ipbc(iz-1,nz))
+                    idypls = coordtoindex(ix,ipbc(iy+1,ny),iz)
+                    idymin = coordtoindex(ix,ipbc(iy-1,ny),iz)
 
                     fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
                         -6.0_dp*psi(id) +rhoq(id)*constqW)

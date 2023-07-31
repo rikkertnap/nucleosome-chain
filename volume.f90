@@ -69,11 +69,10 @@ contains
 
         areasurf=nsurf*delta*delta
       
-        if(systype=="nucl_ionbin_sv") then     ! use of hash table 
-            call allocate_hashtable(nx,ny,nz)
-            call make_hashtable
-        endif
-
+        ! use of hash table 
+        call allocate_hashtable(nx,ny,nz)
+        call make_hashtable()
+        
     end subroutine init_lattice
          
 
