@@ -629,7 +629,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. local variables
 
-    integer :: i,j,s,rot,g,gn,k,sAA  ! dummy indices
+    integer :: i,j,s,sprime,rot,g,gn,k,sAA  ! dummy indices
     integer :: idx                  ! index label
     integer :: ix,iy,iz,idxtmp 
     integer :: conf,conffile        ! counts number of conformations  
@@ -677,6 +677,11 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: un_traj, info_traj
 
     real(dp) :: chain_lammps(3,nseg,1)
+
+    real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
+
+    integer, dimension(:,:), allocatable   :: list_of_pairs
+    integer :: max_range_nneigh 
 
     ! .. executable statements   
 
@@ -739,6 +744,10 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     rcm=(/xcm,ycm,zcm/)
     Lr=(/Lx,Ly,Lz/)
+
+    sqrDphoscutoff=distphoscutoff**2
+    max_range_nneigh = 10                             ! assume at maximum there  at 10 ! 
+    allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
 
     nrotpts=sgraftpts(1)  ! nucleosome id /segment number around which to rotate whole conformation
     !nrotpts=rotation_triplets(1)
@@ -958,9 +967,54 @@ subroutine read_chains_xyz_nucl_volume(info)
                             return
                         endif
 
-                    enddo    
+                    enddo   
                 
-                enddo
+                enddo ! end s loop
+
+                if(systype=="nucl_ionbin_Mg") then
+                    !  .. determine phosphate pairs  i.e populate indexconfpair() for a given conf
+
+                    !  nneigh = 0 is  init  to zero nneigh(s,conf)
+                    ! ****************
+                    do s=1,nseg 
+                        if(type_of_monomer(s)==ta) then ! check that type_of_monomer and ta is set
+                            do sprime=1,nseg
+                                if(type_of_monomer(s)==ta) then
+                                    sqrdist=0.0_dp
+                                    do i=1,3
+                                        sqrdist=sqrdist+(chain_pbc(i,s)-chain_pbc(i,sprime))**2
+                                    enddo
+
+                                    if(sqrdist<=sqrDphoscutoff) then ! comparing squar of distance to square of cutoff  
+                                        ! accept s and sprime are a pair
+                                        nneigh(s,conf)=nneigh(s,conf)+1
+                                        list_of_pairs(s,nneigh(s,conf))=sprime ! temporaly storage of neighbors
+                                    endif ! the else is implict i.e not raising nneigh(s,c)
+                                endif
+                           enddo             
+                        endif    
+                    enddo  
+                    ! print 
+                    if(DEBUG)then
+                        print*,"phosphate pairs"
+                        do s=1,nseg
+                            print*,(list_of_pairs(s,j),j=1,nneigh(s,conf))
+                        enddo
+                    endif        
+
+                     ! ..assign indexconfpair
+                     ! 1 allocate 
+                    do s=1,nseg
+                        allocate(indexconf(s,conf)%elem(nneigh(s,conf)))
+                    enddo
+                    do s=1,nseg
+                        do j=1,nneigh(s,conf)
+                            indexconfpair(s,conf)%elem(j)=list_of_pairs(s,j)
+                        enddo 
+                    enddo        
+                    !*******************
+
+                endif
 
                 if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 

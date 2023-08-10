@@ -18,6 +18,10 @@ module chains
         character(len=3), allocatable :: elem(:)
     end type var_char3array
 
+    type(var_iarray), allocatable               :: indexconfpair(:,:)       ! indexconfpair(s,alpha)%elem(j) = layer number of conf alpha and 
+                                                                            ! segment number s and neighbor j used for distributed volume 
+    integer, dimension(:,:), allocatable        :: nneigh                   ! number of neigbors or pairs of segment s in conf alpha used only phosphates  
+
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
@@ -105,7 +109,7 @@ contains
 
     ! Allocates indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
     ! used for distrubuted volume
-    ! When used indexchain is not neededd and can be deallocated
+    ! When used indexchain is not needed and can be deallocated
     ! inputs: dimension of indexconf: cuantas, nseg and  nelem(:)   
 
     subroutine allocate_indexconf(cuantas,nseg,nelem)
@@ -125,13 +129,50 @@ contains
     end subroutine allocate_indexconf
 
    
-    subroutine allocate_nelemAA(nsegAA)
+    ! Allocates indexconfpair(s,alpha)%elem(j) = layer number of conf alpha and segment number s and neigbor pair j
+    ! used for distributed volume
+    ! When used indexchain is not needed and can be deallocated
+    ! inputs: dimension of indexconfpair: cuantas, nseg and  nelem(:) 
 
-        integer, intent(in) :: nsegAA
+    subroutine allocate_indexconfpair(cuantas,nseg,nneigh)
 
-        allocate(nelem(nsegAA))
+        integer, intent(in) :: cuantas,nseg
+        integer, intent(in) :: nneigh(:,:)
+    
+        integer :: c, s
+
+        allocate(indexconf(nseg,cuantas))
+        !do c=1,cuantas
+        !    do s=1,nseg
+        !        allocate(indexconf(s,c)%elem(nneigh(s,c)))
+        !    enddo
+        !enddo        
+        
+    end subroutine allocate_indexconfpair
+
+   
+    ! Allocates neigh : neigbors that segment number s in conf alpha has 
+    ! used only for segment s that is a phosphate
+
+    subroutine allocate_nneighbor(cuantas,nseg)
+
+        integer, intent(in) :: cuantas,nseg
+
+        allocate(nneigh(nseg,cuantas))
                   
-    end subroutine allocate_nelemAA
+    end subroutine allocate_nneighbor
+
+
+
+    ! this in not used anywhere in progrom remove
+
+    !subroutine allocate_nelemAA(nsegAA)
+
+    !    integer, intent(in) :: nsegAA
+
+    !    allocate(nelem(nsegAA))
+                  
+    !end subroutine allocate_nelemAA
 
    
 

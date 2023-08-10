@@ -409,7 +409,7 @@ subroutine check_value_systype(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=15) :: systypestr(11)
+    character(len=15) :: systypestr(12)
     integer :: i
     logical :: flag
 
@@ -426,10 +426,11 @@ subroutine check_value_systype(systype,info)
     systypestr(9)="nucl_ionbin"
     systypestr(10)="nucl_ionbin_sv"
     systypestr(11)="nucl_neutral_sv"
+    systypestr(12)="nucl_ionbin_Mg"
 
     flag=.FALSE.
 
-    do i=1,11
+    do i=1,12
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 

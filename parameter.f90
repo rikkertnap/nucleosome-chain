@@ -153,8 +153,6 @@
     real(dp), dimension(:,:), allocatable :: Kaion           ! experimemtal equilibruim constant 
     real(dp), dimension(:,:), allocatable :: pKaion          ! experimental equilibruim constant pKaion= -log[Kaion]
 
-
-
     real(dp) :: KaA(4),K0aA(4),pKaA(4)     !  .. constant for  acid 
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
     real(dp) :: KaAA(7),K0aAA(7),pKaAA(7) 
@@ -172,6 +170,10 @@
     real(dp) :: KionK               ! experimemtal equilibruim constant 
     real(dp) :: pKionK              ! experimental equilibruim constant pKion= -log[Kion]	 
   
+    ! .. pairing parameters 
+
+    real(dp) :: distphoscutoff        ! distance allow between two phosphate to be a pair
+
     !     .. bulk concentrations 
    
     real(dp) :: cHplus             ! concentration of H+ in bulk in mol/liter
