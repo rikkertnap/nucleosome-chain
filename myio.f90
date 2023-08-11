@@ -295,6 +295,9 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) dielectscale%stepsize
             case ('dielectscale%delta')
                 read(buffer,*,iostat=ios) dielectscale%delta
+            case ('distphoscutoff')
+                read(buffer,*,iostat=ios) distphoscutoff
+            
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped

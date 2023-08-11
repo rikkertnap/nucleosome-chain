@@ -64,7 +64,6 @@ module chains
 
 contains
 
-
     subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy)
 
         integer, intent(in) :: cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA
@@ -134,19 +133,12 @@ contains
     ! When used indexchain is not needed and can be deallocated
     ! inputs: dimension of indexconfpair: cuantas, nseg and  nelem(:) 
 
-    subroutine allocate_indexconfpair(cuantas,nseg,nneigh)
+    subroutine allocate_indexconfpair(cuantas,nseg)
 
         integer, intent(in) :: cuantas,nseg
-        integer, intent(in) :: nneigh(:,:)
-    
         integer :: c, s
 
-        allocate(indexconf(nseg,cuantas))
-        !do c=1,cuantas
-        !    do s=1,nseg
-        !        allocate(indexconf(s,c)%elem(nneigh(s,c)))
-        !    enddo
-        !enddo        
+        allocate(indexconfpair(nseg,cuantas))  
         
     end subroutine allocate_indexconfpair
 
