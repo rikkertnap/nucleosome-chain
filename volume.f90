@@ -30,12 +30,16 @@ module volume
 
     ! hash table
     integer, dimension(:,:,:), allocatable :: coordtoindex 
-    integer, dimension(:,:), allocatable   :: indextocoord
+    integer, dimension(:,:),  allocatable  :: indextocoord
+
+    integer, dimension(:,:), allocatable   :: indexneighbor
+    integer, dimension(:,:), allocatable   :: inverse_indexneighbor
 
     private
     
     public :: delta,nx,ny,nz,volcell,areacell,geometry, nsurf
     public :: gamma,cos_two_beta, sin_two_beta
+    public :: indexneighbor, inverse_indexneighbor
     public :: coordtoindex,indextocoord
     public :: coordinateFromLinearIndex, linearIndexFromCoordinate
     public :: xt, yt, ut, vt, ipbc
@@ -256,6 +260,68 @@ contains
         endif
 
     end function
+
+
+    subroutine allocate_index_neighbors(rangecutoff)
+
+        use globals, only : nsize
+
+        integer, intent(in) :: rangecutoff
+
+        allocate(indexneighbor(nsize,rangecutoff))
+        allocate(inverse_indexneighbor(nsize,nsize))
+        
+    end subroutine allocate_index_neighbors
+
+
+    ! Calculate indexneighbor(idx,k) 
+    ! indexneighbor(idx,k) = return lattice cell index of neighbor number k of lattice cell index idx
+    ! range : 1<=idx<=nsize 
+    !       : 1<=k<=(2*rangecutoff+1)**3 
+    !       : k=1 is same lattice cell         
+
+    subroutine make_table_index_neighbors(rangecutoff)
+
+        use globals, only : nsize
+
+        integer, intent(in) :: rangecutoff
+        
+        integer :: idx, i, j, k, ix, iy, iz, deltaix,deltaiy, deltaiz
+        integer :: neighbornumber, idxneigh
+        integer :: ip, jp, kp
+
+
+        do idx=1,nsize
+
+            ! use hash table to get coordiantes 
+            ix=indextocoord(idx,1)
+            iy=indextocoord(idx,2)
+            iz=indextocoord(idx,3)
+
+            neighbornumber=1 ! 
+
+            do deltaix=-rangecutoff,rangecutoff
+                i=ix+deltaix
+                do deltaiy=-rangecutoff,rangecutoff
+                    j=iy+deltaiy
+                    do deltaiz=-rangecutoff,rangecutoff
+                        k=iz+deltaiz
+                        ! apply pbc 
+                        ip=ipbc(i,nx)
+                        jp=ipbc(j,ny)
+                        kp=ipbc(k,nz)
+                        neighbornumber=neighbornumber+1
+                        idxneigh=coordtoindex(ip,jp,kp) ! index of neighbour
+                        indexneighbor(idx,neighbornumber) = idxneigh
+                        inverse_indexneighbor(idx,idxneigh) = neighbornumber
+                    enddo
+                enddo
+            enddo
+
+        enddo    
+
+    end subroutine make_table_index_neighbors
+
 
 end module volume
   

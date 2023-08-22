@@ -1,4 +1,4 @@
-module field
+module field_pairs
   
   !     .. variables
     use precision_definition
@@ -6,28 +6,7 @@ module field
     implicit none
     
     real(dp), dimension(:), allocatable   :: xpol     ! volume fraction of polymer 
-    real(dp), dimension(:,:), allocatable :: xpol_t   ! volume fraction of polymer in layer i of type t
-    real(dp), dimension(:,:), allocatable :: rhopol   ! density monomer of polymer in layer i of type t
-    real(dp), dimension(:,:), allocatable :: rhopolin 
-    real(dp), dimension(:,:), allocatable :: rhopol_charge ! density chargeable monomer of polymer in layer i of type t
-    real(dp), dimension(:), allocatable   :: rhoqpol  ! charge density  monomer of polymer in layer i 
-
-    real(dp), dimension(:), allocatable :: xsol     ! volume fraction solvent
-    real(dp), dimension(:), allocatable :: psi      ! electrostatic potential 
-    real(dp), dimension(:), allocatable :: xNa      ! volume fraction of positive Na+ ion
-    real(dp), dimension(:), allocatable :: xK       ! volume fraction of positive K+ ion
-    real(dp), dimension(:), allocatable :: xRb      ! volume fraction of positive Rb+ ion
-    real(dp), dimension(:), allocatable :: xCa      ! volume fraction of positive Ca2+ ion
-    real(dp), dimension(:), allocatable :: xMg      ! volume fraction of positive Mg2+ ion    
-    real(dp), dimension(:), allocatable :: xNaCl    ! volume fraction of NaCl ion pair
-    real(dp), dimension(:), allocatable :: xKCl     ! volume fraction of KCl  ion pair
-    real(dp), dimension(:), allocatable :: xCl      ! volume fraction of negative ion
-    real(dp), dimension(:), allocatable :: xHplus   ! volume fraction of Hplus
-    real(dp), dimension(:), allocatable :: xOHmin   ! volume fraction of OHmin 
-
-    real(dp), dimension(:), allocatable :: rhoq     ! total free charge density in units of vsol  
-    real(dp), dimension(:), allocatable :: epsfcn   ! relative dielectric constant 
-    real(dp), dimension(:), allocatable :: Depsfcn  ! relative derivative dielectric constant
+    
 
     real(dp), dimension(:,:), allocatable   :: fdis    ! degree of dissociation of acid monomer and base monomer
                                                        ! acid: AH<=> A^- +H^+ f_A^-=fdis, base : BH^+<=> B+ H^+ f_B=fdis 
@@ -36,13 +15,7 @@ module field
     real(dp), dimension(:,:,:), allocatable :: gdisA   ! degree of dissociation of acid including condensed states  
     real(dp), dimension(:,:,:), allocatable :: gdisB   ! degree of dissociation of base including condensed states  
 
-    real(dp) :: q          ! normalization partion fnc polymer 
-    real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
-    real(dp) :: lnproshift ! shift in exponent palpha
-
-    real(dp), dimension(:,:), allocatable       :: rhopairs     ! volume fraction of polymer 
-    real(dp), dimension(:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,PP)  
-
+ 
 
 contains
 
@@ -162,30 +135,8 @@ contains
 
     end subroutine init_field
 
-    subroutine allocate_field_pairs(Nx,Ny,Nz,maxneigh,maxfdisPP)
 
-        integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP
-
-        integer :: N
-        integer :: ier(26), i
-
-        N=Nx*Ny*Nz
-
-        allocate(rhopairs(N,maxneigh))     
-        allocate(fdisPP(N,maxneigh,maxfdisPP))   
-
-    end subroutine allocate_field_pairs
-
-
-    subroutine init_field_pairs()
-    
-        rhopairs=0.0_dp
-        fdisPP=0.0_dp
-
-    end subroutine init_field_pairs
-
-    !  compute routines 
-
+    !  debug routine
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
@@ -678,6 +629,9 @@ contains
         enddo            
 
     end subroutine distribution_charge_nucl_ionbin_sv
+
+
+
 
 
     subroutine average_charge_polymer_multi()

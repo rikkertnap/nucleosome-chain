@@ -322,12 +322,14 @@ contains
                     j=iy+deltaiy
                     do deltaiz=0,1
                         k=iz+deltaiz
+                        
                         ! apply pbc 
                         ip=ipbc(i,nx)
                         jp=ipbc(j,ny)
                         kp=ipbc(k,nz)
                         idxnb=coordtoindex(ip,jp,kp) ! neighbour
-                        sumtmp=sumtmp-deltavnucl(deltaix+1,deltaiy+1,deltaiz+1)*log(xsol(idxnb))  
+                        sumtmp=sumtmp-deltavnucl(deltaix+1,deltaiy+1,deltaiz+1)*log(xsol(idxnb)) 
+
                     enddo
                 enddo
             enddo  

@@ -40,10 +40,6 @@ module field
     real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
     real(dp) :: lnproshift ! shift in exponent palpha
 
-    real(dp), dimension(:,:), allocatable       :: rhopairs     ! volume fraction of polymer 
-    real(dp), dimension(:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,PP)  
-
-
 contains
 
     subroutine allocate_field(Nx,Ny,Nz,nsegtypes)
@@ -162,30 +158,8 @@ contains
 
     end subroutine init_field
 
-    subroutine allocate_field_pairs(Nx,Ny,Nz,maxneigh,maxfdisPP)
 
-        integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP
-
-        integer :: N
-        integer :: ier(26), i
-
-        N=Nx*Ny*Nz
-
-        allocate(rhopairs(N,maxneigh))     
-        allocate(fdisPP(N,maxneigh,maxfdisPP))   
-
-    end subroutine allocate_field_pairs
-
-
-    subroutine init_field_pairs()
-    
-        rhopairs=0.0_dp
-        fdisPP=0.0_dp
-
-    end subroutine init_field_pairs
-
-    !  compute routines 
-
+    !  debug routine
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
@@ -678,6 +652,9 @@ contains
         enddo            
 
     end subroutine distribution_charge_nucl_ionbin_sv
+
+
+
 
 
     subroutine average_charge_polymer_multi()

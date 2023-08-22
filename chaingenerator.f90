@@ -800,9 +800,12 @@ subroutine read_chains_xyz_nucl_volume(info)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
     
     ! pairs variable 
-    call allocate_indexconfpair(cuantas,nseg)
-    call allocate_nneighbor(cuantas,nseg)
-    tPhos = find_type_phosphate()
+    if(systype=="nucl_ionbin_Mg") then 
+        call allocate_indexconfpair(cuantas,nseg)
+        call allocate_nneighbor(cuantas,nseg)
+        tPhos = find_type_phosphate()
+    endif
+        
     
     isReadGood=.true. 
 
@@ -977,9 +980,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 enddo ! end s loop
 
-                call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-
-                call error_handler(1,"stop")
+                if(systype=="nucl_ionbin_Mg") then
+                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
+                    call error_handler(1,"stop")
+                endif    
 
 
                 if(DEBUG) call write_indexconf_lammps_trj(info_traj)
@@ -3381,6 +3385,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair
     use parameters, only : distphoscutoff, tA 
+    use volume, only : delta, linearIndexFromCoordinate
     
     integer, intent(in) :: nseg
     integer, intent(in) :: conf
@@ -3391,11 +3396,13 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     integer, parameter :: maxnneigh = 10
 
     integer :: s, sprime, i, j
-    integer, dimension(:,:), allocatable :: list_of_pairs
+    integer :: xi, yi, zi , idx
+    integer, dimension(:,:), allocatable :: list_of_pairs, index_of_pairs
     real(dp) :: sqrdist
     
 
     allocate(list_of_pairs(nseg,maxnneigh))
+    allocate(index_of_pairs(nseg,maxnneigh))
 
     do s=1,nseg 
         nneigh(s,conf)=0
@@ -3412,7 +3419,14 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                         if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
                             ! accept s and sprime are a pair
                             nneigh(s,conf)=nneigh(s,conf)+1
-                            list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of neighbors
+                            list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
+
+                            ! transforming form real- to lattice coordinates                 
+                            xi = int(chain_pbc(1,s)/delta)+1
+                            yi = int(chain_pbc(2,s)/delta)+1
+                            zi = int(chain_pbc(3,s)/delta)+1
+                            call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
                         endif
                     endif    
                 endif
@@ -3439,9 +3453,12 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     ! ..assign indexconfpair
     do s=1,nseg
         do j=1,nneigh(s,conf)
-            indexconfpair(s,conf)%elem(j)=list_of_pairs(s,j)
+            indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
         enddo 
     enddo  
+
+    deallocate(list_of_pairs)
+    deallocate(index_of_pairs)
 
 end subroutine find_phosphate_pairs
 
