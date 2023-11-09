@@ -14,6 +14,15 @@
     type(bornmoleclist) :: bornrad,bornbulk 
     type(moleclist) :: beta_ion_excess
 
+    ! .. index for different chemical states of phosphate used in vPP and qPP in for systype nucl_ionbin_Mg
+
+    integer, parameter :: Phos=1 
+    integer, parameter :: PhosH=2
+    integer, parameter :: PhosK=3
+    integer, parameter :: PhosNa=4
+    integer, parameter :: PhosMg=5
+    integer, parameter :: Phos2Mg=6
+
     !  .. volume 
   
     real(dp) :: vsol                 ! volume of solvent  in nm^3       
@@ -25,7 +34,7 @@
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
     logical , dimension(:),   allocatable       :: vnucl_type_isChargeable
-
+    real(dp), dimension(6) :: vPP    ! volume of different chemical states of phosphate 
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -45,20 +54,23 @@
     real(dp) :: RCa
     real(dp) :: RMg
 
-     !    .. charges 
-    integer, dimension(:,:), allocatable :: zpol          ! valence charge polymer
+    ! .. charges 
+
+    integer, dimension(:,:), allocatable :: zpol ! valence charge polymer
     integer :: zpolAA(8)
     integer :: zpolA(5)          ! valence charge polymer
     integer :: zpolB(5)          ! valence charge polymer
+    integer, dimension(6) :: qPP ! charge of different phosphate chemical state
 
-    integer :: zNa               ! valence charge positive ion 
-    integer :: zK                ! valence charge positive ion 
-    integer :: zRb               ! valence charge positive ion 
-    integer :: zCa               ! valence charge divalent positive ion 
-    integer :: zMg               ! valence charge divalent positive ion 
-    integer :: zCl               ! valence charge negative ion 
+    integer :: zNa               ! valence charge Na+ ion 
+    integer :: zK                ! valence charge K+ ion 
+    integer :: zRb               ! valence charge Rb+ ion 
+    integer :: zCa               ! valence charge Ca++ ion 
+    integer :: zMg               ! valence charge Mg++ ion 
+    integer :: zCl               ! valence charge Cl- ion 
   
     !  .. VdW variables
+
     real(dp), dimension(:,:), allocatable :: VdWeps, VdWepsin    ! strenght VdW interaction in units of kT
     real(dp) :: VdWepsAA, VdWepsBB,VdWepsAB            ! strenght VdW interaction in units of kT
     logical :: isVdW              ! if true VdW energy 
@@ -169,10 +181,6 @@
     real(dp) :: K0ionK              ! intrinsic equilibruim constant
     real(dp) :: KionK               ! experimemtal equilibruim constant 
     real(dp) :: pKionK              ! experimental equilibruim constant pKion= -log[Kion]	 
-  
-    ! .. pairing parameters 
-
-    real(dp) :: distphoscutoff        ! distance allow between two phosphate to be a pair
 
     !     .. bulk concentrations 
    
@@ -212,6 +220,7 @@ contains
 
         use globals, only: systype,nsegtypes, nsize,bcflag,LEFT,RIGHT, neq, neqint
         use volume, only : nx, ny, nz
+        use myutils, only  : error_handler
 
         integer :: numeq, t
 
@@ -222,7 +231,7 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna","nucl_ionbin","nucl_ionbin_sv")
+            case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
@@ -250,7 +259,7 @@ contains
                 neq = 5 
             case default
                 print*,"Wrong value systype:  ",systype
-                stop
+                call error_handler(1,"set_size_neq")
         end select  
 
         neqint =neq ! used for MPI func binding, MPI has no integer(8)
@@ -456,17 +465,18 @@ contains
     end function
       
 
-    ! init variables specific for systype=brush, brushborn etc 
+    ! Init variables specific for DNA used in systype=brush, brushborn etc 
     ! variable are  constants, deltaG and K for sytype=brush,bruhborn etc.
     ! pre : nsegtype, vsol,vpol, vNa etc and ismonomer_chargable need to be set 
-    ! post : equlibriuem constant and volume set for charge state of 
-    !       carboxylic group of systype ==brushborn are initliazed 
+    ! post : equlibrium constant and volume set for charge state of 
+    !        carboxylic group of systype ==brushborn are initliazed 
 
     subroutine init_dna  
 
         use globals, only : nsegtypes,nseg,systype
         use chains, only : type_of_monomer_char,type_of_monomer,ismonomer_chargeable
         use physconst, only : Na
+        use myutils, only : error_handler
 
         real(dp) :: KAA(7)
         real(dp) :: vA    
@@ -536,7 +546,12 @@ contains
         deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7) ! 2vA- + vMg2+ -vA2Mg
         deltavAA(7) = vpolAA(1)+vK-vpolAA(8)    ! vA- + vK+ - vAK
 
-
+        if(systype=="nucl_ionbin_Mg") then
+            call init_vPP(info)
+            call error_handler(info,"init_vPP")
+            call init_qpp()
+        endif
+            
         ! determine if there is only one seg type is chargeable
         flag_one=0
         do tt=1,nsegtypes
@@ -569,6 +584,7 @@ contains
 
     function dielectric_constant_water(Temp) result(eps)
         implicit none
+
         real(dp), intent(in) :: Temp ! temperature in Kelvin
         real(dp) :: eps, Tc
 
@@ -588,12 +604,12 @@ contains
 
         dielectW=dielectric_constant_water(Temp)
 
-        lb=(elemcharge**2)/(4.0_dp*pi*dielectW*dielect0*kBoltzmann*Temp) ! bjerrum length in water=solvent in m
-        lb=lb/1.0e-9_dp                           ! bjerrum length in water in nm
-        constqW = delta*delta*(4.0_dp*pi*lb)/vsol ! multiplicative constant Poisson Eq. 
+        lb = (elemcharge**2)/(4.0_dp*pi*dielectW*dielect0*kBoltzmann*Temp) ! bjerrum length in water=solvent in m
+        lb = lb/1.0e-9_dp                           ! bjerrum length in water in nm
+        constqW = delta*delta*(4.0_dp*pi*lb)/vsol   ! multiplicative constant Poisson Eq. 
 
-        lb0=(elemcharge**2)/(4.0_dp*pi*dielect0*kBoltzmann*Temp) ! bjerrum length in vacum in m
-        lb0= lb0/1.0e-9_dp                          ! bjerrum length in vacum in nm
+        lb0 =(elemcharge**2)/(4.0_dp*pi*dielect0*kBoltzmann*Temp) ! bjerrum length in vacum in m
+        lb0 = lb0/1.0e-9_dp                         ! bjerrum length in vacum in nm
         constq0 = delta*delta*(4.0_dp*pi*lb0)/vsol  ! multiplicative constant Poisson Eq. 
         constqE = 1.0_dp /( 8.0_dp *constqW)        ! factor in PDF
         constqWin = constqW                         ! assignment for  loop of dielect
@@ -613,8 +629,8 @@ contains
         ! local 
         real(dp) :: vol
 
-        vol=nsize*(delta**3)
-        denspol= nseg*1.0_dp/vol   
+        vol = nsize*(delta**3)
+        denspol = nseg*1.0_dp/vol   
  
     end function
 
@@ -887,7 +903,7 @@ contains
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
-        case ("brushdna","nucl_ionbin","nucl_ionbin_sv") 
+        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
@@ -897,7 +913,7 @@ contains
             call init_expmu_neutral()
             call set_VdWeps_scale(VdWscale)
         case("brushborn") 
-            call init_dna
+            call init_dna()
             call init_expmu_elect()  
             call set_VdWeps_scale(VdWscale)
         case default   
@@ -960,7 +976,9 @@ contains
 
         integer, intent(in) :: nelemtypes
 
-        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") allocate(vnucl(nelemtypes,nsegtypes))
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+            allocate(vnucl(nelemtypes,nsegtypes))
+        endif    
 
     end subroutine allocate_vnucl  
 
@@ -971,7 +989,7 @@ contains
 
         integer, intent(in) :: nelemtypes
 
-        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") then 
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
@@ -993,6 +1011,7 @@ contains
 
         if(systype=="nucl_neutral_sv") vnucl=0.0_dp !vnucl=0.01_dp ! init
         if(systype=="nucl_ionbin_sv") vnucl=0.0_dp 
+        if(systype=="nucl_ionbin_Mg") vnucl=0.0_dp
 
     end subroutine init_vnucl
        
@@ -1015,7 +1034,7 @@ contains
 
         pKaion = 0.0_dp
         
-        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
         endif    
        
@@ -1032,6 +1051,50 @@ contains
 
     end subroutine init_lseg
 
+
+    ! Inits vPP in terms of vpol 
+    ! used only for systype equal nucl_ionbin_Mg
+    ! pre:  vpol and vsol and tA need to be set before 
+    ! post:  vPP 
+
+    subroutine init_vPP(info)
+
+        integer, intent(inout) :: info
+        integer :: tPhos
+        real(dp), parameter :: eps_vpol=1.0e-5_dp
+
+        tPhos = tA
+        print*,"tA=",tA
+        info=0
+        if(tPhos==0) then
+            info=err_error
+            return
+        endif
+
+        if(abs(vpol(tPhos))<eps_vpol) then 
+            info=err_error
+            return
+        endif    
+
+        vPP(Phos) = vpol(tPhos) * vsol
+        vPP(PhosH) = vpol(tPhos) * vsol
+        vPP(PhosK) = (vpol(tPhos)+vK ) * vsol
+        vPP(PhosNa) = (vpol(tPhos)+vNa ) * vsol 
+        vPP(PhosMg) = (vpol(tPhos)+vMg ) * vsol
+        vPP(Phos2Mg) = (2.0_dp*vpol(tPhos)+vMg ) * vsol
+ 
+    end subroutine   init_vPP 
+
+    subroutine init_qPP()
+        
+        qPP(Phos) = -1
+        qPP(PhosH) = 0
+        qPP(PhosK) = 0
+        qPP(PhosNa) = 0
+        qPP(PhosMg) = 1
+        qPP(Phos2Mg) = 0
+
+     end subroutine   init_qPP
 
     !  .. assign vpol from values in file named filename
     !  .. values vpol are normalized by vsol
@@ -1474,7 +1537,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

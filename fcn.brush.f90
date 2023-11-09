@@ -3159,6 +3159,25 @@ contains
     end subroutine fcnneutralnoVdW
 
 
+    subroutine fcnnucl_ionbin_sv_Mg(x,f,nn)
+
+        use mpivars
+        use globals , only : neq
+        use modfcnMg
+       
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Mg(x,f,nn)
+
+    end subroutine fcnnucl_ionbin_sv_Mg
+
     !  .. function solves for bulk volume fraction 
 
     subroutine fcnbulk(x,f,nn)   
@@ -3230,6 +3249,9 @@ contains
     end subroutine fcnbulk
 
 
+
+
+
     subroutine locate_xpol_lager_one(xpol)
         
         use precision_definition
@@ -3279,7 +3301,7 @@ contains
         neqint=int(neq,kind(neqint))     ! explict conversion from integer(8) to integer
     
         select case (systype)
-            case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv")      ! multi copolymer:
+            case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg")      ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo
@@ -3349,7 +3371,9 @@ contains
             fcnptr => fcnnucl_ionbin  
         case ("nucl_ionbin_sv")
             fcnptr => fcnnucl_ionbin_sv_general
-         case ("nucl_neutral_sv")
+        case ("nucl_ionbin_Mg")
+            fcnptr => fcnnucl_ionbin_sv_Mg
+        case ("nucl_neutral_sv")
             fcnptr => fcnnucl_neutral_sv    
         case ("brushborn")
             fcnptr => fcnbrushborn    

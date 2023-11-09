@@ -257,7 +257,7 @@ subroutine read_chains_xyz(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out) :: info
 
-    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv") then 
+    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
         call read_chains_xyz_nucl_volume(info)
     else
         call read_chains_xyz_nucl(info)
@@ -982,7 +982,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                 if(systype=="nucl_ionbin_Mg") then
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-                    call error_handler(1,"stop")
+                    !call error_handler(1,"hello!!!!")
                 endif    
 
 
@@ -3383,8 +3383,8 @@ end subroutine add_chain_rot_and_chain_elem_rot
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
 
     use chains, only :  type_of_monomer,indexconfpair
-    use chains, only : nneigh, indexconfpair
-    use parameters, only : distphoscutoff, tA 
+    use chains, only : nneigh, indexconfpair, distphoscutoff
+    use parameters, only : tA 
     use volume, only : delta, linearIndexFromCoordinate
     
     integer, intent(in) :: nseg

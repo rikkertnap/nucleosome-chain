@@ -51,8 +51,12 @@ contains
 
         use globals, only : nsize, systype
         use mathconst
+        use chains, only : distphoscutoff ,maxneigh
 
         implicit none 
+
+        integer :: rangecutoff
+
 
         if(geometry=="cubic") then 
             gamma = pi/2.0_dp
@@ -76,7 +80,15 @@ contains
         ! use of hash table 
         call allocate_hashtable(nx,ny,nz)
         call make_hashtable()
-        
+
+        ! 
+        if(systype=="nucl_ionbin_Mg") then
+            rangecutoff=int(distphoscutoff/delta)+2 
+            maxneigh = (2*rangecutoff+1)**3
+            call allocate_index_neighbors(maxneigh)
+            call make_table_index_neighbors(rangecutoff)
+        endif    
+
     end subroutine init_lattice
          
 
@@ -262,13 +274,13 @@ contains
     end function
 
 
-    subroutine allocate_index_neighbors(rangecutoff)
+    subroutine allocate_index_neighbors(maxneigh)
 
         use globals, only : nsize
 
-        integer, intent(in) :: rangecutoff
+        integer, intent(in) :: maxneigh
 
-        allocate(indexneighbor(nsize,rangecutoff))
+        allocate(indexneighbor(nsize,maxneigh))
         allocate(inverse_indexneighbor(nsize,nsize))
         
     end subroutine allocate_index_neighbors
@@ -298,7 +310,7 @@ contains
             iy=indextocoord(idx,2)
             iz=indextocoord(idx,3)
 
-            neighbornumber=1 ! 
+            neighbornumber=0 ! 
 
             do deltaix=-rangecutoff,rangecutoff
                 i=ix+deltaix

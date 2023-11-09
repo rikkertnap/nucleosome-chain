@@ -62,7 +62,12 @@ module chains
     real(dp)                                    :: avRgsqr                  ! radius of gyration 
     real(dp)                                    :: avRendsqr                ! end-to-end distance
 
-contains
+    ! .. pairing parameters 
+
+    real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
+    integer  :: maxneigh       ! maximum of neigbors 
+
+contains 
 
     subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy)
 
@@ -153,20 +158,6 @@ contains
         allocate(nneigh(nseg,cuantas))
                   
     end subroutine allocate_nneighbor
-
-
-
-    ! this in not used anywhere in progrom remove
-
-    !subroutine allocate_nelemAA(nsegAA)
-
-    !    integer, intent(in) :: nsegAA
-
-    !    allocate(nelem(nsegAA))
-                  
-    !end subroutine allocate_nelemAA
-
    
-
 
 end module chains

@@ -105,8 +105,9 @@ program main
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
        
+
     ! init distributed volume  
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv") then 
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then 
         call init_vnucl_type(info) ! ismonomer_chargable etc needs to be set
         call error_handler(info,"init_vnucl_type")
     endif 
@@ -123,6 +124,7 @@ program main
 
     call make_chains(chainmethod,systype)   
     call allocate_field(nx,ny,nz,nsegtypes)
+    call allocate_field_pairs(nx,ny,nz,maxneigh,5)
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(isVdW)

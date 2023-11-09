@@ -75,7 +75,7 @@ subroutine read_inputfile(info)
     use parameters
     use surface
     use myutils, only : newunit
-    use chains, only : sgraftpts
+    use chains, only : sgraftpts, distphoscutoff 
 
     integer, intent(out), optional :: info
 
@@ -870,7 +870,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(7)
+    character(len=15) :: systypestr(8)
     integer :: i
     logical :: flag
 
@@ -885,8 +885,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(5)="nucl_ionbin"
         systypestr(6)="nucl_ionbin_sv"
         systypestr(7)="nucl_neutral_sv"
+        systypestr(8)="nucl_ionbin_Mg"
 
-        do i=1,7
+        do i=1,8
             if(systype==systypestr(i)) flag=.true.
         enddo
 

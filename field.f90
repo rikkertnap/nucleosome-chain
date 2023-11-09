@@ -41,8 +41,8 @@ module field
     real(dp) :: lnproshift ! shift in exponent palpha
 
     real(dp), dimension(:,:), allocatable       :: rhopairs     ! volume fraction of polymer 
-    real(dp), dimension(:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,PP)  
-
+    real(dp), dimension(:,:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,J,K)  
+    real(dp), dimension(:,:), allocatable       :: fdisP2Mg     ! fraction  fdisP2Mg(i,k)  
 
 contains
 
@@ -171,8 +171,9 @@ contains
 
         N=Nx*Ny*Nz
 
-        allocate(rhopairs(N,maxneigh))     
-        allocate(fdisPP(N,maxneigh,maxfdisPP))   
+    !    allocate(rhopairs(N,maxneigh))     
+        allocate(fdisPP(N,maxneigh,maxfdisPP,maxfdisPP)) 
+        allocate(fdisP2Mg(N,maxneigh)) 
 
     end subroutine allocate_field_pairs
 
@@ -181,6 +182,7 @@ contains
     
         rhopairs=0.0_dp
         fdisPP=0.0_dp
+        fdisP2Mg=0.0_dp
 
     end subroutine init_field_pairs
 
