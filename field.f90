@@ -40,7 +40,7 @@ module field
     real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
     real(dp) :: lnproshift ! shift in exponent palpha
 
-    real(dp), dimension(:,:), allocatable       :: rhopairs     ! volume fraction of polymer 
+    real(dp), dimension(:), allocatable       :: rhoqphos     ! charged density of phosphate needed systype="nucl_ionbin_Mg"
     real(dp), dimension(:,:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,J,K)  
     real(dp), dimension(:,:), allocatable       :: fdisP2Mg     ! fraction  fdisP2Mg(i,k)  
 
@@ -171,7 +171,7 @@ contains
 
         N=Nx*Ny*Nz
 
-    !    allocate(rhopairs(N,maxneigh))     
+        allocate(rhoqphos(N))    
         allocate(fdisPP(N,maxneigh,maxfdisPP,maxfdisPP)) 
         allocate(fdisP2Mg(N,maxneigh)) 
 
@@ -180,7 +180,8 @@ contains
 
     subroutine init_field_pairs()
     
-        rhopairs=0.0_dp
+    !    rhopairs=0.0_dp
+        rhoqphos=0.0_dp
         fdisPP=0.0_dp
         fdisP2Mg=0.0_dp
 
@@ -246,7 +247,9 @@ contains
         case ("nucl_ionbin")
             call charge_nucl_ionbin()
         case ("nucl_ionbin_sv")
-            call charge_nucl_ionbin_sv()   
+            call charge_nucl_ionbin_sv()  
+        case ("nucl_ionbin_Mg")
+            call charge_nucl_ionbin_Mg() 
         case ("elect")  
             call charge_polymer_binary()
         case default
@@ -367,6 +370,49 @@ contains
         
     end subroutine charge_nucl_ionbin_sv
 
+    subroutine charge_nucl_ionbin_Mg()
+
+        use globals, only : nsize, nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, qpol, qpol_tot, tA
+        use chains, only : ismonomer_chargeable, type_of_charge
+
+        integer :: i, t
+        real(dp) :: qpoltmp 
+
+        qpol_tot=0.0_dp
+     
+
+        do t=1,nsegtypes
+            qpol(t)=0.0_dp
+           
+            if(ismonomer_chargeable(t)) then
+           
+                if(type_of_charge(t)=="A") then   ! acid 
+           
+                    if(t/=ta) then
+                        do i=1,nsize
+                            qpol(t)=qpol(t)-gdisA(i,1,t)*rhopol_charge(i,t)
+                        enddo
+                    else ! phosphate
+                        do i=1,nsize
+                            qpol(t)=qpol(t)+ rhoqphos(i)
+                        enddo    
+                    endif
+                else  ! base   
+                    do i=1,nsize
+                        qpoltmp=gdisB(i,1,t)*rhopol_charge(i,t)
+                        qpol(t)=qpol(t)+qpoltmp
+                    enddo
+                endif        
+            endif  
+            qpol(t)=qpol(t)*volcell
+            qpol_tot=qpol_tot+qpol(t)
+        enddo
+
+        
+
+    end subroutine charge_nucl_ionbin_Mg    
 
     subroutine charge_polymer_multi()
 

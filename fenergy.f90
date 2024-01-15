@@ -79,6 +79,14 @@ contains
             !call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
 
+        case ("nucl_ionbin_Mg")
+        
+            print*,"warning fcnenergy not working yet for nucl_ion_bin_Mg."
+            call fcnenergy_ionbin_sv()
+            !call fcnenergy_electbrush_mul() 
+            !call fcnenergy_elect_alternative()
+
+
         case("elect")
             
             call fcnenergy_elect()
@@ -1744,6 +1752,12 @@ contains
 
             call check_volume_nucl_ionbin_sv(checksumxpoltot)
 
+        case ("nucl_ionbin_Mg")
+            print*,"warning check_volume_nucl not working yet for nucl_ion_bin_Mg."
+
+            call check_volume_nucl_ionbin_sv(checksumxpoltot)
+
+
         case ("nucl_neutral_sv ")
 
             call check_volume_nucl_neutral_sv(checksumxpoltot)
@@ -1909,7 +1923,7 @@ contains
         real(dp),intent(inout) :: checksumxpoltot
 
         integer :: t,i,ier
-        real(dp) :: sumvolnucl,sumxpoltot
+        real(dp) :: sumvolnucl,sumxpoltot, sumrhophos
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
 
@@ -1974,13 +1988,16 @@ contains
 
         sumvolnucl=calculate_sumvolnucl()
         checksumxpoltot=sum(sumxpol)*volcell -sum(deltaxpol)*volcell - sumvolnucl
-        
+        sumrhophos=sum(rhopol_charge(:,ta))*volcell
+
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+
             print*,"sumxpol(t)     = ",(sumxpol(t),t=1,nsegtypes)
             print*,"sumxpol        = ",sum(sumxpol)*volcell
             print*,"sumdeltaxpol   = ",sum(deltaxpol)*volcell
             print*,"sumvolnucl     = ",sumvolnucl
             print*,"checksumxpoltot= ",checksumxpoltot
+            print*,"sumrhophos     = ",sumrhophos
            
         endif
 

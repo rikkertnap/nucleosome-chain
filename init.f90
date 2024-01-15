@@ -338,9 +338,9 @@ end subroutine init_guess_neutralnoVdW
 
 subroutine init_guess_multi(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes
+    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
     use volume, only : nsurf
-    use field, only : xsol,psi,rhopol,xpol
+    use field, only : xsol,psi,rhopol,xpol,xpol_t
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile, isrhoselfconsistent
     use myutils, only : newunit, lenText, error_handler
@@ -384,20 +384,40 @@ subroutine init_guess_multi(x, xguess)
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
-        endif            
-        do i=1,nsize
-            read(un_file(1),*)xsol(i)    ! solvent
-            read(un_file(2),*)psi(i)     ! potential
-            read(un_file(3),*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+        endif    
 
-            x(i)         = xsol(i)    ! placing xsol in vector x
-            x(i+nsize)   = psi(i)     ! placing psi in vector x
-        enddo 
-       
+        if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
+            do i=1,nsize
+                read(un_file(1),*)xsol(i)    ! solvent
+                read(un_file(2),*)psi(i)     ! potential
+                read(un_file(3),*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+
+                x(i)         = xsol(i)    ! placing xsol in vector x
+                x(i+nsize)   = psi(i)     ! placing psi in vector x
+            enddo 
+        else
+
+
+            do i=1,nsize
+                read(un_file(1),*)xsol(i)    ! solvent
+                read(un_file(2),*)psi(i)     ! potential
+                read(un_file(3),*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
+
+                x(i)         = xsol(i)    ! placing xsol in vector x
+                x(i+nsize)   = psi(i)     ! placing psi in vector x
+            enddo 
+
+        endif  
+
     
         count_scf=0                     ! placing density in vector x
         do t=1,nsegtypes
             if(isrhoselfconsistent(t)) then
+                if(systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+                    text='init_guess_multi: combination '//systype//' with VdW not working !'
+                    call error_handler(-1,text)
+                endif
+
                 count_scf=count_scf+1 
                 k=(count_scf+1)*nsize
                 do i=1,nsize

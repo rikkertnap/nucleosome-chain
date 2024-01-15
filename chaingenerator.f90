@@ -747,7 +747,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     Lr=(/Lx,Ly,Lz/)
 
     sqrDphoscutoff=distphoscutoff**2
-    print*,"sqrDphoscutoff=",sqrDphoscutoff
+    !print*,"sqrDphoscutoff=",sqrDphoscutoff
     max_range_nneigh = 10                             ! assume at maximum there  at 10 ! 
     allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
 
@@ -3382,10 +3382,12 @@ end subroutine add_chain_rot_and_chain_elem_rot
 
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
 
+    use mpivars, only : rank
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
     use volume, only : delta, linearIndexFromCoordinate
+    use myutils, only : newunit
     
     integer, intent(in) :: nseg
     integer, intent(in) :: conf
@@ -3400,6 +3402,9 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     integer, dimension(:,:), allocatable :: list_of_pairs, index_of_pairs
     real(dp) :: sqrdist
     
+    character(len=100) :: fname
+    integer :: un_pp
+    character(len=10) ::istr
 
     allocate(list_of_pairs(nseg,maxnneigh))
     allocate(index_of_pairs(nseg,maxnneigh))
@@ -3437,12 +3442,20 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     ! print 
 
     if(.true.)then
-        print*,"phosphate pairs"
-        print*,"value ta=",ta, "value tPhos=",tPhos
-        print*,"distphoscutoff=",distphoscutoff
+        write(istr,'(I4)')rank
+        fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
+        !     .. opening file
+        open(unit=newunit(un_pp),file=fname)
+
+        write(un_pp,*)"phosphate pairs"
+        write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+        write(un_pp,*)"distphoscutoff=",distphoscutoff
+        write(un_pp,*)"conf=",conf
         do s=1,nseg
-            print*,s,type_of_monomer(s),nneigh(s,conf),(list_of_pairs(s,j),j=1,nneigh(s,conf))
+             write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),(list_of_pairs(s,j),j=1,nneigh(s,conf))
         enddo
+        close(un_pp)
+
     endif        
 
     ! allocate indexconfpair

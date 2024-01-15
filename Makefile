@@ -15,7 +15,7 @@ GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 
 ifeq ($(shell hostname),gadol)
 
-FFLAGS= -O3 -cpp -DVERSION=\"$(GIT_VERSION)\" -fbounds-check -Warray-bounds #-O3
+FFLAGS= -cpp -DVERSION=\"$(GIT_VERSION)\" -fbounds-check -Warray-bounds -g -fbacktrace #-O3
 
 LDFLAGS=-L/opt/local/sundials-2.5.0-openmpi/lib -lsundials_fkinsol -lsundials_kinsol -lsundials_fnvecserial -lsundials_nvecserial -lm -L/usr/lib/gcc/x86_64-linux-gnu/4.6 -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../.. -lgfortran -lm -lgcc_s -lquadmath
 

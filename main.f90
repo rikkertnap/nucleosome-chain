@@ -236,9 +236,10 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                call solver(x, xguess, tol_conv, fnorm, isSolution)
+                !call solver(x, xguess, tol_conv, fnorm, isSolution)
+                isSolution=.true.
                 call fcnptr(x, fvec, neq)
-                flag_solver = 0   ! stop nodes
+                flag_solver = 0   ! stop nodess
                 do i = 1, size-1
                     dest =i
                     call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)
@@ -255,8 +256,9 @@ program main
                     endif
                 enddo
             endif
+        
 
-            call FEconf_entropy(FEconf,Econf) ! parrallel computation of conf FEconf_entropy
+            !            call FEconf_entropy(FEconf,Econf) ! parrallel computation of conf FEconf_entropy
 
             if(rank==0) then
 

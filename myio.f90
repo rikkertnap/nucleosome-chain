@@ -399,7 +399,7 @@ subroutine read_inputfile(info)
 
     ! .. override certain input values
     if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul".or.&
-        systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
+        systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
         KionNa   = 0.0_dp
         KionK    = 0.0_dp
     endif
@@ -1168,6 +1168,11 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
+
+    case("nucl_ionbin_Mg")
+
+        call output_nucl_mul
+
     case("nucl_neutral_sv")
 
         call output_neutral  
@@ -1270,11 +1275,13 @@ subroutine output_nucl_mul
     open(unit=newunit(un_xpol),file=xpolfilename)
     open(unit=newunit(un_fdis),file=densfracfilename)
 
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
+    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
         open(unit=newunit(un_fdisP),file=densfracPfilename)
     endif
 
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") open(unit=newunit(un_fdision),file=densfracionfilename)
+    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+       open(unit=newunit(un_fdision),file=densfracionfilename)
+    endif   
     if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
     if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
         
@@ -1313,7 +1320,7 @@ subroutine output_nucl_mul
     enddo
 
 
-    if(systype/="nucl_ionbin_sv") then
+    if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
         do i=1,nsize
             write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
         enddo
@@ -1324,13 +1331,14 @@ subroutine output_nucl_mul
     endif    
 
 
-    if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv") then
+    if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
         do i=1,nsize
             write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
         enddo
     endif     
 
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
+    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+         .or.systype=="nucl_ionbin_Mg") then
         do i=1,nsize
             write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
         enddo
@@ -1428,7 +1436,7 @@ subroutine output_nucl_mul
     enddo    
     !
     if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
-        .or.systype=="brushborn") then
+        .or.systype=="nucl_ionbin_Mg".or.systype=="brushborn") then
         do k=1,7
             write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k)
         enddo
@@ -1504,7 +1512,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'qpoltot     = ',qpol_tot
 
     if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
-        .or.systype=="brushborn")then
+        .or.systype=="nucl_ionbin_Mg".or.systype=="brushborn")then
         do k=1,8
             write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k)
         enddo
@@ -1516,7 +1524,7 @@ subroutine output_nucl_mul
             write(un_sys,*)'avfdis(',t,')    = ',avfdis(t)
         enddo
     endif
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")then
+    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_sv")then
         do k=1,4
             do t=1,nsegtypes
                 write(un_sys,'(A8,I5,A,I5,A5,ES25.16)')'avgdisA(',t,',',k,')  = ',avgdisA(t,k)
@@ -1579,8 +1587,10 @@ subroutine output_nucl_mul
     close(un_xpol)
 
     if(systype/="nucl_ionbin")close(un_fdis)
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") close(un_fdisP)
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv")close(un_fdision)
+    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+         .or.systype=="nucl_ionbin_sv") close(un_fdisP)
+    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+         .or.systype=="nucl_ionbin_sv")close(un_fdision)
     if(nnucl>=3) close(un_angle)
     if(nnucl>=2) close(un_dist)
 
@@ -2267,7 +2277,7 @@ subroutine make_filename_label(fnamelabel)
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-        "brushborn")
+        "brushborn","nucl_ionbin_Mg")
         
         if(denspol>=0.001) then
             write(rstr,'(F5.3)')denspol
@@ -2472,6 +2482,12 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
+        call output()           
+    
+    case ("nucl_ionbin_Mg")
+
+        call fcnenergy()
+        call charge_polymer()
         call output()           
     
      case ("nucl_neutral_sv")

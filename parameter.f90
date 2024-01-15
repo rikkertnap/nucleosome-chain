@@ -810,7 +810,7 @@ contains
         Ka  = 10.0_dp**(-pKa)                       ! experimental equilibruim constant acid 
         K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
  
-        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
         endif    
@@ -1499,9 +1499,10 @@ contains
                 isrhoselfconsistent(t)=flag
             enddo            
         endif    
-
-        if(ttAA>0) isrhoselfconsistent(ttAA)=.true.  ! check condition ttA==0
-        if(ttP>0) isrhoselfconsistent(ttP)=.true.    ! check condition ttP==0
+        if(systype/='nucl_ionbin_Mg') then 
+            if(ttAA>0) isrhoselfconsistent(ttAA)=.true.  ! check condition ttA==0
+            if(ttP>0) isrhoselfconsistent(ttP)=.true.    ! check condition ttP==0
+        endif    
 
         ! check that we do not have simultenoeus A=Acrylic acid and P=phosphate
         if((ttAA>0).and.(ttP>0)) then

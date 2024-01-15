@@ -34,7 +34,7 @@ contains
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
-        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg, rhopairs
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg , rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
         use VdW, only        : VdW_contribution_lnexp
@@ -55,9 +55,9 @@ contains
         real(dp) :: local_xpol(nsize,nsegtypes)                       ! local volumer fraction nucleosome
         real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable      
         real(dp) :: local_q                                           ! local normalization q 
-        real(dp) :: local_rhopairs(nsize,maxneigh)
-        real(dp) :: local_rhoqphos(nsize)
-        real(dp) :: rhoqphos(nsize)
+       ! real(dp) :: local_rhopairs(nsize,maxneigh)
+        real(dp) :: local_rhoqphos(nsize)                             ! local charge dnisty of phosphates      
+      !  real(dp) :: rhoqphos(nsize)
 
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
@@ -65,6 +65,7 @@ contains
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr                ! dummy indices
         integer  :: JJ, KK
+        integer  :: ix,iy
         real(dp) :: norm,normvol,normPE
         real(dp) :: rhopol0 
         real(dp) :: xA(3),xB(2),sgxA,sgxB, xP(5,2),xP2Mg, fPP, sumxP         ! disociation variables 
@@ -76,11 +77,12 @@ contains
 
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
 
-        ! real(dp) :: g(neq/2)
 
         ! .. executable statements 
 
         ! .. communication between processors 
+
+        K0aPP=100.0_dp !test
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
@@ -138,8 +140,6 @@ contains
  
         enddo
 
-        print*,'nsegtypes=',nsegtypes
-        print*,"maxneigh=",maxneigh
 
         do t=1,nsegtypes
             if(ismonomer_chargeable(t)) then
@@ -162,7 +162,9 @@ contains
                         enddo
 
                     else !  base
-
+                        if(t==15) then 
+                            print*,K0aion(t,:)
+                        endif
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
                             xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))  ! BHCl/BH+
@@ -180,11 +182,10 @@ contains
                                 
                 else
                     ! t=ta : phosphate
-
                     do i=1,n  
-                        print*,"i=",i
+                    
                         do kr=1,maxneigh
-                            !print*,"i=",i,'kr=',kr
+                         
                             j=indexneighbor(i,kr)   ! j=index of neighbors number k of index i 
  
                             xP(Phos,1)   = 1.0_dp 
@@ -202,7 +203,7 @@ contains
                             xP(PhosMg,1) = (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! PMgP+/PP2-
                             xP(PhosMg,2) = (xMg(j)/vMg)/(K0aAA(5)*(xsol(j)**deltavAA(5)))   ! PPAMg+/PP2-
 
-                            xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)/ ( (K0aPP**2)*(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6))) ) ! P2Mg/PP2- 
+                            xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)) / ( (K0aPP**2)*(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6))) ! P2Mg/PP2- 
                            
                             sumxP = 0.0_dp
                             do JJ=1,5
@@ -213,11 +214,13 @@ contains
                             sumxP=sumxP+xP2Mg
 
                             fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
-                            
+                        
+
+
                             do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
-                                do KK=1,5
-                                    fdisPP(i,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2) 
-                                enddo
+                                 do KK=1,5
+                                     fdisPP(i,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
+                                 enddo
                             enddo
                                 
                             fdisP2Mg(i,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
@@ -234,7 +237,9 @@ contains
                 lnexppi(:,t) = 0.0_dp
 
             endif   
-        enddo      
+        enddo   
+               
+
                
         ! Van der Waals   
         if(isVdW) then 
@@ -251,29 +256,34 @@ contains
         do c=1,cuantas         ! loop over cuantas
 
             lnpro = lnpro+logweightchain(c) 
+ !           print*,"lnpro=",lnpro
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
                     do j=1,nelem(s)               ! loop over elements of segment 
                         k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
+  !                      print*,"t= ",t," j= ",j," lnpro=",lnpro  
                     enddo
                     if(ismonomer_chargeable(t)) then
                         jcharge=elem_charge(t)
                         k = indexconf(s,c)%elem(jcharge) 
                         lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+  !                      print*,"s=",s," t=",t," lnpro=",lnpro," k=",k ," lnexppi(k,t)=",lnexppi(k,t), indexconf(s,c)%elem(1) 
                     endif
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-                    print*,"c=",c,"s=",s,"k=",k
+  !                  print*,"c=",c,"s=",s,"k=",k
                     do jj=1,nneigh(s,c) ! loop neighbors 
                         m = indexconfpair(s,c)%elem(jj)
-                        print*,"c=",c,"s=",s,"k=",k," jj=",jj,"m=",m
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k,mr,Phos,Phos))
+  !                      print*,"c=",c,"s=",s,"k=",k," jj=",jj,"m=",m,"mr=",mr," lnpro=",lnpro
+                        
+
                     enddo    
                 endif        
             enddo     
@@ -290,18 +300,39 @@ contains
               
         do c=1,cuantas         ! loop over cuantas
             lnpro=logweightchain(c) 
+           
+ !           print*,"lnpro=",lnpro
             do s=1,nseg                       ! loop over segments 
-                t = type_of_monomer(s) 
-                do j=1,nelem(s)               ! loop over elements of segment 
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                enddo
-                if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(t)
-                    k = indexconf(s,c)%elem(jcharge)
-                    lnpro = lnpro + lnexppi(k,t)            !  elect and chemical contribution
-                endif
-            enddo     
+                t=type_of_monomer(s)
+                if(t/=ta) then 
+                    do j=1,nelem(s)               ! loop over elements of segment 
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
+  !                      print*,"t= ",t," j= ",j," lnpro=",lnpro  
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+  !                      print*,"s=",s," t=",t," lnpro=",lnpro," k=",k ," lnexppi(k,t)=",lnexppi(k,t), indexconf(s,c)%elem(1) 
+                    endif
+                else 
+                    ! phosphates 
+                    k = indexconf(s,c)%elem(1)
+  !                  print*,"c=",c,"s=",s,"k=",k
+                    do jj=1,nneigh(s,c) ! loop neighbors 
+                        m = indexconfpair(s,c)%elem(jj)
+                        mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+
+                        lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k,mr,Phos,Phos))
+  !                      print*,"c=",c,"s=",s,"k=",k," jj=",jj,"m=",m,"mr=",mr," lnpro=",lnpro
+                        
+
+                    enddo    
+                endif        
+            enddo    
+
 
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
@@ -322,7 +353,8 @@ contains
                 
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-                    
+                
+
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
@@ -330,10 +362,9 @@ contains
                         mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
                         kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
                          
-                        ! local_rhopairs(k,mr) = local_rhopairs(k,mr)+pro/(2.0_dp*nneigh(s,c))
-
                         sum_rhoqphos=0.0_dp
-                        sum_xphos=0.0_dp
+                        sum_xphos=0.0_dp 
+                    
                         do JJ=1,5
                             do KK=1,5
                                 sum_rhoqphos = sum_rhoqphos+&
@@ -342,17 +373,30 @@ contains
                                     (fdisPP(k,mr,JJ,KK)*vPP(JJ)+fdisPP(m,kr,JJ,KK)*vPP(KK))/2.0_dp
                             enddo
                         enddo
+    
                         sum_xphos=sum_xphos+fdisP2Mg(k,mr)*vPP(Phos2Mg)/2.0_dp ! check 2.0_dp i.e. single vs double 
+                  
+                        local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                        local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
 
-                        local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos
-                        local_xpol(k,ta) = local_xpol(k,t) + pro * sum_xphos
+                        local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
 
-                    enddo
+                       ! tmp=tmp+1
+                       ! print*,"s=",s,"t=",t,"sum_xphos=",sum_xphos,"local_xpol(",k,")=",local_xpol(k,ta),'j=',j,'nneigh=',&
+                       !s nneigh(s,c), "tmp=",tmp
+                
+
+                    enddo 
+
      
                 endif
 
             enddo
         enddo
+
+        !do k=1,nsize
+        !    local_rhopol_charge(k,ta)=  local_rhoqphos(k) 
+        !enddo    
 
         !   .. import results 
 
@@ -379,11 +423,9 @@ contains
                 endif   
             enddo
 
-            !do i=1,nsize
-            !    do j=1,nsize
-            !        rhopairs(i,j)=local_rhopairs(i,j)
-            !    enddo     
-            !enddo
+            do i=1,nsize
+                rhoqphos(i)=local_rhoqphos(i) 
+            enddo
 
             do i=1, numproc-1
                 source = i
@@ -404,13 +446,11 @@ contains
                     endif    
                 enddo
 
-                ! check how to sent and receive a matrix !
-                !call MPI_RECV(local_rhopairs, nsize*nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                !do k=1,nsize
-                !    do m=1,nsize
-                !        rhopairs(k,m)=rhopairs(k,m)+local_rhopairs(k,m)! density  phosphate  pairs
-                !    enddo
-                !enddo
+                call MPI_RECV(local_rhoqphos, nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                do k=1,nsize
+                    rhoqphos(k)=rhoqphos(k)+local_rhoqphos(k) ! density  phosphate charge
+                enddo
+
                 
             enddo     
 
@@ -461,8 +501,9 @@ contains
                         
                         do i=1,n
 
-                            rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t)  
-                            rhoqpol(i) = rhoqpol(i) + rhopol0 * rhoqphos(i)
+                            rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t) 
+                            rhoqphos(i)=rhopol0 * rhoqphos(i) 
+                            rhoqpol(i) = rhoqpol(i) + rhoqphos(i)
                             xpol(i,ta) = rhopol0 * xpol(i,t) 
 
                         enddo           
@@ -516,7 +557,7 @@ contains
             normPE  = L2norm_f90(f(neqint/2+1:neqint))
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
-
+            
            !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
             
         else                      ! Export results 
@@ -534,6 +575,9 @@ contains
                     call MPI_SEND(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,dest,tag,MPI_COMM_WORLD,ierr)
                 endif
             enddo
+
+            call MPI_SEND(local_rhoqphos, nsize , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+
 
         endif
 
