@@ -2488,6 +2488,10 @@ subroutine compute_vars_and_output()
 
         call fcnenergy()
         call charge_polymer()
+        call average_charge_polymer()
+        print*,"warning ion_excess not working yet for nucl_ionbin_Mg"
+        call make_ion_excess()
+        call make_beta(sumphi)
         call output()           
     
      case ("nucl_neutral_sv")

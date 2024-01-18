@@ -76,13 +76,13 @@ contains
         real(dp) :: sum_rhoqphos,sum_xphos
 
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
-
+        real(dp) :: fPP_max
 
         ! .. executable statements 
 
         ! .. communication between processors 
 
-        K0aPP=100.0_dp !test
+        K0aPP=K0aAA(6) ! P2Mg
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
@@ -162,9 +162,6 @@ contains
                         enddo
 
                     else !  base
-                        if(t==15) then 
-                            print*,K0aion(t,:)
-                        endif
                         do i=1,n
                             xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
                             xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))  ! BHCl/BH+
@@ -214,9 +211,7 @@ contains
                             sumxP=sumxP+xP2Mg
 
                             fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
-                        
-
-
+                            
                             do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
                                  do KK=1,5
                                      fdisPP(i,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
@@ -238,7 +233,7 @@ contains
 
             endif   
         enddo   
-               
+     
 
                
         ! Van der Waals   
@@ -374,7 +369,7 @@ contains
                             enddo
                         enddo
     
-                        sum_xphos=sum_xphos+fdisP2Mg(k,mr)*vPP(Phos2Mg)/2.0_dp ! check 2.0_dp i.e. single vs double 
+                        sum_xphos=sum_xphos+(fdisP2Mg(k,mr)+fdisP2Mg(m,kr))*vPP(Phos2Mg)/2.0_dp ! check 2.0_dp i.e. single vs double 
                   
                         local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                         local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
@@ -501,10 +496,10 @@ contains
                         
                         do i=1,n
 
-                            rhopol_charge(i,t)  = rhopol0 * rhopol_charge(i,t) 
-                            rhoqphos(i)=rhopol0 * rhoqphos(i) 
-                            rhoqpol(i) = rhoqpol(i) + rhoqphos(i)
-                            xpol(i,ta) = rhopol0 * xpol(i,t) 
+                            rhopol_charge(i,ta) = rhopol0 * rhopol_charge(i,ta) 
+                            rhoqphos(i) = rhopol0 * rhoqphos(i) 
+                            rhoqpol(i) = rhoqpol(i) + rhoqphos(i)* vsol ! total  charge density in units of vsol 
+                            xpol(i,ta) = rhopol0 * xpol(i,ta) 
 
                         enddo           
                             
@@ -582,6 +577,228 @@ contains
         endif
 
     end subroutine fcnnucl_Mg
+
+
+
+
+
+    ! compute the average fraction of charged state of the phosphate pairs 
+    subroutine compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+
+        use mpivars
+        use precision_definition
+        use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
+        use parameters, only : vsol,vnucl
+        use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
+        use parameters, only : ta,isVdW! isrhoselfconsistent 
+        use volume, only     : nx, ny, nz
+        use volume, only     : volcell, inverse_indexneighbor, indexneighbor
+        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
+        use field, only      : q, lnproshift
+        use VdW, only        : VdW_contribution_lnexp
+        use myutils, only    : error_handler
+
+        real(dp), intent(inout) :: avfdisP2Mg
+        real(dp), intent(inout) :: avfdisPP(5,5)
+
+        !     .. local variables
+        
+        real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
+        real(dp) :: lnexppivw(nsize)
+        real(dp) :: pro,lnpro
+        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: JJ, KK
+        real(dp) :: local_avfdisP2Mg,local_avfdisPP(5,5)
+        real(dp) :: sumrhopairs
+        real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
+        integer  :: nsizepsi
+        ! .. executable statements 
+
+        ! .. communication between processors 
+
+        K0aPP=K0aAA(6) ! P2Mg
+        nsizepsi=nsize+2*Nx*Ny
+
+        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+
+        if(rank==0) then
+            do i = 1, size-1
+                dest = i
+                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(rhopol_charge(:,ta) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                do t=1,nsegtypes
+                    if(ismonomer_chargeable(t)) then 
+                        call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                    endif
+                enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+            enddo
+        else
+            source = 0 
+            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(rhopol_charge(:,ta) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            do t=1,nsegtypes
+                if(ismonomer_chargeable(t)) then 
+                    call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+                endif
+            enddo
+
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+        endif    
+
+        n=nsize
+
+        do i=1,nsize
+            lnexppivw(i)=log(xsol(i))/vsol
+        enddo
+
+        do t=1,nsegtypes
+            if(ismonomer_chargeable(t)) then
+                if(t/=ta) then
+                    if(type_of_charge(t)=="A") then  !  acid
+                     
+                        do i=1,n
+                            lnexppi(i,t) = psi(i) -log(fdis(i,t))      ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
+                        enddo
+
+                    else !  base
+                        do i=1,n
+                            lnexppi(i,t) = -log(fdis(i,t))             ! auxilary variable palpha lo 
+                        enddo
+                    endif  
+                                
+                else
+                    ! t=ta : phosphate
+                    do i=1,n  
+                        lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
+                    enddo
+
+                endif
+            else  
+                lnexppi(:,t) = 0.0_dp
+            endif   
+        enddo   
+           
+        ! Van der Waals   
+        if(isVdW) then 
+            print*,"Error no VdW for nucl_ionbin_Mg"
+            call error_handler(-1,"compute_average_charge_PP")
+            !do t=1,nsegtypes  
+            !    if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
+            !senddo
+        endif 
+
+        !  .. computation of probability 
+
+        lnpro = 0.0_dp
+              
+        do c=1,cuantas         ! loop over cuantas
+
+            lnpro=logweightchain(c) 
+           
+            do s=1,nseg                       ! loop over segments 
+                t=type_of_monomer(s)
+                if(t/=ta) then 
+                    do j=1,nelem(s)               ! loop over elements of segment 
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                    endif
+                else 
+                    ! phosphates 
+                    k = indexconf(s,c)%elem(1)
+                    do jj=1,nneigh(s,c) ! loop neighbors 
+                        m = indexconfpair(s,c)%elem(jj)
+                        mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+
+                        lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k,mr,Phos,Phos))
+                    enddo    
+                endif        
+            enddo    
+
+            pro = exp(lnpro-lnproshift)   
+        
+            do s=1,nseg
+                
+                t=type_of_monomer(s)
+
+                if(t==ta) then 
+                                
+                    ! pair density of phosphates 
+                    k = indexconf(s,c)%elem(1)
+
+                    do j=1,nneigh(s,c)
+
+                        m = indexconfpair(s,c)%elem(j)
+
+                        mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
+                        kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
+                         
+                        do JJ=1,5
+                            do KK=1,5
+                             local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
+                        !        (fdisPP(k,mr,JJ,KK)+fdisPP(m,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
+                                fdisPP(k,mr,JJ,KK)*pro/nneigh(s,c)
+                        
+                            enddo
+                        enddo
+    
+                        !local_avfdisP2Mg=local_avfdisP2Mg+(fdisP2Mg(k,mr)+fdisP2Mg(mr,kr))*pro/(2.0_dp*nneigh(s,c)) 
+                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg(k,mr)*pro/nneigh(s,c)
+                
+                    enddo 
+                endif
+            enddo
+        enddo
+
+       
+        !   .. import results 
+
+        if (rank==0) then 
+
+            avfdisP2Mg = local_avfdisP2Mg
+            do i=1, numproc-1
+                source = i
+                call MPI_RECV(local_avfdisP2Mg, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
+                  avfdisP2Mg = avfdisP2Mg + local_avfdisP2Mg
+            enddo
+
+            avfdisPP = local_avfdisPP
+            do i=1, numproc-1
+                source = i
+                call MPI_RECV(local_avfdisPP, 25, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
+                avfdisPP = avfdisPP + local_avfdisPP
+            enddo
+
+            ! .. construction of avfdisP2Mg and avfdisPP 
+            ! .. normalized avfdisPP with number of average number pairs = integral of rhopol_charge(:,ta)
+ 
+            sumrhopairs=sum(rhopol_charge(:,tA)) 
+            sumrhopairs=sumrhopairs*volcell
+
+            avfdisPP=avfdisPP/(sumrhopairs*q) ! also norm with q
+            avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
+            
+        else                      ! Export results 
+            
+            dest = 0 
+
+            call MPI_SEND(local_avfdisPP, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(avfdisPP,25, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+
+        endif
+
+    end subroutine compute_average_charge_PP
+
 
     
 

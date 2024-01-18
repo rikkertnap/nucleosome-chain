@@ -236,8 +236,8 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                !call solver(x, xguess, tol_conv, fnorm, isSolution)
-                isSolution=.true.
+                call solver(x, xguess, tol_conv, fnorm, isSolution)
+                !isSolution=.true.
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodess
                 do i = 1, size-1

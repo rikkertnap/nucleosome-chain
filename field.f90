@@ -396,7 +396,7 @@ contains
                         enddo
                     else ! phosphate
                         do i=1,nsize
-                            qpol(t)=qpol(t)+ rhoqphos(i)
+                            qpol(t)=qpol(t)+ rhoqphos(i) ! !!!! units m
                         enddo    
                     endif
                 else  ! base   
@@ -478,6 +478,10 @@ contains
         case ("nucl_ionbin_sv")
 
             call average_charge_nucl_ionbin_sv()
+
+         case ("nucl_ionbin_Mg")
+
+            call average_charge_nucl_ionbin_Mg()
 
         case ("elect","electA","electVdWAB","electdouble") 
 
@@ -613,6 +617,79 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_nucl_ionbin
+
+    ! compute average charge of nucleosome for systype nucl_ionbin_sv
+
+    subroutine average_charge_nucl_ionbin_Mg()
+
+        use globals, only : nseg,nsize,nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
+        use chains, only: type_of_monomer,ismonomer_chargeable
+
+        integer, dimension(:), allocatable   :: npol
+        integer :: i,s,t,k
+        real(dp) :: sumrhopolt ! average density of polymer of type t 
+
+        allocate(npol(nsegtypes))
+        
+        npol=0
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            npol(t)=npol(t)+1
+        enddo   
+            
+        do t=1,nsegtypes
+            ! init 
+            avfdis(t)=0.0_dp ! A^-
+            do k=1,4               ! A^-, AH, ANa, AK for AA that are acid
+                avgdisA(t,k)=0.0_dp 
+            enddo
+            do k=1,3 !             ! BH^+, B, BHCl for AA that are base
+                avgdisB(t,k)=0.0_dp
+            enddo
+
+            if(ismonomer_chargeable(t)) then 
+                sumrhopolt=npol(t)/volcell
+                if(npol(t)/=0) then
+                    if(t/=tA) then 
+                        if(zpol(t,1)==0) then ! acid
+                            do k=1,4
+                                avgdisA(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisA(t,k)=avgdisA(t,k)/sumrhopolt  
+                            enddo
+                            avfdis(t)=zpol(t,2)*avgdisA(t,1) ! signed charged fraction   
+                        else ! base
+                            do k=1,3
+                                avgdisB(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisB(t,k)=avgdisB(t,k)/sumrhopolt 
+                            enddo
+                            avfdis(t)=zpol(t,1)*avgdisB(t,1) 
+                        endif            
+                    else
+                        ! t=tA
+                        
+
+
+
+
+                    endif               
+                endif
+            endif    
+        enddo         
+
+        deallocate(npol)    
+
+    end subroutine average_charge_nucl_ionbin_Mg
+
+
 
 
     ! compute average charge of nucleosome for systype nucl_ionbin_sv

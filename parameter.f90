@@ -579,6 +579,11 @@ contains
             
         endif
 
+
+        print*,"init_dna:"
+        print*,'pKaAA',pKaAA
+        print*,"K0aAA",K0aAA
+
     end subroutine init_dna
      
 
