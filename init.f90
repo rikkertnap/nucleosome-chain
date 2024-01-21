@@ -415,6 +415,7 @@ subroutine init_guess_multi(x, xguess)
             if(isrhoselfconsistent(t)) then
                 if(systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
                     text='init_guess_multi: combination '//systype//' with VdW not working !'
+                    print*,text
                     !call error_handler(-1,text)
                 endif
 

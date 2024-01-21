@@ -237,6 +237,7 @@ contains
                     if(isrhoselfconsistent(t)) numeq=numeq+1
                 enddo    
                 neq = (2+numeq) * nsize 
+                print*,"neq=",neq
             case ("nucl_neutral_sv")
                 neq =  nsize 
             case ("brushborn")
@@ -522,8 +523,10 @@ contains
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
 
-        K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
-        K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg 
+        if(systype/="nucl_ionbin_Mg") then
+            K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
+            K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
+        endif 
 
         ! set volumes 
          

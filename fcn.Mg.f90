@@ -55,18 +55,14 @@ contains
         real(dp) :: local_xpol(nsize,nsegtypes)                       ! local volumer fraction nucleosome
         real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable      
         real(dp) :: local_q                                           ! local normalization q 
-       ! real(dp) :: local_rhopairs(nsize,maxneigh)
         real(dp) :: local_rhoqphos(nsize)                             ! local charge dnisty of phosphates      
-      !  real(dp) :: rhoqphos(nsize)
-
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
-        
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr                ! dummy indices
         integer  :: JJ, KK
         integer  :: ix,iy
-        real(dp) :: norm,normvol,normPE
+        real(dp) :: norm, normvol,normPE, normscf
         real(dp) :: rhopol0 
         real(dp) :: xA(3),xB(2),sgxA,sgxB, xP(5,2),xP2Mg, fPP, sumxP         ! disociation variables 
         integer  :: noffset
@@ -76,13 +72,15 @@ contains
         real(dp) :: sum_rhoqphos,sum_xphos
 
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
-        real(dp) :: fPP_max
+        real(dp) :: fdisP2Mg_max
 
         ! .. executable statements 
 
         ! .. communication between processors 
-
+        print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
+        fdisP2Mg_max=0.0
+        print*,"deltavAA(6)=",deltavAA(6)
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
@@ -200,7 +198,7 @@ contains
                             xP(PhosMg,1) = (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! PMgP+/PP2-
                             xP(PhosMg,2) = (xMg(j)/vMg)/(K0aAA(5)*(xsol(j)**deltavAA(5)))   ! PPAMg+/PP2-
 
-                            xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)) / ( (K0aPP**2)*(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6))) ! P2Mg/PP2- 
+                            xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)/ ((K0aPP**2) *(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6)))) ! P2Mg/PP2- 
                            
                             sumxP = 0.0_dp
                             do JJ=1,5
@@ -219,6 +217,8 @@ contains
                             enddo
                                 
                             fdisP2Mg(i,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
+
+                            if(fdisP2Mg(i,kr)>fdisP2Mg_max) fdisP2Mg_max=fdisP2Mg(i,kr)
                        
                             lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
                         
@@ -521,13 +521,16 @@ contains
 
             ! self-consistent equation of densities
             count_scf=0    
+            normscf=0.0_dp
             do t=1,nsegtypes
                 if(isrhoselfconsistent(t)) then
+                    print*,"hello"
                     count_scf=count_scf+1 
                     k=(count_scf+1)*n
                     do i=1,n   
                         f(i+k) = rhopol(i,t) - rhopolin(i,t) 
                     enddo
+                    normscf=normscf+L2norm_f90(f(k+1:k+n))
                 endif        
             enddo
 
@@ -548,12 +551,12 @@ contains
             norm=l2norm_f90(f)
             iter=iter+1
                         
-            normvol = L2norm_f90(f(1:neqint/2))
-            normPE  = L2norm_f90(f(neqint/2+1:neqint))
+            normvol = L2norm_f90(f(1:nsize))
+            normPE  = L2norm_f90(f(nsize+1:2*nsize))
            
-            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
-            
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE,"normscf=",normscf            
            !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
+            print*,"fdisP2Mg_max=",fdisP2Mg_max
             
         else                      ! Export results 
             

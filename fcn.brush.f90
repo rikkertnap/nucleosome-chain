@@ -1230,7 +1230,7 @@ contains
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t,jcharge                        ! dummy indices
-        real(dp) :: norm,normvol, normPE
+        real(dp) :: norm, normvol, normPE,normscf
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
         real(dp) :: qAD, constA, constACa, constAMg                   ! disociation variables 
@@ -1271,6 +1271,7 @@ contains
                 do i=1,n                         
                     rhopolin(i,t) = x(i+k)          ! density 
                 enddo
+                normscf=L2norm_f90(rhopolin(:,t))
             endif        
         enddo
 
@@ -1590,7 +1591,8 @@ contains
             enddo    
 
             ! self-consistent equation of densities
-            count_scf=0    
+            count_scf=0 
+            normscf=0.0_dp   
             do t=1,nsegtypes
                 if(isrhoselfconsistent(t)) then
                     count_scf=count_scf+1 
@@ -1598,6 +1600,7 @@ contains
                     do i=1,n   
                         f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
                     enddo
+                    normscf = normscf+L2norm_f90(f(2*nsize+1:neqint))
                 endif        
             enddo
 
@@ -1618,10 +1621,10 @@ contains
             norm=l2norm_f90(f)
             iter=iter+1
                         
-            normvol = L2norm_f90(f(1:neqint/2))
-            normPE  = L2norm_f90(f(neqint/2+1:neqint))
+            normvol = L2norm_f90(f(1:nsize))
+            normPE  = L2norm_f90(f(nsize+1:2*nsize))
            
-            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE," normscf=",normscf
 
             if(DEBUG) call locate_xpol_lager_one(xpol_tot)
             
