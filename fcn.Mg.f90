@@ -72,7 +72,6 @@ contains
         real(dp) :: sum_rhoqphos,sum_xphos
 
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
-        real(dp) :: fdisP2Mg_max
 
         ! .. executable statements 
 
@@ -80,7 +79,6 @@ contains
        
          ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
-        fdisP2Mg_max=0.0
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
@@ -217,8 +215,6 @@ contains
                             enddo
                                 
                             fdisP2Mg(i,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
-
-                            if(fdisP2Mg(i,kr)>fdisP2Mg_max) fdisP2Mg_max=fdisP2Mg(i,kr)
                        
                             lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
                         
@@ -556,7 +552,7 @@ contains
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE,"normscf=",normscf            
            !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
-            print*,"fdisP2Mg_max=",fdisP2Mg_max
+        
             
         else                      ! Export results 
             
@@ -631,7 +627,7 @@ contains
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)

@@ -678,16 +678,16 @@ contains
                     else
                         ! t=tA phophates
 
-                        do JJ=1,5
-                            do KK=1,5
-                                print*,"avfdisPP(",JJ,KK,")= ",avfdisPP(JJ,KK)
-                            enddo
-                        enddo
-                        print*,"avfdisP2Mg=",avfdisP2Mg
+                      !  do JJ=1,5
+                      !      do KK=1,5
+                      !          print*,"avfdisPP(",JJ,KK,")= ",avfdisPP(JJ,KK)
+                      !      enddo
+                      !  enddo
+                      !  print*,"avfdisP2Mg=",avfdisP2Mg
                           
-                        sumavfdisPP=sum(avfdisPP)
+                      !  sumavfdisPP=sum(avfdisPP)
 
-                        print*,"sumavfdisPP=",sumavfdisPP
+                      !  print*,"sumavfdisPP=",sumavfdisPP
  
                         do k=1,8
                             avfdisA(k)=0.0_dp
@@ -1114,24 +1114,26 @@ contains
             ion_excess_ads%Cl = ion_excess_ads%Cl  + (avgdisB(t,3) * numberelem(t)) 
         enddo
   
-        ion_excess_ads%Na = ion_excess_ads%Na+ (avfdisA(3)*numberelem(index_Phos)) ! Na-phosphate 
-        ion_excess_ads%K  = ion_excess_ads%K + (avfdisA(8)*numberelem(index_Phos)) ! K-phosphate
+        ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
+        ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
+        ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos)
         
         ! calculate ion_excess_tot = sum of free adsorped ion excess
         
         ion_excess_tot%Na = ion_excess%Na  + ion_excess_ads%Na   
         ion_excess_tot%K  = ion_excess%K   + ion_excess_ads%K   
         ion_excess_tot%Cl = ion_excess%Cl  + ion_excess_ads%Cl   
-        
+        ion_excess_tot%Mg = ion_excess%Mg  + ion_excess_ads%Mg
         
         ! Calculate qnucl 
-        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl)
+        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl + 2.0_dp*ion_excess_tot%Mg)
     
         ! Calculate individual betas
 
         beta_ion_excess%Na =  ion_excess_tot%Na / qnucl
         beta_ion_excess%K  =  ion_excess_tot%K  / qnucl
         beta_ion_excess%Cl = -ion_excess_tot%Cl / qnucl
+        beta_ion_excess%Mg = 2.0_dp*ion_excess_tot%Mg / qnucl
         
             
     end subroutine make_beta

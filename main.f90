@@ -69,8 +69,8 @@ program main
     ! .. logfile
     
     write(istr,'(I4)')rank
-    if( size>9999) then 
-        text="Error: size to large for status file number"
+    if( numproc>9999) then 
+        text="Error: numproc to large for status file number"
         ! call print_to_log(LogUnit,text)
         print*,text
         call MPI_FINALIZE(ierr)
@@ -241,7 +241,7 @@ program main
                 !isSolution=.true.
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodess
-                do i = 1, size-1
+                do i = 1, numproc-1
                     dest =i
                     call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)
                 enddo
@@ -261,8 +261,10 @@ program main
 
             !            call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
             
-            call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
-            
+            if(systype=="nucl_ionbin_Mg") then 
+                call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+            endif           
+
             if(rank==0) then
 
                 if(isSolution) then
@@ -296,7 +298,7 @@ program main
                  
                 
                 ! communicate new values of loop from head to compute nodes to advance while loop on compute nodes
-                do i = 1, size-1 !numproc-1
+                do i = 1, numproc-1
                     dest = i
                     call MPI_SEND(loop%val, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD,ierr)
                     call MPI_SEND(loop%stepsize, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD,ierr)
