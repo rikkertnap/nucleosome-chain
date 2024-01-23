@@ -151,6 +151,8 @@
     real(dp), dimension(:), allocatable :: qpol                ! charge poly of layer 
     real(dp), dimension(:), allocatable :: avfdis              ! average degree of dissociation of monomer of type t
     real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average fraction of Acidic and Basic AA in state A,AH,ANa etc 
+    
+    real(dp) :: avfdisP2Mg, avfdisPP(5,5) ! average fraction monomer of phopsphate pairs in chemical state PP,PPH, , etc  
     real(dp) :: avfdisA(8)         ! average fraction of monomer ta=phosphate in state A,AH,ANa,AMg,A2Mg etc
     real(dp) :: avfdisB(5)         ! average fraction of monomer state
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
@@ -237,7 +239,6 @@ contains
                     if(isrhoselfconsistent(t)) numeq=numeq+1
                 enddo    
                 neq = (2+numeq) * nsize 
-                print*,"neq=",neq
             case ("nucl_neutral_sv")
                 neq =  nsize 
             case ("brushborn")
@@ -581,11 +582,6 @@ contains
             bornrad%polMg = radiussphere(vpolAA(6)*vsol)  ! AMg^+
             
         endif
-
-
-        print*,"init_dna:"
-        print*,'pKaAA',pKaAA
-        print*,"K0aAA",K0aAA
 
     end subroutine init_dna
      

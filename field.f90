@@ -618,18 +618,20 @@ contains
 
     end subroutine average_charge_nucl_ionbin
 
-    ! compute average charge of nucleosome for systype nucl_ionbin_sv
+    ! compute average charge and charge fraction of  nucleosome for systype nucl_ionbin_Mg
 
     subroutine average_charge_nucl_ionbin_Mg()
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
+        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, avfdisPP, avfdisP2Mg
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
-        integer :: i,s,t,k
+        integer :: i,s,t,k,JJ, KK
         real(dp) :: sumrhopolt ! average density of polymer of type t 
+        real(dp) :: sumavfdisPP
 
         allocate(npol(nsegtypes))
         
@@ -674,11 +676,69 @@ contains
                             avfdis(t)=zpol(t,1)*avgdisB(t,1) 
                         endif            
                     else
-                        ! t=tA
-                        
+                        ! t=tA phophates
+
+                        do JJ=1,5
+                            do KK=1,5
+                                print*,"avfdisPP(",JJ,KK,")= ",avfdisPP(JJ,KK)
+                            enddo
+                        enddo
+                        print*,"avfdisP2Mg=",avfdisP2Mg
+                          
+                        sumavfdisPP=sum(avfdisPP)
+
+                        print*,"sumavfdisPP=",sumavfdisPP
+ 
+                        do k=1,8
+                            avfdisA(k)=0.0_dp
+                        enddo   
+                            
+                        ! charged phosphates
+                        do JJ=1,5
+                            KK=Phos
+                            avfdisA(1)=avfdisA(1) +avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+ 
+                        ! protonated phosphates
+                        do JJ=1,5
+                            KK=PhosH    
+                            avfdisA(2) = avfdisA(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+ 
+                        ! Na bound  phosphates
+                        do JJ=1,5
+                            KK=PhosNa
+                            avfdisA(3) = avfdisA(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+    
+                        ! K bound  phosphates
+                        do JJ=1,5
+                            KK=PhosK
+                            avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                        ! Mg bound phosphates
+                        do JJ=1,5
+                            KK=PhosMg
+                            avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+                            
+                        ! Ca bound phosphates             
+                        avfdisA(4) = 0.0_dp
+
+                        ! P2Ca bound phosphates
+                        avfdisA(5) = 0.0_dp
 
 
+                        ! P2Mg bound phophates 
+                        avfdisA(7)=2.0_dp*avfdisP2Mg
 
+                        do k=1,8
+                            avfdisA(k)=avfdisA(k)/2.0_dp
+                        enddo  
+                        ! divide by 2 becuase avfdisPP fraction of pairs i.e normed with total number of pairs!
+ 
+                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6) ! signed charged fraction   
 
                     endif               
                 endif
@@ -688,8 +748,6 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_nucl_ionbin_Mg
-
-
 
 
     ! compute average charge of nucleosome for systype nucl_ionbin_sv

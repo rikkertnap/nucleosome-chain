@@ -1504,6 +1504,15 @@ subroutine output_nucl_ionbin_Mg
             write(un_sys,'(A8,I5,A,I5,A5,ES25.16)')'avgdisB(',t,',',k,')  = ',avgdisB(t,k)
         enddo
     enddo    
+    ! matrix of average pairs in chemical state (JJ)(KK)
+    do j=1,5
+        do k=1,5
+            write(un_sys,'(A9,I5,A,I5,A5,ES25.16)')'avfdisPP(',j,',',k,')= ',avfdisPP(j,k)
+        enddo
+    enddo
+
+    write(un_sys,*)'avfdisP2Mg  = ',avfdisP2Mg
+    write(un_sys,*),'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg
 
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'cuantas     = ',cuantas

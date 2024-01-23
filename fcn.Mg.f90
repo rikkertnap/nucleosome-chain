@@ -77,10 +77,10 @@ contains
         ! .. executable statements 
 
         ! .. communication between processors 
-        print*,"K0aAA=",K0aAA
+       
+         ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
         fdisP2Mg_max=0.0
-        print*,"deltavAA(6)=",deltavAA(6)
 
         if (rank.eq.0) then 
             flag_solver = 1      !  continue program  
@@ -624,6 +624,10 @@ contains
         K0aPP=K0aAA(6) ! P2Mg
         nsizepsi=nsize+2*Nx*Ny
 
+
+        local_avfdisPP =0.0_dp
+        local_avfdisP2Mg =0.0_dp
+
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
 
         if(rank==0) then
@@ -795,8 +799,8 @@ contains
             
             dest = 0 
 
-            call MPI_SEND(local_avfdisPP, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(avfdisPP,25, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(local_avfdisP2Mg, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(local_avfdisPP,25, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
 
         endif
 
