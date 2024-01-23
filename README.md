@@ -4,7 +4,7 @@
 ## Description
 
 Uses the molecular theory approach to compute the structure and charge of a nucleosome n-mer in 3D in 
-cartesian and oblique (prism and hexagonal) coordinates. 
+cartesian and oblique (prism or hexagonal) coordinates. 
 The aqueous solution is characterized by pH, and salt concentration of NaCl, KCl, CaCl2 and MgCl2.
 
 The nucleosome chains or conformation are obtained from simulation using the 1CPN-model. 
@@ -57,7 +57,9 @@ A central configuration file is called 'input.in' that contain following key wor
 |                           |                               | __nucl_ionbin__ : nucleosome with ionbinding to both phosphate and AAs |
 |                           |                               | __nucl_ionbin_sv__ : nucleosome with ionbinding to both phosphate and AAs | 
 |                           |                               |                      volume distributed |
-|                           |                               | __nucl_ionbin_sv__ : neutral nucleosome and AAs volume distributed |
+|                           |                               | __nucl_neutral_sv__ : neutral nucleosome and AAs volume distributed |
+|                           |                               | __nucl_ionbin_Mg__ : nucleosome with ionbinding to both phosphate and AAs | 
+|                           |                               |                      volume distributed use Phosphate pairs instead of monomers | 
 |runtype`char`              | Sets type of run              | __inputcspH__ : loop over pH salt concentration from file salt.in|
 |                           |   	                           | __inputMgpH__ : loop over pH Mg salt concentration from file saltMg.in |
 |                           |                               | __inputcsKClpH__ : loop over pH K salt concentration from file salt.in | 
@@ -104,8 +106,8 @@ A central configuration file is called 'input.in' that contain following key wor
 |nx `int`                   | number of lattice cells in x-direction. Unit: delta ||
 |ny `int`                   | number of lattice cells in y-direction. Unit: delta || 
 |nz `int`		                 | number of lattice cells in z-direction. Unit: delta || 
-|verboseflag `char`			      | Regulates verbosity of output files |__yes__: all density outputted|
-|                           |                                     | __no__: density of all ions omitted|
+|write_localcharge `logical`		| If .true. write local charge to output files | if not set default: __.false.__ |
+|write_iondensities `logical`		| If .true. write iondensities to output files | if not set default: __.false.__ |
 |delta `int`			             | size of one lattice cell      Unit: nm           ||
 |unit_conv `real`		      	  | Scaling of coordinates of conformations       | unit_conv = 1.0 assume unit conf is nm|
 |                           | that are read in from  FILE                   | unit_conv = 0.1 assume unit conf is Angstrom |     
@@ -176,7 +178,7 @@ Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
 ## Versioning
 
-version 0.64 06-02-2023
+version 0.7 23-january-2024
 
 ## Authors
 
