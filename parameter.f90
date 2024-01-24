@@ -1068,8 +1068,8 @@ contains
         real(dp), parameter :: eps_vpol=1.0e-5_dp
 
         tPhos = tA
-        print*,"tA=",tA
         info=0
+
         if(tPhos==0) then
             info=err_error
             return

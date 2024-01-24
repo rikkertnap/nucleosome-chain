@@ -1697,7 +1697,9 @@ contains
 
     end function FE_selfenergy_brush
 
-    
+    ! Calculates the total number of monomers for all (nsegtypes) monomer type 
+    ! post real(d) sumphi(nsegtypes)
+ 
     function calculate_sumphi()result(sumphi)
     
         use globals, only : nsegtypes, nseg
@@ -1717,8 +1719,10 @@ contains
 
     end function calculate_sumphi
 
+    ! Calculates the total volume  of a conformation that has distributed volume
+    ! i.e. systype = nucl_neutral_sv, nucl_ionbin_sv, nucl_ionbin_Mg    
+    ! sumvolnucl = \sum_t \sum_j(t) vnucl(j,t)
     
-
     function calculate_sumvolnucl()result(sumvolnucl)
 
 
@@ -1753,10 +1757,8 @@ contains
             call check_volume_nucl_ionbin_sv(checksumxpoltot)
 
         case ("nucl_ionbin_Mg")
-            print*,"warning check_volume_nucl not working yet for nucl_ion_bin_Mg."
 
-            call check_volume_nucl_ionbin_sv(checksumxpoltot)
-
+            call check_volume_nucl_ionbin_Mg(checksumxpoltot)
 
         case ("nucl_neutral_sv ")
 
@@ -2002,5 +2004,118 @@ contains
         endif
 
     end subroutine check_volume_nucl_ionbin_sv
+
+
+    ! Check volume for systype="nucl_ionbin_Mg"
+    ! Integral over xpol compared to expected outcome
+    ! output : real(dp)  checksumxpoltot : difference
+    ! pre avfdis evaluated first 
+
+    subroutine check_volume_nucl_ionbin_Mg(checksumxpoltot)
+
+        use globals, only : nsegtypes, nsize
+        use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
+        use volume, only : volcell 
+        use parameters, only : tPhos=>ta
+        use parameters, only : vsol,vNa,vK,vCl,vMg,vpol,vPP
+        use parameters, only : avfdisA, Phos2Mg
+        use chains, only     : ismonomer_chargeable, type_of_charge
+        
+        real(dp),intent(inout) :: checksumxpoltot
+
+        integer :: t,i,ier
+        real(dp) :: sumvolnucl,sumxpoltot, sumrhophos, sumxphos
+        real(dp), dimension(:), allocatable ::  deltaxpol
+        real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
+        real(dp) :: deltavpolstatePNa, deltavpolstatePK, deltavpolstatePMg,deltavpolstateP2Mg
+        
+        if (.not. allocated(sumxpol))  then 
+            allocate(sumxpol(nsegtypes),stat=ier)
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin_Mg"
+        endif
+
+        if (.not. allocated(deltaxpol))  then 
+            allocate(deltaxpol(nsegtypes),stat=ier)
+            if( ier/=0 ) print*,"allocation failure in check_volume_nucl_ionbin_Mg"
+        endif
+
+        do t=1,nsegtypes 
+            sumxpol(t) = sum(xpol_t(:,t))*volcell     
+        enddo
+        
+       ! add volume due to ion binding 
+
+        deltaxpol =0.0_dp
+
+        do t=1, nsegtypes
+            if(ismonomer_chargeable(t)) then 
+
+                if(t/=tPhos) then
+                    if(type_of_charge(t)=="A") then ! acid   
+
+                        deltavpolstateNa=vNa*vsol
+                        deltavpolstateK=vK*vsol                                     
+
+                        do i=1,nsize       
+                            ! volume fraction only consider Na and K ionpairing
+                            deltaxpol(t) = deltaxpol(t)+rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+&
+                                gdisA(i,4,t)*deltavpolstateK)
+                        enddo
+
+                         deltaxpol(t)=deltaxpol(t)*volcell
+
+                    else  ! base   
+
+                        deltavpolstateCl=vCl*vsol
+
+                        do i=1,nsize
+                            ! volume fraction only consider Cl ionpairing
+                            deltaxpol(t) = deltaxpol(t)+rhopol_charge(i,t)*gdisB(i,3,t)*deltavpolstateCl
+                        enddo 
+                        
+                        deltaxpol(t)=deltaxpol(t)*volcell                        
+    
+                    endif     
+                    
+
+                else ! t=tPhos = ta  phosphate 
+                
+                    ! formula in check_volume_nucl_inbin_sv does not work here because  fdisA(i,k) = 0 !!    
+
+                    deltavpolstatePNa=vNa*vsol
+                    deltavpolstatePK=vK*vsol
+                    deltavpolstatePMg=vMg*vsol
+
+                    ! deltavpolstateP2Mg=(vpol(ta)+vMg)*vsol  
+                    deltavpolstateP2Mg=(vPP(Phos2Mg)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
+                    
+                    sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates divide by volcell
+                    deltaxpol(tPhos)=sumrhophos*(&
+                            avfdisA(3)*deltavpolstatePNa+avfdisA(8)*deltavpolstatePK+&
+                            avfdisA(6)*deltavpolstatePMg+avfdisA(7)*deltavpolstateP2Mg) 
+           
+                endif    
+            endif
+        enddo 
+        
+        sumvolnucl=calculate_sumvolnucl() 
+        checksumxpoltot=sum(sumxpol)-sum(deltaxpol) - sumvolnucl
+        sumxphos=sumrhophos*vpol(tPhos)*vsol
+
+
+        if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+
+            print*,"sumxpol         = ",(sumxpol(t),t=1,nsegtypes)
+            print*,"sumdeltaxpol    = ",deltaxpol
+            print*,"sumvolnucl      = ",sumvolnucl
+            print*,"checksumxpoltot = ",checksumxpoltot
+            print*,"sumrhophos      = ",sumrhophos
+            print*,"sumxphos        = ",sumxphos
+            print*,"sumxpol(tPhos)     = ",sumxpol(tPhos)
+            print*,"deltaxpol(tPhos)   = ",deltaxpol(tPhos)           
+
+        endif
+
+    end subroutine check_volume_nucl_ionbin_Mg
 
 end module energy

@@ -2872,12 +2872,17 @@ subroutine compute_vars_and_output()
     
     case ("nucl_ionbin_Mg")
 
-        call fcnenergy()
+        !call fcnenergy()
         call charge_polymer()
         call average_charge_polymer()
+        
+        call fcnenergy() ! need avfdis in check_volumefraction routine
+
         call make_ion_excess()
-        call make_beta(sumphi)
+        call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call output()           
+
+        
     
      case ("nucl_neutral_sv")
 

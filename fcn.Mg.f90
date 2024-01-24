@@ -229,8 +229,7 @@ contains
 
             endif   
         enddo   
-     
-
+    
                
         ! Van der Waals   
         if(isVdW) then 
@@ -244,36 +243,33 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=1,cuantas                            ! loop over cuantas
 
             lnpro = lnpro+logweightchain(c) 
- !           print*,"lnpro=",lnpro
-            do s=1,nseg                       ! loop over segments 
+
+            do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
                     do j=1,nelem(s)               ! loop over elements of segment 
                         k = indexconf(s,c)%elem(j)
                         lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-  !                      print*,"t= ",t," j= ",j," lnpro=",lnpro  
                     enddo
                     if(ismonomer_chargeable(t)) then
                         jcharge=elem_charge(t)
                         k = indexconf(s,c)%elem(jcharge) 
                         lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-  !                      print*,"s=",s," t=",t," lnpro=",lnpro," k=",k ," lnexppi(k,t)=",lnexppi(k,t), indexconf(s,c)%elem(1) 
                     endif
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-  !                  print*,"c=",c,"s=",s,"k=",k
-                    do jj=1,nneigh(s,c) ! loop neighbors 
+
+                    do jj=1,nneigh(s,c)           ! loop neighbors 
+
                         m = indexconfpair(s,c)%elem(jj)
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k,mr,Phos,Phos))
-  !                      print*,"c=",c,"s=",s,"k=",k," jj=",jj,"m=",m,"mr=",mr," lnpro=",lnpro
-                        
 
                     enddo    
                 endif        
@@ -289,41 +285,36 @@ contains
        
         lnproshift=globallnproshift(1)
               
-        do c=1,cuantas         ! loop over cuantas
+        do c=1,cuantas                            ! loop over cuantas
+
             lnpro=logweightchain(c) 
            
- !           print*,"lnpro=",lnpro
-            do s=1,nseg                       ! loop over segments 
+            do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
                     do j=1,nelem(s)               ! loop over elements of segment 
                         k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-  !                      print*,"t= ",t," j= ",j," lnpro=",lnpro  
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
                     enddo
                     if(ismonomer_chargeable(t)) then
                         jcharge=elem_charge(t)
                         k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-  !                      print*,"s=",s," t=",t," lnpro=",lnpro," k=",k ," lnexppi(k,t)=",lnexppi(k,t), indexconf(s,c)%elem(1) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
                     endif
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-  !                  print*,"c=",c,"s=",s,"k=",k
-                    do jj=1,nneigh(s,c) ! loop neighbors 
+
+                    do jj=1,nneigh(s,c)           ! loop neighbors 
+ 
                         m = indexconfpair(s,c)%elem(jj)
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k,mr,Phos,Phos))
-  !                      print*,"c=",c,"s=",s,"k=",k," jj=",jj,"m=",m,"mr=",mr," lnpro=",lnpro
-                        
-
                     enddo    
                 endif        
             enddo    
-
 
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
@@ -333,7 +324,7 @@ contains
                 if(t/=ta) then 
                     do j=1,nelem(s)
                         k = indexconf(s,c)%elem(j) 
-                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)  ! unnormed polymer volume fraction 
+                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction, not includeing phosphates
                     enddo
                     if(ismonomer_chargeable(t)) then
                         jcharge=elem_charge(t)
@@ -341,11 +332,9 @@ contains
                         local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
                     endif
                 else
-                
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
                 
-
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
@@ -365,29 +354,20 @@ contains
                             enddo
                         enddo
     
-                        sum_xphos=sum_xphos+(fdisP2Mg(k,mr)+fdisP2Mg(m,kr))*vPP(Phos2Mg)/2.0_dp ! check 2.0_dp i.e. single vs double 
+                        sum_xphos=sum_xphos+(fdisP2Mg(k,mr)+fdisP2Mg(m,kr))*vPP(Phos2Mg)/4.0_dp 
+                            ! division 4.0_dp  because symmetry adn  vPP(Phos2Mg)/2 is volume change per phosphate 
                   
                         local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                         local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
 
                         local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
 
-                       ! tmp=tmp+1
-                       ! print*,"s=",s,"t=",t,"sum_xphos=",sum_xphos,"local_xpol(",k,")=",local_xpol(k,ta),'j=',j,'nneigh=',&
-                       !s nneigh(s,c), "tmp=",tmp
-                
-
                     enddo 
-
      
                 endif
 
             enddo
         enddo
-
-        !do k=1,nsize
-        !    local_rhopol_charge(k,ta)=  local_rhoqphos(k) 
-        !enddo    
 
         !   .. import results 
 
@@ -441,7 +421,6 @@ contains
                 do k=1,nsize
                     rhoqphos(k)=rhoqphos(k)+local_rhoqphos(k) ! density  phosphate charge
                 enddo
-
                 
             enddo     
 
