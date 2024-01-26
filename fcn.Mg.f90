@@ -1,8 +1,9 @@
 ! --------------------------------------------------------------|
-! fcnMgf90:                                                    |
-! constructs the vector function  needed by the                 |
-! routine solver, which solves the SCMFT eqs for weak poly-     |
-! electrolytes/nucleosome                  |
+! fcnMgf90:                                                     |
+! Constructs the vector function  needed by the                 |
+! routine solver, which solves the SCMFT eqs for                |
+! nucleosome with inbinding and distubed volume and Mg binding  |
+! using phosphate pairs.                                        |
 ! --------------------------------------------------------------|
 
 
@@ -33,6 +34,7 @@ contains
         use volume, only     : volcell, inverse_indexneighbor, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : index_phos, len_index_phos
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg , rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
@@ -59,7 +61,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr                ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii            ! dummy indices
         integer  :: JJ, KK
         integer  :: ix,iy
         real(dp) :: norm, normvol,normPE, normscf
@@ -77,7 +79,7 @@ contains
 
         ! .. communication between processors 
        
-         ! print*,"K0aAA=",K0aAA
+        ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
 
         if (rank.eq.0) then 
@@ -131,11 +133,8 @@ contains
             xRb(i)      = expmu%Rb*(xsol(i)**vRb)*exp(-psi(i)*zRb) ! Rb+ volume fraction
             xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
-
-            lnexppivw(i) = log(xsol(i))/vsol                      ! auxilary variable  divide by vsol  !!
- 
+            lnexppivw(i) = log(xsol(i))/vsol                       ! auxilary variable  divide by vsol  !! 
         enddo
-
 
         do t=1,nsegtypes
             if(ismonomer_chargeable(t)) then
@@ -175,8 +174,17 @@ contains
                                 
                 else
                     ! t=ta : phosphate
-                    do i=1,n  
                     
+                     !!do i=1,n ! loop over latice 
+                     ! do s=1,nseg
+                    
+                     !   if(ta==type_of_monomer(s)) then
+                     !   i = indexconf(s,1)%elem(1)                                  
+                     
+                    do ii=1,len_index_phos
+                        
+                        i = index_phos(ii)
+
                         do kr=1,maxneigh
                          
                             j=indexneighbor(i,kr)   ! j=index of neighbors number k of index i 
@@ -219,6 +227,7 @@ contains
                             lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
                         
                         enddo
+                
                     enddo
 
                 endif

@@ -25,6 +25,7 @@ module chains
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
+    integer, dimension(:), allocatable          :: index_phos               ! indexchain() = list of all layer number taht contain phophatess
     logical, dimension(:), allocatable          :: isAmonomer               ! isAmonomer(s) =.true. if s is a "A" monomoer  
     integer, dimension(:), allocatable          :: type_of_monomer          ! type of monomer represented as a number
     character(len=3), dimension(:), allocatable :: type_of_monomer_char     ! type of monomer represented as one-three letters
@@ -66,7 +67,10 @@ module chains
 
     real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
     integer  :: maxneigh       ! maximum of neigbors 
-
+    
+    ! 
+    integer  :: len_index_phos ! length of array index_phos
+ 
 contains 
 
     subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy)

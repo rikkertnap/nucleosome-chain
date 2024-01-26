@@ -2104,11 +2104,11 @@ contains
 
 
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
-
+            print*,"Warning: checksumxpoltot larger epsilon_sumxpol ",epsilon_sumxpol
+            print*,"checksumxpoltot = ",checksumxpoltot  
             print*,"sumxpol         = ",(sumxpol(t),t=1,nsegtypes)
             print*,"sumdeltaxpol    = ",deltaxpol
             print*,"sumvolnucl      = ",sumvolnucl
-            print*,"checksumxpoltot = ",checksumxpoltot
             print*,"sumrhophos      = ",sumrhophos
             print*,"sumxphos        = ",sumxphos
             print*,"sumxpol(tPhos)     = ",sumxpol(tPhos)

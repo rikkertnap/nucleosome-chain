@@ -1,7 +1,7 @@
 
 ! ---------------------------------------------------------------|
-! Solves the SCMFT eqs for WEAK polyelectrolytes polymers        |
-! coated onto a planar surface,                                  |
+! Solves the SCMFT eqs for nucleosomes chains and                |
+! weak  polyelectrolytes polymers                                |
 ! input/output: see myio.f90                                     |
 ! ---------------------------------------------------------------|
 
@@ -124,6 +124,11 @@ program main
     endif  
 
     call make_chains(chainmethod,systype)   
+
+    if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
+        call find_phosphate_loc(index_phos,len_index_phos) 
+    endif
+
     call allocate_field(nx,ny,nz,nsegtypes)
     call allocate_field_pairs(nx,ny,nz,maxneigh,5)
     call init_field()
@@ -231,14 +236,13 @@ program main
             
             isfirstguess=(loop%val==loopbegin) 
 
-            call init_vars_input()  ! sets up chem potentials
+            call init_vars_input()  ! sets chem potentials
             
             flag_solver = 0
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
                 call solver(x, xguess, tol_conv, fnorm, isSolution)
-                !isSolution=.true.
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodess
                 do i = 1, numproc-1
