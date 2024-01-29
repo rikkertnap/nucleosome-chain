@@ -1512,7 +1512,7 @@ subroutine output_nucl_ionbin_Mg
     enddo
 
     write(un_sys,*)'avfdisP2Mg  = ',avfdisP2Mg
-    write(un_sys,*),'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg
+    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg
 
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'cuantas     = ',cuantas
