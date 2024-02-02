@@ -126,11 +126,11 @@ program main
     call make_chains(chainmethod,systype)   
 
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
-        call find_phosphate_loc(index_phos,len_index_phos) 
+        call find_phosphate_location(index_phos,inverse_index_phos,len_index_phos) 
     endif
 
     call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_field_pairs(nx,ny,nz,maxneigh,5)
+    call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos)
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(isVdW)
@@ -244,7 +244,7 @@ program main
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
                 call solver(x, xguess, tol_conv, fnorm, isSolution)
                 call fcnptr(x, fvec, neq)
-                flag_solver = 0   ! stop nodess
+                flag_solver = 0   ! stop nodes
                 do i = 1, numproc-1
                     dest =i
                     call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)

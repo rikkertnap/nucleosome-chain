@@ -25,8 +25,9 @@ module chains
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
-    integer, dimension(:), allocatable          :: index_phos               ! indexchain() = list of all layer number taht contain phophatess
     logical, dimension(:), allocatable          :: isAmonomer               ! isAmonomer(s) =.true. if s is a "A" monomoer  
+    integer, dimension(:), allocatable          :: index_phos               ! index_phos() = list of all layer number that contain phophates
+    integer, dimension(:), allocatable          :: inverse_index_phos       ! inverse_index_phos() = invser of index_phos
     integer, dimension(:), allocatable          :: type_of_monomer          ! type of monomer represented as a number
     character(len=3), dimension(:), allocatable :: type_of_monomer_char     ! type of monomer represented as one-three letters
     character(len=3), dimension(:), allocatable :: mapping_num_to_char      ! mapping of type of monomer as a number to one-three letters

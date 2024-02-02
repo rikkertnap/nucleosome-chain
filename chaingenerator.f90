@@ -23,7 +23,7 @@ module chaingenerator
     public :: make_chains, make_chains_mc,read_chains_XYZ
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
-    public :: find_phosphate_loc
+    public :: find_phosphate_location
 
     private ::  eps_equilat
 
@@ -3476,8 +3476,8 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
 
 end subroutine find_phosphate_pairs
 
-! Computer index_phos and len_phos:
-! index_phos is a list represent all laticce element that contain phosphates
+! Compute index_phos and len_phos:
+! index_phos is a list representing all latice element that contain phosphates
 ! len_phos : length of index_phos
 
 subroutine find_phosphate_loc(index_phos,len_index_phos)
@@ -3533,5 +3533,70 @@ subroutine find_phosphate_loc(index_phos,len_index_phos)
     enddo
        
 end subroutine find_phosphate_loc
+
+! Compute index_phos and len_phos:
+! index_phos is a list representing all latice element that contain phosphates
+! inverse_index_phos : inverse 
+! len_phos : length of index_phos
+
+subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
+    
+    use chains, only :  type_of_monomer,indexconf
+    use globals, only : nseg, nsize, cuantas
+    
+    integer, allocatable, dimension(:), intent(inout) :: index_phos
+    integer, allocatable, dimension(:), intent(inout) :: inverse_index_phos
+    integer, intent(inout) :: len_index_Phos
+
+    integer :: location_list(nsize) ! location_list(i) if > 0 then there is a or multiple phosphate located at latiice element i
+    integer :: num_phos ! number of phophates
+    integer :: cell_num, conf, s, i, k, tPhos
+    integer :: index_phos_tmp(nsize)
+    
+    allocate(inverse_index_phos(nsize))
+    inverse_index_phos=0
+
+    ! find location 
+
+    tPhos=find_type_phosphate() ! tA is not set until set call to  init_dna !!!!
+    
+    location_list=0
+    do conf=1, cuantas
+        do s=1,nseg
+            if(tPhos==type_of_monomer(s)) then
+            
+                cell_num = indexconf(s,conf)%elem(1)
+                location_list(cell_num)=location_list(cell_num) +1
+            endif
+        enddo
+    enddo
+    
+    k=0
+    do i=1, nsize
+        if(location_list(i)>0) then
+            k=k+1
+            index_phos_tmp(k)=i
+            inverse_index_phos(i)=k
+        endif
+    enddo               
+    
+    len_index_phos=k 
+
+    allocate(index_phos(len_index_phos))
+    
+    do i=1, len_index_phos
+        index_phos(i)= index_phos_tmp(i)
+         write(222,*)i,index_phos(i),inverse_index_phos(index_phos(i))
+    enddo
+
+   do s=1,nseg
+        if(tPhos==type_of_monomer(s)) then
+            i = indexconf(s,1)%elem(1)
+            ! write(111,*),i
+        endif
+    enddo
+       
+end subroutine find_phosphate_location
+
 
 end module chaingenerator

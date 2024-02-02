@@ -34,7 +34,7 @@ contains
         use volume, only     : volcell, inverse_indexneighbor, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : index_phos, len_index_phos
+        use chains, only     : index_phos, inverse_index_phos, len_index_phos
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg , rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
@@ -62,6 +62,7 @@ contains
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii            ! dummy indices
+        integer  :: ind, k_ind, kr_ind, m_ind 
         integer  :: JJ, KK
         integer  :: ix,iy
         real(dp) :: norm, normvol,normPE, normscf
@@ -174,16 +175,10 @@ contains
                                 
                 else
                     ! t=ta : phosphate
-                    
-                     !!do i=1,n ! loop over latice 
-                     ! do s=1,nseg
-                    
-                     !   if(ta==type_of_monomer(s)) then
-                     !   i = indexconf(s,1)%elem(1)                                  
-                     
-                    do ii=1,len_index_phos
+                                   
+                    do ind=1,len_index_phos
                         
-                        i = index_phos(ii)
+                        i = index_phos(ind)
 
                         do kr=1,maxneigh
                          
@@ -218,11 +213,11 @@ contains
                             
                             do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
                                  do KK=1,5
-                                     fdisPP(i,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
+                                     fdisPP(ind,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
                                  enddo
                             enddo
                                 
-                            fdisP2Mg(i,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
+                            fdisP2Mg(ind,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
                        
                             lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
                         
@@ -271,14 +266,15 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
+                    k_ind = inverse_index_phos(k)
 
                     do jj=1,nneigh(s,c)           ! loop neighbors 
 
                         m = indexconfpair(s,c)%elem(jj)
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-
+        
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k,mr,Phos,Phos))
+                                -log(fdisPP(k_ind,mr,Phos,Phos))
 
                     enddo    
                 endif        
@@ -313,6 +309,7 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
+                    k_ind = inverse_index_phos(k)
 
                     do jj=1,nneigh(s,c)           ! loop neighbors 
  
@@ -320,7 +317,7 @@ contains
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k,mr,Phos,Phos))
+                                -log(fdisPP(k_ind,mr,Phos,Phos))
                     enddo    
                 endif        
             enddo    
@@ -343,10 +340,12 @@ contains
                 else
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-                
+                    k_ind = inverse_index_phos(k) 
+
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
+                        m_ind= inverse_index_phos(m)  ! look-up table to get index 
 
                         mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
                         kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
@@ -357,13 +356,13 @@ contains
                         do JJ=1,5
                             do KK=1,5
                                 sum_rhoqphos = sum_rhoqphos+&
-                                    (fdisPP(k,mr,JJ,KK)*qPP(JJ)+fdisPP(m,kr,JJ,KK)*qPP(KK))/2.0_dp
+                                    (fdisPP(k_ind,mr,JJ,KK)*qPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*qPP(KK))/2.0_dp
                                 sum_xphos = sum_xphos   +&
-                                    (fdisPP(k,mr,JJ,KK)*vPP(JJ)+fdisPP(m,kr,JJ,KK)*vPP(KK))/2.0_dp
+                                    (fdisPP(k_ind,mr,JJ,KK)*vPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*vPP(KK))/2.0_dp
                             enddo
                         enddo
     
-                        sum_xphos=sum_xphos+(fdisP2Mg(k,mr)+fdisP2Mg(m,kr))*vPP(Phos2Mg)/4.0_dp 
+                        sum_xphos=sum_xphos+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*vPP(Phos2Mg)/4.0_dp 
                             ! division 4.0_dp  because symmetry adn  vPP(Phos2Mg)/2 is volume change per phosphate 
                   
                         local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
@@ -582,6 +581,7 @@ contains
         use volume, only     : volcell, inverse_indexneighbor, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : inverse_index_phos
         use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
         use field, only      : q, lnproshift
         use VdW, only        : VdW_contribution_lnexp
@@ -596,6 +596,7 @@ contains
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: k_ind
         integer  :: JJ, KK
         real(dp) :: local_avfdisP2Mg,local_avfdisPP(5,5)
         real(dp) :: sumrhopairs
@@ -706,12 +707,14 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
+                    k_ind= inverse_index_phos(k)
+
                     do jj=1,nneigh(s,c) ! loop neighbors 
                         m = indexconfpair(s,c)%elem(jj)
                         mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k,mr,Phos,Phos))
+                                -log(fdisPP(k_ind,mr,Phos,Phos))
                     enddo    
                 endif        
             enddo    
@@ -726,7 +729,8 @@ contains
                                 
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-
+                    k_ind = inverse_index_phos(k)
+   
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
@@ -738,13 +742,13 @@ contains
                             do KK=1,5
                              local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
                         !        (fdisPP(k,mr,JJ,KK)+fdisPP(m,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
-                                fdisPP(k,mr,JJ,KK)*pro/nneigh(s,c)
+                                fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
                         
                             enddo
                         enddo
     
                         !local_avfdisP2Mg=local_avfdisP2Mg+(fdisP2Mg(k,mr)+fdisP2Mg(mr,kr))*pro/(2.0_dp*nneigh(s,c)) 
-                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg(k,mr)*pro/nneigh(s,c)
+                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg(k_ind,mr)*pro/nneigh(s,c)
                 
                     enddo 
                 endif

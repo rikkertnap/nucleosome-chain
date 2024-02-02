@@ -62,9 +62,7 @@ contains
         allocate(rhopol_charge(N,nsegtypes),stat=ier(26)) 
         allocate(rhoqpol(N),stat=ier(4)) 
         allocate(xsol(N),stat=ier(5))
-        allocate(psi(N+2*Nx*Ny),stat=ier(6))
-        !allocate(psi(N),stat=ier(6))
-
+        allocate(psi(N+2*Nx*Ny),stat=ier(6))    !allocate(psi(N),stat=ier(6))
         allocate(xNa(N),stat=ier(7))
         allocate(xK(N),stat=ier(8))
         allocate(xRb(N),stat=ier(9))
@@ -78,7 +76,6 @@ contains
         allocate(rhoq(N),stat=ier(17))
         allocate(epsfcn(N),stat=ier(18))    
         allocate(Depsfcn(N),stat=ier(19))  
-
         allocate(fdis(N,nsegtypes),stat=ier(20))
         allocate(fdisA(N,8),stat=ier(21))
         allocate(fdisB(N,5),stat=ier(22))
@@ -106,7 +103,9 @@ contains
         deallocate(psi)
         deallocate(xNa)
         deallocate(xK)
+        deallocate(xRb)
         deallocate(xCa)
+        deallocate(xMg)
         deallocate(xNaCl) 
         deallocate(xKCl) 
         deallocate(xCl) 
@@ -146,7 +145,9 @@ contains
         xsol=0.0_dp
         xNa=0.0_dp
         xK=0.0_dp
+        xRb=0.0_dp
         xCa=0.0_dp
+        xMg=0.0_dp
         xNaCl=0.0_dp 
         xKCl =0.0_dp
         xCl=0.0_dp
@@ -162,18 +163,19 @@ contains
 
     end subroutine init_field
 
-    subroutine allocate_field_pairs(Nx,Ny,Nz,maxneigh,maxfdisPP)
+    subroutine allocate_field_pairs(Nx,Ny,Nz,maxneigh,maxfdisPP,len_index_phos)
 
-        integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP
+        integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP,len_index_phos
 
-        integer :: N
+        integer :: N, Nindex
         integer :: ier(26), i
 
         N=Nx*Ny*Nz
-
+        Nindex=len_index_phos
+        print*,"Nindex=",Nindex
         allocate(rhoqphos(N))    
-        allocate(fdisPP(N,maxneigh,maxfdisPP,maxfdisPP)) 
-        allocate(fdisP2Mg(N,maxneigh)) 
+        allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
+        allocate(fdisP2Mg(Nindex,maxneigh)) 
 
     end subroutine allocate_field_pairs
 
