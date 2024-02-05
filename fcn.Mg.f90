@@ -31,7 +31,7 @@ contains
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg 
-        use volume, only     : volcell, inverse_indexneighbor, indexneighbor
+        use volume, only     : volcell, inverse_indexneighbor, indexneighbor, inverse_indexneighbor_phos
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : index_phos, inverse_index_phos, len_index_phos
@@ -176,11 +176,11 @@ contains
                 else
                     ! t=ta : phosphate
                                    
-                    do ind=1,len_index_phos
+                    do ind=1,len_index_phos ! loop over index of  location of phosphates
                         
-                        i = index_phos(ind)
+                        i = index_phos(ind)  ! give the lattice location 
 
-                        do kr=1,maxneigh
+                        do kr=1,maxneigh     ! loop over neighbors
                          
                             j=indexneighbor(i,kr)   ! j=index of neighbors number k of index i 
  
@@ -271,8 +271,10 @@ contains
                     do jj=1,nneigh(s,c)           ! loop neighbors 
 
                         m = indexconfpair(s,c)%elem(jj)
-                        mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-        
+                        
+                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        mr = inverse_indexneighbor_phos(k_ind,m) 
+                        
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k_ind,mr,Phos,Phos))
 
@@ -314,7 +316,8 @@ contains
                     do jj=1,nneigh(s,c)           ! loop neighbors 
  
                         m = indexconfpair(s,c)%elem(jj)
-                        mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        mr = inverse_indexneighbor_phos(k_ind,m) 
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k_ind,mr,Phos,Phos))
@@ -347,9 +350,14 @@ contains
                         m = indexconfpair(s,c)%elem(j)
                         m_ind= inverse_index_phos(m)  ! look-up table to get index 
 
-                        mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
-                        kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
+                        !mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
+                        !kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
                          
+                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
+                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m
+
+
+
                         sum_rhoqphos=0.0_dp
                         sum_xphos=0.0_dp 
                     
@@ -578,7 +586,7 @@ contains
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta,isVdW! isrhoselfconsistent 
         use volume, only     : nx, ny, nz
-        use volume, only     : volcell, inverse_indexneighbor, indexneighbor
+        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : inverse_index_phos
@@ -596,7 +604,7 @@ contains
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
-        integer  :: k_ind
+        integer  :: k_ind, m_ind
         integer  :: JJ, KK
         real(dp) :: local_avfdisP2Mg,local_avfdisPP(5,5)
         real(dp) :: sumrhopairs
@@ -711,7 +719,8 @@ contains
 
                     do jj=1,nneigh(s,c) ! loop neighbors 
                         m = indexconfpair(s,c)%elem(jj)
-                        mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        mr = inverse_indexneighbor_phos(k_ind,m) ! relative label of index m relative to k
 
                         lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                 -log(fdisPP(k_ind,mr,Phos,Phos))
@@ -734,10 +743,14 @@ contains
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
+                        m_ind = inverse_index_phos(m)  
 
-                        mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
-                        kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
+                        !mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
+                        !kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
                          
+                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
+                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m                           
+                        
                         do JJ=1,5
                             do KK=1,5
                              local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&

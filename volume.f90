@@ -34,19 +34,22 @@ module volume
 
     integer, dimension(:,:), allocatable   :: indexneighbor
     integer, dimension(:,:), allocatable   :: inverse_indexneighbor
+    integer, dimension(:,:), allocatable   :: inverse_indexneighbor_phos
 
     private
     
     public :: delta,nx,ny,nz,volcell,areacell,geometry, nsurf
     public :: gamma,cos_two_beta, sin_two_beta
-    public :: indexneighbor, inverse_indexneighbor
+    public :: indexneighbor, inverse_indexneighbor, inverse_indexneighbor_phos
     public :: coordtoindex,indextocoord
     public :: coordinateFromLinearIndex, linearIndexFromCoordinate
     public :: xt, yt, ut, vt, ipbc
     public :: make_geometry
 
+    public :: allocate_index_neighbors_phos, make_table_index_neighbors_phos
+
 contains
-    
+
     subroutine init_lattice
 
         use globals, only : nsize, systype
@@ -85,8 +88,8 @@ contains
         if(systype=="nucl_ionbin_Mg") then
             rangecutoff=int(distphoscutoff/delta)+2 
             maxneigh = (2*rangecutoff+1)**3
-            call allocate_index_neighbors(maxneigh)
-            call make_table_index_neighbors(rangecutoff)
+            !call allocate_index_neighbors(maxneigh)
+            !call make_table_index_neighbors(rangecutoff)
         endif    
 
     end subroutine init_lattice
@@ -272,8 +275,8 @@ contains
         endif
 
     end function
-
-
+         
+   
     subroutine allocate_index_neighbors(maxneigh)
 
         use globals, only : nsize
@@ -285,7 +288,7 @@ contains
         
     end subroutine allocate_index_neighbors
 
-
+    
     ! Calculate indexneighbor(idx,k) 
     ! indexneighbor(idx,k) = return lattice cell index of neighbor number k of lattice cell index idx
     ! range : 1<=idx<=nsize 
@@ -333,6 +336,89 @@ contains
         enddo    
 
     end subroutine make_table_index_neighbors
+
+
+    ! Stores in a memory efficient way inverse_index_neighbors
+    !  
+    ! inverse_indexneighbor(ind,k) evaluated for all lattice positions  
+    ! inverse_indexneighbor_phos only evaluate for those position that contain a phosphate   
+    ! inverse_indexneighbor_phos(ind,k): argument ind is different. 
+    ! Here "ind" is ind th element of array that enumarated 
+    ! all different phosphate postions 
+    ! The assocaited lattice number = index_phos(ind)  ! give the lattice location 
+
+    subroutine allocate_index_neighbors_phos(maxneigh,len_index_phos)
+
+        use globals, only : nsize
+
+        integer, intent(in) :: maxneigh
+        integer, intent(in) :: len_index_phos
+
+        allocate(indexneighbor(nsize,maxneigh))
+        allocate(inverse_indexneighbor_phos(len_index_phos,nsize))
+
+    end subroutine allocate_index_neighbors_phos
+
+
+
+    ! Calculate indexneighbor(idx,k) and inverse_indexneighbor(idx 
+    ! indexneighbor(idx,k) = return lattice cell index of neighbor number k of lattice cell index idx
+    ! range : 1<=idx<=len_phos 
+    !       : 1<=k<=(2*rangecutoff+1)**3 
+    !       : k=1 is same lattice cell         
+
+    subroutine make_table_index_neighbors_phos(rangecutoff,len_index_phos,index_phos)
+
+        use globals, only : nsize
+
+        integer, intent(in) :: rangecutoff
+        integer, intent(in) :: len_index_phos
+        integer, intent(in) :: index_phos(len_index_phos)
+
+        integer :: idx, i, j, k, ix, iy, iz, deltaix,deltaiy, deltaiz
+        integer :: neighbornumber, idxneigh
+        integer :: ip, jp, kp, n
+
+
+        print*,"hello->"
+        print*,"len_index_phos+",len_index_phos
+        print*,"rangecutoff+",rangecutoff
+
+        do n=1,len_index_phos    ! loop over element of unique phospate lattice positions 
+            
+            idx = index_phos(n)  ! give the lattice number of list in unique phosphate 
+
+            ! use hash table to get coordiantes 
+            ix=indextocoord(idx,1)
+            iy=indextocoord(idx,2)
+            iz=indextocoord(idx,3)
+
+            neighbornumber=0 ! 
+
+            do deltaix=-rangecutoff,rangecutoff
+                i=ix+deltaix
+                do deltaiy=-rangecutoff,rangecutoff
+                    j=iy+deltaiy
+                    do deltaiz=-rangecutoff,rangecutoff
+                        k=iz+deltaiz
+                        ! apply pbc 
+                        ip=ipbc(i,nx)
+                        jp=ipbc(j,ny)
+                        kp=ipbc(k,nz)
+                        neighbornumber=neighbornumber+1
+                        idxneigh=coordtoindex(ip,jp,kp) ! index of neighbour
+                        indexneighbor(idx,neighbornumber) = idxneigh
+                        inverse_indexneighbor_phos(n,idxneigh) = neighbornumber
+
+                    enddo
+                enddo
+            enddo
+
+        enddo
+
+    end subroutine make_table_index_neighbors_phos
+
+
 
 
 end module volume

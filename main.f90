@@ -56,6 +56,7 @@ program main
     real(dp) :: list_first, list_step
     integer  :: nlist_elem, maxlist_elem, nlist_step
 
+    integer :: phoscutoff
 
     ! .. executable statements
 
@@ -127,6 +128,9 @@ program main
 
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
         call find_phosphate_location(index_phos,inverse_index_phos,len_index_phos) 
+        call allocate_index_neighbors_phos(maxneigh,len_index_phos)
+        phoscutoff=int(distphoscutoff/delta)+2
+        call make_table_index_neighbors_phos(phoscutoff,len_index_phos,index_phos)
     endif
 
     call allocate_field(nx,ny,nz,nsegtypes)
