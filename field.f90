@@ -1214,6 +1214,53 @@ contains
     
     end subroutine make_beta_old
     
-  
+
+
+    ! Calculates the absolute value of the electostatic potentail for each face of the lattice 
+    ! Output assignment to  max_psi(6)  in mod parameters
+
+    subroutine max_potential()
+
+        use volume, only : indextocoord
+        use volume, only : nx, ny, nz
+        use globals, only : nsize
+        use parameters, only : max_psi
+
+        ! local variable
+
+        real(dp) :: psi_back,psi_front,psi_left,psi_right,psi_up,psi_down
+        logical:: is_back, is_front, is_left, is_right,is_up, is_down
+
+        integer :: ind
+
+        ! init
+        psi_back = 0.0_dp
+        psi_front = 0.0_dp
+        psi_left = 0.0_dp
+        psi_right = 0.0_dp
+        psi_up = 0.0_dp
+        psi_down = 0.0_dp
+    
+        do ind=1,nsize
+            is_back =indextocoord(ind,1)==1
+            is_front=indextocoord(ind,1)==nx 
+            is_left =indextocoord(ind,2)==1
+            is_right=indextocoord(ind,2)==ny 
+            is_up   =indextocoord(ind,3)==1
+            is_down =indextocoord(ind,3)==nz 
+
+            if(is_back)  psi_back =max(psi_back ,abs(psi(ind)))
+            if(is_front) psi_front=max(psi_front,abs(psi(ind)))
+            if(is_left)  psi_left =max(psi_left ,abs(psi(ind)))
+            if(is_right) psi_right=max(psi_right,abs(psi(ind)))
+            if(is_up)    psi_up   =max(psi_up   ,abs(psi(ind)))
+            if(is_down)  psi_down =max(psi_down ,abs(psi(ind)))
+        
+        enddo
+        
+        max_psi = (/psi_back, psi_front, psi_left, psi_right, psi_up, psi_down/) 
+        
+    end subroutine max_potential
+      
 end module field
 

@@ -156,6 +156,7 @@
     real(dp) :: avfdisA(8)         ! average fraction of monomer ta=phosphate in state A,AH,ANa,AMg,A2Mg etc
     real(dp) :: avfdisB(5)         ! average fraction of monomer state
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
+    real(dp) :: max_psi(6)         ! maximum electrostatic potential on each face of lattice 
 
     !  .. weak polyelectrolyte variables 
     !  .. equibrium constant

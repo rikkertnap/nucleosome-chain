@@ -1540,6 +1540,11 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
+    ! output max potential of each face lattice 
+    do k=1,6
+        write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
+    enddo
+
     ! .. closing files
 
     close(un_sys)
@@ -2825,7 +2830,7 @@ subroutine compute_vars_and_output()
     use globals, only : systype, DEBUG
     use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
-    use field, only : distribution_charge_nucl_ionbin_sv
+    use field, only : distribution_charge_nucl_ionbin_sv, max_potential
 
     select case (systype)
     case ("elect")
@@ -2880,6 +2885,9 @@ subroutine compute_vars_and_output()
 
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
+         
+        call max_potential()   
+
         call output()           
 
         
