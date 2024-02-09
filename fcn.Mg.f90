@@ -515,7 +515,7 @@ contains
             normscf=0.0_dp
             do t=1,nsegtypes
                 if(isrhoselfconsistent(t)) then
-                    print*,"hello"
+                    print*,"VdW SCF not allowed !!"
                     count_scf=count_scf+1 
                     k=(count_scf+1)*n
                     do i=1,n   

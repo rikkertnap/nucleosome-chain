@@ -111,12 +111,13 @@ subroutine read_inputfile(info)
     isSet_EnergyShift =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false.
+
     write_mc_chains   =.false.
     write_struct      =.false.
     write_rotations   =.false.
     write_localcharge =.false.
     write_iondensities =.false.
-
+    write_frac         =.false.
     
     ! default concentrations
     cKCl=0.0_dp
@@ -238,6 +239,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) write_localcharge
             case ('write_iondensities')
                 read(buffer,*,iostat=ios) write_iondensities
+            case ('write_frac')
+                read(buffer,*,iostat=ios) write_frac
             case ('delta')
                 read(buffer,*,iostat=ios) delta
             case('unit_conv')
@@ -1275,11 +1278,12 @@ subroutine output_nucl_ionbin_Mg
     open(unit=newunit(un_xsol),file=xsolfilename)
     open(unit=newunit(un_psi),file=potentialfilename)
     open(unit=newunit(un_xpol),file=xpolfilename)
-    open(unit=newunit(un_fdis),file=densfracfilename)
-
-    open(unit=newunit(un_fdisP),file=densfracPfilename)
-
-    open(unit=newunit(un_fdision),file=densfracionfilename)
+    
+    if(write_frac) then 
+        open(unit=newunit(un_fdis),file=densfracfilename)
+        open(unit=newunit(un_fdisP),file=densfracPfilename)
+        open(unit=newunit(un_fdision),file=densfracionfilename)
+    endif
   
     if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
     if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
@@ -1323,25 +1327,26 @@ subroutine output_nucl_ionbin_Mg
         write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
     enddo
 
-    do i=1,nsize
-        write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
-    enddo
+    if(write_frac) then 
+        do i=1,nsize
+            write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
+        enddo
 
-    do t=1,nsegtypes
-        if(type_of_charge(t)=="A") then 
-            write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
-            do i=1,nsize
-                write(un_fdision,*)(gdisA(i,k,t),k=1,4)
-            enddo
-        endif 
-        if(type_of_charge(t)=="B") then 
-            write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
-            do i=1,nsize
-                write(un_fdision,*)(gdisB(i,k,t),k=1,3)
-            enddo
-        endif       
-    enddo
-
+        do t=1,nsegtypes
+            if(type_of_charge(t)=="A") then 
+                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
+                do i=1,nsize
+                    write(un_fdision,*)(gdisA(i,k,t),k=1,4)
+                enddo
+            endif 
+            if(type_of_charge(t)=="B") then 
+                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
+                do i=1,nsize
+                    write(un_fdision,*)(gdisB(i,k,t),k=1,3)
+                enddo
+            endif       
+        enddo
+    endif
 
     if(write_localcharge) then 
         do i=1,nsize
@@ -1552,9 +1557,12 @@ subroutine output_nucl_ionbin_Mg
     close(un_psi)
     close(un_xpol)
 
-    close(un_fdis)
-    close(un_fdisP)
-    close(un_fdision)
+    if(write_frac) then
+        close(un_fdis)
+        close(un_fdisP)
+        close(un_fdision)
+    endif
+
     if(nnucl>=3) close(un_angle)
     if(nnucl>=2) close(un_dist)
 

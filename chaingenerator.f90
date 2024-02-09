@@ -3549,8 +3549,9 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
     integer, intent(inout) :: len_index_Phos
 
     integer :: location_list(nsize) ! location_list(i) if > 0 then there is a or multiple phosphate located at latiice element i
-    integer :: num_phos ! number of phophates
-    integer :: cell_num, conf, s, i, k, tPhos
+   ! integer :: num_phos ! number of phophates
+    integer :: cell_num
+    integer ::  conf, s, i, k, tPhos
     integer :: index_phos_tmp(nsize)
     
     allocate(inverse_index_phos(nsize))
@@ -3558,13 +3559,12 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
 
     ! find location 
 
-    tPhos=find_type_phosphate() ! tA is not set until set call to  init_dna !!!!
+    tPhos=find_type_phosphate() ! tA is not set until by set call to  init_dna !!!!
     
     location_list=0
     do conf=1, cuantas
         do s=1,nseg
-            if(tPhos==type_of_monomer(s)) then
-            
+            if(tPhos==type_of_monomer(s)) then           
                 cell_num = indexconf(s,conf)%elem(1)
                 location_list(cell_num)=location_list(cell_num) +1
             endif
@@ -3586,15 +3586,8 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
     
     do i=1, len_index_phos
         index_phos(i)= index_phos_tmp(i)
-         write(222,*)i,index_phos(i),inverse_index_phos(index_phos(i))
     enddo
 
-   do s=1,nseg
-        if(tPhos==type_of_monomer(s)) then
-            i = indexconf(s,1)%elem(1)
-            ! write(111,*),i
-        endif
-    enddo
        
 end subroutine find_phosphate_location
 

@@ -172,7 +172,7 @@ contains
 
         N=Nx*Ny*Nz
         Nindex=len_index_phos
-        print*,"Nindex=",Nindex
+        
         allocate(rhoqphos(N))    
         allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
         allocate(fdisP2Mg(Nindex,maxneigh)) 

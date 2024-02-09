@@ -84,7 +84,8 @@ contains
         call allocate_hashtable(nx,ny,nz)
         call make_hashtable()
 
-        ! 
+        ! this should go somewhere else
+ 
         if(systype=="nucl_ionbin_Mg") then
             rangecutoff=int(distphoscutoff/delta)+2 
             maxneigh = (2*rangecutoff+1)**3
@@ -379,11 +380,6 @@ contains
         integer :: neighbornumber, idxneigh
         integer :: ip, jp, kp, n
 
-
-        print*,"hello->"
-        print*,"len_index_phos+",len_index_phos
-        print*,"rangecutoff+",rangecutoff
-
         do n=1,len_index_phos    ! loop over element of unique phospate lattice positions 
             
             idx = index_phos(n)  ! give the lattice number of list in unique phosphate 
@@ -417,9 +413,6 @@ contains
         enddo
 
     end subroutine make_table_index_neighbors_phos
-
-
-
 
 end module volume
   

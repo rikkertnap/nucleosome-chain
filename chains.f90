@@ -83,8 +83,6 @@ contains
     
         maxcuantas=cuantas+maxnchains*maxnchainsxy     ! .. extra  because of  nchain rotations
        
-        print*,"maxcuantas=",maxcuantas
- 
         allocate(indexchain(nseg,maxcuantas))
         allocate(energychain(maxcuantas))
         allocate(logweightchain(maxcuantas))
