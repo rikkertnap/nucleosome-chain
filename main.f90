@@ -267,10 +267,11 @@ program main
             endif
         
 
-            !            call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
+             call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
             
-            if(systype=="nucl_ionbin_Mg") then 
+            if(systype=="nucl_ionbin_Mg") then  
                 call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+                call compute_FEchem_react_PP(FEchempair)
             endif           
 
             if(rank==0) then

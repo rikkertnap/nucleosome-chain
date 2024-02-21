@@ -219,7 +219,7 @@ contains
                                 
                             fdisP2Mg(ind,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
                        
-                            lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
+                            lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
                         
                         enddo
                 
@@ -275,8 +275,8 @@ contains
                         !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
                         mr = inverse_indexneighbor_phos(k_ind,m) 
                         
-                        lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos))
+                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
 
                     enddo    
                 endif        
@@ -319,11 +319,12 @@ contains
                         !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
                         mr = inverse_indexneighbor_phos(k_ind,m) 
 
-                        lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos))
+                        lnpro =lnpro + (psi(k) + psi(m)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
                     enddo    
                 endif        
             enddo    
+
 
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
@@ -371,7 +372,7 @@ contains
                         enddo
     
                         sum_xphos=sum_xphos+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*vPP(Phos2Mg)/4.0_dp 
-                            ! division 4.0_dp  because symmetry adn  vPP(Phos2Mg)/2 is volume change per phosphate 
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
                   
                         local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                         local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
@@ -547,6 +548,8 @@ contains
            
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE,"normscf=",normscf            
            !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
+           ! print*,"vnucl(1,ta)=",vnucl(1,ta)," ta=",ta
+           ! print*,"vPP(Phos)=",vPP(phos)
         
             
         else                      ! Export results 
@@ -674,7 +677,7 @@ contains
                 else
                     ! t=ta : phosphate
                     do i=1,n  
-                        lnexppi(i,t) = - psi(i)!!   ! auxilary variable palpha
+                        lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
                     enddo
 
                 endif
@@ -722,8 +725,8 @@ contains
                         !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
                         mr = inverse_indexneighbor_phos(k_ind,m) ! relative label of index m relative to k
 
-                        lnpro =lnpro + lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos))
+                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
                     enddo    
                 endif        
             enddo    
@@ -807,6 +810,242 @@ contains
 
     end subroutine compute_average_charge_PP
 
+
+    ! compute the average fraction of charged state of the phosphate pairs 
+
+    subroutine compute_FEchem_react_PP(FEchemPP)
+
+        use mpivars
+        use precision_definition
+        use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
+        use parameters, only : vsol,vnucl
+        use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg
+        use parameters, only : ta,isVdW! isrhoselfconsistent 
+        use volume, only     : nx, ny, nz
+        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
+        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : inverse_index_phos
+        use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
+        use field, only      : q, lnproshift
+        use VdW, only        : VdW_contribution_lnexp
+        use myutils, only    : error_handler
+
+        real(dp), intent(inout) :: FEchemPP
+
+        !     .. local variables
+        
+        real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
+        real(dp) :: lnexppivw(nsize)
+        real(dp) :: pro,lnpro
+        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: k_ind, m_ind
+        integer  :: JJ, KK
+        real(dp) :: local_FEchempair, FEchempair
+        real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
+        integer  :: nsizepsi
+        real(dp) :: betapi_k, betapi_m, psi_k, psi_m, lambda, sum_pi, sum_psi
+
+
+        ! .. executable statements 
+
+        ! .. communication between processors 
+
+        K0aPP=K0aAA(6) ! P2Mg
+        nsizepsi=nsize+2*Nx*Ny
+
+
+        local_FEchempair =0.0_dp
+       
+
+        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+
+        if(rank==0) then
+            do i = 1, numproc-1
+                dest = i
+                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(rhopol_charge(:,ta) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                do t=1,nsegtypes
+                    if(ismonomer_chargeable(t)) then 
+                        call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                    endif
+                enddo
+                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+            enddo
+        else
+            source = 0 
+            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(rhopol_charge(:,ta) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            do t=1,nsegtypes
+                if(ismonomer_chargeable(t)) then 
+                    call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+                endif
+            enddo
+
+            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+        endif    
+
+        n=nsize
+
+        do i=1,nsize
+            lnexppivw(i)=log(xsol(i))/vsol
+        enddo
+
+        do t=1,nsegtypes
+            if(ismonomer_chargeable(t)) then
+                if(t/=ta) then
+                    if(type_of_charge(t)=="A") then  !  acid
+                     
+                        do i=1,n
+                            lnexppi(i,t) = psi(i) -log(fdis(i,t))      ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
+                        enddo
+
+                    else !  base
+                        do i=1,n
+                            lnexppi(i,t) = -log(fdis(i,t))             ! auxilary variable palpha lo 
+                        enddo
+                    endif  
+                                
+                else
+                    ! t=ta : phosphate
+                    do i=1,n  
+                        lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
+                    enddo
+
+                endif
+            else  
+                lnexppi(:,t) = 0.0_dp
+            endif   
+        enddo   
+           
+        ! Van der Waals   
+        if(isVdW) then 
+            print*,"Error no VdW for nucl_ionbin_Mg"
+            call error_handler(-1,"compute_average_charge_PP")
+            !do t=1,nsegtypes  
+            !    if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
+            !senddo
+        endif 
+
+        !  .. computation of probability 
+
+        lnpro = 0.0_dp
+              
+        do c=1,cuantas         ! loop over cuantas
+
+            lnpro=logweightchain(c) 
+           
+            do s=1,nseg                       ! loop over segments 
+                t=type_of_monomer(s)
+                if(t/=ta) then 
+                    do j=1,nelem(s)               ! loop over elements of segment 
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                    endif
+                else 
+                    ! phosphates 
+                    k = indexconf(s,c)%elem(1)
+                    k_ind= inverse_index_phos(k)
+
+                    do jj=1,nneigh(s,c) ! loop neighbors 
+                        m = indexconfpair(s,c)%elem(jj)
+                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                        mr = inverse_indexneighbor_phos(k_ind,m) ! relative label of index m relative to k
+
+                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                    enddo    
+                endif        
+            enddo    
+
+            pro = exp(lnpro-lnproshift)   
+        
+            do s=1,nseg
+                
+                t=type_of_monomer(s)
+
+                if(t==ta) then 
+                                
+                    ! pair density of phosphates 
+                    k = indexconf(s,c)%elem(1)
+                    k_ind = inverse_index_phos(k)
+
+
+                    betapi_k=-log(xsol(k))/vsol
+                    psi_k = psi(k)
+   
+                    do j=1,nneigh(s,c)
+
+                        m = indexconfpair(s,c)%elem(j)
+                        m_ind = inverse_index_phos(m)  
+                         
+                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
+                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m                           
+                        
+                        betapi_m= -log(xsol(m))/vsol
+                        psi_m = psi(m)
+                    
+                         ! Lagrange multiplier lambd(r,r') 
+
+                        lambda = -(betapi_k +betapi_m)*vPP(Phos) -(psi_k+psi_m)*qPP(Phos) &
+                            -log(fdisPP(k_ind,mr,Phos,Phos))
+
+                        lambda = lambda*pro/nneigh(s,c)        
+
+                        sum_pi  = 0.0_dp
+                        sum_psi = 0.0_dp
+
+                        do JJ=1,5
+                            do KK=1,5
+                                sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
+                                sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
+                            enddo
+                        enddo
+    
+                        sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg(k_ind,mr)*pro/nneigh(s,c)
+
+                            ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
+                        
+                        local_FEchempair = local_FEchempair+(-lambda +sum_pi+sum_psi)/2.0_dp             
+                    enddo 
+                endif
+            enddo
+        enddo
+
+       
+        !   .. import results 
+
+        if (rank==0) then 
+
+            FEchempair= local_FEchempair
+            do i=1, numproc-1
+                source = i
+                call MPI_RECV(local_FEchempair, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
+                FEchempair = FEchempair + local_FEchempair
+            enddo
+
+            ! .. normalized FEchempair  with q 
+            FEchempair = FEchempair/q 
+
+            FEchemPP=FEchempair 
+
+            
+        else                      ! Export results 
+            
+            dest = 0 
+
+            call MPI_SEND(local_FEchempair, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
+            
+        endif
+
+    end subroutine compute_FEchem_react_PP
 
     
 

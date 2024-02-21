@@ -27,6 +27,7 @@ module energy
     real(dp) :: FEborn              ! Born self-energy  
     real(dp) :: FEchemsurf(2)       ! chemical free energy surface
     real(dp) :: FEchem
+    real(dp) :: FEchempair
     real(dp) :: FEbind,FEbindA,FEbindB    ! complexation contribution
     real(dp) :: FEVdW,FEVdWB,FEVdWC       ! Van der Waals contribution
     real(dp) :: FEconf
@@ -76,15 +77,12 @@ contains
         case ("nucl_ionbin_sv")
         
             call fcnenergy_ionbin_sv()
-            !call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()
 
         case ("nucl_ionbin_Mg")
         
-            print*,"warning fcnenergy not working yet for nucl_ion_bin_Mg."
             call fcnenergy_ionbin_sv()
-            !call fcnenergy_electbrush_mul() 
-            !call fcnenergy_elect_alternative()
+            call fcnenergy_elect_alternative()
 
 
         case("elect")
@@ -273,7 +271,7 @@ contains
          ! .. chemical and binding contribution
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn")
+        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn","nucl_ionbin_Mg")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -1342,7 +1340,7 @@ contains
                 endif        
             enddo
 
-         case("nucl_ionbin_sv")
+        case("nucl_ionbin_sv")
             
             do t=1,nsegtypes
 
@@ -1439,6 +1437,75 @@ contains
                 endif        
             enddo
 
+
+        case("nucl_ionbin_Mg")
+            
+            do t=1,nsegtypes
+
+                if(ismonomer_chargeable(t)) then
+
+                    if(t==ta) then 
+
+                        FEchem_react = FEchem_react+FEchempair/volcell ! unit FEchempair allready here in E !!
+
+                    else
+                       
+                        jcharge=elem_charge(t)
+
+                        if(type_of_charge(t)=="A") then ! acid 
+                            
+                            vpolstate(1)=vnucl(jcharge,t)
+                            vpolstate(2)=vnucl(jcharge,t)
+                            vpolstate(3)=vnucl(jcharge,t)+vNa*vsol
+                            vpolstate(4)=vnucl(jcharge,t)+vK*vsol
+    
+                            do i=1,nsize
+
+                                betapi = -log(xsol(i))/vsol
+                                lambda = -log(gdisA(i,1,t)) + psi(i) -betapi*vpolstate(1)
+                                rhopolq= -gdisA(i,1,t)*rhopol_charge(i,t)
+                                
+                                xpol=0.0_dp
+                                do state=1,4
+                                    xpol = xpol + rhopol_charge(i,t)*gdisA(i,state,t)*vpolstate(state)
+                                enddo  
+
+                                FEchem_react = FEchem_react + &
+                                (- rhopol_charge(i,t)*lambda -psi(i)*rhopolq -betapi*xpol )
+                            enddo
+                           
+                        else if(type_of_charge(t)=="B") then ! base
+
+                            jcharge=elem_charge(t)
+                            vpolstate(1)=vnucl(jcharge,t)
+                            vpolstate(2)=vnucl(jcharge,t)
+                            vpolstate(3)=vnucl(jcharge,t)+vCl*vsol
+                    
+                            do i=1,nsize
+
+                                betapi = -log(xsol(i))/vsol
+                                lambda = -log(gdisB(i,2,t))  - betapi*vpolstate(2)
+                                rhopolq= gdisB(i,1,t)*rhopol_charge(i,t)
+
+                                xpol=0.0_dp
+                                do state=1,3
+                                    xpol = xpol + rhopol_charge(i,t)*gdisB(i,state,t)*vpolstate(state)
+                                enddo  
+        
+                                FEchem_react = FEchem_react + &
+                                (- rhopol_charge(i,t)*lambda -psi(i)*rhopolq -betapi*xpol)
+                            enddo                            
+                        else 
+                            print*,"Error in FEchem_react_multi for systype=nucl_ionbin_Mg"
+                            print*,"Charged monomer ",t," not acid or base : zpol(1)=",zpol(t,1)," and zpol(2)=",zpol(t,2)
+                        endif    
+
+                    endif
+                        
+                endif        
+            enddo
+
+
         case("brushborn") 
 
              ! .. scaled gradient potential contribution 
@@ -1513,6 +1580,8 @@ contains
     end function FEchem_react_multi
 
 
+
+    
 
 
     function FEelect_surface() result(FEelsurf)

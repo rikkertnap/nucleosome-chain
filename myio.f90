@@ -1171,10 +1171,10 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
-
     case("nucl_ionbin_Mg")
 
         call output_nucl_ionbin_Mg
+        call output_individualcontr_fe
 
     case("nucl_neutral_sv")
 
