@@ -3030,7 +3030,7 @@ contains
         ! read out x 
         do i=1,n                     
             xsol(i) = x(i)        ! volume fraction solvent
-            xpol(i) = 0.0_dp      ! volume fraction polymer  
+            xpol(i) = 0.0_dp      ! volume fraction polymer
         enddo 
 
         do t=1,nsegtypes
@@ -3055,9 +3055,7 @@ contains
         lnpro=0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
-
             lnpro=lnpro+logweightchain(c)        ! internal energy
-
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -3068,16 +3066,17 @@ contains
         locallnproshift(1)=lnpro/cuantas
         locallnproshift(2)=rank
     
-        !print*,"rank ",rank ," has local lnproshift value of", locallnproshift(1)
+        ! print*,"rank ",rank ," has local lnproshift value of", locallnproshift(1)
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
     
-        !if (rank == 0) then  
-        !     print*,"Rank ",globallnproshift(2)," has lowest value of", globallnproshift(1)  
-        !endif            
+!        if (rank == 0) then  
+!             print*,"Rank ",globallnproshift(2)," has lowest value of", globallnproshift(1)  
+!        endif            
 
         lnproshift=globallnproshift(1)
+
 
         do c=1,cuantas         ! loop over cuantas
 
