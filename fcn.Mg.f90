@@ -78,8 +78,8 @@ contains
 
         ! .. executable statements 
 
-        ! .. communication between processors 
-       
+        ! .. communication between processors
+
         ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
 
@@ -134,7 +134,9 @@ contains
             xRb(i)      = expmu%Rb*(xsol(i)**vRb)*exp(-psi(i)*zRb) ! Rb+ volume fraction
             xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
-            lnexppivw(i) = log(xsol(i))/vsol                       ! auxilary variable  divide by vsol  !! 
+
+            lnexppivw(i) = log(xsol(i))/vsol                       ! auxilary variable  divide by vsol  !!
+            local_rhoqphos(i) = 0.0_dp 
         enddo
 
         do t=1,nsegtypes
@@ -210,7 +212,7 @@ contains
                             sumxP=sumxP+xP2Mg
 
                             fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
-                            
+                              
                             do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
                                  do KK=1,5
                                      fdisPP(ind,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
@@ -250,7 +252,7 @@ contains
         do c=1,cuantas                            ! loop over cuantas
 
             lnpro = lnpro+logweightchain(c) 
-
+            
             do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
@@ -328,13 +330,14 @@ contains
 
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
+           
 
             do s=1,nseg
                 t=type_of_monomer(s)
-                if(t/=ta) then 
+                if(t/=ta) then  ! not phosphates
                     do j=1,nelem(s)
                         k = indexconf(s,c)%elem(j) 
-                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction, not includeing phosphates
+                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction
                     enddo
                     if(ismonomer_chargeable(t)) then
                         jcharge=elem_charge(t)
@@ -357,8 +360,6 @@ contains
                         mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
                         kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m
 
-
-
                         sum_rhoqphos=0.0_dp
                         sum_xphos=0.0_dp 
                     
@@ -378,14 +379,14 @@ contains
                         local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
 
                         local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
-
+                        
                     enddo 
      
                 endif
 
             enddo
         enddo
-
+        
         !   .. import results 
 
         if (rank==0) then 
@@ -457,13 +458,12 @@ contains
 
                             do i=1,n
                                
-                                rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)               ! density nucleosome of type t  
+                                rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t  
                                 rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
 
                                 ! volume fraction only consider Na and K ionpairing
                                 deltaxpol = rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+gdisA(i,4,t)*deltavpolstateK)
-                                xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol
-
+                                xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol                      ! scale xpol(i,t) and add delta xspol due to ionbinding
                             enddo
 
                         else  ! base   
@@ -473,7 +473,7 @@ contains
                             do i=1,n
                                 
                                 rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t chargeable 
-                                rhoqpol(i) = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol  ! total charge density nucleosome in units of vsol 
+                                rhoqpol(i) = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
                                 
                                 ! volume fraction only consider Cl ionpairing
                                 deltaxpol = rhopol_charge(i,t)*gdisB(i,3,t)*deltavpolstateCl
@@ -570,12 +570,11 @@ contains
 
             call MPI_SEND(local_rhoqphos, nsize , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
 
+            iter=iter+1
 
         endif
 
     end subroutine fcnnucl_Mg
-
-
 
 
 
@@ -585,6 +584,11 @@ contains
         use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
+
+
+
+
+
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta,isVdW! isrhoselfconsistent 
