@@ -1,4 +1,3 @@
-
 ! ---------------------------------------------------------------|
 ! Solves the SCMFT eqs for nucleosomes chains and                |
 ! weak  polyelectrolytes polymers                                |
@@ -57,6 +56,7 @@ program main
     integer  :: nlist_elem, maxlist_elem, nlist_step
 
     integer :: phoscutoff
+    integer :: s_begin,s_end
 
     ! .. executable statements
 
@@ -143,7 +143,24 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info)
+
+    if(nnucl==8) then
+       s_begin=6355
+       s_end=7188
+       ! call write_indexchain_histone(sbegin,send,conf_begin,conf_end)
+       ! call error_handler(1,'stop program')
    
+       call compare_indexchain_histone(s_begin,s_end,info)
+       info=info*(-1) ! Warning
+       call error_handler(info,'compare_indexchain')
+    
+       if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
+          call compare_indexconf_histone(s_begin,s_end,info)
+          info=info*(-1) ! Warning
+          call error_handler(info,'compare_indexconf')
+       endif
+    endif  
+
     !  .. computation starts
 
     allocate(xstored(neq))

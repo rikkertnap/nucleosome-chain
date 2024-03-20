@@ -1396,6 +1396,8 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
+    write(un_sys,*)'numproc     = ',numproc
+
 
     ! concentration
     write(un_sys,*)'cNaCl       = ',cNaCl
@@ -1810,7 +1812,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
-
+    write(un_sys,*)'numproc     = ',numproc
+	
     ! concentration
     write(un_sys,*)'cNaCl       = ',cNaCl
     write(un_sys,*)'cKCl        = ',cKCl
@@ -2483,6 +2486,8 @@ subroutine output_neutral
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
+    write(un_sys,*)'numproc     = ',numproc
+
     ! other physical parameters
     write(un_sys,*)'T           = ',Tref
      do t=1,nsegtypes

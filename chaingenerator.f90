@@ -1,4 +1,4 @@
-!---------------------------------------------------------------|
+! --------------------------------------------------------------|
 !                                                               | 
 ! chainsgenerator.f90:                                          |       
 ! Generator chains conformations either using                   | 
@@ -18,12 +18,16 @@ module chaingenerator
 
     real(dp), parameter :: eps_equilat=1.0e-8_dp
 
+    character(len=80), parameter  :: fmt3xyz = "(3ES15.5E2)"
+
     private 
+
 
     public :: make_chains, make_chains_mc,read_chains_XYZ
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     public :: find_phosphate_location
+    public :: write_indexchain_histone, compare_indexchain_histone, compare_indexconf_histone
 
     private ::  eps_equilat
 
@@ -267,6 +271,16 @@ subroutine read_chains_xyz(systype,info)
 end subroutine
 
 
+elemental subroutine sp_to_dp( lhs, rhs )
+      real(kind=dp), intent(out) :: lhs
+      real(kind=sp), intent(in)  :: rhs
+      character(len=*), parameter :: fmtdp = "(1pg15.7)"
+      character(len=22) :: s 
+      write( s, fmtdp ) rhs
+      read( s, fmt=*) lhs
+end subroutine
+
+
 ! Reads conformations from a file called traj.<rank>.xyz
 ! Reads energy of the conformation from a file called energy.<rank>.ene
 ! Reading of energy file only if isChainEnergyFile==.true.
@@ -320,7 +334,7 @@ subroutine read_chains_xyz_nucl(info)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(sp) :: xc,yc,zc               
+    real(dp) :: xc,yc,zc               
     real(dp) :: energy                                             
     character(len=25) :: fname
     integer :: ios, rankfile, iosene
@@ -332,8 +346,10 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: d_type_num, d_atom_num
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
-    character(len=80), parameter  :: fmt3reals = "(5F25.16)"
+    ! character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     real(dp) :: equilat, equilat_rot
+    integer ::ii
+    ! real(dp) :: xcdp,ycdp,zcdp
 
     ! .. executable statements   
 
@@ -419,15 +435,16 @@ subroutine read_chains_xyz_nucl(info)
         
         do s=1,nseg              ! .. read form  trajectory file
     
-            read(un,*,iostat=ios)xc,yc,zc
-            if(ios/=0) isReadGood=.false. 
-            
+            ! read(un,'(3ES15.5E2)',iostat=ios)xc,yc,zc
+            read(un,fmt3xyz,iostat=ios)xc,yc,zc 
+            if(ios/=0) isReadGood=.false.      
             xseg(1,s) = xc*scalefactor 
             xseg(2,s) = yc*scalefactor  
             xseg(3,s) = zc*scalefactor 
             
         enddo
 
+    
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
         if(isReadGood) then ! read was succesfull  
@@ -486,8 +503,27 @@ subroutine read_chains_xyz_nucl(info)
                         info= myio_err_index
                         return
                     endif
-                    
+                
+                  ! if(s==6733.and.(conf==1.or.conf==46)) then 
+                  !      print*,"================="
+                  !      print*,"xseg(:s)=",xseg(:,s),"xseg(:,sgraftpts(1))=",xseg(:,sgraftpts(1))
+                  !      print*,"conf=",conf
+                  !      print*,"xcm=",xcm," Lx=", Lx
+                  !      print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi                      
+                  !      print*,"1,  chain(1,s),  chain_rot(1,s),  chain_pbc(1,s),  mod(chain_pbc(1,s),delta)"
+                  !      print*,1,chain(1,s),chain_rot(1,s),chain_pbc(1,s),mod(chain_pbc(1,s),delta)
+                  !      print*,2,chain(2,s),chain_rot(2,s),chain_pbc(2,s),mod(chain_pbc(2,s),delta)
+                  !      print*,3,chain(3,s),chain_rot(3,s),chain_pbc(3,s),mod(chain_pbc(3,s),delta)
+                  !      print*,"================="
+                  ! endif
                 enddo
+               
+                !if(conf==46) then
+                !    do s=sbegin,send     
+                !        print*,"s=",s," chain_rot(1,s)=",chain_rot(1,s)," chain_rot(1,s)+xcm=",&
+                !        chain_rot(1,s)+xcm," mod(chain_pbc,delta)=",mod(chain_pbc(1,s),delta) 
+                !    enddo
+                !endif
 
                 energychain(conf)      = energy
 
@@ -533,7 +569,7 @@ subroutine read_chains_xyz_nucl(info)
                         info= myio_err_index
                         return
                     endif
-                    
+
                 enddo
                 
                 energychain(conf)      = energy
@@ -543,7 +579,6 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-
                 conf=conf+1   
 
             case default
@@ -645,7 +680,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer  :: xi,yi,zi, ri(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
-    real(sp) :: xc,yc,zc             ! coordinates in single precision            
+    real(dp) :: xc,yc,zc             ! coordinates            
     real(dp) :: energy                                             
     character(len=25) :: fname
     character(lenText):: fname2
@@ -659,7 +694,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
     integer :: nrotpts
-    character(len=80), parameter  :: fmt3reals = "(5F25.16)"
+    ! character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     real(dp) :: equilat,equilat_rot
     integer :: nelem2(3),nsegAA2 
     integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
@@ -831,7 +866,7 @@ subroutine read_chains_xyz_nucl_volume(info)
         
         do s=1,nseg              ! .. read form  trajectory file
     
-            read(un,*,iostat=ios)xc,yc,zc
+            read(un,fmt3xyz,iostat=ios)xc,yc,zc
             if(ios/=0) isReadGood=.false. 
             
             xseg(1,s) = xc*scalefactor 
@@ -3590,6 +3625,120 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
 
        
 end subroutine find_phosphate_location
+
+
+! print index coordiants of conf between sbegin and send ( i..e histone ) 
+! for conformations conf_begin through conf_end
+
+subroutine write_indexchain_histone(sbegin,send,conf_begin,conf_end)
+
+    use globals, only : cuantas
+    use chains,  only : indexchain
+    use myutils, only : lenText, newunit, error_handler
+    use mpivars, only : rank
+    use volume, only : indextocoord
+
+    integer, intent(in) :: sbegin,send, conf_begin
+    integer, intent(inout) :: conf_end
+
+    character(len=lenText) :: fname, istr, text
+    integer :: s, conf, un, ios, info, ind
+    integer :: ivec(3)
+
+    info=0
+    if(cuantas<conf_end) then
+        print*,"write_indexchain: cuantas < conf_end"
+        conf_end=cuantas
+    endif
+    if(conf_begin>cuantas)then 
+        info=1
+        text="conf_begin>cuantas: stopping"
+        call error_handler(info,"write_indexchain")
+    endif
+    do conf=conf_begin,conf_end
+        write(istr,'(I4)')rank
+        fname='index-chain.'//trim(adjustl(istr))//'cuantas'
+        write(istr,'(I4)')conf
+        fname=trim(fname)//trim(adjustl(istr))//'.dat'
+        open(unit=newunit(un),file=fname,status='new',iostat=ios)
+        do s=sbegin,send
+           ind=indexchain(s,conf)
+           ivec=indextocoord(ind,:)
+           write(un,*,iostat=ios)s,ind,ivec
+        enddo
+        close(un)
+    enddo
+
+
+end subroutine 
+
+! Check indexchain of histone ( CA of AA) atoms,  which are between sbegin and send, that 
+! are  translated and rotate in the same position and orientation for all  conformantion
+ 
+subroutine compare_indexchain_histone(sbegin,send,info)
+
+    use globals, only : cuantas
+    use chains,  only : indexchain
+    use mpivars, only : rank
+
+    integer, intent(in) :: sbegin,send
+    integer, intent(out) :: info
+
+    integer :: s, conf,ind, indref
+
+    info=0
+    do conf=1,cuantas
+        do s=sbegin,send
+           indref= indexchain(s,1) ! assume conf 1 is oke  
+           ind = indexchain(s,conf)
+           if(ind/=indref) then 
+              info=info+1
+              print*,"rank=",rank," conf=",conf,"s=",s,"ind=",ind," indref=",indref
+           endif
+        enddo
+    enddo
+    print*,"rank=",rank," info=",info
+
+
+end subroutine
+
+
+
+! Check indexconf of histone ( CA of AA) atoms,  which are between sbegin and send, that 
+! are  translated and rotate in the same position and orientation for all  conformantion
+
+subroutine compare_indexconf_histone(sbegin,send,info)
+
+    use globals, only : cuantas
+    use chains,  only : indexconf, nelem
+    use mpivars, only : rank
+
+    integer, intent(in) :: sbegin,send
+    integer, intent(out) :: info
+
+    integer :: s, conf, j, ind, indref
+
+    info=0
+    do conf=1,cuantas
+        do s=sbegin,send
+           do j=1,nelem(s)
+              indref= indexconf(s,1)%elem(j)  ! assume conf 1 is oke  
+              ind   = indexconf(s,conf)%elem(j)
+              if(ind/=indref) then
+                 info=info+1
+                 print*,"rank=",rank," conf=",conf," s=",s," j= ",j," ind=",ind," indref=",indref
+              endif
+           enddo
+        enddo
+    enddo
+
+    print*,"rank=",rank," info=",info
+
+
+end subroutine
+
+
+
 
 
 end module chaingenerator
