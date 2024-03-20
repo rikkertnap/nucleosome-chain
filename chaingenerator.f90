@@ -1882,15 +1882,15 @@ subroutine write_indexconf_lammps_trj(info)
 
     do conf=1,cuantas
         ! write preamble 
-        write(un_trj,*)'ITEM: TIMESTEP' 
+        write(un_trj,'(14A)')'ITEM: TIMESTEP' 
         write(un_trj,*)conf 
-        write(un_trj,*)'ITEM: NUMBER OF ATOMS' 
+        write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
         write(un_trj,*)nsegtot 
-        write(un_trj,*)'ITEM: BOX BOUNDS ff ff ff'
+        write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
         write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)'ITEM: ATOMS id mol type x y z '
+        write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z '
         !  determine x, y, z,
 
         do s=1,nseg
