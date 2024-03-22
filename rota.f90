@@ -576,8 +576,55 @@ subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem
 end subroutine rotate_chain_elem 
 
 
+subroutine unit_test_rotation(info)
+
+    use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
+    use quaternions, only : print_rotation_matrix
+
+    integer, intent(out) :: info
+
+    ! .. local variables
+
+    real(dp), parameter :: eps = 0.000001_dp
+
+    real(dp) :: a(3), b(3), anorm, bnorm, u(3), unorm, angle, a_rot(3)
+    real(dp) :: q(4)
+    real(dp) :: Rmat(3,3)
+    real(dp) :: wvec(3)
+    integer :: i
+
+    info=0
+
+    a = (/1.0_dp,1.0_dp,0.0_dp/)
+    anorm= vec_norm(a)
+    a(1:3)=a(1:3)/anorm
+    b = (/1.0_dp,-1.0_dp,0.0_dp/)   ! target vector
+    bnorm = vec_norm(b)
+    b(1:3)=b(1:3)/bnorm
+
+    call rot_axis_angle(a, b, u, angle)
+    unorm = vec_norm(u)
+    u(1:3) = u(1:3)/unorm         ! rotation axis 
+
+    if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
+
+    print*,"a=",a
+    print*,"b=",b
+    print*,"angle=",angle
+    print*,"nvec=",u
+
+    q = rot_axis_angle_to_quat(u, angle)   ! rotation quaternion
+    call rotation_matrix_from_quat(q,Rmat)
+    a_rot = matmul(Rmat,a) ! apply rotation
+    wvec = a_rot-b
+    print*,"arot-b =",wvec
+
+    do i=1,3
+        if(abs( wvec(i))>=eps) info=1
+    enddo
 
 
+end subroutine unit_test_rotation
 
 
 end module chain_rotation

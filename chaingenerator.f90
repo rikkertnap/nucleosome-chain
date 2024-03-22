@@ -14,6 +14,7 @@ module chaingenerator
 
    ! integer, parameter :: lenfname=40
     integer :: conf_write
+    integer :: conf_write_chain
     real(dp) :: xgraftloop(3,2)
 
     real(dp), parameter :: eps_equilat=1.0e-8_dp
@@ -129,7 +130,7 @@ subroutine make_chains_mc()
     energy=0.0_dp
             
     if(write_mc_chains) then 
-        conf_write=0
+        conf_write_chain=0
         un_trj= open_chain_lammps_trj(info)
         un_ene= open_chain_energy()
     endif   
@@ -765,7 +766,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     endif    
 
     conf=1                    ! counter for conformations                                                           
-    conffile=0                ! counter for conformations in file    
+    conffile=0                ! counter for conformations in file 
+    conf_write=0  
+    conf_write_chain=0 
+    
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
@@ -1021,8 +1025,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     !call error_handler(1,"hello!!!!")
                 endif    
 
-
-                if(DEBUG) call write_indexconf_lammps_trj(info_traj)
+ 
+ !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
                 energychain(conf)      = energy
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1155,7 +1159,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     call normed_weightchains()     
 
     deallocate(energychain) ! free unused variables 
-    
+
+    if(DEBUG) call write_indexconf_lammps_trj(info_traj)
+
+  
 end subroutine read_chains_xyz_nucl_volume
 
 subroutine read_graftpts_xyz_nucl(info)
@@ -1179,7 +1186,8 @@ subroutine read_graftpts_xyz_nucl(info)
     integer :: rankfile
     integer :: item,moltype,nsegfile,idatom
     character(len=30) :: istr,str
-    real(dp) :: xbox0,xbox1,scalefactor
+    !real(dp) :: xbox0,xbox1
+    real(dp) :: scalefactor
     logical :: exist, isGraftItem
 
     ! .. executable statements 
@@ -1774,7 +1782,7 @@ subroutine write_indexchain_lammps_trj(info)
     use mpivars, only : rank
     use globals, only : nseg, cuantas
     use myutils, only : newunit, lenText
-    use volume, only : delta, nz, coordinateFromLinearIndex
+    use volume, only : delta, nz, nx, ny, indextocoord
     use chains, only : indexchain, type_of_monomer
     use myio, only   : myio_err_chainsfile
 
@@ -1784,8 +1792,8 @@ subroutine write_indexchain_lammps_trj(info)
     character(len=25) :: fname
     integer :: ios, un_trj 
     real(dp):: x, y, z
-    integer :: ix, iy, iz, i, j, k, idx
-    real(dp) :: xbox0, xbox1
+    integer :: ix, iy, iz, ic(3), idx
+    real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, moltype, conf
 
     if (present(info)) info=0
@@ -1801,7 +1809,9 @@ subroutine write_indexchain_lammps_trj(info)
     endif
 
     xbox0=0.0_dp
-    xbox1=nz*delta
+    xbox1(1)=nx*delta*10.0_dp
+    xbox1(2)=ny*delta*10.0_dp
+    xbox1(3)=nz*delta*10.0_dp
     
     do conf=1,cuantas
         ! write preamble 
@@ -1810,17 +1820,17 @@ subroutine write_indexchain_lammps_trj(info)
         write(un_trj,*)'ITEM: NUMBER OF ATOMS' 
         write(un_trj,*)nseg 
         write(un_trj,*)'ITEM: BOX BOUNDS ff ff ff'
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
+        write(un_trj,*)xbox0,xbox1(1)
+        write(un_trj,*)xbox0,xbox1(2)
+        write(un_trj,*)xbox0,xbox1(3)
         write(un_trj,*)'ITEM: ATOMS id mol type x y z '
         !  determine x, y, z,
         do item=1,nseg
             idx=indexchain(item,conf)
-            call coordinateFromLinearIndex(idx, i, j, k)
-            x=(i-0.5_dp)*delta*10.0_dp
-            y=(j-0.5_dp)*delta*10.0_dp
-            z=(k-0.5_dp)*delta*10.0_dp
+            ic=indextocoord(idx,:)
+            x=(ic(1)-0.5_dp)*delta*10.0_dp
+            y=(ic(2)-0.5_dp)*delta*10.0_dp
+            z=(ic(3)-0.5_dp)*delta*10.0_dp
             idatom=1
             moltype=type_of_monomer(item) 
             write(un_trj,*)item,idatom,moltype,x,y,z
@@ -1843,7 +1853,7 @@ subroutine write_indexconf_lammps_trj(info)
     use mpivars, only : rank
     use globals, only : nseg, cuantas
     use myutils, only : newunit, lenText
-    use volume, only : delta, nz, coordinateFromLinearIndex
+    use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
     use chains, only : indexconf, type_of_monomer, nucl_elem_type, nelem
     use myio, only   : myio_err_chainsfile
 
@@ -1854,7 +1864,7 @@ subroutine write_indexconf_lammps_trj(info)
     integer :: ios, un_trj 
     real(dp):: x, y, z
     integer :: ix, iy, iz, i, j, k, idx, s, em
-    real(dp) :: xbox0, xbox1
+    real(dp) :: xbox0,xbox1(3)
     integer :: idatom, item, conf
     character(len=3) :: moltype
     integer :: nsegtot
@@ -1872,8 +1882,11 @@ subroutine write_indexconf_lammps_trj(info)
     endif
 
     xbox0=0.0_dp
-    xbox1=nz*delta
-    
+
+    xbox1(1)=nx*delta*10.0_dp ! conversion to Angstrom
+    xbox1(2)=ny*delta*10.0_dp 
+    xbox1(3)=nz*delta*10.0_dp 
+
     nsegtot=0
     do s=1,nseg
         nsegtot=nsegtot+nelem(s)
@@ -1887,9 +1900,9 @@ subroutine write_indexconf_lammps_trj(info)
         write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
         write(un_trj,*)nsegtot 
         write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
+        write(un_trj,*)xbox0,xbox1(1)
+        write(un_trj,*)xbox0,xbox1(2)
+        write(un_trj,*)xbox0,xbox1(3)
         write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z '
         !  determine x, y, z,
 
@@ -1941,14 +1954,14 @@ function open_chain_lammps_trj(info)result(un_trj)
     fname='trajchain'//trim(adjustl(istr))//'.lammpstrj'
     inquire(file=fname,exist=exist)
     if(.not.exist) then
-        open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
+        open(unit=newunit(un_trj),file=fname,status='new',action="write",iostat=ios)
         if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             info = myio_err_chainsfile
             return
         endif
     else
-        open(unit=newunit(un_trj),file=fname,status='old',iostat=ios)
+        open(unit=newunit(un_trj),file=fname,position="append",status='old',action="write",iostat=ios)
         if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             info = myio_err_chainsfile
@@ -1986,14 +1999,14 @@ function open_chain_elem_index_lammps_trj(info)result(un_trj)
     fname='trajchainelemindex'//trim(adjustl(istr))//'.lammpstrj'
     inquire(file=fname,exist=exist)
     if(.not.exist) then
-        open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
+        open(unit=newunit(un_trj),file=fname,status='new',action="write",iostat=ios)
         if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             info = myio_err_chainsfile
             return
         endif
     else
-        open(unit=newunit(un_trj),file=fname,status='old',iostat=ios)
+        open(unit=newunit(un_trj),file=fname,position="append",status='old',action="write", iostat=ios)
         if(ios > 0 ) then
             print*, 'Error opening : ',fname,' file : iostat =', ios
             info = myio_err_chainsfile
@@ -2017,7 +2030,7 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
 
     use globals, only : nseg
     use myutils, only : newunit, lenText
-    use volume, only : delta, nz, coordinateFromLinearIndex
+    use volume, only : delta, nx, ny, nz
     use chains, only :  type_of_monomer
 
     real(dp), intent(in) :: chain(:,:,:)
@@ -2027,30 +2040,28 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
     character(len=lenText) :: istr
     real(dp) :: x, y, z
     integer ::  i, j, k
-    real(dp) :: xbox0, xbox1
-    integer :: idatom, item, moltype, conf
+    real(dp) :: xbox0, xbox1(3)
+    integer :: idatom, item, moltype !, conf_write
 
     xbox0=0.0_dp
-    xbox1=nz*delta
-    conf_write=0
+    xbox1(1)=nx*delta*10.0_dp ! conversion to Angstrom 
+    xbox1(2)=ny*delta*10.0_dp
+    xbox1(3)=nz*delta*10.0_dp
 
     do j=1,nchains   
         
-        conf_write=conf_write+1 
+        conf_write_chain=conf_write_chain+1 
         ! write preamble 
         write(un_trj,'(14A)')'ITEM: TIMESTEP' 
         write(un_trj,*)conf_write 
         write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
         write(un_trj,*)nseg 
         write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
-        write(un_trj,*)xbox0,xbox1
+        write(un_trj,*)xbox0,xbox1(1)
+        write(un_trj,*)xbox0,xbox1(2)
+        write(un_trj,*)xbox0,xbox1(3)
         write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
         do item=1,nseg
-         !   z = chain(1,item,j)/xbox1
-         !   x = chain(2,item,j)/xbox1
-         !   y = chain(3,item,j)/xbox1 
             x = chain(1,item,j)*10.0_dp
             y = chain(2,item,j)*10.0_dp
             z = chain(3,item,j)*10.0_dp
@@ -2076,7 +2087,7 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
 
     use globals, only : nseg
     use myutils, only : newunit, lenText
-    use volume, only : delta, nz, coordinateFromLinearIndex
+    use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
     use chains, only : type_of_monomer, nelem,  nucl_elem_type, type_of_monomer_char
     use chains, only : var_darray ! type def  
 
@@ -2086,15 +2097,17 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     character(len=lenText) :: istr
     real(dp) :: x, y, z
     integer ::  j, s
-    real(dp) :: xbox0, xbox1
+    real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, conf, nsegtot
     character(len=3) :: moltype,idatom_char
 
-    xbox0=0.0_dp
-    xbox1=nz*delta
-   
+    xbox0=0.0_dp 
+    xbox1(1)=nx*delta*10.0_dp
+    xbox1(2)=ny*delta*10.0_dp
+    xbox1(3)=nz*delta*10.0_dp
+
     item=0
-    conf_write=1
+    conf_write=conf_write+1
 
     nsegtot=0
     do s=1,nseg
@@ -2107,9 +2120,9 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
     write(un_trj,*)nsegtot 
     write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
-    write(un_trj,*)xbox0,xbox1
-    write(un_trj,*)xbox0,xbox1
-    write(un_trj,*)xbox0,xbox1
+    write(un_trj,*)xbox0,xbox1(1)
+    write(un_trj,*)xbox0,xbox1(2)
+    write(un_trj,*)xbox0,xbox1(3)
     write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
     do s=1,nseg
         do j=1,nelem(s)
