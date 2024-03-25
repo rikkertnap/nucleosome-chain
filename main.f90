@@ -151,13 +151,15 @@ program main
        ! call error_handler(1,'stop program')
    
        call compare_indexchain_histone(s_begin,s_end,info)
+       print*,"info=",info
        info=info*(-1) ! Warning
-       call error_handler(info,'compare_indexchain')
+       print*,"info=",info
+       !call error_handler(info,'compare_indexchain')
     
        if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
           call compare_indexconf_histone(s_begin,s_end,info)
           info=info*(-1) ! Warning
-          call error_handler(info,'compare_indexconf')
+          !call error_handler(info,'compare_indexconf')
        endif
     endif  
 

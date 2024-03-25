@@ -66,11 +66,12 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vpol, isVdW,  isrhoselfconsistent
+        use parameters, only : vpol, isVdW, isrhoselfconsistent, write_Palpha
         use VdW, only : VdW_contribution_lnexp
+        use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
-        
+       
         ! .. declare local variables
 
         real(dp) :: lnexppi(nsize,nsegtypes)   ! auxilairy variable for computing P(\alpha)  
@@ -82,6 +83,14 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname, istr
+
+        !  .. opens file to save Palpha 
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -146,6 +155,8 @@ contains
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
+
+           if(write_Palpha) write(un,*)pro/q
         enddo
         
         Rgsqr_local = Rgsqr_local/q
@@ -197,6 +208,7 @@ contains
             call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_neutral
 
@@ -212,8 +224,9 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vpol, isVdW, VdWscale
+        use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
         use VdW, only : VdW_contribution_exp
+        use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -228,8 +241,16 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3) 
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname, istr
+        
+        !  .. opens file to save Palpha 
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif   
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
+       ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
             do i = 1, size-1
@@ -279,7 +300,10 @@ contains
             Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
             bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
+            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro 
+
+           if(write_Palpha) write(un,*)pro/q
+
         enddo
         
         Rgsqr_local = Rgsqr_local/q
@@ -342,6 +366,7 @@ contains
             endif 
         endif
 
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_neutral_noVdW
 
@@ -355,8 +380,10 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
-        use parameters, only : vpol, zpol, isVdW,  isrhoselfconsistent
+        use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
+
         use VdW, only : VdW_contribution_lnexp
+        use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -371,6 +398,13 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=LenText) :: fname 
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif   
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -445,6 +479,9 @@ contains
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+       
+           if(write_Palpha) write(un,*)pro/q
+
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -497,6 +534,7 @@ contains
             call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_brush_mul
 
@@ -510,7 +548,8 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
-        use parameters, only : vpol, zpol
+        use parameters, only : vpol, zpol, write_Palpha
+        use myutils, only : lenText, newunit
         
         real(dp), intent(out) :: FEconf,Econf
         
@@ -525,6 +564,14 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+
+        if(write_Palpha) then
+             call make_filename_Palpha(fname,rank)
+             open(unit=newunit(un),file=fname)
+        endif
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -594,6 +641,9 @@ contains
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
+       
+            if(write_Palpha) write(un,*)pro/q
+
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -646,6 +696,8 @@ contains
         
         endif
 
+        if(write_Palpha) close(un)
+
     end subroutine FEconf_brush_mulnoVdW
 
 
@@ -659,6 +711,7 @@ contains
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
+        use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf
         real(dp), intent(out) :: Econf
@@ -674,7 +727,14 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
 
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif   
+ 
         ! .. executable statements 
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
@@ -732,7 +792,9 @@ contains
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro     
+            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+
+            if(write_Palpha) write(un,*) pro/q     
         enddo  
 
         Rgsqr_local=Rgsqr_local/q
@@ -786,6 +848,8 @@ contains
         endif
 
         Econf=0.0_dp
+         
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_elect
 
@@ -801,14 +865,14 @@ contains
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle  
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
-        use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW
+        use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
         use parameters, only : vpolAA, vsol, vNa, vCl, vRb, vMg, vCa ,vpol
         use parameters, only : zNa, zCl, zRb, zMg, zCa, zpolAA
        ! use volume, only : ngr, nset_per_graft
         use VdW, only : VdW_contribution_lnexp
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
         use dielectric_const, only : dielectfcn, born
-
+        use myutils, only : lenText, newunit
 
         
         real(dp), intent(out) :: FEconf,Econf
@@ -828,6 +892,13 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif   
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -968,6 +1039,8 @@ contains
             bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
+
+             if(write_Palpha) write(un,*)pro/q
         enddo
 
         Rgsqr_local=Rgsqr_local/q
@@ -1020,7 +1093,8 @@ contains
             call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
-
+       
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_brush_born
 
@@ -1034,8 +1108,9 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
-        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent
+        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         use VdW, only : VdW_contribution_lnexp
+        use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -1051,6 +1126,13 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif   
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -1135,6 +1217,9 @@ contains
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+            
+            if(write_Palpha) write(un,*)pro/q
+
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -1198,7 +1283,8 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
          endif
-
+         
+         if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_ionbin_sv
 
@@ -1217,9 +1303,10 @@ contains
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
-        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent
+        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         ! use VdW, only : VdW_contribution_lnexp
-
+        use myutils, only : lenText, newunit
+        
         real(dp), intent(out) :: FEconf,Econf
         
         ! .. declare local variables
@@ -1234,6 +1321,13 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -1374,6 +1468,9 @@ contains
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+
+            if(write_Palpha) write(un,*)pro/q
+        
         enddo
         
         Rgsqr_local=Rgsqr_local/q
@@ -1438,11 +1535,10 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
         endif
-
+        
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_ionbin_Mg
-
-
 
         
 
@@ -1455,8 +1551,9 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vsol, vnucl, isVdW,  isrhoselfconsistent
+        use parameters, only : vsol, vnucl, isVdW, isrhoselfconsistent, write_Palpha
         use VdW, only : VdW_contribution_lnexp
+        use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
         
@@ -1471,6 +1568,13 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,rank)
+            open(unit=newunit(un),file=fname)
+        endif
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
@@ -1537,7 +1641,10 @@ contains
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
             dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
             nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
-        enddo
+            
+            if(write_Palpha) write(un,*)pro/q 
+
+       enddo
         
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
@@ -1600,9 +1707,176 @@ contains
             endif
         endif
 
+        if(write_Palpha) close(un)
+
     end subroutine FEconf_nucl_neutral_sv
 
 
 
+    subroutine make_filename_Palpha(fname,rank)
+
+        use myutils, only : lenText
+
+        character(len=*), intent(inout) :: fname
+        integer, intent(in) :: rank
+
+        character(len=lenText) :: fnamelabel, istr
+
+        write(istr,'(I4)')rank
+        call make_filename_label(fnamelabel)
+        fname='Palpha.'//trim(fnamelabel)//'rank'//trim(adjustl(istr))//'.dat'
+
+
+    end subroutine make_filename_Palpha
+
+
+    ! Subroutine similar to subroutine  make_filename_label in module module myio in myio.f90
+    ! Subroutine used by make_filename_Palpa 
+    ! for output Palpha. Reason 'extra' subroutine module myio compile after conform_entropy
+    ! and extra variable in name to no exstention .dat.
+
+    subroutine make_filename_label(fnamelabel)
+
+        use globals, only : systype, runtype
+        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+
+        character(len=*), intent(inout) :: fnamelabel
+
+        character(len=20) :: rstr
+        real(dp) :: denspol
+
+
+        denspol=init_denspol()
+
+        !     .. make label filename
+
+        select case(systype)
+
+        case("elect","electnopoly","electA")
+
+            write(rstr,'(F5.3)')denspol
+            fnamelabel="phi"//trim(adjustl(rstr))
+            write(rstr,'(F5.3)')cNaCl
+            fnamelabel=trim(fnamelabel)//"cNaCl"//trim(adjustl(rstr))
+
+            if(cKCl/=0.0_dp) then
+                if(cKCl>=0.001_dp) then
+                    write(rstr,'(F5.3)')cKCl
+                else
+                    write(rstr,'(ES9.2E2)')cKCl
+                endif
+                fnamelabel=trim(fnamelabel)//"cKCl"//trim(adjustl(rstr))
+            endif
+
+            if(cCaCl2>=0.001) then
+                write(rstr,'(F5.3)')cCaCl2
+            elseif(cCaCl2>0.0) then
+                write(rstr,'(ES9.2E2)')cCaCl2
+            else
+                write(rstr,'(F3.1)')cCaCl2
+            endif
+            fnamelabel=trim(fnamelabel)//"cCaCl2"//trim(adjustl(rstr))
+            write(rstr,'(F7.3)')pHbulk
+            fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))
+
+        case("neutral","neutralnoVdW","nucl_neutral_sv")
+
+            if(denspol>=0.001) then
+                write(rstr,'(F5.3)')denspol
+            else
+                write(rstr,'(ES9.2E2)')denspol
+            endif
+
+            fnamelabel="phi"//trim(adjustl(rstr))
+            write(rstr,'(F5.3)')VdWscale%val
+            fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))
+
+        case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
+            "brushborn","nucl_ionbin_Mg")
+            
+            if(denspol>=0.001) then
+                write(rstr,'(F5.3)')denspol
+            else
+                write(rstr,'(ES9.2E2)')denspol
+            endif
+            
+            fnamelabel="phi"//trim(adjustl(rstr))
+
+            if(cNaCl>=0.001_dp) then
+                write(rstr,'(F5.3)')cNaCl
+            else
+                write(rstr,'(ES9.2E2)')cNaCl
+            endif
+            
+            fnamelabel=trim(fnamelabel)//"cNaCl"//trim(adjustl(rstr))
+
+            if(cKCl/=0.0_dp) then
+                if(cKCl>=0.001_dp) then
+                    write(rstr,'(F5.3)')cKCl
+                else
+                    write(rstr,'(ES9.2E2)')cKCl
+                endif
+                fnamelabel=trim(fnamelabel)//"cKCl"//trim(adjustl(rstr))
+            endif
+
+            if(cCaCl2/=0.0_dp) then
+                if(cCaCl2>=0.001) then
+                    if(cCaCl2>=0.01) then
+                        write(rstr,'(F5.3)')cCaCl2
+                    else
+                        write(rstr,'(F6.4)')cCaCl2
+                    endif  
+                elseif(cCaCl2>0.0) then
+                    write(rstr,'(ES9.2E2)')cCaCl2
+                else
+                    write(rstr,'(F3.1)')cCaCl2
+                endif
+                fnamelabel=trim(fnamelabel)//"cCaCl2"//trim(adjustl(rstr))
+            endif
+            
+            if(cMgCl2/=0.0_dp) then
+                if(cMgCl2>=0.001) then
+                    if(cMgCl2>=0.01) then
+                        write(rstr,'(F5.3)')cMgCl2
+                    else
+                        write(rstr,'(F6.4)')cMgCl2
+                    endif  
+                elseif(cMgCl2>0.0) then
+                    write(rstr,'(ES9.2E2)')cMgCl2
+                else
+                    write(rstr,'(F3.1)')cMgCl2
+                endif
+
+                fnamelabel=trim(fnamelabel)//"cMgCl2"//trim(adjustl(rstr))
+            endif
+
+            write(rstr,'(F7.3)')pHbulk
+            fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))
+
+            if(runtype=="rangepKd") then
+                if(pKd%val<0) then
+                    write(rstr,'(F5.2)')pKd%val
+                else
+                    write(rstr,'(F5.3)')pKd%val
+                endif
+                fnamelabel=trim(fnamelabel)//"pKd"//trim(adjustl(rstr))
+
+            elseif(runtype=="rangeVdWeps") then
+                write(rstr,'(F5.3)')VdWscale%val
+                fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))
+
+            elseif(runtype=="rangedielect") then
+                write(rstr,'(ES9.2E2)')dielectscale%val
+                fnamelabel=trim(fnamelabel)//"dielectscale"//trim(adjustl(rstr))
+
+            endif
+
+
+        case default
+            print*,"Error in make_filename_label_Palpha subroutine"
+            print*,"Wrong value systype : ", systype
+        endselect
+
+    end subroutine make_filename_label
 
 end module conform_entropy

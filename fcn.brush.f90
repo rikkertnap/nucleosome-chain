@@ -3148,6 +3148,9 @@ contains
 
             print*,'iter=', iter ,'norm=',norm
 
+
+            call locate_xpol_lager_one(xpol)
+
         else                      ! Export results 
             
             dest = 0 

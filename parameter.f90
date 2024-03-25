@@ -114,13 +114,12 @@
 
     !  .. output control
 
-    !character(len=3) ::  verboseflag ! select verbosity of output if equal yes ion density also outputted
-
     logical :: write_localcharge     ! if .true. rhoq and  rhoqpol also outputted
     logical :: write_iondensities    ! if .true. density also outputted
     logical :: write_rotations       ! if .true. extra information by chain rotation test_rotate_nucl_chain written 
     logical :: write_frac            ! if .true. densityfrac, densityfracP and densityfacion alos  
-
+    logical :: write_Palpha          ! if .true. Palha is outputted
+    
     ! .. chain variables 
     real(dp) :: lseg              ! segment length of A polymer in nm
     real(dp), dimension(:), allocatable :: lsegAA 
@@ -141,7 +140,8 @@
     logical :: write_mc_chains        ! if true MC chain write of file
     logical :: write_struct           ! if true structural quantities writting to file
     logical :: isEnergyShift          ! if true energychain is shifted by energychain_min see chaingenerator
-
+    logical :: pbc_chains             ! if true apply pbc to chain conformation
+ 
     ! ..average structural properties of layer
 
     real(dp) :: avRsqr             ! average Radius of Gyration Nucleosome chain

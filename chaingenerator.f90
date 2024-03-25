@@ -482,9 +482,15 @@ subroutine read_chains_xyz_nucl(info)
 
                 do s=1,nseg
 
-                    chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions in x and y and z direcxtion 
-                    chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly)
-                    chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz)  
+                    if(pbc_chains) then 
+                        chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions in x and y and z direcxtion 
+                        chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly)
+                        chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz)  
+                    else
+                        chain_pbc(1,s) = chain_rot(1,s)+xcm 
+                        chain_pbc(2,s) = chain_rot(2,s)+ycm
+                        chain_pbc(3,s) = chain_rot(3,s)+zcm
+                    endif                    
 
                     ! transforming form real- to lattice coordinates                 
                     xi = int(chain_pbc(1,s)/delta)+1
@@ -505,26 +511,8 @@ subroutine read_chains_xyz_nucl(info)
                         return
                     endif
                 
-                  ! if(s==6733.and.(conf==1.or.conf==46)) then 
-                  !      print*,"================="
-                  !      print*,"xseg(:s)=",xseg(:,s),"xseg(:,sgraftpts(1))=",xseg(:,sgraftpts(1))
-                  !      print*,"conf=",conf
-                  !      print*,"xcm=",xcm," Lx=", Lx
-                  !      print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi                      
-                  !      print*,"1,  chain(1,s),  chain_rot(1,s),  chain_pbc(1,s),  mod(chain_pbc(1,s),delta)"
-                  !      print*,1,chain(1,s),chain_rot(1,s),chain_pbc(1,s),mod(chain_pbc(1,s),delta)
-                  !      print*,2,chain(2,s),chain_rot(2,s),chain_pbc(2,s),mod(chain_pbc(2,s),delta)
-                  !      print*,3,chain(3,s),chain_rot(3,s),chain_pbc(3,s),mod(chain_pbc(3,s),delta)
-                  !      print*,"================="
-                  ! endif
                 enddo
                
-                !if(conf==46) then
-                !    do s=sbegin,send     
-                !        print*,"s=",s," chain_rot(1,s)=",chain_rot(1,s)," chain_rot(1,s)+xcm=",&
-                !        chain_rot(1,s)+xcm," mod(chain_pbc,delta)=",mod(chain_pbc(1,s),delta) 
-                !    enddo
-                !endif
 
                 energychain(conf)      = energy
 
@@ -548,10 +536,16 @@ subroutine read_chains_xyz_nucl(info)
                     xpp(s) = ut(xp(s),yp(s))
                     ypp(s) = vt(xp(s)+ycm,yp(s))
 
-                    ! .. periodic boundary conditions in u and v ands z direction
-                    chain_pbc(1,s) = pbc(xpp(s),Lx) 
-                    chain_pbc(2,s) = pbc(ypp(s),Ly)
-                    chain_pbc(3,s) = pbc(zp(s),Lz)        
+                    if(pbc_chains) then 
+                         ! .. periodic boundary conditions in u and v ands z direction
+                         chain_pbc(1,s) = pbc(xpp(s),Lx) 
+                         chain_pbc(2,s) = pbc(ypp(s),Ly)
+                         chain_pbc(3,s) = pbc(zp(s),Lz)        
+                    else
+                         chain_pbc(1,s) = xpp(s)  
+                         chain_pbc(2,s) = ypp(s)
+                         chain_pbc(3,s) = zp(s)
+                    endif
 
                     ! .. transforming form real- to lattice coordinates                 
                     xi = int(chain_pbc(1,s)/delta)+1
@@ -965,10 +959,16 @@ subroutine read_chains_xyz_nucl_volume(info)
                 do s=1,nseg
 
                     ! transforming form real- to lattice coordinates  
-                    chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions  
-                    chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly) 
-                    chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz) 
-                    
+                    if(pbc_chains) then 
+                        chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions  
+                        chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly) 
+                        chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz) 
+                    else
+                        chain_pbc(1,s) = chain_rot(1,s)+xcm  
+                        chain_pbc(2,s) = chain_rot(2,s)+ycm
+                        chain_pbc(3,s) = chain_rot(3,s)+zcm
+                    endif                    
+
                     xi  = int(chain_pbc(1,s)/delta)+1
                     yi  = int(chain_pbc(2,s)/delta)+1
                     zi  = int(chain_pbc(3,s)/delta)+1
@@ -992,10 +992,16 @@ subroutine read_chains_xyz_nucl_volume(info)
                     ! apply elements other than CA
                     do j=2,nelem(s) 
 
-                        chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
-                        chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j)+ycm,Ly)
-                        chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j)+zcm,Lz)  
-                
+                        if(pbc_chains) then 
+                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
+                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j)+ycm,Ly)
+                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j)+zcm,Lz)  
+                        else
+                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm   
+                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
+                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm
+                        endif 
+
                         xi = int(chain_pbc_tmp(1)/delta)+1
                         yi = int(chain_pbc_tmp(2)/delta)+1
                         zi = int(chain_pbc_tmp(3)/delta)+1
@@ -1049,10 +1055,16 @@ subroutine read_chains_xyz_nucl_volume(info)
                     xpp(s) = ut(xp(s),yp(s))
                     ypp(s) = vt(xp(s),yp(s))
 
-                    ! .. periodic boundary conditions in u and v ands z direction
-                    chain_pbc(1,s) = pbc(xpp(s),Lx) 
-                    chain_pbc(2,s) = pbc(ypp(s),Ly)
-                    chain_pbc(3,s) = pbc(zp(s),Lz)        
+                     ! .. periodic boundary conditions in u and v ands z direction
+                    if(pbc_chains) then 
+                        chain_pbc(1,s) = pbc(xpp(s),Lx) 
+                        chain_pbc(2,s) = pbc(ypp(s),Ly)
+                        chain_pbc(3,s) = pbc(zp(s),Lz)
+                    else
+                        chain_pbc(1,s) = xpp(s) 
+                        chain_pbc(2,s) = ypp(s)
+                        chain_pbc(3,s) = zp(s)
+                    endif        
 
                     ! .. transforming form real- to lattice coordinates                 
                     xi = int(chain_pbc(1,s)/delta)+1
@@ -1078,9 +1090,15 @@ subroutine read_chains_xyz_nucl_volume(info)
                         chain_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm  
                         chain_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
                         chain_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm  
-                        chain_pbc_tmp(1) = pbc(ut(chain_tmp(1),chain_tmp(2)),Lx) 
-                        chain_pbc_tmp(2) = pbc(vt(chain_tmp(1),chain_tmp(2)),Ly)
-                        chain_pbc_tmp(3) = pbc(chain_tmp(3) ,Lz)
+                        if(pbc_chains) then 
+                            chain_pbc_tmp(1) = pbc(ut(chain_tmp(1),chain_tmp(2)),Lx) 
+                            chain_pbc_tmp(2) = pbc(vt(chain_tmp(1),chain_tmp(2)),Ly)
+                            chain_pbc_tmp(3) = pbc(chain_tmp(3) ,Lz)
+                        else
+                            chain_pbc_tmp(1) = ut(chain_tmp(1),chain_tmp(2))
+                            chain_pbc_tmp(2) = vt(chain_tmp(1),chain_tmp(2))
+                            chain_pbc_tmp(3) = chain_tmp(3)
+                        endif
 
                         xi = int(chain_pbc_tmp(1)/delta)+1
                         yi = int(chain_pbc_tmp(2)/delta)+1
@@ -3749,9 +3767,5 @@ subroutine compare_indexconf_histone(sbegin,send,info)
 
 
 end subroutine
-
-
-
-
 
 end module chaingenerator

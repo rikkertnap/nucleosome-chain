@@ -138,6 +138,7 @@ A central configuration file is called 'input.in' that contain following key wor
 |                           | bond angle, dihedral angle, Rend-to-end, Radius of gyration | if not set default: __.false.__| 
 |                           | and inter nucleosome spacing or distance  ||
 |write_rotations `logical`  | if .true. extra output on  nucleosome chain rotation calculation | if not set default: __.false.__|
+|write_Palpha    `logical`  | if .true. writing of  Palpha for all conformation                | if not set default: __.false.__|
 |dielectscale%val `real`	   | Strength dielectscale parameter Unit: dielect of water	    |  |
 |dielectscale%min `real`			 | Minimum strength dielectscale parameter    |  |
 |dielectscale%max `real`			 | Maximum strength dielectscaleparameter      |  |

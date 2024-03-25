@@ -88,8 +88,8 @@ subroutine read_inputfile(info)
     character(len=100) :: buffer, label
     integer :: pos
     integer :: line
-    logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_savePalpha,  isSet_EnergyShift
-    logical :: isSet_maxfkfunevals, isSet_maxniter
+    logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
+    logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains
 
     if (present(info)) info = 0
 
@@ -107,10 +107,11 @@ subroutine read_inputfile(info)
     isSet_maxnchains  =.false.
     isSet_maxnchainsxy=.false.
     isSet_precondition=.false.
-    isSet_savePalpha  =.false.
+    isSet_write_Palpha =.false.
     isSet_EnergyShift =.false.
     isSet_maxfkfunevals =.false.
-    isSet_maxniter     =.false.
+    isSet_maxniter     =.false. 
+    isSet_pbc_chains   =.false.
 
     write_mc_chains   =.false.
     write_struct      =.false.
@@ -118,7 +119,8 @@ subroutine read_inputfile(info)
     write_localcharge =.false.
     write_iondensities =.false.
     write_frac         =.false.
-    
+    write_Palpha      =.false.
+
     ! default concentrations
     cKCl=0.0_dp
     cCaCl2=0.0_dp
@@ -288,6 +290,9 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) write_struct
             case ('write_rotations')
                 read(buffer,*,iostat=ios) write_rotations
+            case ('write_Palpha')
+                read(buffer,*,iostat=ios) write_Palpha
+                isSet_write_Palpha=.true.
             case ('dielectscale%val')
                 read(buffer,*,iostat=ios) dielectscale%val
             case ('dielectscale%min')
@@ -300,7 +305,9 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) dielectscale%delta
             case ('distphoscutoff')
                 read(buffer,*,iostat=ios) distphoscutoff
-            
+            case ('pbc_chains')
+                read(buffer,*,iostat=ios) pbc_chains
+                isSet_pbc_chains = .true.
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped
@@ -385,6 +392,8 @@ subroutine read_inputfile(info)
     call set_value_logical_var(isEnergyShift,isSet_EnergyShift,.false.)
     call set_value_int_var(maxfkfunevals,isSet_maxfkfunevals,1000)
     call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
+    call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
+    call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
 
 !    call set_value_maxnchains(maxnchainsrotations,isSet_maxnchains)
 !    call set_value_maxnchainsxy(maxnchainsrotationsxy,isSet_maxnchainsxy)
