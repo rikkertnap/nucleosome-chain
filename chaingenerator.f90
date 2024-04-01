@@ -1,4 +1,4 @@
-! --------------------------------------------------------------|
+
 !                                                               | 
 ! chainsgenerator.f90:                                          |       
 ! Generator chains conformations either using                   | 
@@ -28,7 +28,7 @@ module chaingenerator
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     public :: find_phosphate_location
-    public :: write_indexchain_histone, compare_indexchain_histone, compare_indexconf_histone
+    public :: write_indexchain_histone, test_index_histone
 
     private ::  eps_equilat
 
@@ -1526,12 +1526,18 @@ subroutine set_isHomopolymer(freq,chaintype)
     character(len=8), intent(in)   :: chaintype
     
     integer :: s,  type_number
+    logical :: flag
 
     if(chaintype=="multi") then
         type_number=type_of_monomer(1)
-        do s=2,nseg
-            isHomopolymer=(type_of_monomer(s)==type_number)
+        flag=.true.
+        s=2
+        do while (s<=nseg .or. flag) 
+            if((type_of_monomer(s)/=type_number)) flag=.false.
+            s=s+1
         enddo
+        isHomopolymer=flag
+
     else if(freq>nseg) then 
         isHomopolymer=.TRUE.
     else 
@@ -3767,5 +3773,36 @@ subroutine compare_indexconf_histone(sbegin,send,info)
 
 
 end subroutine
+
+subroutine test_index_histone(info) 
+    
+    use globals, only : systype, nnucl 
+ 
+    integer, intent(inout) :: info
+
+    integer :: s_begin,s_end
+
+    if(nnucl==8) then
+       s_begin=6355
+       s_end=7186
+       ! call write_indexchain_histone(sbegin,send,conf_begin,conf_end)
+       ! call error_handler(1,'stop program')
+
+       call compare_indexchain_histone(s_begin,s_end,info)
+       print*,"info=",info
+       info=info*(-1) ! Warning
+       print*,"info=",info
+
+       if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
+          call compare_indexconf_histone(s_begin,s_end,info)
+          info=info*(-1) ! Warning
+       endif
+    else
+      print*,"nucl less 8: test_index_histone not applicable"  
+    endif
+
+
+end subroutine
+
 
 end module chaingenerator

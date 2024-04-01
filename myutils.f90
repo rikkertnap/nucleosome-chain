@@ -98,7 +98,7 @@ contains
 
         character(len=lenText) :: text, istr
 
-        if(info/=0) then
+        if(info>0) then
             write(istr,'(I3)')info
             text="Error in "//trim(adjustl(message))//" : info = "//istr//" : end program."
             call print_to_log(LogUnit,text)
@@ -106,6 +106,17 @@ contains
             call MPI_FINALIZE(ierr)
             stop
         endif
+
+
+        if(info<0) then
+            write(istr,'(I3)')info
+            text="Warning in "//trim(adjustl(message))//" : info = "//istr//" : end program."
+            call print_to_log(LogUnit,text)
+            print*,text
+        endif
+
+
+
 
     end subroutine error_handler
 

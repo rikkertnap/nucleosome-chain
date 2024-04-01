@@ -7,7 +7,7 @@
 
 program main
 
-    !     .. variable and constant declaractions
+    !  .. variable and constant declaractions
     use mpivars
     use globals       ! parameters definitions
     use physconst
@@ -144,24 +144,7 @@ program main
     call write_chain_config()
     call write_chain_struct(write_struct,info)
 
-    if(nnucl==8) then
-       s_begin=6355
-       s_end=7188
-       ! call write_indexchain_histone(sbegin,send,conf_begin,conf_end)
-       ! call error_handler(1,'stop program')
-   
-       call compare_indexchain_histone(s_begin,s_end,info)
-       print*,"info=",info
-       info=info*(-1) ! Warning
-       print*,"info=",info
-       !call error_handler(info,'compare_indexchain')
-    
-       if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
-          call compare_indexconf_histone(s_begin,s_end,info)
-          info=info*(-1) ! Warning
-          !call error_handler(info,'compare_indexconf')
-       endif
-    endif  
+    call test_index_histone(info)  
 
     !  .. computation starts
 
@@ -265,9 +248,10 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                call solver(x, xguess, tol_conv, fnorm, isSolution)
+            !    call solver(x, xguess, tol_conv, fnorm, isSolution)
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodes
+                isSolution=.true.
                 do i = 1, numproc-1
                     dest =i
                     call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)

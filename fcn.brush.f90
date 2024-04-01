@@ -1686,6 +1686,7 @@ contains
         real(dp) :: xpol0 
         real(dp) :: locallnproshift(2)
         real(dp) :: globallnproshift(2)
+        real(dp) :: lnpro_per_c
 
       
         ! .. executable statements 
@@ -1725,13 +1726,16 @@ contains
         
         do c=1,cuantas                           ! loop over cuantas
             lnpro=lnpro+logweightchain(c)        ! internal weight
+            lnpro_per_c =0.0_dp
             do s=1,nseg                          ! loop over segments 
                 t=type_of_monomer(s)                
                 do j=1,nelem(s)                  ! loop over element of segment
                     k=indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)
+                    lnpro_per_c = lnpro_per_c +lnexppi(k)*vnucl(j,t)
                 enddo    
             enddo 
+            print*,"c=",c," lnpro_per_c= ",lnpro_per_c
+            lnpro=lnpro+lnpro_per_c
         enddo
 
         locallnproshift(1)=lnpro/cuantas
