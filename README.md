@@ -145,6 +145,7 @@ A central configuration file is called 'input.in' that contain following key wor
 |dielectscale%stepsize `real`| Stepsize strength dielectscale parameter     |  |
 |dielectscale%delta `real`	 | Minimal allowed stepsize. Stopping criteria    |  |
 |distphoscutoff             | Cutoff distance to decide if two phospate can for a pair. Unit: nm| suggested value 0.80 nm|
+|pbc_chain      `logical`    | if .true. writing of periodic boundary condition are used for conformations | if not set default: __.false.__|
                           
 
 Format other input files:
@@ -181,7 +182,7 @@ Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
 ## Versioning
 
-version 0.81 29-january-2024
+version 0.84 3-april-2024
 
 ## Authors
 
