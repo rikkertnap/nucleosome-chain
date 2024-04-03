@@ -497,10 +497,9 @@ contains
         isApresent=(tA/=0) ! check if phosphate acid monomer is defined in list of typesfname
 
         if(.not.isApresent) then
-            print*,"Error in init_dna:"
+            print*,"Warning in init_dna:"
             print*,"A momomer is not defined in typesfname"
             print*,"tA= ",tA
-            stop
         endif    
 
         call read_pKds(pKaAA,info)
@@ -1456,24 +1455,30 @@ contains
        
     end subroutine allocate_isrhoselfconsistent
 
-    ! pre Vdweps and isVdW is allready intialized
+    ! Determines for every segement is need to selfconsistently solved
     ! Internally it also determines the segment type number of A constaining segments
     ! this is also done in routine init_dna 
-    ! isrhoselfconsistent needs to be know to determine neq !!!
+    ! isrhoselfconsistent needs to be know before neq can be  determined !!!
+    ! pre: Vdweps and isVdW is allready intialized
+    ! post isrhoselfconsistent is set  
 
     subroutine make_isrhoselfconsistent(isVdW,info)
 
         use globals, only : nsegtypes,nseg,systype
         use chains, only : type_of_monomer_char,type_of_monomer,ismonomer_chargeable
-
+        use myutils, only : print_to_log, LogUnit, lenText
+ 
         !     .. arguments 
         logical, intent(in) ::  isVdW
         integer,  intent(out), optional :: info
 
-        integer :: info_alloc
+        integer :: info_alloc, info_Mg, info_AA
         integer :: i, t, tt, s
         logical :: flag
         integer :: ttAA, ttP ! local location of A and P segment
+        character(len=lenText) :: text
+        
+        if(present(info)) info=0
 
         call allocate_isrhoselfconsistent(info_alloc)
         if(info_alloc/=0) then 
@@ -1482,20 +1487,16 @@ contains
             return
         endif    
 
-        ! determine segment type number of P = phosphate dsDNA or ssDNA  
-        ttP=0
-        ttAA=0
-        do s=1, nseg
-            if(type_of_monomer_char(s)=="AA") ttAA=type_of_monomer(s)
-            if(type_of_monomer_char(s)=="P")  ttP=type_of_monomer(s)
-        enddo    
-        
+        ! init all element of isrhoselfconsistent
+        !do i=1,nsegtypes
+        !    isrhoselfconsistent(i)=.false.
+        !enddo
 
+        ! Van der Waals self consistent equation      
         if(.not.isVdW) then
             do i=1,nsegtypes
                 isrhoselfconsistent(i)=.false.
             enddo
-
         else 
             do t=1,nsegtypes
                 flag=.false.
@@ -1505,19 +1506,44 @@ contains
                 isrhoselfconsistent(t)=flag
             enddo            
         endif    
-        if(systype/='nucl_ionbin_Mg') then 
-            if(ttAA>0) isrhoselfconsistent(ttAA)=.true.  ! check condition ttA==0
-            if(ttP>0) isrhoselfconsistent(ttP)=.true.    ! check condition ttP==0
-        endif    
 
+        ! Mg/Ca self consistent equation
+
+        ! determine segment type number of P = phosphate dsDNA or ssDNA  
+        ttP=0
+        ttAA=0
+        do s=1, nseg
+            if(type_of_monomer_char(s)=="AA") ttAA=type_of_monomer(s)
+            if(type_of_monomer_char(s)=="P")  ttP=type_of_monomer(s)
+        enddo
+           
+        if(systype=='brush_born'.or. systype=='brush_dna') then 
+           if(ttAA>0) isrhoselfconsistent(ttAA)=.true.  ! check condition ttA==0
+           if(ttP>0) isrhoselfconsistent(ttP)=.true.    ! check condition ttP==0
+        endif    
+        
+        if(systype=='nucl_ionbin'.or.systype=='nucl_ionbin_sv') then
+
+           ! if [Mg]/=0 for segment type==ttp is selfc nsistent, but the equations are not correct in 3D.  
+           ! Use systype=="nucl_ionbin instead, Here a warning is issued 
+           text="Warning: in make_isrhoselfconsistent: "
+           call print_to_log(LogUnit,text)
+           print*,text
+           text="Mg concentration must be zero for systypes: "
+           text=trim(adjustl(text))//trim(adjustl(systype))
+           call print_to_log(LogUnit,text)
+           print*,text
+        endif
+ 
         ! check that we do not have simultenoeus A=Acrylic acid and P=phosphate
         if((ttAA>0).and.(ttP>0)) then
-            print*,"Error in make_isrhoselfconsistent: both A and P segments"
-            print*,"Stop program"
-            stop
+            text="Error: in make_isrhoselfconsistent: both A and P segments defined"
+           call print_to_log(LogUnit,text)
+           print*,text
         endif   
 
         !print*,"ttAA=",ttAA,"ttP=",ttP,ttAA>0
+
     end subroutine make_isrhoselfconsistent
 
 

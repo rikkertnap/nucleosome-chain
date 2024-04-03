@@ -18,11 +18,9 @@ module chaingenerator
     real(dp) :: xgraftloop(3,2)
 
     real(dp), parameter :: eps_equilat=1.0e-8_dp
-
     character(len=80), parameter  :: fmt3xyz = "(3ES15.5E2)"
 
     private 
-
 
     public :: make_chains, make_chains_mc,read_chains_XYZ
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
@@ -31,7 +29,6 @@ module chaingenerator
     public :: write_indexchain_histone, test_index_histone
 
     private ::  eps_equilat
-
 contains
 
 ! Main chain generator routine selects type of method to use 
@@ -349,8 +346,8 @@ subroutine read_chains_xyz_nucl(info)
     logical :: isReadGood
     ! character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     real(dp) :: equilat, equilat_rot
-    integer ::ii
-    ! real(dp) :: xcdp,ycdp,zcdp
+    integer :: ii
+    integer :: s_local
 
     ! .. executable statements   
 
@@ -426,26 +423,33 @@ subroutine read_chains_xyz_nucl(info)
             read(un,*,iostat=ios) ! skip line
             if(ios/=0) isReadGood=.false.   
         
-            if(nsegfile.ne.nseg) then 
+            if(nsegfile.ne.nsegsource) then
                 text="nseg chain file not equal internal nseg : stop program"
+                print*,"nsegfile=",nsegfile," nsegsource=",nsegsource
                 call print_to_log(LogUnit,text)
-                info=myio_err_nseg 
+                info=myio_err_nseg
                 return
-            endif    
+            endif
         endif
-        
-        do s=1,nseg              ! .. read form  trajectory file
-    
-            ! read(un,'(3ES15.5E2)',iostat=ios)xc,yc,zc
-            read(un,fmt3xyz,iostat=ios)xc,yc,zc 
-            if(ios/=0) isReadGood=.false.      
-            xseg(1,s) = xc*scalefactor 
-            xseg(2,s) = yc*scalefactor  
-            xseg(3,s) = zc*scalefactor 
-            
+
+        s_local=0
+
+        do s=1,nsegsource              ! .. read form  trajectory file
+
+            read(un,fmt3xyz,iostat=ios)xc,yc,zc
+            if(ios/=0) isReadGood=.false.
+
+            if(s_begin<=s.and.s<=s_end) then ! filter 
+
+                 s_local=s_local+1
+                 xseg(1,s_local) = xc*scalefactor
+                 xseg(2,s_local) = yc*scalefactor
+                 xseg(3,s_local) = zc*scalefactor
+
+            endif
         enddo
 
-    
+
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
         if(isReadGood) then ! read was succesfull  
@@ -714,6 +718,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
+    integer :: s_local
 
     ! .. executable statements   
 
@@ -839,7 +844,7 @@ subroutine read_chains_xyz_nucl_volume(info)
         call allocate_nneighbor(cuantas,nseg)
         tPhos = find_type_phosphate()
     endif
-        
+   
     
     isReadGood=.true. 
 
@@ -854,7 +859,7 @@ subroutine read_chains_xyz_nucl_volume(info)
             read(un,*,iostat=ios) ! skip line
             if(ios/=0) isReadGood=.false.   
         
-            if(nsegfile.ne.nseg) then 
+            if(nsegfile.ne.nsegsource) then 
                 text="nseg chain file not equal internal nseg : stop program"
                 call print_to_log(LogUnit,text)
                 info=myio_err_nseg 
@@ -862,16 +867,25 @@ subroutine read_chains_xyz_nucl_volume(info)
             endif    
         endif
         
-        do s=1,nseg              ! .. read form  trajectory file
+        s_local=0
+
+        do s=1,nsegsource              ! .. read form  trajectory file
     
             read(un,fmt3xyz,iostat=ios)xc,yc,zc
             if(ios/=0) isReadGood=.false. 
-            
-            xseg(1,s) = xc*scalefactor 
-            xseg(2,s) = yc*scalefactor  
-            xseg(3,s) = zc*scalefactor 
-            
+                          
+            if(s_begin<=s.and.s<=s_end) then ! filter 
+
+                 s_local=s_local+1
+                 xseg(1,s_local) = xc*scalefactor 
+                 xseg(2,s_local) = yc*scalefactor  
+                 xseg(3,s_local) = zc*scalefactor 
+
+            endif
         enddo
+
+       
+        
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
@@ -1040,7 +1054,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-                
+
                 conf=conf+1   
                                     
             case("prism") 
@@ -1531,13 +1545,15 @@ subroutine set_isHomopolymer(freq,chaintype)
     if(chaintype=="multi") then
         type_number=type_of_monomer(1)
         flag=.true.
-        s=2
-        do while (s<=nseg .or. flag) 
+        do s=2,nseg
             if((type_of_monomer(s)/=type_number)) flag=.false.
-            s=s+1
         enddo
-        isHomopolymer=flag
-
+        if(flag) then 
+          isHomopolymer=.True.
+        else
+          isHomopolymer=.False.
+        endif 
+                  
     else if(freq>nseg) then 
         isHomopolymer=.TRUE.
     else 
@@ -1547,6 +1563,7 @@ subroutine set_isHomopolymer(freq,chaintype)
             isHomopolymer=.FALSE.
         endif      
     endif    
+
 
 end subroutine set_isHomopolymer
 
@@ -2835,7 +2852,7 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
         do j=1,nelemAA(sAA)    
             
             read(un,*,iostat=ios)elem_type(j),x(1),x(2),x(3) 
-            
+            write(100,*)elem_type(j),x(1),x(2),x(3)            
             do k=1,3
                 chain_elem(k,sAA)%elem(j)=x(k)
             enddo  
@@ -3774,33 +3791,52 @@ subroutine compare_indexconf_histone(sbegin,send,info)
 
 end subroutine
 
+subroutine test_nmer_indexchain_histone(s0,s1,info)
+
+    use globals, only : systype, nnucl
+
+    integer, intent(inout) :: info     
+    integer, intent(in) :: s0,s1
+
+
+    call compare_indexchain_histone(s0,s1,info)
+    print*,"info=",info
+    info=-1 ! Warning
+
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
+       call compare_indexconf_histone(s0,s1,info)
+       print*,"info=",info
+       info=-1 ! Warning
+    endif
+
+end subroutine
+
 subroutine test_index_histone(info) 
     
     use globals, only : systype, nnucl 
  
     integer, intent(inout) :: info
 
-    integer :: s_begin,s_end
+    integer :: s0,s1
+    logical :: flag
 
-    if(nnucl==8) then
-       s_begin=6355
-       s_end=7186
-       ! call write_indexchain_histone(sbegin,send,conf_begin,conf_end)
-       ! call error_handler(1,'stop program')
+    flag=.true.
 
-       call compare_indexchain_histone(s_begin,s_end,info)
-       print*,"info=",info
-       info=info*(-1) ! Warning
-       print*,"info=",info
-
-       if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
-          call compare_indexconf_histone(s_begin,s_end,info)
-          info=info*(-1) ! Warning
-       endif
-    else
-      print*,"nucl less 8: test_index_histone not applicable"  
+    if(nnucl==3) then
+       s0=2663
+       s1=3494
+    else if(nnucl==5) then 
+       s0=4509
+       s1=5340
+    else if(nnucl==8) then
+       s0=6355
+       s1=7188  
+    else  
+        flag=.false.
+        print*,"nnucl not equal to 3,5 ore 8: test_index_histone not applicable"
+        info=-1 ! Warning  
     endif
-
+    if(flag) call test_nmer_indexchain_histone(s0,s1,info)
 
 end subroutine
 

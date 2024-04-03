@@ -209,6 +209,12 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) nsegtypes        ! carefully need to be overwriiten depending on value systype and or chainmethod
             case ('nsegtypesAA')
                 read(buffer,*,iostat=ios) nsegtypesAA  
+            case('nsegsource')
+                read(buffer,*,iostat=ios) nsegsource
+            case('s_begin') 
+                read(buffer,*,iostat=ios) s_begin
+            case('s_end')  
+                read(buffer,*,iostat=ios) s_end  
             case ('cuantas')
                 read(buffer,*,iostat=ios) max_confor
             case ('chainperiod')

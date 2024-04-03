@@ -315,7 +315,7 @@ contains
         real(dp), intent(out) :: f(neq)
 
         !     .. local variables
-        
+
         real(dp) :: local_rhopol(nsize,nsegtypes)
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
@@ -1726,16 +1726,16 @@ contains
         
         do c=1,cuantas                           ! loop over cuantas
             lnpro=lnpro+logweightchain(c)        ! internal weight
-            lnpro_per_c =0.0_dp
+            !lnpro_per_c =0.0_dp
             do s=1,nseg                          ! loop over segments 
                 t=type_of_monomer(s)                
                 do j=1,nelem(s)                  ! loop over element of segment
                     k=indexconf(s,c)%elem(j)
-                    lnpro_per_c = lnpro_per_c +lnexppi(k)*vnucl(j,t)
+                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)
                 enddo    
             enddo 
-            print*,"c=",c," lnpro_per_c= ",lnpro_per_c
-            lnpro=lnpro+lnpro_per_c
+            !print*,"c=",c," lnpro_per_c= ",lnpro_per_c
+            !lnpro=lnpro+lnpro_per_c
         enddo
 
         locallnproshift(1)=lnpro/cuantas
@@ -1843,278 +1843,6 @@ contains
     end subroutine fcnnucl_neutral_sv
 
 
-    ! brush of multiblock copolymers
-    ! with ion charegeable group being an acid with counterion binding etc 
-
-    subroutine fcnbrush(x,f,nn)
-
-        use mpivars
-        use globals
-        use parameters, Tlocal=>Tref 
-        use volume
-        use chains
-        use field
-        use vectornorm
-        use VdW, only : VdW_contribution_lnexp
-        use surface
-        use Poisson
-
-        !     .. scalar arguments
-
-        integer(8), intent(in) :: nn
-
-        !     .. array arguments
-
-        real(dp), intent(in) :: x(neq)
-        real(dp), intent(out) :: f(neq)
-
-        !     .. local variables
-        
-        real(dp) :: local_rhopol(nsize,nsegtypes)
-        real(dp) :: local_q
-        real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
-        real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
-        real(dp) :: norm
-        real(dp) :: rhopol0 
-        real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
-
-
-        !     .. executable statements 
-
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
-
-        n=nsize
-        ! read out x 
-        k=n
-        do i=1,n                     
-            xsol(i) = x(i)        ! volume fraction solvent
-            psi(i)  = x(i+k)      ! potential
-        enddo           
-        do t=1,nsegtypes
-            k=(t+1)*n
-            do i=1,n 
-                rhopolin(i,t) = x(i+k) ! density 
-            enddo    
-        enddo
-             
-        !  .. assign global and local polymer density 
-        do t=1,nsegtypes
-            do i=1,n
-                rhopol(i,t)=0.0_dp 
-                local_rhopol(i,t)=0.0_dp
-            enddo    
-        enddo    
-       
-        do i=1,n                  ! init volume fractions
-            xpol(i)    = 0.0_dp                                   ! volume fraction polymer
-            rhoqpol(i) = 0.0_dp                                   ! charge density AA monomoer
-            xNa(i)     = expmu%Na*(xsol(i)**vNa)*exp(-psi(i)*zNa) ! Na+ volume fraction 
-            xK(i)      = expmu%K*(xsol(i)**vK)*exp(-psi(i)*zK)    ! K+ volume fraction
-            xCl(i)     = expmu%Cl*(xsol(i)**vCl)*exp(-psi(i)*zCl) ! Cl- volume fraction
-            xHplus(i)  = expmu%Hplus*(xsol(i))*exp(-psi(i))       ! H+  volume fraction
-            xOHmin(i)  = expmu%OHmin*(xsol(i))*exp(+psi(i))       ! OH- volume fraction
-            xRb(i)     = expmu%Rb*(xsol(i)**vRb)*exp(-psi(i)*zRb) ! Rb+ volume fraction
-            xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
-            xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
-        enddo
-
-        !  AH   <=> A- + H+  
-        !  ANa  <=> A- + Na+ 
-        !  ACa+ <=> A- + Ca++  
-        !  A2Ca <=> 2A- +Ca++ 
-        !  AMg+ <=> A- + Mg++  
-        !  A2Mg <=> 2A- +Mg++  
-
-        do t=1,nsegtypes
-
-            if(ismonomer_chargeable(t)) then
-
-                do i=1,n  
-                    xA(1)= xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      ! AH/A-
-                    xA(2)= (xNa(i)/vNa)/(K0aAA(2)*(xsol(i)**deltavAA(2)))   ! ANa/A-
-                    xA(3)= (xCa(i)/vCa)/(K0aAA(3)*(xsol(i)**deltavAA(3)))   ! ACa+/A-
-                    xA(5)= (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! AMg+/A-
-                    xA(7)= (xK(i)/vK)/(K0aAA(7)*(xsol(i)**deltavAA(7)))     ! AK/A-
-       
-                    sgxA=1.0_dp+xA(1)+xA(2)+xA(3)+xA(5)+xA(7)                                                        
-                    constACa=(2.0_dp*(rhopolin(i,t)*vsol)*(xCa(i)/vCa))/(K0aAA(4)*(xsol(i)**deltavAA(4))) 
-                    constAMg=(2.0_dp*(rhopolin(i,t)*vsol)*(xMg(i)/vMg))/(K0aAA(6)*(xsol(i)**deltavAA(6))) 
-                    constA=constACa+constAMg
-
-                    qAD = (sgxA+sqrt(sgxA*sgxA+4.0_dp*constA))/2.0_dp  ! remove minus
-
-                    fdisA(i,1)  = 1.0_dp/qAD                             ! A-  
-                    fdisA(i,2)  = fdisA(i,1)*xA(1)                       ! AH 
-                    fdisA(i,3)  = fdisA(i,1)*xA(2)                       ! ANa 
-                    fdisA(i,4)  = fdisA(i,1)*xA(3)                       ! ACa+ 
-                    fdisA(i,5)  = (fdisA(i,1)**2)*constACa               ! A2Ca 
-                    fdisA(i,6)  = fdisA(i,1)*xA(5)                       ! AMg+ 
-                    fdisA(i,7)  = (fdisA(i,1)**2)*constAMg               ! A2Mg 
-                    fdisA(i,8)  = fdisA(i,1)*xA(7)                       ! AK 
-                    
-                    lnexppi(i,t)  = log(xsol(i))*vpol(t)+psi(i)-log(fdisA(i,1))   ! auxilary variable palpha
-                    fdis(i,t)   = fdisA(i,1) 
-                enddo  
-            else
-                do i=1,n
-                    fdis(i,t)  = 0.0_dp
-                    lnexppi(i,t)  = log(xsol(i))*vpol(t)
-                enddo  
-            endif   
-        enddo      
-
-               
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
-
-        !  .. computation polymer volume fraction      
-
-        local_q = 0.0_dp    ! init q
-        lnpro = 0.0_dp
-        
-        do c=1,cuantas         ! loop over cuantas
-
-            lnpro=lnpro+logweightchain(c)        ! internal weight
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
-        enddo
-
-        locallnproshift(1)=lnpro/cuantas
-        locallnproshift(2)=rank  
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-       
-
-        lnproshift=globallnproshift(1)
-              
-        do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)  ! initial weight conformation
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+lnexppi(k,t)
-            enddo 
-            pro=exp(lnpro-lnproshift)   
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
-        enddo
-
-        !   .. import results 
-
-        if (rank==0) then 
-
-            q=0.0_dp 
-            q=local_q
-
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
-
-            ! first graft point 
-
-            do t=1,nsegtypes
-                do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
-                enddo
-            enddo
-           
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
-
-            !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
-
-            do t=1, nsegtypes
-                if(ismonomer_chargeable(t)) then 
-
-                    do i=1,n
-                        rhopol(i,t) = rhopol0 * rhopol(i,t)               ! density polymer of type t 
-                        rhoqpol(i)  = rhoqpol(i) + (- fdisA(i,1)+fdisA(i,4)+fdisA(i,6) )*rhopol(i,t)*vsol 
-                        f(i+(t+1)*n) = rhopol(i,t) - rhopolin(i,t) 
-                        do k=1,4               ! polymer volume fraction
-                            xpol(i)=xpol(i)+rhopol(i,t)*fdisA(i,k)*vpolAA(k)*vsol   
-                        enddo
-                        xpol(i)=xpol(i)+rhopol(i,t)*(fdisA(i,5)*vpolAA(5)/2.0_dp + &
-                                                 fdisA(i,6)*vpolAA(6) + &
-                                                 fdisA(i,7)*vpolAA(7)/2.0_dp + fdisA(i,8)*vpolAA(8) )*vsol
-                    
-                    enddo
-                else  
-                    do i=1,n
-                        rhopol(i,t) = rhopol0 * rhopol(i,t)               ! density polymer of type t 
-                        xpol(i) = xpol(i) + rhopol(i,t)*vpol(t)*vsol 
-                        f(i+(t+1)*n) = rhopol(i,t) - rhopolin(i,t)         ! scf eq for density
-                    enddo
-                endif          
-            enddo 
-
-            do i=1,n
-                f(i) = xpol(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xRb(i)+xCa(i)+xMg(i)+xK(i) -1.0_dp
-                rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
-                    zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zRb*xRb(i)/vRb +zK*xK(i)/vK! total charge density in units of vsol  
-            enddo
-          
-            ! .. end computation polymer density and charge density  
-
-            ! .. electrostatics 
-             
-            call Poisson_Equation(f,psi,rhoq)
-
-            !  .. end electrostatics   
-         
-            norm=l2norm(f,neqint)
-            iter=iter+1
-
-            print*,'iter=', iter ,'norm=',norm
-
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-         
-        endif
-
-
-    end subroutine fcnbrush
 
     subroutine fcnbrushborn(x,f,nn)
 

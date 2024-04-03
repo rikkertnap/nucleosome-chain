@@ -56,7 +56,7 @@ program main
     integer  :: nlist_elem, maxlist_elem, nlist_step
 
     integer :: phoscutoff
-    integer :: s_begin,s_end
+
 
     ! .. executable statements
 
@@ -144,7 +144,7 @@ program main
     call write_chain_config()
     call write_chain_struct(write_struct,info)
 
-    call test_index_histone(info)  
+    ! call test_index_histone(info)  
 
     !  .. computation starts
 
@@ -248,10 +248,9 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-            !    call solver(x, xguess, tol_conv, fnorm, isSolution)
+                call solver(x, xguess, tol_conv, fnorm, isSolution)
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodes
-                isSolution=.true.
                 do i = 1, numproc-1
                     dest =i
                     call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)
