@@ -91,6 +91,9 @@ A central configuration file is called 'input.in' that contain following key wor
 |nsegAA  `int`		            | Number of AA             ||
 |nsegtypes `int`            | Number of segments types          ||
 |nsegtypesAA `int`          | Number of AA elements or units           ||
+|nsegsource  `int`		      | Number of segments in conformation read in from file     | nsegsource >= nseg|
+|s_begin    `int`           | first segment to be used form each trajectory file read in ||
+|s_end    `int`             | last segment to be used form each trajectory file read in ||
 |cuantas `int`              | Number of conformations ||
 |chainperiod `int`          | Set length diblock or alternating polymer,| |  
 |                           | works together with chaintype.            | |  
@@ -144,7 +147,8 @@ A central configuration file is called 'input.in' that contain following key wor
 |dielectscale%max `real`			 | Maximum strength dielectscaleparameter      |  |
 |dielectscale%stepsize `real`| Stepsize strength dielectscale parameter     |  |
 |dielectscale%delta `real`	 | Minimal allowed stepsize. Stopping criteria    |  |
-|distphoscutoff             | Cutoff distance to decide if two phospate can for a pair. Unit: nm| suggested value 0.80 nm|
+|distphoscutoff `real`       | Cutoff distance to decide if two phospate can for a pair. Unit: nm| suggested value 0.80 nm|
+|pbc_chain      `logical`    | if .true. writing of periodic boundary condition are used for conformations | if not set default: __.false.__|
                           
 
 Format other input files:
@@ -181,7 +185,7 @@ Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
 ## Versioning
 
-version 0.81 29-january-2024
+version 0.84 3-april-2024
 
 ## Authors
 
