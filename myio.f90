@@ -1996,6 +1996,12 @@ subroutine output_nucl_mul
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
+    ! output max potential of each face lattice 
+    do k=1,6
+        write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
+    enddo
+
+
     ! .. closing files
 
     close(un_sys)
@@ -2355,6 +2361,12 @@ subroutine output_elect
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
+
+    ! output max potential of each face lattice 
+    do k=1,6
+        write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
+    enddo
+
 
     ! .. closing files
     
@@ -2868,6 +2880,7 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
+        call max_potential()
         call output()
 
     case ("neutral","neutralnoVdW")
@@ -2882,6 +2895,7 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
+        call max_potential()
         call output()        
 
     case ("nucl_ionbin")
@@ -2891,6 +2905,7 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
+        call max_potential() 
         call output()  
            
 
@@ -2901,19 +2916,17 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
+        call max_potential()
         call output()           
     
     case ("nucl_ionbin_Mg")
 
-        !call fcnenergy()
         call charge_polymer()
-        call average_charge_polymer()
-        
+        call average_charge_polymer()        
         call fcnenergy() ! need avfdis in check_volumefraction routine
 
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
-         
         call max_potential()   
 
         call output()           
