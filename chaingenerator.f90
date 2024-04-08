@@ -2852,7 +2852,7 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
         do j=1,nelemAA(sAA)    
             
             read(un,*,iostat=ios)elem_type(j),x(1),x(2),x(3) 
-            write(100,*)elem_type(j),x(1),x(2),x(3)            
+            !write(100,*)elem_type(j),x(1),x(2),x(3)            
             do k=1,3
                 chain_elem(k,sAA)%elem(j)=x(k)
             enddo  
