@@ -68,7 +68,7 @@ subroutine init_guess(x, xguess)
             call init_guess_multi(x,xguess)
         case ("brush_mulnoVdW")  
             call init_guess_multinoVdW(x,xguess)
-        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg")  
+        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")  
             call init_guess_multi(x,xguess)
         case ("nucl_neutral_sv")  
             call init_guess_nucl_neutral_sv(x,xguess)
@@ -386,7 +386,7 @@ subroutine init_guess_multi(x, xguess)
             enddo
         endif    
 
-        if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
+        if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg" .and. systype/="nucl_ionbin_MgA") then
             do i=1,nsize
                 read(un_file(1),*)xsol(i)    ! solvent
                 read(un_file(2),*)psi(i)     ! potential
@@ -413,7 +413,7 @@ subroutine init_guess_multi(x, xguess)
         count_scf=0                     ! placing density in vector x
         do t=1,nsegtypes
             if(isrhoselfconsistent(t)) then
-                if(systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+                if(systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
                     text='init_guess_multi: combination '//systype//' with VdW not working !'
                     print*,text
                     !call error_handler(-1,text)

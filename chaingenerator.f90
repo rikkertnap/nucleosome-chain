@@ -1,5 +1,4 @@
-
-!                                                               | 
+!---------------------------------------------------------------| 
 ! chainsgenerator.f90:                                          |       
 ! Generator chains conformations either using                   | 
 ! 1. RIS algorithm                                              | 
@@ -260,7 +259,8 @@ subroutine read_chains_xyz(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out) :: info
 
-    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
+       .or. systype=="nucl_ionbin_MgA") then 
         call read_chains_xyz_nucl_volume(info)
     else
         call read_chains_xyz_nucl(info)
@@ -716,7 +716,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
 
-    integer, dimension(:,:), allocatable   :: list_of_pairs
+    ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
     integer :: s_local
 
@@ -788,7 +788,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     sqrDphoscutoff=distphoscutoff**2
     !print*,"sqrDphoscutoff=",sqrDphoscutoff
     max_range_nneigh = 10                             ! assume at maximum there  at 10 ! 
-    allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
+   ! allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
 
     nrotpts=sgraftpts(1)  ! nucleosome id /segment number around which to rotate whole conformation
     !nrotpts=rotation_triplets(1)
@@ -839,7 +839,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
     
     ! pairs variable 
-    if(systype=="nucl_ionbin_Mg") then 
+    if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA") then 
         call allocate_indexconfpair(cuantas,nseg)
         call allocate_nneighbor(cuantas,nseg)
         tPhos = find_type_phosphate()
@@ -1040,7 +1040,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 enddo ! end s loop
 
-                if(systype=="nucl_ionbin_Mg") then
+                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                     !call error_handler(1,"hello!!!!")
                 endif    
@@ -3803,7 +3803,8 @@ subroutine test_nmer_indexchain_histone(s0,s1,info)
     print*,"info=",info
     info=-1 ! Warning
 
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
+       systype=="nucl_ionbin_MgA") then
        call compare_indexconf_histone(s0,s1,info)
        print*,"info=",info
        info=-1 ! Warning

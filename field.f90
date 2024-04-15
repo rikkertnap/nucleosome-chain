@@ -1,6 +1,6 @@
 module field
   
-  !     .. variables
+    !     .. variables
     use precision_definition
 
     implicit none
@@ -40,9 +40,12 @@ module field
     real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
     real(dp) :: lnproshift ! shift in exponent palpha
 
-    real(dp), dimension(:), allocatable       :: rhoqphos     ! charged density of phosphate needed systype="nucl_ionbin_Mg"
+    real(dp), dimension(:), allocatable       :: rhoqphos       ! charged density of phosphate needed systype="nucl_ionbin_Mg"
     real(dp), dimension(:,:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,J,K)  
     real(dp), dimension(:,:), allocatable       :: fdisP2Mg     ! fraction  fdisP2Mg(i,k)  
+    
+    real(dp), dimension(:,:), allocatable   :: fdisPP_loc, fdisPP_loc_swap     ! fdisPP(J,K) local equivalent of fraction of fdisPP(i,k,J,K)  
+    real(dp)                                :: fdisP2Mg_loc, fdisP2Mg_loc_swap ! fdisP2Mg    local equivalent of fraction of fdisP2Mg(i,k)     
 
 contains
 
@@ -165,27 +168,52 @@ contains
 
     subroutine allocate_field_pairs(Nx,Ny,Nz,maxneigh,maxfdisPP,len_index_phos)
 
+        use globals, only : systype 
         integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP,len_index_phos
 
         integer :: N, Nindex
         integer :: ier(26), i
 
-        N=Nx*Ny*Nz
-        Nindex=len_index_phos
+
+        if(systype=="nucl_ionbin_Mg") then 
+
+            N=Nx*Ny*Nz
+            Nindex=len_index_phos
+            allocate(rhoqphos(N))    
+            allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
+            allocate(fdisP2Mg(Nindex,maxneigh)) 
+
+        endif
+ 
+        if(systype=="nucl_ionbin_MgA") then
+
+            N=Nx*Ny*Nz
+            allocate(rhoqphos(N))
+            allocate(fdisPP_loc(maxfdisPP,maxfdisPP))
+            allocate(fdisPP_loc_swap(maxfdisPP,maxfdisPP))
         
-        allocate(rhoqphos(N))    
-        allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
-        allocate(fdisP2Mg(Nindex,maxneigh)) 
+        endif
 
     end subroutine allocate_field_pairs
 
 
     subroutine init_field_pairs()
-    
-    !    rhopairs=0.0_dp
+       
+        use globals, only : systype
+ 
         rhoqphos=0.0_dp
-        fdisPP=0.0_dp
-        fdisP2Mg=0.0_dp
+        
+        if(systype=="nucl_ionbin_Mg") then
+            fdisPP=0.0_dp
+            fdisP2Mg=0.0_dp
+        endif
+
+        if(systype=="nucl_ionbin_MgA") then
+            fdisPP_loc=0.0_dp
+            fdisP2Mg_loc=0.0_dp
+            fdisPP_loc_swap=0.0_dp
+            fdisP2Mg_loc_swap=0.0_dp
+        endif
 
     end subroutine init_field_pairs
 
@@ -243,21 +271,35 @@ contains
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
+
             call charge_polymer_multi()
+
         case ("brushdna","brushborn")
+
             call charge_polymer_dna()
+
         case ("nucl_ionbin")
+
             call charge_nucl_ionbin()
+
         case ("nucl_ionbin_sv")
+
             call charge_nucl_ionbin_sv()  
+
         case ("nucl_ionbin_Mg")
+
             call charge_nucl_ionbin_Mg() 
+
         case ("elect")  
+
             call charge_polymer_binary()
+
         case default
+
             print*,"Error in charge_polymer subroutine"    
             print*,"Wrong value systype : ", systype
             stop
+
         end select  
        
 
@@ -372,6 +414,10 @@ contains
         
     end subroutine charge_nucl_ionbin_sv
 
+
+    ! computes avarage charge nucl residue for systype==nucl_ionbin_Mg and nucl_ionbin_MgA: 
+    ! charge phosphate rhopolqphos(i) seperate computed 
+
     subroutine charge_nucl_ionbin_Mg()
 
         use globals, only : nsize, nsegtypes
@@ -411,8 +457,6 @@ contains
             qpol(t)=qpol(t)*volcell
             qpol_tot=qpol_tot+qpol(t)
         enddo
-
-        
 
     end subroutine charge_nucl_ionbin_Mg    
 
@@ -481,7 +525,7 @@ contains
 
             call average_charge_nucl_ionbin_sv()
 
-         case ("nucl_ionbin_Mg")
+         case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
 
             call average_charge_nucl_ionbin_Mg()
 
@@ -738,8 +782,8 @@ contains
                         do k=1,8
                             avfdisA(k)=avfdisA(k)/2.0_dp
                         enddo  
-                        ! divide by 2 becuase avfdisPP fraction of pairs i.e normed with total number of pairs!
- 
+                        ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
+                         
                         avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6) ! signed charged fraction   
 
                     endif               
@@ -1216,7 +1260,7 @@ contains
     
 
 
-    ! Calculates the absolute value of the electostatic potentail for each face of the lattice 
+    ! Calculates the absolute value of the electostatic potential for each face of the lattice 
     ! Output assignment to  max_psi(6)  in mod parameters
 
     subroutine max_potential()

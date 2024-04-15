@@ -32,15 +32,16 @@ module volume
     integer, dimension(:,:,:), allocatable :: coordtoindex 
     integer, dimension(:,:),  allocatable  :: indextocoord
 
-    integer, dimension(:,:), allocatable   :: indexneighbor
-    integer, dimension(:,:), allocatable   :: inverse_indexneighbor
+   integer, dimension(:,:), allocatable   :: indexneighbor
+!    integer, dimension(:,:), allocatable   :: inverse_indexneighbor
     integer, dimension(:,:), allocatable   :: inverse_indexneighbor_phos
 
     private
     
     public :: delta,nx,ny,nz,volcell,areacell,geometry, nsurf
     public :: gamma,cos_two_beta, sin_two_beta
-    public :: indexneighbor, inverse_indexneighbor, inverse_indexneighbor_phos
+    public :: indexneighbor !, inverse_indexneighbor, 
+    public :: inverse_indexneighbor_phos
     public :: coordtoindex,indextocoord
     public :: coordinateFromLinearIndex, linearIndexFromCoordinate
     public :: xt, yt, ut, vt, ipbc
@@ -86,7 +87,7 @@ contains
 
         ! this should go somewhere else
  
-        if(systype=="nucl_ionbin_Mg") then
+        if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
             rangecutoff=int(distphoscutoff/delta)+2 
             maxneigh = (2*rangecutoff+1)**3
             !call allocate_index_neighbors(maxneigh)
@@ -284,8 +285,8 @@ contains
 
         integer, intent(in) :: maxneigh
 
-        allocate(indexneighbor(nsize,maxneigh))
-        allocate(inverse_indexneighbor(nsize,nsize))
+!        allocate(indexneighbor(nsize,maxneigh))
+!        allocate(inverse_indexneighbor(nsize,nsize))
         
     end subroutine allocate_index_neighbors
 
@@ -329,7 +330,7 @@ contains
                         neighbornumber=neighbornumber+1
                         idxneigh=coordtoindex(ip,jp,kp) ! index of neighbour
                         indexneighbor(idx,neighbornumber) = idxneigh
-                        inverse_indexneighbor(idx,idxneigh) = neighbornumber
+                    !    inverse_indexneighbor(idx,idxneigh) = neighbornumber
                     enddo
                 enddo
             enddo

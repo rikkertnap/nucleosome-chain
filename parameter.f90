@@ -235,7 +235,7 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg")
+            case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
@@ -525,7 +525,7 @@ contains
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
 
-        if(systype/="nucl_ionbin_Mg") then
+        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA") then
             K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
             K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
         endif 
@@ -551,7 +551,7 @@ contains
         deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7) ! 2vA- + vMg2+ -vA2Mg
         deltavAA(7) = vpolAA(1)+vK-vpolAA(8)    ! vA- + vK+ - vAK
 
-        if(systype=="nucl_ionbin_Mg") then
+        if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA") then
             call init_vPP(info)
             call error_handler(info,"init_vPP")
             call init_qpp()
@@ -815,7 +815,8 @@ contains
         Ka  = 10.0_dp**(-pKa)                       ! experimental equilibruim constant acid 
         K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
  
-        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.& 
+           systype=="nucl_ionbin_MgA") then 
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
         endif    
@@ -908,7 +909,7 @@ contains
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
-        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg") 
+        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
@@ -981,7 +982,8 @@ contains
 
         integer, intent(in) :: nelemtypes
 
-        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
+           systype=="nucl_ionbin_MgA") then 
             allocate(vnucl(nelemtypes,nsegtypes))
         endif    
 
@@ -994,7 +996,8 @@ contains
 
         integer, intent(in) :: nelemtypes
 
-        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+        if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
+           systype=="nucl_ionbin_MgA") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
@@ -1017,6 +1020,7 @@ contains
         if(systype=="nucl_neutral_sv") vnucl=0.0_dp !vnucl=0.01_dp ! init
         if(systype=="nucl_ionbin_sv") vnucl=0.0_dp 
         if(systype=="nucl_ionbin_Mg") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_MgA") vnucl=0.0_dp
 
     end subroutine init_vnucl
        
@@ -1039,7 +1043,8 @@ contains
 
         pKaion = 0.0_dp
         
-        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then 
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
+           systype=="nucl_ionbin_MgA") then 
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
         endif    
        
@@ -1570,7 +1575,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

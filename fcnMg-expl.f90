@@ -1,27 +1,89 @@
 ! --------------------------------------------------------------|
-! fcnMgf90:                                                     |
+! fcnMg-excpl.f90:                                              |
 ! Constructs the vector function  needed by the                 |
 ! routine solver, which solves the SCMFT eqs for                |
 ! nucleosome with inbinding and distubed volume and Mg binding  |
 ! using phosphate pairs.                                        |
 ! --------------------------------------------------------------|
 
-
-
-module modfcnMg
+module modfcnMgexpl
    
     use mpivars
     use precision_definition
 
     implicit none
 
+!    real(dp), dimension(:,:), allocatable   :: fdisPP_loc, fdisPP_loc_swap ! local equivalent of fraction  fdisPP(i,k,J,K)  
+!    real(dp)        :: fdisP2Mg_loc, fdisP2Mg_loc_swap                     ! local equivalent of fraction  fdisP2Mg(i,k)  	
+
+
 contains
-    
+   
+     subroutine compute_fdisPP(fdisPP,fdisP2Mg,position1,position2)
+
+        use field, only : xHplus, xOHmin, xNa, xK, xMg, xsol, psi
+        use parameters, only : vsol,vNa,vK,vCl,vMg,deltavAA
+        use parameters, only : K0aAA,K0a,K0aion
+        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg 
+
+        real(dp), intent(inout), dimension(:,:) :: fdisPP
+        real(dp), intent(inout) :: fdisP2Mg
+        integer , intent(in) :: position1, position2
+
+        real(dp) :: xA(3),xB(2),sgxA,sgxB, xP(5,2), xP2Mg, fPP, sumxP         ! disociation variables  
+        integer :: i, j     
+        integer  :: JJ, KK
+
+        ! .. executable statements 
+                                                     
+        xP(Phos,1)   = 1.0_dp 
+        xP(Phos,2)   = 1.0_dp    
+      
+        i = position1 ! position in lattice numbers
+        j = position2
+
+        xP(PhosH,1)  = xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      !  (PH)/P-    : f(PH)P(i,j)/fPP(i,j)
+        xP(PhosH,2)  = xHplus(j)/(K0aAA(1)*(xsol(j)**deltavAA(1)))      !  (PH)/P-    : fP(PH)(i,j)/fPP(i,j)
+      
+        xP(PhosNa,1) = (xNa(i)/vNa)/(K0aAA(2)*(xsol(i)**deltavAA(2)))   !  PNa/P-     : f(PNa)P(i,j)/fPP(i,j) 
+        xP(PhosNa,2) = (xNa(j)/vNa)/(K0aAA(2)*(xsol(j)**deltavAA(2)))   !  PNa/P-     : fPPNa(i,j)/fPP(i,j) 
+      
+        xP(PhosK,1)  = (xK(i)/vK)/(K0aAA(7)*(xsol(i)**deltavAA(7)))     !  PK/P-      : f(PK)P(i,j)/fPP(i,j) 
+        xP(PhosK,2)  = (xK(j)/vK)/(K0aAA(7)*(xsol(j)**deltavAA(7)))     !  PK/P-      : fPPK(i,j)/fPP(i,j) 
+     
+        xP(PhosMg,1) = (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! PMgP+/PP2-
+        xP(PhosMg,2) = (xMg(j)/vMg)/(K0aAA(5)*(xsol(j)**deltavAA(5)))   ! PPAMg+/PP2-
+
+        xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)/ ((K0aAA(6)**2) *(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6)))) ! P2Mg/PP2- 
+       
+        sumxP = 0.0_dp
+        do JJ=1,5
+            do KK=1,5
+                sumxP = sumxP + xP(JJ,1) * xP(KK,2)
+            enddo
+        enddo
+        sumxP=sumxP+xP2Mg
+
+        fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
+          
+        do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
+             do KK=1,5
+                 fdisPP(JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
+             enddo
+        enddo
+            
+        fdisP2Mg = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
+   
+                
+    end subroutine compute_fdisPP
+
+
+
     ! nucleosome of AA and dna polymers
     ! with ion charegeable group being on one acid (tA) with counterion binding etc 
     ! distribute volume of neighboring cells
 
-    subroutine fcnnucl_Mg(x,f,nn)
+    subroutine fcnnucl_Mg_expl(x,f,nn)
 
         use mpivars
         use precision_definition
@@ -36,7 +98,8 @@ contains
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : index_phos, inverse_index_phos, len_index_phos
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
-        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg , rhoqphos
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
+        use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
         use VdW, only        : VdW_contribution_lnexp
@@ -181,49 +244,10 @@ contains
                     do ind=1,len_index_phos ! loop over index of  location of phosphates
                         
                         i = index_phos(ind)  ! give the lattice location 
-
-                        do kr=1,maxneigh     ! loop over neighbors
-                         
-                            j=indexneighbor(i,kr)   ! j=index of neighbors number k of index i 
- 
-                            xP(Phos,1)   = 1.0_dp 
-                            xP(Phos,2)   = 1.0_dp    
-                          
-                            xP(PhosH,1)  = xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      !  (PH)/P-    : f(PH)P(i,j)/fPP(i,j)
-                            xP(PhosH,2)  = xHplus(j)/(K0aAA(1)*(xsol(j)**deltavAA(1)))      !  (PH)/P-    : fP(PH)(i,j)/fPP(i,j)
-                          
-                            xP(PhosNa,1) = (xNa(i)/vNa)/(K0aAA(2)*(xsol(i)**deltavAA(2)))   !  PNa/P-     : f(PNa)P(i,j)/fPP(i,j) 
-                            xP(PhosNa,2) = (xNa(j)/vNa)/(K0aAA(2)*(xsol(j)**deltavAA(2)))   !  PNa/P-     : fPPNa(i,j)/fPP(i,j) 
-                          
-                            xP(PhosK,1)  = (xK(i)/vK)/(K0aAA(7)*(xsol(i)**deltavAA(7)))     !  PK/P-      : f(PK)P(i,j)/fPP(i,j) 
-                            xP(PhosK,2)  = (xK(j)/vK)/(K0aAA(7)*(xsol(j)**deltavAA(7)))     !  PK/P-      : fPPK(i,j)/fPP(i,j) 
-                         
-                            xP(PhosMg,1) = (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! PMgP+/PP2-
-                            xP(PhosMg,2) = (xMg(j)/vMg)/(K0aAA(5)*(xsol(j)**deltavAA(5)))   ! PPAMg+/PP2-
-
-                            xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)/ ((K0aPP**2) *(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6)))) ! P2Mg/PP2- 
-                           
-                            sumxP = 0.0_dp
-                            do JJ=1,5
-                                do KK=1,5
-                                    sumxP = sumxP + xP(JJ,1) * xP(KK,2)
-                                enddo
-                            enddo
-                            sumxP=sumxP+xP2Mg
-
-                            fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
-                              
-                            do JJ=1,5             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
-                                 do KK=1,5
-                                     fdisPP(ind,kr,JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
-                                 enddo
-                            enddo
-                                
-                            fdisP2Mg(ind,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
                        
-                            lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
+                        lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
                         
-                        enddo
+                       ! here used to be computation of fdisPP
                 
                     enddo
 
@@ -268,19 +292,16 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k)
 
                     do jj=1,nneigh(s,c)           ! loop neighbors 
 
                         m = indexconfpair(s,c)%elem(jj)
-                        
-                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-                        mr = inverse_indexneighbor_phos(k_ind,m) 
-                        
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
 
-                    enddo    
+                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
+
+                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                      -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))    
+                    enddo
                 endif        
             enddo     
 
@@ -313,17 +334,17 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k)
 
                     do jj=1,nneigh(s,c)           ! loop neighbors 
- 
-                        m = indexconfpair(s,c)%elem(jj)
-                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-                        mr = inverse_indexneighbor_phos(k_ind,m) 
 
-                        lnpro =lnpro + (psi(k) + psi(m)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo    
+                        m = indexconfpair(s,c)%elem(jj)
+
+                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,  k , m)
+
+                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                      -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                    enddo
+
                 endif        
             enddo    
 
@@ -352,13 +373,9 @@ contains
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
-                        m_ind= inverse_index_phos(m)  ! look-up table to get index 
-
-                        !mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
-                        !kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
                          
-                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
-                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m
+                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
+                        call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,  m , k)    
 
                         sum_rhoqphos=0.0_dp
                         sum_xphos=0.0_dp 
@@ -366,13 +383,13 @@ contains
                         do JJ=1,5
                             do KK=1,5
                                 sum_rhoqphos = sum_rhoqphos+&
-                                    (fdisPP(k_ind,mr,JJ,KK)*qPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*qPP(KK))/2.0_dp
+                                    (fdisPP_loc(JJ,KK)*qPP(JJ)+fdisPP_loc_swap(JJ,KK)*qPP(KK))/2.0_dp
                                 sum_xphos = sum_xphos   +&
-                                    (fdisPP(k_ind,mr,JJ,KK)*vPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*vPP(KK))/2.0_dp
+                                    (fdisPP_loc(JJ,KK)*vPP(JJ)+fdisPP_loc_swap(JJ,KK)*vPP(KK))/2.0_dp
                             enddo
                         enddo
     
-                        sum_xphos=sum_xphos+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*vPP(Phos2Mg)/4.0_dp 
+                        sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
                             ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
                   
                         local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
@@ -574,21 +591,16 @@ contains
 
         endif
 
-    end subroutine fcnnucl_Mg
+    end subroutine fcnnucl_Mg_expl
 
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
-    subroutine compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+    subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
 
         use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
-
-
-
-
-
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta,isVdW! isrhoselfconsistent 
@@ -722,15 +734,14 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind= inverse_index_phos(k)
 
                     do jj=1,nneigh(s,c) ! loop neighbors 
                         m = indexconfpair(s,c)%elem(jj)
-                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-                        mr = inverse_indexneighbor_phos(k_ind,m) ! relative label of index m relative to k
 
+                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
+ 
                         lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                                -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
                     enddo    
                 endif        
             enddo    
@@ -745,30 +756,20 @@ contains
                                 
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k)
    
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
-                        m_ind = inverse_index_phos(m)  
 
-                        !mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
-                        !kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
-                         
-                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
-                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m                           
-                        
                         do JJ=1,5
                             do KK=1,5
                              local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
-                        !        (fdisPP(k,mr,JJ,KK)+fdisPP(m,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
-                                fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
+                                fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
                         
                             enddo
                         enddo
-    
-                        !local_avfdisP2Mg=local_avfdisP2Mg+(fdisP2Mg(k,mr)+fdisP2Mg(mr,kr))*pro/(2.0_dp*nneigh(s,c)) 
-                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg(k_ind,mr)*pro/nneigh(s,c)
+                        
+                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg_loc*pro/nneigh(s,c)
                 
                     enddo 
                 endif
@@ -812,12 +813,12 @@ contains
 
         endif
 
-    end subroutine compute_average_charge_PP
+    end subroutine compute_average_charge_PP_expl
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
 
-    subroutine compute_FEchem_react_PP(FEchemPP)
+    subroutine compute_FEchem_react_PP_expl(FEchemPP)
 
         use mpivars
         use precision_definition
@@ -956,15 +957,14 @@ contains
                 else 
                     ! phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind= inverse_index_phos(k)
-
+  
                     do jj=1,nneigh(s,c) ! loop neighbors 
                         m = indexconfpair(s,c)%elem(jj)
-                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-                        mr = inverse_indexneighbor_phos(k_ind,m) ! relative label of index m relative to k
+
+                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
 
                         lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                                -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
                     enddo    
                 endif        
             enddo    
@@ -988,18 +988,16 @@ contains
                     do j=1,nneigh(s,c)
 
                         m = indexconfpair(s,c)%elem(j)
-                        m_ind = inverse_index_phos(m)  
-                         
-                        mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
-                        kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m                           
-                        
+
                         betapi_m= -log(xsol(m))/vsol
                         psi_m = psi(m)
                     
+                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
+
                          ! Lagrange multiplier lambd(r,r') 
 
                         lambda = -(betapi_k +betapi_m)*vPP(Phos) -(psi_k+psi_m)*qPP(Phos) &
-                            -log(fdisPP(k_ind,mr,Phos,Phos))
+                            -log(fdisPP_loc(Phos,Phos))
 
                         lambda = lambda*pro/nneigh(s,c)        
 
@@ -1008,12 +1006,12 @@ contains
 
                         do JJ=1,5
                             do KK=1,5
-                                sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
-                                sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
+                                sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                                sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
                             enddo
                         enddo
     
-                        sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg(k_ind,mr)*pro/nneigh(s,c)
+                        sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
 
                             ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
                         
@@ -1049,11 +1047,10 @@ contains
             
         endif
 
-    end subroutine compute_FEchem_react_PP
+    end subroutine compute_FEchem_react_PP_expl
 
-    
+   
 
-
-end module modfcnMg
+end module modfcnMgexpl
 
    

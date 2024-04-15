@@ -30,6 +30,7 @@ program main
     use myutils
     use dielectric_const
     use modfcnMg
+    use modfcnMgexpl
 
     implicit none
 
@@ -109,7 +110,9 @@ program main
        
 
     ! init distributed volume  
-    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg") then 
+    if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
+        systype=="nucl_ionbin_MgA") then 
+        
         call init_vnucl_type(info) ! ismonomer_chargable etc needs to be set
         call error_handler(info,"init_vnucl_type")
     endif 
@@ -133,8 +136,12 @@ program main
         call make_table_index_neighbors_phos(phoscutoff,len_index_phos,index_phos)
     endif
 
+    if(systype=="nucl_ionbin_MgA") then 
+        phoscutoff=int(distphoscutoff/delta)+2
+    endif
+
     call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos)
+    call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos) ! internal systype switch !
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(isVdW)
@@ -204,6 +211,7 @@ program main
 
     endif
 
+    ! call error_handler(1,"stop")
 
     isfirstguess = .true.
     use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
@@ -224,6 +232,7 @@ program main
     nlist_step = 0
     maxlist_step = 99
 
+   
     do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
 
         iter = 0                        ! iteration counter 
@@ -274,7 +283,13 @@ program main
             if(systype=="nucl_ionbin_Mg") then  
                 call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
                 call compute_FEchem_react_PP(FEchempair)
-            endif           
+            endif 
+
+           
+            if(systype=="nucl_ionbin_MgA") then
+                ! call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
+                call compute_FEchem_react_PP_expl(FEchempair)
+            endif          
 
             if(rank==0) then
 
