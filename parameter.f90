@@ -1236,7 +1236,8 @@ contains
         !      .. local variables
         integer :: ios, un  ! un = unit number
         integer :: t, k, info ,zpol1,zpol2
-        character(80) :: istr,str
+        character(len=80) :: istr,str
+        character(len=2)  :: istr2
         logical :: exist
         real(dp) :: a,b
 
@@ -1271,8 +1272,8 @@ contains
                     read(un,*,iostat=ios)
                 endif   
                 if(ios>0) then 
-                    write(istr,'(I2)')t
-                    str='Error occur reading line '//istr//' of pKaion inputfile'
+                    write(istr2,'(I2)')t
+                    str='Error occur reading line '//istr2//' of pKaion inputfile'
                     info =  err_pKderror
                 endif    
             enddo    

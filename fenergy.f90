@@ -79,7 +79,7 @@ contains
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
-        case ("nucl_ionbin_Mg")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
         
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
@@ -271,7 +271,8 @@ contains
          ! .. chemical and binding contribution
 
         select case (systype) 
-        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn","nucl_ionbin_Mg")
+        case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
+            "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -1438,7 +1439,7 @@ contains
             enddo
 
 
-        case("nucl_ionbin_Mg")
+        case("nucl_ionbin_Mg","nucl_ionbin_MgA")
             
             do t=1,nsegtypes
 
@@ -1825,7 +1826,7 @@ contains
 
             call check_volume_nucl_ionbin_sv(checksumxpoltot)
 
-        case ("nucl_ionbin_Mg")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
 
             call check_volume_nucl_ionbin_Mg(checksumxpoltot)
 

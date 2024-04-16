@@ -37,7 +37,8 @@ module chains
     character(len=1), dimension(:), allocatable :: type_of_charge           ! either "A" =Acid, "B"=base or "N"=neutral for segment number type "t" 
     real(dp), dimension(:), allocatable         :: energychain              ! energy chain   
     real(dp)                                    :: energychain_min          ! mimimum energy chain
-    real(dp), dimension(:),   allocatable       :: logweightchain           !  
+    real(dp), dimension(:),   allocatable       :: logweightchain    
+    real(dp), dimension(:),   allocatable       :: energychainLJ            ! Lennard Jones internal VdW energy 
     logical                                     :: isHomopolymer
     double precision, dimension(:),allocatable  :: lsegseq                  ! segment length only needed for copolymer
     
@@ -86,6 +87,7 @@ contains
         allocate(indexchain(nseg,maxcuantas))
         allocate(energychain(maxcuantas))
         allocate(logweightchain(maxcuantas))
+        allocate(energychainLJ(maxcuantas))
         allocate(isAmonomer(nseg)) 
         allocate(type_of_monomer(nseg)) 
         allocate(type_of_monomer_char(nseg))
@@ -146,7 +148,6 @@ contains
     subroutine allocate_indexconfpair(cuantas,nseg)
 
         integer, intent(in) :: cuantas,nseg
-        integer :: c, s
 
         allocate(indexconfpair(nseg,cuantas))  
         

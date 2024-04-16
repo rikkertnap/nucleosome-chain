@@ -281,7 +281,7 @@ contains
    
     subroutine allocate_index_neighbors(maxneigh)
 
-        use globals, only : nsize
+!        use globals, only : nsize
 
         integer, intent(in) :: maxneigh
 
@@ -370,8 +370,6 @@ contains
     !       : k=1 is same lattice cell         
 
     subroutine make_table_index_neighbors_phos(rangecutoff,len_index_phos,index_phos)
-
-        use globals, only : nsize
 
         integer, intent(in) :: rangecutoff
         integer, intent(in) :: len_index_phos

@@ -124,7 +124,7 @@ subroutine make_chains_mc()
     zcm= LZ/2.0_dp
    
     energy=0.0_dp
-            
+
     if(write_mc_chains) then 
         conf_write_chain=0
         un_trj= open_chain_lammps_trj(info)
@@ -680,7 +680,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc             ! coordinates            
-    real(dp) :: energy                                             
+    real(dp) :: energy, energyLJ                                             
     character(len=25) :: fname
     character(lenText):: fname2
     integer :: ios, rankfile, iosene
@@ -883,11 +883,11 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             endif
         enddo
-
-       
-        
+    
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
+
+        call VdWpotentialenergy(xseg,EnergyLJ)
 
         if(isReadGood) then ! read was succesfull  
 
@@ -908,6 +908,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain(2,s) = xseg(2,s)-xseg(2,nrotpts) 
                 chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
             enddo
+
 
             ! 0. rotate chain 
             
@@ -965,7 +966,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                 close(un_traj)
             endif     
 
+
+
             ! 6. make indexconfig i.e. place conformation on lattice
+
 
             select case (geometry)
             case ("cubic")
@@ -1048,6 +1052,7 @@ subroutine read_chains_xyz_nucl_volume(info)
  
  !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
+                energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)

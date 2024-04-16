@@ -13,10 +13,6 @@ module modfcnMgexpl
 
     implicit none
 
-!    real(dp), dimension(:,:), allocatable   :: fdisPP_loc, fdisPP_loc_swap ! local equivalent of fraction  fdisPP(i,k,J,K)  
-!    real(dp)        :: fdisP2Mg_loc, fdisP2Mg_loc_swap                     ! local equivalent of fraction  fdisP2Mg(i,k)  	
-
-
 contains
    
      subroutine compute_fdisPP(fdisPP,fdisP2Mg,position1,position2)
@@ -93,7 +89,7 @@ contains
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg 
-        use volume, only     : volcell, indexneighbor, inverse_indexneighbor_phos
+        use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : index_phos, inverse_index_phos, len_index_phos
@@ -124,8 +120,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii            ! dummy indices
-        integer  :: ind, k_ind, kr_ind, m_ind 
+        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
         integer  :: JJ, KK
         integer  :: ix,iy
         real(dp) :: norm, normvol,normPE, normscf
@@ -240,15 +235,12 @@ contains
                                 
                 else
                     ! t=ta : phosphate
-                                   
-                    do ind=1,len_index_phos ! loop over index of  location of phosphates
-                        
-                        i = index_phos(ind)  ! give the lattice location 
-                       
+                           
+                    !do ind=1,len_index_phos ! loop over index of  location of phosphates
+                     !i = index_phos(ind)  ! give the lattice location 
+                    do i=1,nsize  
                         lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
-                        
                        ! here used to be computation of fdisPP
-                
                     enddo
 
                 endif
@@ -262,11 +254,11 @@ contains
     
                
         ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
+        ! if(isVdW) then 
+        !    do t=1,nsegtypes  
+        !        if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
+        !    enddo
+        ! endif 
 
         !  .. computation polymer density fraction      
  
@@ -300,7 +292,7 @@ contains
                         call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
 
                         lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                      -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))    
+                                      -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
                     enddo
                 endif        
             enddo     
@@ -314,7 +306,8 @@ contains
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
         lnproshift=globallnproshift(1)
-              
+         
+
         do c=1,cuantas                            ! loop over cuantas
 
             lnpro=logweightchain(c) 
@@ -352,7 +345,6 @@ contains
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
            
-
             do s=1,nseg
                 t=type_of_monomer(s)
                 if(t/=ta) then  ! not phosphates
@@ -368,7 +360,7 @@ contains
                 else
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k) 
+                    ! k_ind = inverse_index_phos(k) 
 
                     do j=1,nneigh(s,c)
 
@@ -596,6 +588,7 @@ contains
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
+
     subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
 
         use mpivars
@@ -609,7 +602,7 @@ contains
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : inverse_index_phos
-        use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
+        use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
         use field, only      : q, lnproshift
         use VdW, only        : VdW_contribution_lnexp
         use myutils, only    : error_handler
@@ -761,6 +754,8 @@ contains
 
                         m = indexconfpair(s,c)%elem(j)
 
+                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
+
                         do JJ=1,5
                             do KK=1,5
                              local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
@@ -830,8 +825,9 @@ contains
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : inverse_index_phos
-        use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
+        ! use chains, only     : inverse_index_phos
+        use field, only      : xsol,psi,fdis, rhopol_charge 
+        use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
         use field, only      : q, lnproshift
         use VdW, only        : VdW_contribution_lnexp
         use myutils, only    : error_handler
@@ -844,7 +840,6 @@ contains
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
         integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
-        integer  :: k_ind, m_ind
         integer  :: JJ, KK
         real(dp) :: local_FEchempair, FEchempair
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
@@ -979,7 +974,7 @@ contains
                                 
                     ! pair density of phosphates 
                     k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k)
+                    !k_ind = inverse_index_phos(k)
 
 
                     betapi_k=-log(xsol(k))/vsol

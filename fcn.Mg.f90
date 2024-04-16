@@ -292,8 +292,8 @@ contains
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
-        lnproshift=globallnproshift(1)
-              
+        lnproshift=globallnproshift(1)   
+
         do c=1,cuantas                            ! loop over cuantas
 
             lnpro=logweightchain(c) 
@@ -330,7 +330,7 @@ contains
 
             pro = exp(lnpro-lnproshift)   
             local_q = local_q+pro
-           
+            
 
             do s=1,nseg
                 t=type_of_monomer(s)
@@ -579,15 +579,12 @@ contains
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
+
     subroutine compute_average_charge_PP(avfdisP2Mg,avfdisPP)
 
         use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
-
-
-
-
 
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
@@ -735,7 +732,7 @@ contains
                 endif        
             enddo    
 
-            pro = exp(lnpro-lnproshift)   
+            pro = exp(lnpro-lnproshift)  
         
             do s=1,nseg
                 

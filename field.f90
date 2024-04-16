@@ -286,7 +286,7 @@ contains
 
             call charge_nucl_ionbin_sv()  
 
-        case ("nucl_ionbin_Mg")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
 
             call charge_nucl_ionbin_Mg() 
 

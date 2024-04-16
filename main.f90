@@ -287,7 +287,7 @@ program main
 
            
             if(systype=="nucl_ionbin_MgA") then
-                ! call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
+                call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
                 call compute_FEchem_react_PP_expl(FEchempair)
             endif          
 

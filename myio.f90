@@ -890,7 +890,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(8)
+    character(len=15) :: systypestr(9)
     integer :: i
     logical :: flag
 
@@ -906,8 +906,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(6)="nucl_ionbin_sv"
         systypestr(7)="nucl_neutral_sv"
         systypestr(8)="nucl_ionbin_Mg"
+        systypestr(9)="nucl_ionbin_MgA"
 
-        do i=1,8
+        do i=1,9
             if(systype==systypestr(i)) flag=.true.
         enddo
 
@@ -1188,7 +1189,7 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
-    case("nucl_ionbin_Mg")
+    case("nucl_ionbin_Mg","nucl_ionbin_MgA")
 
         call output_nucl_ionbin_Mg
         call output_individualcontr_fe
@@ -2710,7 +2711,7 @@ subroutine make_filename_label(fnamelabel)
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-        "brushborn","nucl_ionbin_Mg")
+        "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
         
         if(denspol>=0.001) then
             write(rstr,'(F5.3)')denspol
@@ -2933,7 +2934,18 @@ subroutine compute_vars_and_output()
 
         call output()           
 
-        
+      case ("nucl_ionbin_MgA")
+
+        call charge_polymer()
+        call average_charge_polymer()        
+        call fcnenergy() ! need avfdis in check_volumefraction routine
+
+        call make_ion_excess()
+        call make_beta(sumphi) ! sumphi computed in fcnenergy()
+        call max_potential()   
+
+        call output()       
+
     
      case ("nucl_neutral_sv")
 
