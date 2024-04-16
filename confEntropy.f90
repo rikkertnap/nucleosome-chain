@@ -2028,7 +2028,7 @@ contains
             fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))
 
         case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-            "brushborn","nucl_ionbin_Mg")
+            "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
             
             if(denspol>=0.001) then
                 write(rstr,'(F5.3)')denspol
