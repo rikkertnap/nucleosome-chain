@@ -40,9 +40,9 @@ contains
         use parameters, Tlocal=>Tref 
         use volume
         use chains
+        use chains, only     : energychainLJ
         use field
         use vectornorm
-        use VdW, only : VdW_contribution_lnexp
         use surface
         use Poisson
 
@@ -88,18 +88,6 @@ contains
             xsol(i) = x(i)        ! volume fraction solvent
             psi(i)  = x(i+k)      ! potential
         enddo 
-
-        count_scf=0   
-        do t=1,nsegtypes
-            if(isrhoselfconsistent(t)) then
-                count_scf=count_scf+1 
-                k=(count_scf+1)*n
-                do i=1,n                         
-                    rhopolin(i,t) = x(i+k)      ! density 
-                enddo
-            endif        
-        enddo
-
  
         !  .. assign global and local polymer density 
 
@@ -141,13 +129,6 @@ contains
                 enddo  
             endif   
         enddo      
-       
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)                    
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
 
@@ -156,7 +137,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal weight
+            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -175,7 +156,7 @@ contains
              
              
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     ! initial weight conformation (1 or 0)
+            lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -239,20 +220,6 @@ contains
                 enddo
             enddo      
 
-            ! .. scf eq for density       
-            count_scf=0    
-            do t=1,nsegtypes
-                if(isrhoselfconsistent(t)) then
-                    count_scf=count_scf+1 
-                    k=(count_scf+1)*n 
-                    do i=1,n   
-                        f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
-                    enddo
-                endif        
-            enddo
-
-
-
             do i=1,n
                 f(i) = xpol(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xRb(i)+xCa(i)+xMg(i)+xNaCl(i) +xK(i) -1.0_dp
                 rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
@@ -264,7 +231,6 @@ contains
            
             ! .. electrostatics 
     
-            
             ! .. Poisson Eq 
             call Poisson_Equation(f,psi,rhoq) 
     
@@ -299,9 +265,9 @@ contains
         use parameters, Tlocal=>Tref 
         use volume
         use chains
+        use chains, only     : energychainLJ
         use field
         use vectornorm
-        use VdW, only : VdW_contribution_lnexp
         use surface
         use Poisson
 
@@ -397,7 +363,7 @@ contains
         lnpro=0.0_dp
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=lnpro +logweightchain(c)        ! internal weight
+            lnpro=lnpro +logweightchain(c)-energychainLJ(c)        ! internal weight
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -414,7 +380,7 @@ contains
         lnproshift=globallnproshift(1)
           
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     ! initial weight conformation (1 or 0)
+            lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -516,9 +482,9 @@ contains
         use parameters, Tlocal=>Tref 
         use volume
         use chains
+        use chains, only     : energychainLJ
         use field
         use vectornorm
-        use VdW, only : VdW_contribution_lnexp
         use surface
         use Poisson
 
@@ -651,13 +617,6 @@ contains
                 enddo  
             endif   
         enddo      
-               
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
  
@@ -666,7 +625,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal weight
+            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -685,7 +644,7 @@ contains
              
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c)-energychainLJ(c) 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -827,15 +786,24 @@ contains
     subroutine fcnnucl_ionbin(x,f,nn)
 
         use mpivars
-        use globals
-        use parameters, Tlocal=>Tref 
-        use volume
-        use chains
-        use field
-        use vectornorm
-        use VdW, only : VdW_contribution_lnexp
-        use surface
-        use Poisson
+        use precision_definition
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas
+        use parameters, only : Tlocal=>Tref 
+        use parameters, only : expmu 
+        use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
+        use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,K0aAA,K0a,K0aion
+        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use volume, only     : volcell
+        use chains, only     : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge 
+        use chains, only     : energychainLJ
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa
+        use field, only      : rhopol,rhopolin,rhoqpol,rhoq, xpol, rhopol
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
+        use field, only      : q, lnproshift
+        use vectornorm, only : L2norm, L2norm_sub
+        use Poisson, only    : Poisson_Equation
+
 
         !     .. scalar arguments
 
@@ -1005,13 +973,6 @@ contains
 
             endif   
         enddo      
-               
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
  
@@ -1020,7 +981,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal weight
+            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -1039,7 +1000,7 @@ contains
              
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) -energychainLJ(c)
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -1203,12 +1164,12 @@ contains
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge    
+        use chains, only     : type_of_charge, elem_charge 
+        use chains, only     : energychainLJ   
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
-        use VdW, only        : VdW_contribution_lnexp
         use Poisson, only    : Poisson_Equation
 
         !     .. scalar arguments
@@ -1395,13 +1356,6 @@ contains
 
             endif   
         enddo      
-               
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer density fraction      
  
@@ -1410,7 +1364,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro = lnpro+logweightchain(c) 
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)
                 do j=1,nelem(s)               ! loop over elements of segment 
@@ -1435,7 +1389,7 @@ contains
         lnproshift=globallnproshift(1)
               
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) -energychainLJ(c)
             do s=1,nseg                       ! loop over segments 
                 t = type_of_monomer(s) 
                 do j=1,nelem(s)               ! loop over elements of segment 
@@ -1661,7 +1615,8 @@ contains
         use parameters, only : vsol,vpol, vnucl
         use parameters, only : iter
         use volume, only     : volcell
-        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem  
+        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem 
+        use chains, only     : energychainLJ 
         use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t xpol_tot pointer to xpol !!!
         use field, only      : q, lnproshift
         use vectornorm, only : L2norm_f90
@@ -1725,7 +1680,7 @@ contains
         lnpro   = 0.0_dp
         
         do c=1,cuantas                           ! loop over cuantas
-            lnpro=lnpro+logweightchain(c)        ! internal weight
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal weight
             !lnpro_per_c =0.0_dp
             do s=1,nseg                          ! loop over segments 
                 t=type_of_monomer(s)                
@@ -1747,7 +1702,7 @@ contains
         lnproshift=globallnproshift(1)
         
         do c=1,cuantas                        ! loop over cuantas
-            lnpro = logweightchain(c) 
+            lnpro=logweightchain(c) -energychainLJ(c)
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)   
                 do j=1,nelem(s)               ! loop over elements of segment  
@@ -1851,9 +1806,9 @@ contains
         use parameters
         use volume
         use chains, only : indexchain, type_of_monomer,logweightchain, ismonomer_chargeable
+        use chains, only     : energychainLJ
         use field
         use vectornorm
-        use VdW, only : VdW_contribution_lnexp
         use dielectric_const, only : dielectfcn, born
         use surface
         use Poisson, only : Poisson_Equation_Eps, grad_pot_sqr_eps_cubic
@@ -2067,13 +2022,6 @@ contains
                 enddo  
             endif   
         enddo      
-      
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
         local_q = 0.0_dp    ! init q
@@ -2081,7 +2029,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal energy
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -2100,7 +2048,7 @@ contains
              
         do c=1,cuantas         ! loop over cuantas
             !pro=1.0_dp         ! initial weight conformation (1 or 0)
-            lnpro=logweightchain(c)
+            lnpro=logweightchain(c)-energychainLJ(c) 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -2235,7 +2183,6 @@ contains
         use chains
         use field
         use parameters
-        use VdW
         use surface 
         use vectornorm
         use myutils
@@ -2369,7 +2316,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal energy
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -2392,7 +2339,7 @@ contains
 
         do c=1,cuantas               ! loop over cuantas
             
-            lnpro=logweightchain(c)  
+            lnpro=logweightchain(c)  -energychainLJ(c) 
 
             do s=1,nseg              ! loop over segments 
                 k=indexchain(s,c)           
@@ -2520,7 +2467,6 @@ contains
         use chains
         use field
         use vectornorm
-        use VdW, only : VdW_contribution_lnexp
        
         !     .. scalar arguments
 
@@ -2542,7 +2488,6 @@ contains
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
-        integer  :: count_scf
 
         !     .. executable statements 
 
@@ -2565,16 +2510,6 @@ contains
             xpol(i) = 0.0_dp      ! volume fraction polymer
         enddo 
 
-        count_scf=0   
-        do t=1,nsegtypes
-            if(isrhoselfconsistent(t)) then
-                count_scf=count_scf+1 
-                k=count_scf*n
-                do i=1,n                         
-                    rhopolin(i,t) = x(i+k)      ! density 
-                enddo
-            endif        
-        enddo
 
         do t=1,nsegtypes
             do i=1,n 
@@ -2584,13 +2519,6 @@ contains
                 lnexppi(i,t) = log(xsol(i))*vpol(t)  
             enddo
         enddo      
-       
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes 
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)   
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
 
@@ -2599,7 +2527,7 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)        ! internal energy
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal energy
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
@@ -2617,7 +2545,7 @@ contains
         lnproshift=globallnproshift(1)
              
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)        ! initial weight conformation (1 or 0)
+            lnpro=logweightchain(c) -energychainLJ(c)       ! initial weight conformation (1 or 0)
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -2673,19 +2601,6 @@ contains
                     !f(i+t*n)    = rhopol(i,t) - rhopolin(i,t) 
                 enddo
             enddo   
-
-            ! .. scf eq for density       
-            count_scf=0    
-            do t=1,nsegtypes
-                if(isrhoselfconsistent(t)) then
-                    count_scf=count_scf+1 
-                    k=count_scf*n 
-                    do i=1,n   
-                        f(i+k)  = rhopol(i,t) - rhopolin(i,t) 
-                    enddo
-                endif        
-            enddo
-
 
             do i=1,n
                 f(i) = xpol(i)+xsol(i)-1.0_dp
@@ -2787,7 +2702,7 @@ contains
         lnpro=0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
-            lnpro=lnpro+logweightchain(c)        ! internal energy
+            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -2812,7 +2727,7 @@ contains
 
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=logweightchain(c)        ! internal energy
+            lnpro=logweightchain(c) -energychainLJ(c)        ! internal energy
 
             do s=1,nseg        ! loop over segments 
                 k=indexchain(s,c)

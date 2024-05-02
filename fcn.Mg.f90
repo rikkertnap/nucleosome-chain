@@ -35,11 +35,11 @@ contains
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : index_phos, inverse_index_phos, len_index_phos
+        use chains, only     : energychainLJ
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg , rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
-        use VdW, only        : VdW_contribution_lnexp
         use Poisson, only    : Poisson_Equation
 
         !     .. scalar arguments
@@ -100,17 +100,6 @@ contains
             psi(i)  = x(i+k)      ! potential
         enddo  
         
-        count_scf=0    
-        do t=1,nsegtypes
-            if(isrhoselfconsistent(t)) then
-                count_scf=count_scf+1 
-                k=(count_scf+1)*n
-                do i=1,n                         
-                    rhopolin(i,t) = x(i+k)          ! density 
-                enddo
-            endif        
-        enddo
-
         !  .. assign global and local polymer density 
         do t=1,nsegtypes
             do i=1,n
@@ -236,14 +225,6 @@ contains
             endif   
         enddo   
     
-               
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            enddo
-        endif 
-
         !  .. computation polymer density fraction      
  
         local_q = 0.0_dp    ! init q
@@ -251,7 +232,7 @@ contains
         
         do c=1,cuantas                            ! loop over cuantas
 
-            lnpro = lnpro+logweightchain(c) 
+            lnpro = lnpro+logweightchain(c) - energychainLJ(c) 
             
             do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
@@ -296,7 +277,7 @@ contains
 
         do c=1,cuantas                            ! loop over cuantas
 
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) -energychainLJ(c)
            
             do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
@@ -511,21 +492,6 @@ contains
 
             enddo    
 
-            ! self-consistent equation of densities
-            count_scf=0    
-            normscf=0.0_dp
-            do t=1,nsegtypes
-                if(isrhoselfconsistent(t)) then
-                    print*,"VdW SCF not allowed !!"
-                    count_scf=count_scf+1 
-                    k=(count_scf+1)*n
-                    do i=1,n   
-                        f(i+k) = rhopol(i,t) - rhopolin(i,t) 
-                    enddo
-                    normscf=normscf+L2norm_f90(f(k+1:k+n))
-                endif        
-            enddo
-
             do i=1,n
 
                 f(i) = xpol_tot(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xRb(i)+xCa(i)+xMg(i)+xK(i)-1.0_dp
@@ -546,12 +512,8 @@ contains
             normvol = L2norm_f90(f(1:nsize))
             normPE  = L2norm_f90(f(nsize+1:2*nsize))
            
-            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE,"normscf=",normscf            
-           !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
-           ! print*,"vnucl(1,ta)=",vnucl(1,ta)," ta=",ta
-           ! print*,"vPP(Phos)=",vPP(phos)
-        
-            
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE          
+          
         else                      ! Export results 
             
             dest = 0 
@@ -588,15 +550,15 @@ contains
 
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
-        use parameters, only : ta,isVdW! isrhoselfconsistent 
+        use parameters, only : ta !isVdW! isrhoselfconsistent 
         use volume, only     : nx, ny, nz
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : inverse_index_phos
+        use chains, only     : inverse_index_phos, energychainLJ
         use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
         use field, only      : q, lnproshift
-        use VdW, only        : VdW_contribution_lnexp
+        
         use myutils, only    : error_handler
 
         real(dp), intent(inout) :: avfdisP2Mg
@@ -686,15 +648,6 @@ contains
                 lnexppi(:,t) = 0.0_dp
             endif   
         enddo   
-           
-        ! Van der Waals   
-        if(isVdW) then 
-            print*,"Error no VdW for nucl_ionbin_Mg"
-            call error_handler(-1,"compute_average_charge_PP")
-            !do t=1,nsegtypes  
-            !    if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            !senddo
-        endif 
 
         !  .. computation of probability 
 
@@ -702,7 +655,7 @@ contains
               
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) - energychainLJ(c)
            
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)
@@ -821,15 +774,15 @@ contains
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg
-        use parameters, only : ta,isVdW! isrhoselfconsistent 
+        use parameters, only : ta !,isVdW! isrhoselfconsistent 
         use volume, only     : nx, ny, nz
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : inverse_index_phos
+        use chains, only     : inverse_index_phos, energychainLJ
         use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP, fdisP2Mg
         use field, only      : q, lnproshift
-        use VdW, only        : VdW_contribution_lnexp
+        
         use myutils, only    : error_handler
 
         real(dp), intent(inout) :: FEchemPP
@@ -921,14 +874,6 @@ contains
             endif   
         enddo   
            
-        ! Van der Waals   
-        if(isVdW) then 
-            print*,"Error no VdW for nucl_ionbin_Mg"
-            call error_handler(-1,"compute_average_charge_PP")
-            !do t=1,nsegtypes  
-            !    if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopolin,lnexppi(:,t),t)
-            !senddo
-        endif 
 
         !  .. computation of probability 
 
@@ -936,7 +881,7 @@ contains
               
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) - energychainLJ(c)
            
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)

@@ -235,14 +235,16 @@ contains
                 neq = (2+nsegtypes) * nsize 
             case ("brush_mulnoVdW") 
                 neq = 2 * nsize     
-            case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
+            case ("nucl_neutral_sv")
+                neq =  nsize 
+            case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
+                neq = 2 * nsize 
+            case ("brushdna","nucl_ionbin")
                 numeq=0 
                 do t=1,nsegtypes
                     if(isrhoselfconsistent(t)) numeq=numeq+1
                 enddo    
                 neq = (2+numeq) * nsize 
-            case ("nucl_neutral_sv")
-                neq =  nsize 
             case ("brushborn")
                 numeq=0 
                 do t=1,nsegtypes
@@ -1468,14 +1470,14 @@ contains
     ! pre: Vdweps and isVdW is allready intialized
     ! post isrhoselfconsistent is set  
 
-    subroutine make_isrhoselfconsistent(isVdW,info)
+    subroutine make_isrhoselfconsistent(info)
 
         use globals, only : nsegtypes,nseg,systype
         use chains, only : type_of_monomer_char,type_of_monomer,ismonomer_chargeable
         use myutils, only : print_to_log, LogUnit, lenText
  
         !     .. arguments 
-        logical, intent(in) ::  isVdW
+    
         integer,  intent(out), optional :: info
 
         integer :: info_alloc, info_Mg, info_AA
@@ -1493,25 +1495,14 @@ contains
             return
         endif    
 
-        ! init all element of isrhoselfconsistent
-        !do i=1,nsegtypes
-        !    isrhoselfconsistent(i)=.false.
-        !enddo
+        ! init all element of isrhoselfconsistent to false
+        do i=1,nsegtypes
+            isrhoselfconsistent(i)=.false.
+        enddo
 
-        ! Van der Waals self consistent equation      
-        if(.not.isVdW) then
-            do i=1,nsegtypes
-                isrhoselfconsistent(i)=.false.
-            enddo
-        else 
-            do t=1,nsegtypes
-                flag=.false.
-                do tt=1,nsegtypes
-                    if(abs(VdWeps(t,tt))>Vdwepsilon) flag=.true.
-                enddo
-                isrhoselfconsistent(t)=flag
-            enddo            
-        endif    
+
+
+         
 
         ! Mg/Ca self consistent equation
 

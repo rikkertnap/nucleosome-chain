@@ -67,9 +67,9 @@ contains
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
+        use chains, only : energychainLJ
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, isrhoselfconsistent, write_Palpha
-        use VdW, only : VdW_contribution_lnexp
         use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
@@ -122,11 +122,6 @@ contains
             enddo    
         enddo      
        
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
        
@@ -143,7 +138,7 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     
+            lnpro=logweightchain(c) -energychainLJ(c)      
             do s=1,nseg        ! loop over segments                     
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -152,6 +147,7 @@ contains
             pro=exp(lnpro-lnproshift)  
 
             FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Econf_local=Econf_local+energychainLJ(c)*pro
             Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
@@ -161,6 +157,7 @@ contains
            if(write_Palpha) write(un,*)pro/q
         enddo
         
+        Econf_local=Econf_local/q
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -225,9 +222,9 @@ contains
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
+        use chains, only : energychainLJ
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
-        use VdW, only : VdW_contribution_exp
         use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
@@ -289,7 +286,7 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)        ! internal energy  
+            lnpro=logweightchain(c) -energychainLJ(c)         ! internal energy  
             do s=1,nseg        ! loop over segments                     
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -298,6 +295,7 @@ contains
             pro=exp(lnpro-lnproshift)
 
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local = Rgsqr_local + Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
             bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
@@ -307,7 +305,7 @@ contains
            if(write_Palpha) write(un,*)pro/q
 
         enddo
-        
+        Econf_local=Econf_local/q
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -381,10 +379,9 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
+        use chains, only : energychainLJ
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
-
-        use VdW, only : VdW_contribution_lnexp
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -445,12 +442,6 @@ contains
                 enddo  
             endif   
         enddo      
-       
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
        
@@ -467,7 +458,7 @@ contains
         ndihedrals=nnucl-3
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     
+            lnpro=logweightchain(c) -energychainLJ(c)    
             do s=1,nseg        ! loop over segments                     
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -475,7 +466,7 @@ contains
             enddo 
             pro=exp(lnpro-lnproshift)      
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -485,7 +476,8 @@ contains
            if(write_Palpha) write(un,*)pro/q
 
         enddo
-        
+
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -549,6 +541,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
+        use chains, only : energychainLJ
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters, only : vpol, zpol, write_Palpha
         use myutils, only : lenText, newunit
@@ -630,7 +623,7 @@ contains
         
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)       ! internal energy  
+            lnpro=logweightchain(c) -energychainLJ(c)      ! internal energy  
             do s=1,nseg        ! loop over segments                     
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -638,6 +631,7 @@ contains
             enddo    
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -648,6 +642,7 @@ contains
 
         enddo
         
+         Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -711,6 +706,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
+        use chains, only : energychainLJ
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
         use myutils, only : lenText, newunit
@@ -779,7 +775,7 @@ contains
 
         do c=1,cuantas             ! loop over cuantas
         
-            lnpro=logweightchain(c)               ! initial weight conformation 
+            lnpro=logweightchain(c) -energychainLJ(c)              ! initial weight conformation 
             do s=1,nseg              ! loop over segments 
                 k=indexchain(s,c)         
                 if(isAmonomer(s)) then ! A segment 
@@ -790,6 +786,7 @@ contains
             enddo
             pro=exp(lnpro-lnproshift)
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -799,6 +796,7 @@ contains
             if(write_Palpha) write(un,*) pro/q     
         enddo  
 
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -865,13 +863,12 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle  
+        use chains, only : energychainLJ
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
         use parameters, only : vpolAA, vsol, vNa, vCl, vRb, vMg, vCa ,vpol
-        use parameters, only : zNa, zCl, zRb, zMg, zCa, zpolAA
-       ! use volume, only : ngr, nset_per_graft
-        use VdW, only : VdW_contribution_lnexp
+        use parameters, only : zNa, zCl, zRb, zMg, zCa, zpolAA        
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
         use dielectric_const, only : dielectfcn, born
         use myutils, only : lenText, newunit
@@ -1004,14 +1001,6 @@ contains
                 enddo  
             endif   
         enddo      
-      
-        ! Van der Waals   
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
-            enddo
-        endif 
-
 
         !  .. computation polymer volume fraction      
        
@@ -1028,7 +1017,7 @@ contains
         ndihedrals=nnucl-3 
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     
+            lnpro=logweightchain(c)  -energychainLJ(c)   
             do s=1,nseg        ! loop over segments                     
                 k=indexchain(s,c)
                 t=type_of_monomer(s)                
@@ -1036,6 +1025,7 @@ contains
             enddo 
             pro=exp(lnpro-lnproshift)      
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
@@ -1045,6 +1035,7 @@ contains
              if(write_Palpha) write(un,*)pro/q
         enddo
 
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -1109,9 +1100,9 @@ contains
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
+        use chains, only : energychainLJ
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
-        use VdW, only : VdW_contribution_lnexp
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -1174,12 +1165,6 @@ contains
                 enddo  
             endif   
         enddo      
-       
-        if(isVdW) then 
-            do t=1,nsegtypes  
-                if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
-            enddo
-        endif 
 
         !  .. computation polymer volume fraction      
        
@@ -1197,7 +1182,7 @@ contains
 
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)     
+            lnpro=logweightchain(c) -energychainLJ(c)    
             do s=1,nseg        ! loop over segments                     
                 t = type_of_monomer(s)                
                 do j=1,nelem(s)               ! loop over elements of segment  
@@ -1213,7 +1198,7 @@ contains
 
             pro=exp(lnpro-lnproshift)      
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
+            Econf_local=Econf_local +pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -1224,6 +1209,7 @@ contains
 
         enddo
         
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -1303,6 +1289,7 @@ contains
         use chains, only : index_phos, inverse_index_phos, len_index_phos
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
+        use chains, only : energychainLJ
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1410,10 +1397,7 @@ contains
             endif      
         enddo   
 
-       
-        if(isVdW) then 
-            print*,"VdW SCF not allowed in FEconf_nucl_ionbin_Mg"
-        endif 
+        
 
         !  .. computation polymer volume fraction      
        
@@ -1431,7 +1415,7 @@ contains
  
  
         do c=1,cuantas                            ! loop over cuantas
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c) -energychainLJ(c)
             do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
@@ -1464,7 +1448,7 @@ contains
             pro = exp(lnpro-lnproshift)  
 
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -1475,6 +1459,7 @@ contains
         
         enddo
         
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -1553,6 +1538,7 @@ contains
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
+        use chains, only : energychainLJ
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1649,9 +1635,9 @@ contains
         enddo   
 
        
-        if(isVdW) then 
-            print*,"VdW SCF not allowed in FEconf_nucl_ionbin_Mg"
-        endif 
+        !if(isVdW) then 
+        !    print*,"VdW SCF not allowed in FEconf_nucl_ionbin_Mg"
+        !endif 
 
         !  .. computation polymer volume fraction      
        
@@ -1669,7 +1655,7 @@ contains
  
  
         do c=1,cuantas                            ! loop over cuantas
-            lnpro=logweightchain(c) 
+            lnpro=logweightchain(c)-energychainLJ(c) 
             do s=1,nseg                           ! loop over segments 
                 t=type_of_monomer(s)
                 if(t/=ta) then 
@@ -1700,7 +1686,7 @@ contains
             pro = exp(lnpro-lnproshift)  
 
             FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
@@ -1710,7 +1696,8 @@ contains
             if(write_Palpha) write(un,*)pro/q
         
         enddo
-        
+
+        Econf_local=Econf_local/q
         Rgsqr_local=Rgsqr_local/q
         Rendsqr_local=Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -1786,9 +1773,9 @@ contains
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
+        use chains, only : energychainLJ
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vsol, vnucl, isVdW, isrhoselfconsistent, write_Palpha
-        use VdW, only : VdW_contribution_lnexp
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -1837,12 +1824,6 @@ contains
         do i=1,nsize
             lnexppi(i) = log(xsol(i))/vsol 
         enddo    
-        
-       ! if(isVdW) then 
-       !     do t=1,nsegtypes  
-       !         if(isrhoselfconsistent(t)) call VdW_contribution_lnexp(rhopol,lnexppi(:,t),t)
-       !     enddo
-       ! endif 
 
         !  .. computation polymer volume fraction      
        
@@ -1859,7 +1840,7 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas                        ! loop over cuantas
-            lnpro = logweightchain(c) 
+            lnpro = logweightchain(c)-energychainLJ(c)   
             do s=1,nseg                       ! loop over segments 
                 t=type_of_monomer(s)   
                 do j=1,nelem(s)               ! loop over elements of segment  
@@ -1871,7 +1852,7 @@ contains
             pro = exp(lnpro-lnproshift)  
         
             FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-    
+            Econf_local=Econf_local+pro*energychainLJ(c)
             Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
             Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
             bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
@@ -1880,8 +1861,9 @@ contains
             
             if(write_Palpha) write(un,*)pro/q 
 
-       enddo
-        
+        enddo
+
+        Econf_local=Econf_local/q
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
@@ -1961,7 +1943,6 @@ contains
         write(istr,'(I4)')rank
         call make_filename_label(fnamelabel)
         fname='Palpha.'//trim(fnamelabel)//'rank'//trim(adjustl(istr))//'.dat'
-
 
     end subroutine make_filename_Palpha
 

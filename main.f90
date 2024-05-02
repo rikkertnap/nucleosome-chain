@@ -58,7 +58,6 @@ program main
 
     integer :: phoscutoff
 
-
     ! .. executable statements
 
     ! .. mpi
@@ -108,24 +107,17 @@ program main
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
        
-
     ! init distributed volume  
     if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
         systype=="nucl_ionbin_MgA") then 
-        
-        call init_vnucl_type(info) ! ismonomer_chargable etc needs to be set
+        call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
         call error_handler(info,"init_vnucl_type")
     endif 
         
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
-     
     call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
-    
-    if(isVdW) then 
-        call make_VdWcoeff(info)
-        call error_handler(info,"make_VdWepscoeff")
-    endif  
+    print*,"isVdW=",isVdW
 
     call make_chains(chainmethod,systype)   
 
@@ -144,14 +136,17 @@ program main
     call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos) ! internal systype switch !
     call init_field()
     call init_surface(bcflag,nsurf)
-    call make_isrhoselfconsistent(isVdW)
+    call make_isrhoselfconsistent(info)
     call set_size_neq()             ! number of non-linear equation neq
     call set_fcn()
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
-    call write_chain_struct(write_struct,info)
+    call write_chain_struct(write_struct,info) 
+    if(write_struct)call error_handler(1,"stop after write_chains_struct")
+
 
     ! call test_index_histone(info)  
+
 
     !  .. computation starts
 

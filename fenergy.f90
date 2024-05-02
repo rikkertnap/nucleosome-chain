@@ -122,7 +122,6 @@ contains
         use volume
         use parameters
         use field
-        use VdW
         use surface
 
         !  .. local arguments 
@@ -165,11 +164,8 @@ contains
         enddo
 
         ! .. calcualtion of FEVdW
-        if(isVdW) then 
-            FEVdW =-VdW_energy_diblock(rhopol(:,A),rhopol(:,B))
-        else   
-            FEVdW=0.0_dp
-        endif
+        FEVdW=0.0_dp
+        
 
         FEel  = (volcell/vsol)*FEel
         FEpi  = (volcell/vsol)*FEpi

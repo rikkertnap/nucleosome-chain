@@ -248,13 +248,13 @@ subroutine make_chains_mc()
     endif   
 
     energychain=0.0_dp ! no internal energy 
-
+    energychainLJ= 0.0_dp
+    
 end subroutine make_chains_mc
 
 
 subroutine read_chains_xyz(systype,info)
 
-    
     ! .. argument
     character(len=15), intent(in) :: systype
     integer, intent(out) :: info
@@ -269,14 +269,14 @@ subroutine read_chains_xyz(systype,info)
 end subroutine
 
 
-elemental subroutine sp_to_dp( lhs, rhs )
-      real(kind=dp), intent(out) :: lhs
-      real(kind=sp), intent(in)  :: rhs
-      character(len=*), parameter :: fmtdp = "(1pg15.7)"
-      character(len=22) :: s 
-      write( s, fmtdp ) rhs
-      read( s, fmt=*) lhs
-end subroutine
+!elemental subroutine sp_to_dp( lhs, rhs )
+!      real(kind=dp), intent(out) :: lhs
+!      real(kind=sp), intent(in)  :: rhs
+!      character(len=*), parameter :: fmtdp = "(1pg15.7)"
+!      character(len=22) :: s 
+!      write( s, fmtdp ) rhs
+!      read( s, fmt=*) lhs
+!end subroutine
 
 
 ! Reads conformations from a file called traj.<rank>.xyz
@@ -333,7 +333,7 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc               
-    real(dp) :: energy                                             
+    real(dp) :: energy, EnergyLJ                                            
     character(len=25) :: fname
     integer :: ios, rankfile, iosene
     character(len=30) :: str
@@ -344,7 +344,6 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: d_type_num, d_atom_num
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
-    ! character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     real(dp) :: equilat, equilat_rot
     integer :: ii
     integer :: s_local
@@ -452,6 +451,13 @@ subroutine read_chains_xyz_nucl(info)
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
+        if(isVdW) then 
+            call VdWpotentialenergy(xseg,EnergyLJ)
+            print*,"EnergyLJ=",EnergyLJ
+        else 
+            EnergyLJ=0.0_dp
+        endif      
+
         if(isReadGood) then ! read was succesfull  
 
             conffile=conffile +1 
@@ -462,8 +468,6 @@ subroutine read_chains_xyz_nucl(info)
                 chain(3,s) = xseg(3,s)-xseg(3,sgraftpts(1)) 
             enddo
 
-
-          
             ! rotate chain 
             
             ! call rotate_nucl_chain(chain,chain_rot,sgraftpts,nseg)
@@ -517,7 +521,7 @@ subroutine read_chains_xyz_nucl(info)
                 
                 enddo
                
-
+                energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
 
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -571,6 +575,7 @@ subroutine read_chains_xyz_nucl(info)
 
                 enddo
                 
+                energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
 
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -578,7 +583,7 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-                conf=conf+1   
+                conf = conf + 1   
 
             case default
                 text="Error: in make_chains_XYZ_nucl geometry not cubic or prism: stopping program"
@@ -887,7 +892,12 @@ subroutine read_chains_xyz_nucl_volume(info)
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
-        call VdWpotentialenergy(xseg,EnergyLJ)
+        if(isVdW) then 
+            call VdWpotentialenergy(xseg,EnergyLJ)
+            print*,"EnergyLJ=",EnergyLJ
+        else 
+            EnergyLJ=0.0_dp
+        endif        
 
         if(isReadGood) then ! read was succesfull  
 
@@ -2659,13 +2669,11 @@ subroutine make_segcom(segcom,nnucl,filename)
 
 end subroutine make_segcom
 
-
-
 subroutine write_chain_struct(write_struct,info)
 
     use globals, only : cuantas,nnucl
     use myutils, only : lenText
-    use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing
+    use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing,energychainLJ
 
     implicit none 
 
@@ -2674,7 +2682,7 @@ subroutine write_chain_struct(write_struct,info)
  
     ! .. local
     character(len=lenText) :: filename
-    integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist
+    integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist, un_VdW
     integer :: c,s,nbonds,nangles,ndihedrals
 
     info=0
@@ -2691,6 +2699,8 @@ subroutine write_chain_struct(write_struct,info)
         un_Rend=open_chain_struct_file(filename,info)
         filename="spacing."
         un_dist=open_chain_struct_file(filename,info)
+        filename="VdWenergy."
+        un_VdW=open_chain_struct_file(filename,info)
         
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -2702,6 +2712,7 @@ subroutine write_chain_struct(write_struct,info)
             write(un_bond,*)(bond_angle(s,c),s=1,nangles)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
             write(un_dist,*)(nucl_spacing(s,c),s=1,nbonds)
+            write(un_VdW,*)energychainLJ(c)
         enddo 
 
         close(un_dihedral)
@@ -2709,6 +2720,7 @@ subroutine write_chain_struct(write_struct,info)
         close(un_Rg)
         close(un_Rend)  
         close(un_dist)
+        close(un_VdW)
       
     endif
 
@@ -2755,6 +2767,52 @@ function open_chain_struct_file(filename,info)result(un)
         endif
     endif    
 end function open_chain_struct_file
+
+
+subroutine write_phosphate_pairs(write_pairs,info)
+
+    use globals, only : cuantas,nseg
+    use myutils, only : lenText
+    use chains, only : type_of_monomer, nneigh, indexconfpair, distphoscutoff
+    use parameters, only : ta
+
+    implicit none 
+
+    logical, intent(in) :: write_pairs
+    integer, intent(inout) :: info
+ 
+    ! .. local
+    character(len=lenText) :: filename
+    integer :: un_pp
+    integer :: conf, s, j, tPhos
+
+    info=0
+
+    if(write_pairs) then
+
+        tPhos = find_type_phosphate()
+    
+        filename='phosphate_pairs.'
+        !     .. opening file
+        un_pp=open_chain_struct_file(filename,info)
+
+        write(un_pp,*)"phosphate pairs"
+        write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+        write(un_pp,*)"distphoscutoff=",distphoscutoff
+        do conf=1,cuantas
+            write(un_pp,*)"conf=",conf
+            do s=1,nseg
+                write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),&
+                    (indexconfpair(s,conf)%elem(j),j=1,nneigh(s,conf))
+            enddo
+        enddo 
+            
+        close(un_pp)
+          
+    endif
+        
+end subroutine write_phosphate_pairs
+
 
 
 subroutine set_mapping_num_to_char(type_of_monomer_num_to_char)
