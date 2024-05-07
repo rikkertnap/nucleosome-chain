@@ -452,7 +452,7 @@ subroutine read_chains_xyz_nucl(info)
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
         if(isVdW) then 
-            call VdWpotentialenergy(xseg,EnergyLJ)
+            EnergyLJ = VdWpotentialenergy(xseg)
             print*,"EnergyLJ=",EnergyLJ
         else 
             EnergyLJ=0.0_dp
@@ -893,8 +893,8 @@ subroutine read_chains_xyz_nucl_volume(info)
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
         if(isVdW) then 
-            call VdWpotentialenergy(xseg,EnergyLJ)
-            print*,"EnergyLJ=",EnergyLJ
+            EnergyLJ = VdWpotentialenergy(xseg)
+            !print*,"EnergyLJ=",EnergyLJ
         else 
             EnergyLJ=0.0_dp
         endif        
@@ -971,6 +971,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
 
             if(DEBUG)then
+            !if(conf==1.or.(161<=conf .and. conf<=163)) then
                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
                 call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
                 close(un_traj)
@@ -2321,20 +2322,19 @@ subroutine VdWpotentialenergySaw(chain,Energy,saw)
 
 end subroutine VdWpotentialenergySaw
    
-
- 
 ! pre : chain conformation 
 ! post: VdW of conformation 
-! Warning: need to to add VdWcutoff
+! V_VdW(r) = -epsilon * (sigma/r)^6 : r >= 2*(1/6) sigma
+!          = -epsilon               : r  < 2*(1/6) sigma
 
-subroutine VdWpotentialenergy(chain,Energy)
+function VdWpotentialenergy(chain)result(Energy)
 
     use globals, only : nseg, nsegtypes
     use chains, only : type_of_monomer
     use parameters, only :  lsegAA,VdWeps
 
     real(dp), intent(in)  :: chain(:,:)
-    real(dp), intent(out) :: Energy
+    real(dp) :: Energy
     
     real(dp) :: Ene,sqrlseg,sqrdist !,maxdist
     integer ::  i,j,s,t
@@ -2345,14 +2345,17 @@ subroutine VdWpotentialenergy(chain,Energy)
     !maxdist=VdWcutoff*delta 
    
     do i=1,nseg
-        do j=i+1,nseg
 
             s=type_of_monomer(i)
-            t=type_of_monomer(j)
-
+            
             zi = chain(1,i)
             xi = chain(2,i)
             yi = chain(3,i)
+
+
+        do j=i+1,nseg
+
+            t=type_of_monomer(j)
 
             zj = chain(1,j)
             xj = chain(2,j)
@@ -2370,7 +2373,54 @@ subroutine VdWpotentialenergy(chain,Energy)
 
     Energy = Ene            
 
-end subroutine VdWpotentialenergy
+end function  VdWpotentialenergy
+
+ 
+! pre : chain conformation 
+! post: VLJ energy of conformation 
+! VLJ(r) = -epsilon * [ (sigma/r)^12-(sigma/r)^6 
+
+function  VLJpotentialenergy(chain) result(Energy)
+
+    use globals, only : nseg, nsegtypes
+    use chains, only : type_of_monomer
+    use parameters, only :  lsegAA,VdWeps
+
+    real(dp), intent(in)  :: chain(:,:)
+    real(dp) :: Energy
+    
+    real(dp) :: Ene,sqrlseg,sqrdist
+    integer ::  i,j,s,t
+    real(dp) :: xi,xj,yi,yj,zi,zj
+    
+    Ene=0.0_dp 
+   
+    do i=1,nseg
+        s=type_of_monomer(i)
+        
+        zi = chain(1,i)
+        xi = chain(2,i)
+        yi = chain(3,i)
+        
+        do j=i+1,nseg
+
+            t=type_of_monomer(j)
+
+            zj = chain(1,j)
+            xj = chain(2,j)
+            yj = chain(3,j) 
+
+            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+            sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
+    
+            Ene=Ene + 4.0_dp*VdWeps(s,t)*((sqrlseg/sqrdist)**6-(sqrlseg/sqrdist)**3)
+        
+        enddo
+    enddo 
+
+    Energy = Ene            
+
+end function VLJpotentialenergy
 
 
 ! .. commuter radius of gyration of a sub chain conformation
