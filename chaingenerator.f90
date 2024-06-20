@@ -11,13 +11,13 @@ module chaingenerator
     use precision_definition   
     implicit none
 
-   ! integer, parameter :: lenfname=40
+    ! integer, parameter :: lenfname=40
     integer :: conf_write
     integer :: conf_write_chain
     real(dp) :: xgraftloop(3,2)
 
-    real(dp), parameter :: eps_equilat=1.0e-8_dp
-    character(len=80), parameter  :: fmt3xyz = "(3ES15.5E2)"
+    real(dp),          parameter :: eps_equilat=1.0e-8_dp
+    character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
 
     private 
 
@@ -27,7 +27,8 @@ module chaingenerator
     public :: find_phosphate_location
     public :: write_indexchain_histone, test_index_histone
 
-    private ::  eps_equilat
+    private ::  eps_equilat, fmt3xyz
+
 contains
 
 ! Main chain generator routine selects type of method to use 
@@ -300,7 +301,6 @@ subroutine read_chains_xyz_nucl(info)
     use mpivars, only : rank,size                                                                                   
     use globals
     use chains
-    use random
     use parameters
     use volume, only :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
@@ -308,6 +308,7 @@ subroutine read_chains_xyz_nucl(info)
     use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
+    use VdW_potential, only : VGBenergyeffective, init_VGBenergyeffective
 
     ! .. argument
 
@@ -333,7 +334,7 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc               
-    real(dp) :: energy, EnergyLJ                                            
+    real(dp) :: energy, energyLJ                                            
     character(len=25) :: fname
     integer :: ios, rankfile, iosene
     character(len=30) :: str
@@ -397,8 +398,8 @@ subroutine read_chains_xyz_nucl(info)
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
-    seed=435672               ! seed for random number generator                                                                               
-    
+    energyLJ= 0.0_dp
+   
     ios=0
 
     Lz= nz*delta            ! maximum height box 
@@ -408,6 +409,11 @@ subroutine read_chains_xyz_nucl(info)
     ycm= Ly/2.0_dp
     zcm= Lz/2.0_dp
 
+    if(isVdW) then 
+        allocate(segunitvector(nnucl))   
+        call init_VGBenergyeffective(segcm,nnucl,segunitvector)
+    endif
+        
     isReadGood=.true. 
 
     do while ((conf<=max_confor).and.isReadGood)
@@ -440,10 +446,10 @@ subroutine read_chains_xyz_nucl(info)
 
             if(s_begin<=s.and.s<=s_end) then ! filter 
 
-                 s_local=s_local+1
-                 xseg(1,s_local) = xc*scalefactor
-                 xseg(2,s_local) = yc*scalefactor
-                 xseg(3,s_local) = zc*scalefactor
+                s_local=s_local+1
+                xseg(1,s_local) = xc*scalefactor
+                xseg(2,s_local) = yc*scalefactor
+                xseg(3,s_local) = zc*scalefactor
 
             endif
         enddo
@@ -451,12 +457,7 @@ subroutine read_chains_xyz_nucl(info)
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
-        if(isVdW) then 
-            EnergyLJ = VdWpotentialenergy(xseg)
-            print*,"EnergyLJ=",EnergyLJ
-        else 
-            EnergyLJ=0.0_dp
-        endif      
+        !if(isVdW) EnergyLJ = VdWpotentialenergy(xseg)
 
         if(isReadGood) then ! read was succesfull  
 
@@ -521,6 +522,7 @@ subroutine read_chains_xyz_nucl(info)
                 
                 enddo
                
+                if(isVdW) EnergyLJ = VdWpotentialenergy(chain_pbc)
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
 
@@ -575,6 +577,8 @@ subroutine read_chains_xyz_nucl(info)
 
                 enddo
                 
+                if(isVdW) EnergyLJ = VdWpotentialenergy(chain_pbc)
+
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
 
@@ -628,6 +632,7 @@ subroutine read_chains_xyz_nucl(info)
 
     deallocate(energychain) ! free unused variables 
 
+    if(isVdW) deallocate(segunitvector)
     
 end subroutine read_chains_XYZ_nucl
 
@@ -663,6 +668,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
     use myutils, only  : error_handler
+    use VdW_potential, only : VGBenergyeffective, init_VGBenergyeffective, VGBenergyeffective_comb
 
     ! .. argument
 
@@ -685,7 +691,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc             ! coordinates            
-    real(dp) :: energy, energyLJ                                             
+    real(dp) :: energy, energyLJ, energyLJ_comb                                            
     character(len=25) :: fname
     character(lenText):: fname2
     integer :: ios, rankfile, iosene
@@ -777,6 +783,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ios=0
     scalefactor=unit_conv
     energy=0.0_dp
+    energyLJ= 0.0_dp
   
     ios=0
 
@@ -789,6 +796,11 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     rcm=(/xcm,ycm,zcm/)
     Lr=(/Lx,Ly,Lz/)
+
+    if(isVdW) then 
+        allocate(segunitvector(nnucl))   
+        call init_VGBenergyeffective(segcm,nnucl,segunitvector)
+    endif
 
     sqrDphoscutoff=distphoscutoff**2
     !print*,"sqrDphoscutoff=",sqrDphoscutoff
@@ -892,13 +904,8 @@ subroutine read_chains_xyz_nucl_volume(info)
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
-        if(isVdW) then 
-            EnergyLJ = VdWpotentialenergy(xseg)
-            !print*,"EnergyLJ=",EnergyLJ
-        else 
-            EnergyLJ=0.0_dp
-        endif        
-
+        !if(isVdW)  energyLJ    = VGBenergyeffective(xseg,nnucl,segcm,segunitvector) 
+        
         if(isReadGood) then ! read was succesfull  
 
             chain_lammps(:,:,1)=xseg
@@ -1062,6 +1069,12 @@ subroutine read_chains_xyz_nucl_volume(info)
 
  
  !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
+            
+                if(isVdW) then 
+                     energyLJ    = VGBenergyeffective(chain_pbc,nnucl,segcm,segunitvector) 
+                     energyLJ_comb    = VGBenergyeffective_comb(chain_pbc,nnucl,segcm,segunitvector)
+                     print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
+                endif    
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1153,9 +1166,11 @@ subroutine read_chains_xyz_nucl_volume(info)
                     enddo 
                     
                 enddo
-                
-                energychain(conf)      = energy
 
+                if(isVdW)  energyLJ    = VGBenergyeffective(chain_pbc,nnucl,segcm,segunitvector)  
+                
+                energychainLJ(conf)    = energyLJ
+                energychain(conf)      = energy
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
@@ -1210,7 +1225,8 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
-  
+    if(isVdW) deallocate(segunitvector)
+
 end subroutine read_chains_xyz_nucl_volume
 
 subroutine read_graftpts_xyz_nucl(info)
@@ -1807,7 +1823,6 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
 end subroutine make_type_of_charge_table
 
 
-
 logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
  
     logical, intent(in) :: ismonomer_chargeable(:)
@@ -1983,12 +1998,12 @@ subroutine write_indexconf_lammps_trj(info)
         
     close(un_trj)    
 
-
 end subroutine write_indexconf_lammps_trj
 
 ! Creates and opens file for lammps trajectory film
 ! Writing do by write_chain_lammps_trj
-! retrun integer : un_trj : unit nubmer of file
+! input:        integer : info : value 0 no errors
+! output/return integer : un_trj : unit nubmer of file
 
 function open_chain_lammps_trj(info)result(un_trj)
 
@@ -2032,7 +2047,8 @@ end function
 
 ! Creates and opens file for lammps trajectory film
 ! Writing done by write_chain_elem_index_lammps_trj
-! retrun integer : un_trj : unit nubmer of file
+! input:        integer : info : value 0 no errors
+! output/return integer : un_trj : unit nubmer of file
 
 function open_chain_elem_index_lammps_trj(info)result(un_trj)
 
@@ -2079,16 +2095,16 @@ end function
 ! Unit length in Angstrom
 ! pre : file opened with open_chain_lammps_trj
 ! input: integer un_trj : unit number of file to write to.
-!       real(dp) chain(:,:,:) : index 1= coordinate 2= segment/atom numnber 3 number of dublicates conformations 
-!       integer nchains : number of confomations
-! return:  a lammpstrj file
+!        real(dp) chain(:,:,:) : index 1= coordinate 2= segment/atom numnber 3 number of dublicates conformations 
+!        integer nchains : number of confomations
+! return: a lammpstrj file
 
 subroutine write_chain_lammps_trj(un_trj,chain,nchains)
 
     use globals, only : nseg
     use myutils, only : newunit, lenText
     use volume, only : delta, nx, ny, nz
-    use chains, only :  type_of_monomer
+    use chains, only : type_of_monomer
 
     real(dp), intent(in) :: chain(:,:,:)
     integer, intent(in) :: nchains
@@ -2378,7 +2394,7 @@ end function  VdWpotentialenergy
  
 ! pre : chain conformation 
 ! post: VLJ energy of conformation 
-! VLJ(r) = -epsilon * [ (sigma/r)^12-(sigma/r)^6 
+! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
 
 function  VLJpotentialenergy(chain) result(Energy)
 
@@ -2421,6 +2437,59 @@ function  VLJpotentialenergy(chain) result(Energy)
     Energy = Ene            
 
 end function VLJpotentialenergy
+
+
+! pre : chain conformation 
+! post: effective VLJ energy conformation using location COM of nucleosome
+! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
+
+function  VLJenergyeffective(chain,nmer,segcm)result(Energy)
+
+    use globals, only : nseg, nsegtypes
+    use chains, only : type_of_monomer
+    !use parameters, only :  omegaLJ,epsLJ
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcm(:) 
+
+    real(dp) :: Energy
+    
+    real(dp) :: Ene,sqrlseg,sqrdist,sqromega
+    integer ::  i,j,s,t
+    real(dp) :: xi,xj,yi,yj,zi,zj
+    integer :: isegcm, jsegcm
+
+    real(dp) :: omegaLJ  ! omega of LJ should be in parameters or GBpotential module
+    real(dp) :: epsLJ     
+
+    Ene=0.0_dp 
+    sqromega=omegaLJ**2
+   
+    do i=1,nmer
+        isegcm=segcm(i)
+        
+        xi = chain(1,isegcm)
+        yi = chain(2,isegcm)
+        zi = chain(3,isegcm)
+
+        do j=i+1,nmer
+            jsegcm=segcm(j)
+
+            xj = chain(1,jsegcm)
+            yj = chain(2,jsegcm)
+            zj = chain(3,jsegcm) 
+
+            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+
+            Ene=Ene + 4.0_dp*epsLJ*((sqromega/sqrdist)**6-(sqromega/sqrdist)**3)
+        
+        enddo
+    enddo     
+
+    Energy = Ene            
+
+end function VLJenergyeffective
 
 
 ! .. commuter radius of gyration of a sub chain conformation
@@ -3794,7 +3863,7 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
 end subroutine find_phosphate_location
 
 
-! print index coordiants of conf between sbegin and send ( i..e histone ) 
+! print index coordinates of conf between sbegin and send ( i..e histone ) 
 ! for conformations conf_begin through conf_end
 
 subroutine write_indexchain_histone(sbegin,send,conf_begin,conf_end)

@@ -53,7 +53,8 @@ module chains
 
     ! chain stuctural quantities
 
-    integer, dimension(:), allocatable          :: segcm                    ! monomerw or units of chain closes to cm of histone  
+    integer, dimension(:), allocatable          :: segcm                    ! monomer or units of chain closest to cm of histone  
+    integer, dimension(:), allocatable          :: segunitvector            ! monomer or units of chain such that with segcm make an unitvecotr  
     real(dp), dimension(:), allocatable         :: Rgsqr                    ! radius of gyration 
     real(dp), dimension(:), allocatable         :: Rendsqr                  ! end-to-end distance
     real(dp), dimension(:,:), allocatable       :: bond_angle               ! bond angle
@@ -64,6 +65,7 @@ module chains
     real(dp), dimension(:), allocatable         :: avnucl_spacing           ! average spacing or distance between Nuclesome
     real(dp)                                    :: avRgsqr                  ! radius of gyration 
     real(dp)                                    :: avRendsqr                ! end-to-end distance
+
 
     ! .. pairing parameters 
 
