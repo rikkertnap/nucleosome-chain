@@ -1,4 +1,27 @@
-! Module to compute VdW/LJ interaction energy for nucleosome conformation
+! Module to compute VdW/LJ/GB potential energy for nucleosome conformation
+! 
+! Modudle has following function and subroutines
+! 
+! function VdWpotentialenergy_MC(chain,nchains)result(Energy)
+! function VdWpotentialenergy_SAW(chain)result(Energy)
+! function VdWpotentialenergy(chain)result(Energy)
+
+! function LJpotentialenergy(chain) result(Energy)
+! function LJenergyeffective(chain,nmer)result(Energy)
+
+! subroutine init_GBenergyeffective(segcm,nmer,segunitvector)
+! function  GBenergyeffective_comb(chain,nmer)result(Energy)
+! function  GBenergyeff(nmer,rcom,uvector)result(Energy)
+
+! subroutine make_com_unit_vector_nucl_simple(chain,nmer,segcm,segunitvector,rcom,uvector)
+! subroutine make_com_unit_vector_nucl_simpleCOM(chain,nmer,segcm,segunitvector,rcom,uvector)
+! function com_chains(chains,nmer)
+! subroutine parameter_com_ref(vec,s,t,vec_origin)
+! subroutine parameter_com(vec,s_ref,t_ref,vec_origin)
+! function normal_vector(vec)result(norm_vector)
+! subroutine make_com_unit_vector_nucl_rotation(chain,nmer,unitvector_triplets,rcom,uvector)
+! subroutine write_chain_com_unitvec_lammps_trj(un_trj,segcom,segunitvector)
+! function open_chain_com_unitvec_lammps_trj(info)result(un_trj)
 
 module VdW_potential     
 
@@ -6,11 +29,299 @@ module VdW_potential
   
     implicit none
 
-    integer :: conf_write_com=1 ! counter for write_chain_com_unitvec_lammps_trj
+    integer :: conf_write_com = 0 ! counter for write_chain_com_unitvec_lammps_trj
+    integer :: un_traj_com
+    
+    ! auxilary variable used in determin COM and unitvectors 
+    integer, allocatable :: segnumAAstartGBcom(:), segnumAAendGBcom(:) ! local variable 
+    !real(dp) :: vec_ref(3,3)              ! reference orientation vectors spanning plane through origin
+                                          ! first index coordiantes second index number 
+    !real(dp) :: unit_vec_ref(3)           ! init unitvector from python program pca  
+    !integer  :: atom_id_unit_relative(3)  ! relative to atomid/segnumber of first AA
 
-    private :: dotproduct
+    private :: dotproduct, pbc
+    private :: make_com_unit_vector_nucl_simple,make_com_unit_vector_nucl_simpleCOM 
+    private :: make_com_unit_vector_nucl_rotation
+    private :: parameter_com_ref, parameter_com, normal_vector
+
+    private :: un_traj_com
+    private :: segnumAAstartGBcom, segnumAAendGBcom
+    ! private :: vec_ref, unit_vec_ref, atom_id_unit_relative
+
 
 contains 
+ 
+    
+    function VdWpotentialenergy_MC(chain,nchains)result(Energy)
+
+        use globals, only : nseg
+        use myutils, only : newunit, lenText
+        use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
+        use chains, only : type_of_monomer
+        use parameters, only :  lsegAA,VdWeps
+
+        real(dp), intent(in) :: chain(:,:,:)
+        integer, intent(in) :: nchains
+
+        real(dp) :: Energy(nchains)
+        real(dp) :: Ene,sqrlseg,sqrdist
+        integer :: k,i,j,s,t
+        real(dp) :: xi,xj,yi,yj,zi,zj
+        real(dp) :: Lz,Ly,Lx
+
+        Lz= nz*delta            ! maximum height box s
+        Lx= nx*delta            ! maximum width box 
+        Ly= ny*delta            ! maximum depth box 
+
+        do k=1,nchains
+            Ene=0.0_dp      
+            do i=1,nseg
+                do j=i+1,nseg
+
+                    s=type_of_monomer(i)
+                    t=type_of_monomer(j)
+                   
+                    zi = pbc(chain(1,i,k),Lz)
+                    xi = pbc(chain(2,i,k),Lx)
+                    yi = pbc(chain(3,i,k),Ly) 
+                    zj = pbc(chain(1,j,k),Lz)
+                    xj = pbc(chain(2,j,k),Lx)
+                    yj = pbc(chain(3,j,k),Ly) 
+
+                    sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+                    sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
+
+                    Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
+
+                enddo
+            enddo 
+            Energy(k) = Ene            
+        enddo
+
+    end function VdWpotentialenergy_MC
+
+
+    ! .. compute periodic boundary condition in z direction
+    ! .. maps z onto interval [0,deltaz]
+    ! .. see also in chaingeneration.f90
+
+    function pbc(z,deltaz) result(zpbc)
+        implicit none 
+        real(dp), intent(in) :: deltaz
+        real(dp), intent(in) :: z
+        real(dp) :: zpbc 
+        if(z>0) then 
+            zpbc=z-int(z/deltaz)*deltaz
+        else
+            zpbc=z-(int(z/deltaz)-1)*deltaz
+        endif   
+    end function
+
+
+    ! pre : chain conformation 
+    ! post: VdW of conformation and if conformation is saw or not
+
+    function VdWpotentialenergy_SAW(chain)result(Energy)
+
+        use globals, only : nseg, nsegtypes
+        use chains, only : type_of_monomer
+        use parameters, only :  lsegAA,VdWeps
+
+        real(dp), intent(in)  :: chain(:,:)
+        real(dp) :: Energy
+       
+        logical :: saw
+
+        real(dp) :: Ene,sqrlseg,sqrdist
+        integer :: i,j,s,t
+        real(dp) :: xi,xj,yi,yj,zi,zj
+       
+        Ene=0.0_dp      
+        saw=.true.
+
+        do i=1,nseg
+            do j=i+1,nseg
+
+                s=type_of_monomer(i)
+                t=type_of_monomer(j)
+
+                zi = chain(1,i)
+                xi = chain(2,i)
+                yi = chain(3,i)
+
+                zj = chain(1,j)
+                xj = chain(2,j)
+                yj = chain(3,j) 
+
+                sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+                sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
+
+                Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
+                
+                if(j/=(i+1).and.sqrdist<sqrlseg) then 
+                    saw=.false.
+                    print*,"overlap occured for i= ",i," and j= ",j 
+                endif    
+            enddo
+        enddo 
+
+        !print*,"total ",Ene," saw ",saw,' ',(lsegAA(t),t=1,nsegtypes),VdWeps 
+        Energy = Ene            
+
+    end function VdWpotentialenergy_SAW
+   
+
+    ! pre : chain conformation 
+    ! post: VdW of conformation 
+    ! V_VdW(r) = -epsilon * (sigma/r)^6 : r >= 2*(1/6) sigma
+    !          = -epsilon               : r  < 2*(1/6) sigma
+
+    function VdWpotentialenergy(chain)result(Energy)
+
+        use globals, only : nseg, nsegtypes
+        use chains, only : type_of_monomer
+        use parameters, only :  lsegAA,VdWeps
+
+        real(dp), intent(in)  :: chain(:,:)
+        real(dp) :: Energy
+        
+        real(dp) :: Ene,sqrlseg,sqrdist !,maxdist
+        integer ::  i,j,s,t
+        real(dp) :: xi,xj,yi,yj,zi,zj
+        
+        Ene=0.0_dp 
+
+        !maxdist=VdWcutoff*delta 
+       
+        do i=1,nseg
+
+                s=type_of_monomer(i)
+                
+                zi = chain(1,i)
+                xi = chain(2,i)
+                yi = chain(3,i)
+
+
+            do j=i+1,nseg
+
+                t=type_of_monomer(j)
+
+                zj = chain(1,j)
+                xj = chain(2,j)
+                yj = chain(3,j) 
+
+                sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+                sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
+
+                if(sqrdist<sqrlseg) sqrdist=sqrlseg
+
+                Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
+                
+            enddo
+        enddo 
+
+        Energy = Ene            
+
+    end function  VdWpotentialenergy
+
+     
+    ! pre : chain conformation 
+    ! post: VLJ energy of conformation 
+    ! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
+
+    function  LJpotentialenergy(chain) result(Energy)
+
+        use globals, only : nseg, nsegtypes
+        use chains, only : type_of_monomer
+        use parameters, only :  lsegAA,VdWeps
+
+        real(dp), intent(in)  :: chain(:,:)
+        real(dp) :: Energy
+        
+        real(dp) :: Ene,sqrlseg,sqrdist
+        integer ::  i,j,s,t
+        real(dp) :: xi,xj,yi,yj,zi,zj
+        
+        Ene=0.0_dp 
+       
+        do i=1,nseg
+            s=type_of_monomer(i)
+            
+            zi = chain(1,i)
+            xi = chain(2,i)
+            yi = chain(3,i)
+            
+            do j=i+1,nseg
+
+                t=type_of_monomer(j)
+
+                zj = chain(1,j)
+                xj = chain(2,j)
+                yj = chain(3,j) 
+
+                sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+                sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
+        
+                Ene=Ene + 4.0_dp*VdWeps(s,t)*((sqrlseg/sqrdist)**6-(sqrlseg/sqrdist)**3)
+            
+            enddo
+        enddo 
+
+        Energy = Ene            
+
+    end function LJpotentialenergy
+
+    ! pre : chain conformation 
+    ! post: effective VLJ energy conformation using location COM of nucleosome
+    ! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
+
+    function  LJenergyeffective(chain,nmer)result(Energy)
+
+        use globals, only : nseg, nsegtypes
+        use chains, only : segcm, type_of_monomer
+        !use parameters, only :  omegaLJ,epsLJ
+
+        real(dp), intent(in) :: chain(:,:)
+        integer, intent(in) :: nmer
+
+        real(dp) :: Energy
+        
+        real(dp) :: Ene,sqrlseg,sqrdist,sqromega
+        integer ::  i,j,s,t
+        real(dp) :: xi,xj,yi,yj,zi,zj
+        integer :: isegcm, jsegcm
+
+        real(dp) :: omegaLJ  ! omega of LJ should be in parameters or GBpotential module
+        real(dp) :: epsLJ     
+
+        Ene=0.0_dp 
+        sqromega=omegaLJ**2
+       
+        do i=1,nmer
+            isegcm=segcm(i)
+            
+            xi = chain(1,isegcm)
+            yi = chain(2,isegcm)
+            zi = chain(3,isegcm)
+
+            do j=i+1,nmer
+                jsegcm=segcm(j)
+
+                xj = chain(1,jsegcm)
+                yj = chain(2,jsegcm)
+                zj = chain(3,jsegcm) 
+
+                sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
+
+                Ene=Ene + 4.0_dp*epsLJ*((sqromega/sqrdist)**6-(sqromega/sqrdist)**3)
+            
+            enddo
+        enddo     
+
+        Energy = Ene            
+
+    end function LJenergyeffective
+
 
     ! Inner product of vectors a and b with dimenstion 3
     ! similar to intrisic function dot_product
@@ -29,29 +340,46 @@ contains
     ! Inits constant parameter of module GB_potential
     ! input : integer segcm
     !         integer nmer
+    !         integer segnumAAstart(nmer)
+    !         integer segnumAAend(nmer)
     ! output: integer segunitvector(nmer) 
     !         and all variable of Gay-Bern Potential in module GB_potential
 
-    subroutine init_VGBenergyeffective(segcm,nmer,segunitvector)
+    subroutine init_GBenergyeffective(segcm,nmer,segunitvector,segnumAAstart,segnumAAend)
         
-        use globals, only : nseg, nsegtypes
-        use GB_potential, only : init_GB_const
+        use GB_potential, only : init_GB_const_defaults, init_GB_const
+        use chains, only : unitvector_triplets
 
         integer, intent(in) :: segcm(:)
         integer, intent(in) :: nmer
         integer, intent(inout) :: segunitvector(:) 
+        integer, intent(in)  :: segnumAAstart(nmer), segnumAAend(nmer) ! segment numbers first/last AAs 
 
         integer :: i, deltaseg
 
-        deltaseg=68 ! number from pca python program 18/07/24
+        ! set default for GB potential
+
+        call init_GB_const_defaults()
+
+        ! set default auxliary variable for determine COM and unit vector 
+        !deltaseg= (948-1069) ! using AA & DNA number from pca python program 
+        deltaseg= (1577-1069) ! using only AA number from pca python program
+
 
         do i=1,nmer
             segunitvector(i)=segcm(i)+deltaseg
         enddo
 
         call init_GB_const()
+       
+        allocate(unitvector_triplets(nmer,3))
+        allocate(segnumAAstartGBcom(nmer))
+        allocate(segnumAAendGBcom(nmer))
+
+        segnumAAstartGBcom = segnumAAstart
+        segnumAAendGBcom   = segnumAAend
  
-    end subroutine init_VGBenergyeffective
+    end subroutine init_GBenergyeffective
 
     
     ! pre : chain conformation and segcm and segunitvector
@@ -59,17 +387,14 @@ contains
     ! VLJ(u1,u2,r) = Gay-Berne potential 
     ! NB This function is equivalent to VGBenergyeffective, but latter one nicier !!!
 
-    function  VGBenergyeffective_comb(chain,nmer,segcm,segunitvector)result(Energy)
+    function  GBenergyeffective_comb(chain,nmer)result(Energy)
 
         use globals, only : nseg, nsegtypes
-        use chains, only : type_of_monomer
-        use GB_potential, only : GBpotential
+        use chains, only : segcm,segunitvector
+        use GB_potential, only : GBpotential_general
 
         real(dp), intent(in) :: chain(:,:)
         integer, intent(in) :: nmer
-        integer, intent(in) :: segcm(:)
-        integer, intent(in) :: segunitvector(:) 
-
         real(dp) :: Energy
         
         real(dp) :: Ene
@@ -118,14 +443,14 @@ contains
 
                 rvec=(/xj-xi,yj-yi,zj-zi/)
                
-                Ene=Ene + GBpotential(u1,u2,rvec)
+                Ene=Ene + GBpotential_general(u1,u2,rvec)
             
             enddo
         enddo     
 
         Energy = Ene          
 
-    end function VGBenergyeffective_comb
+    end function GBenergyeffective_comb
 
     ! Calculate sum value Gay-Berne potential for nucleosome conformation 
     ! input :  real(dp :: chainchain(:,:) conformation 
@@ -134,41 +459,62 @@ contains
     !          integer :: segunitvector(:) atom_id used to make unit vector
     ! output/return:  real(dp) :: energy 
 
-    function  VGBenergyeffective(chain,nmer,segcm,segunitvector)result(Energy)
-
-        use GB_potential, only : GBpotential
+    function  GBenergyeffective(chain,nmer)result(Energy)
+ 
+        use chains, only : segcm, segunitvector, unitvector_triplets
+        use GB_potential, only : GBCOMtype
 
         real(dp), intent(in) :: chain(:,:)
         integer, intent(in) :: nmer
-        integer, intent(in) :: segcm(:)
-        integer, intent(in) :: segunitvector(:) 
-
         real(dp) :: Energy
 
         real(dp) :: rcom(3,nmer)
         real(dp) :: uvector(3,nmer)
 
+        integer :: info
 
-        call make_com_unit_vector_nucl(chain,nmer,segcm,segunitvector,rcom,uvector)
+        select case (GBCOMtype)
+        case ("simple") 
 
-        Energy = VGBenergyeff(nmer,rcom,uvector)
+            call make_com_unit_vector_nucl_simple(chain,nmer,segcm,segunitvector,rcom,uvector)
 
-    end function VGBenergyeffective
+        case ("simpleCOM") 
+
+            call make_com_unit_vector_nucl_simpleCOM(chain,nmer,segcm,segunitvector,rcom,uvector)
+
+        case("rotation")
+
+            call make_com_unit_vector_nucl_rotation(chain,nmer,unitvector_triplets,rcom,uvector)
+        
+        case default
+        
+            print*,"Error in GBenergyeffective"
+            print*,"Wrong value GBCOMtype : ", GBCOMtype
+        
+        end select
+
+        Energy = GBenergyeff(nmer,rcom,uvector)
+
+        info = 1
+        un_traj_com= open_chain_com_unitvec_lammps_trj(info)
+        call write_chain_com_unitvec_lammps_trj(un_traj_com,rcom,uvector)
+        close(un_traj_com)
+
+    end function GBenergyeffective
 
 
     !  Calculate sum of value Gay-Berne potential for given set of com and unitvectors
     !  input : real(dp) : rcom(:,:) : ceom of nucleosome 
     !          real(dp) : uvector(:,:) : orientation vector ( normalized) of each nucleosome 
-    !  output/return : real(dp)  energy : effective VGB energy = VLJ(u1,u2,r)  
+    !  output/return : real(dp)  energy : effective GB energy = VLJ(u1,u2,r)  
 
-    function  VGBenergyeff(nmer,rcom,uvector)result(Energy)
+    function  GBenergyeff(nmer,rcom,uvector)result(Energy)
 
-        use GB_potential, only : GBpotential
+        use GB_potential, only : GBpotential_general
 
         integer, intent(in)  :: nmer
         real(dp), intent(in) :: rcom(:,:)
         real(dp), intent(in)  :: uvector(:,:) 
-
         real(dp) :: Energy
         
         real(dp) :: Ene
@@ -189,14 +535,14 @@ contains
                 uvecj =uvector(:,j) 
                 rvec=rvecj-rveci
 
-                Ene = Ene + GBpotential(uveci,uvecj,rvec)
+                Ene = Ene + GBpotential_general(uveci,uvecj,rvec)
             
             enddo
         enddo     
 
         Energy = Ene            
 
-    end function VGBenergyeff
+    end function GBenergyeff
 
 
     ! Determine com and unit vector for a given nucloesome conformation
@@ -207,7 +553,7 @@ contains
     ! output:  real(dp) :: rcom(:,:)    : com of each nucleosome 
     !          real(dp) :: uvector(:,:) : unit vector of each nucleosome
 
-    subroutine make_com_unit_vector_nucl(chain,nmer,segcm,segunitvector,rcom,uvector)
+    subroutine make_com_unit_vector_nucl_simple(chain,nmer,segcm,segunitvector,rcom,uvector)
 
         real(dp), intent(in) :: chain(:,:)
         integer, intent(in) :: nmer
@@ -237,18 +583,91 @@ contains
 
         enddo     
 
-    end subroutine make_com_unit_vector_nucl
+    end subroutine make_com_unit_vector_nucl_simple
 
-    !Computes value of parameteric function s and t of plane that is spanned by 
-    !v=vec[2]-vec[1] and w=vec[3]-vec[1] at origin: x= s*v + t*w +vec[1]=0  
-    !input : real(dp) :: vec(3,3) three xyz-coordinate triplets/vectors 
-    !output: integer ::  s, t:  value of parameteric function plane as origin
+
+    ! Determine com and unit vector for a given nucloesome conformation
+    ! input :  real(dp :: chainchain(:,:) conformation 
+    !          integer :: nmer : nnucl
+    !          integer :: segcm(:) : atom_id closest to com 
+    !          integer :: segunitvector(:) atom_id used to make unit vector
+    ! output:  real(dp) :: rcom(:,:)    : com of each nucleosome 
+    !          real(dp) :: uvector(:,:) : unit vector of each nucleosome
+
+    subroutine make_com_unit_vector_nucl_simpleCOM(chain,nmer,segcm,segunitvector,rcom,uvector)
+
+        real(dp), intent(in) :: chain(:,:)
+        integer, intent(in) :: nmer
+        integer, intent(in) :: segcm(:)
+        integer, intent(in) :: segunitvector(:) 
+        real(dp), intent(inout) :: rcom(:,:)
+        real(dp), intent(inout) :: uvector(:,:)
+      
+        integer :: i, isegcm, isegunitvec
+        real(dp) :: rvec(3), rvecunitvec(3), uvec(3), norm_uvec
+
+        rcom = com_chains(chain,nmer)
+       
+        do i=1,nmer
+
+            isegcm=segcm(i) ! atom_id of AA that is (closest to) COM
+            rvec = chain(:,isegcm)
+        
+            isegunitvec=segunitvector(i) ! atom_id of AA with isegcm to make unit vector
+            rvecunitvec = chain(:,isegunitvec)
+
+            uvec=rvecunitvec-rvec   ! unit vector
+            norm_uvec=sqrt(dot_product(uvec,uvec))  
+            uvec=uvec/norm_uvec  ! normalize
+
+            uvector(:,i) = uvec
+        enddo     
+
+    end subroutine make_com_unit_vector_nucl_simpleCOM
+
+
+
+    ! Determine com  for a given nucloesome conformation
+    ! input :  real(dp :: chainchain(:,:) conformation 
+    !          integer :: nmer : nnucl      
+    ! return output:  real(dp) :: rcom(:,:)    : com of each nucleosome 
+
+    function com_chains(chain,nmer)result(rcom)
+
+        real(dp), intent(in) :: chain(:,:)
+        integer, intent(in) :: nmer
+       
+        real(dp) :: rcom(3,nmer)
+       
+        integer :: n, i, numelements
+
+        do n=1,nmer
+            
+            rcom(:,n)=0.0_dp
+            numelements=segnumAAendGBcom(n)-segnumAAstartGBcom(n)+1
+           
+            do i=segnumAAstartGBcom(n),segnumAAendGBcom(n)
+                rcom(:,n) = rcom(:,n)+chain(:,i)
+            enddo    
+
+            rcom(:,n) = rcom(:,n)/(numelements*1.0_dp)
+
+        enddo     
+
+    end function com_chains
+
+
+
+    ! Computes value of parameteric function s and t of plane that is spanned by 
+    ! v=vec[2]-vec[1] and w=vec[3]-vec[1] at origin: x= s*v + t*w +vec[1]=0  
+    ! input : real(dp) :: vec(3,3) three xyz-coordinate triplets/vectors 
+    ! output: real(dp) ::  sval, tval:  value of parameteric function plane as origin
     !        real(dp) :: vec_origin(3)
 
-    subroutine parameter_value_origin(vec,s,t,vec_origin)
+    subroutine parameter_com_ref(vec,sval,tval,vec_origin)
 
         real(dp), intent(in)   :: vec(3,3) 
-        integer, intent(inout) ::  s, t
+        real(dp), intent(inout) :: sval, tval
         real(dp), intent(inout) :: vec_origin(3) 
 
         real(dp) :: v1(3),v2(3), u1(3), u2(3),  sqr_norm_u1,  sqr_norm_u2
@@ -259,67 +678,248 @@ contains
         ! orthogonal vectors
         u1=v1
         u2=v2-(dot_product(v2,u1)/dot_product(u1,u1))*u1
-    
+        
+
         sqr_norm_u1=dot_product(u1,u1)
-        sqr_norm_u2=sqrt(dot_product(u2,u2))
+        sqr_norm_u2=dot_product(u2,u2)
     
         ! value of 
-        s = -dot_product(u1,vec(:,1))/sqr_norm_u1
-        t = -dot_product(u2,vec(:,1))/sqr_norm_u2
-    
+
+        sval = -dot_product(u1,vec(:,1))/sqr_norm_u1
+        tval = -dot_product(u2,vec(:,1))/sqr_norm_u2
+       
+        ! print*,"parameter_com_ref"
+        ! print*,"u1=",u1 
+        ! print*,"u2=",u2 
+        ! print*,"(u1,vec(:,1)=",dot_product(u1,vec(:,1)),"(u1,u1)=",sqr_norm_u1
+        ! print*,"s=",sval," t=",tval
+
         ! compute (relative) origin/check
    
-        vec_origin= s*u1 + t*u2 +v1
+        vec_origin= sval*u1 + tval*u2 +vec(:,1)
 
-    end subroutine parameter_value_origin     
+    end subroutine parameter_com_ref
+
+
+
+    ! Computes value of parameteric function s and t of plane that is spanned by 
+    ! v=vec[2]-vec[1] and w=vec[3]-vec[1] at origin: x= s*v + t*w +vec[1]=0  
+    ! input : real(dp) :: vec(3,3) three xyz-coordinate triplets/vectors 
+    ! output: integer ::  s_ref, t_ref:  value of parameteric function plane as origin
+    !        real(dp) :: vec_origin(3)
+
+    subroutine parameter_com(vec,s_ref,t_ref,vec_origin)
+
+        real(dp), intent(in)   :: vec(3,3) 
+        real(dp), intent(in) ::  s_ref, t_ref
+        real(dp), intent(inout) :: vec_origin(3) 
+
+        real(dp) :: v1(3),v2(3), u1(3), u2(3)
+
+        v1=vec(:,2)-vec(:,1)
+        v2=vec(:,3)-vec(:,1)
+        
+        ! orthogonal vectors
+        u1=v1
+        u2=v2-(dot_product(v2,u1)/dot_product(u1,u1))*u1
     
+        ! compute (relative) origin
    
-    subroutine make_com_nucl_rotation(chain,nmer,unitvector_triplets,rcom,uvector)
+        vec_origin= s_ref*u1 + t_ref*u2 + vec(:,1)
+        
+        ! print*,"parameter_com"
+        ! print*,"u1=",u1 
+        ! print*,"u2=",u2 
+        ! print*,"(u1,vec(:,1)=",dot_product(u1,vec(:,1)),"(u1,u1)=",dot_product(u1,u1)
+        ! print*,"s=",s_ref," t=",t_ref
 
-        real(dp), intent(in) :: chain(:,:)
+    end subroutine parameter_com     
+    
+    ! Calculation the normal vector to plane spanned by three points
+    ! input: real(dp)  vec(3,3)       : three xyz-coordinate triplets/vectors
+    ! output: real(dp) norm_vector(3) : normal vector
+
+    function normal_vector(vec)result(norm_vector)
+
+        use quaternions, only : crossproduct
+
+        real(dp), intent(in) :: vec(3,3)  
+        real(dp) :: norm_vector(3)
+
+        real(dp) :: v1(3), v2(3)
+
+        v1=vec(:,2)-vec(:,1)
+        v2=vec(:,3)-vec(:,1)
+        norm_vector=crossproduct(v1,v2)
+        
+    end function normal_vector
+   
+
+    ! Determine com and unit vector for a given nucleosome conformation
+    ! 1. com : using set of 3 points==(unitvector_triplets) as auxilary points to span a plane that include the
+    !    origin plane or com
+    ! 2. orientation vector: using 3 points and 3 point of a reference to compute rotation and apply rotation 
+    !    one referece orientation vector 
+    ! input :  real(dp :: chainchain(:,:) conformation 
+    !          integer :: nmer : nnucl
+    !          integer :: unitvector_triplets(:) atom_id used to make unit vector
+    ! output:  real(dp) :: rcom(:,:)    : com of each nucleosome 
+    !          real(dp) :: uvector(:,:) : unit vector of each nucleosome
+
+    subroutine make_com_unit_vector_nucl_rotation(chain,nmer,unitvector_triplets,rcom,uvector)
+
+        use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
+        use chains, only : segcm
+
+        real(dp), intent(in) :: chain(:,:)               ! dimension : (3,s) 
         integer, intent(in) :: nmer
-        integer, intent(in) :: unitvector_triplets(:,:)  ! dimension : nmer x 3  
-        real(dp), intent(inout) :: rcom(:,:)
-        real(dp), intent(inout) :: uvector(:,:)
+        integer, intent(inout) :: unitvector_triplets(:,:)  ! dimension : (nnucl,3)=(nmer,3)
+        real(dp), intent(inout) :: rcom(:,:)             ! dimension : (nnucl,3)
+        real(dp), intent(inout) :: uvector(:,:)          ! dimension : (nnucl,3)
       
-
-        integer :: i, k, s0, t0
-        real(dp) :: vec(3,3), vec_origin(3)
+        real(dp) :: s_ref, t_ref
+        real(dp) :: unit_vec_ref(3), unit_vec(3)
+        real(dp) :: vec_ref(3,3), vec(3,3)
+        real(dp) :: vec_origin_ref(3), vec_origin(3)
+        real(dp) :: triangle_vec_ref(3,3), triangle_vec(3,3,nmer)
+        real(dp) :: norm_vec_ref(3), norm_vec(3,nmer), norm_tri(3,nmer)
+        real(dp) :: a(3), a_rot(3), b(3), u(3)
+        real(dp) :: rcom_ref(3), unorm, angle, epsAngle
+        real(dp) :: qu(4)
+        real(dp) :: Rmat1(3,3), Rmat2(3,3), Rmat_comb(3,3)
+        integer  :: i, k, n
+        real(dp) :: atom_id_unit_relative(3)
          
         ! determine com using unitvectortriplets
-        ! determine s0 and t0 parameter of reference vectors
+        ! determine s_ref and t_ref value of parameter function of plane 
+        ! of reference vectors
 
-        do i=1,nmer
-            ! get vector spanning origin-plane
+        ! init reference orientation vectors spanning plane through origin
+
+        vec_ref(:,1)=(/1.08398777_dp, -5.05775356_dp,  3.57485842_dp/)
+        vec_ref(:,2)=(/-1.95081223_dp,  0.48525144_dp, -2.62704158_dp/)
+        vec_ref(:,3)=(/1.43088777_dp, -1.73315356_dp,  2.53525842_dp/)
+
+
+        ! init unitvector from python program pca 
+        unit_vec_ref= (/0.99857452_dp, 0.02966983_dp, 0.0443692_dp/) 
+        
+        ! atom id AA 
+        atom_id_unit_relative=(/0, 233, 720/)  ! relative to atomid/segnumber of first AA
+
+        ! atom id AA of all nucleosome
+        do n=1,nmer 
             do k=1,3
-                vec(:,k)=chain(:,unitvector_triplets(i,k))
+                unitvector_triplets(n,k)= atom_id_unit_relative(k)+segnumAAstartGBcom(n)
             enddo
-            call parameter_value_origin(vec,s0,t0,vec_origin)
-            rcom(:,i) = vec_origin
-        enddo     
+        enddo    
 
-    end subroutine make_com_nucl_rotation
+        ! end init 
+
+        call parameter_com_ref(vec_ref,s_ref,t_ref,vec_origin_ref)
+        rcom_ref=vec_origin_ref
+        norm_vec_ref=normal_vector(vec_ref)
+
+        do k=1,3
+            triangle_vec_ref(:,k) = vec_ref(:,k)-rcom_ref
+        enddo
+
+        ! print*,"s_ref=",s_ref," t_ref=",t_ref
+        ! print*,"rcom_ref        =",rcom_ref
+        ! print*,"vec_origin_ref  =",vec_origin_ref
+
+        ! do k=1,3
+        !     print*,"vec_ref         =",vec_ref(:,k)
+        !     print*,"triangle_vec_ref=",triangle_vec_ref(:,k)
+        ! enddo    
+        
+        ! compute com 
+
+        do n=1,nmer 
+            do k=1,3 ! get vector spanning plane
+                vec(:,k)=chain(:,unitvector_triplets(n,k))
+            enddo
+
+            call parameter_com(vec,s_ref,t_ref,vec_origin)
+            rcom(:,n) = vec_origin
+            norm_vec(:,n)=normal_vector(vec)
+            
+            do k=1,3 ! get vectors from origin plane
+               triangle_vec(:,k,n) =vec(:,k)-rcom(:,n)
+            enddo   
+            
+            norm_tri(:,n)=normal_vector(triangle_vec(:,:,n))
+
+            ! print*,"norm_vec(:,n)=",norm_vec(:,n)
+            ! print*,"norm_tri(:,n)=",norm_tri(:,n)
+            ! print*,""
+            ! print*,"rcom(:,n)=",rcom(:,n)
+
+
+        enddo
+
+        ! compute unitvectors
+
+        do n=1,nmer                      ! loop over nucleosomes 
+
+            ! rotation of norm vector  
+
+            call rot_axis_angle(norm_vec_ref, norm_vec(:,n), u, angle)
+            unorm = vec_norm(u)
+            u(1:3) = u(1:3)/unorm         ! rotation axis 
+
+            if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
+
+            qu = rot_axis_angle_to_quat(u, angle)   ! rotation quaternion
+            call rotation_matrix_from_quat(qu,Rmat1)  
+
+            ! apply second in plane rotation to get coordinate to coincide
+
+            a =triangle_vec_ref(:,2)  ! this is not okay
+            a_rot = matmul(Rmat1,a) ! apply rotation
+            b = triangle_vec(:,2,n)
+            call rot_axis_angle(a_rot, b, u, angle)
+            unorm = vec_norm(u)
+            u(1:3) = u(1:3)/unorm         ! rotation axis 
+
+            if(abs(angle)<epsAngle) u=a   ! angle ==0 no rotation u=>a  
+
+            qu = rot_axis_angle_to_quat(u, angle)   ! rotation quaternion
+            call rotation_matrix_from_quat(qu,Rmat2)  
+
+            Rmat_comb=matmul(Rmat2,Rmat1) ! Rmat_comb= Rmat2 x Rmat1
+     
+            ! apply rotation to unit_vec_ref
+
+            unit_vec=matmul(Rmat_comb,unit_vec_ref)
+
+            ! assign vector 
+            uvector(:,n)=unit_vec
+
+        enddo   
+  
+    end subroutine make_com_unit_vector_nucl_rotation
 
 
     ! Writes the coordinates of com of nucleosomes orientation vector associated with com to a lammps trajectory file.
     ! Unit length in Angstrom
     ! pre : file opened with open_com_unitvec_lammps_trj
     ! input: integer un_trj : unit number of file to write to.
-    !        real(dp) segcom(:) : coordinates of com of nucleosomes
-    !        real(dp) segunitvector : orientation vector associated with com 
+    !        real(dp) rcom(:) : coordinates of com of nucleosomes
+    !        real(dp) unitvector : orientation vector associated with com 
     !    
     ! return: a lammpstrj file
 
-    subroutine write_chain_com_unitvec_lammps_trj(un_trj,segcom,segunitvector)
+    subroutine write_chain_com_unitvec_lammps_trj(un_trj,rveccom,unitvector)
 
         use globals, only : nnucl
         use volume, only : delta, nx, ny, nz 
         use quaternions, only :  rot_axis_angle, rot_axis_angle_to_quat
         use GB_potential, only : sigmaS,sigmaE  
 
-        real(dp), dimension(:,:), intent(in) :: segcom
-        real(dp), dimension(:,:), intent(in) :: segunitvector
         integer, intent(in) :: un_trj
+        real(dp), dimension(:,:), intent(in) :: rveccom
+        real(dp), dimension(:,:), intent(in) :: unitvector
         
         real(dp) :: x, y, z
         integer ::  n
@@ -327,22 +927,24 @@ contains
         integer :: idatom, item, conf
         real(dp) :: shapex,shapey,shapez
         real(dp) :: rcom(3), uvec(3), uref(3), qu(4), rotaxis(3), theta
+        real(dp) :: unorm
 
-        xbox0=0.0_dp 
-        xbox1(1)=nx*delta*10.0_dp ! conversion form nm -> Angstrom
-        xbox1(2)=ny*delta*10.0_dp
-        xbox1(3)=nz*delta*10.0_dp
+        xbox0 = 0.0_dp 
+        xbox1(1) = nx*delta*10.0_dp ! conversion form nm -> Angstrom
+        xbox1(2) = ny*delta*10.0_dp
+        xbox1(3) = nz*delta*10.0_dp
 
-        item=0
-        conf_write_com=conf_write_com+1
+        item = 0
+        idatom = 1
+        conf_write_com = conf_write_com+1
         
         ! axis length of Gay-Berne potential
-        shapex=sigmaS
-        shapey=sigmaS
-        shapez=sigmaE
-        ! reference unit vector
-        uref=(/0.0_dp,0.0_dp,1.0_dp/) ! not sure ...
+        shapex = sigmaS*10.0_dp ! conversion form nm -> Angstrom
+        shapey = sigmaS*10.0_dp 
+        shapez = sigmaE*10.0_dp 
 
+        ! reference unit vector
+        uref=(/0.0_dp,0.0_dp,1.0_dp/) 
 
         ! write preamble 
         write(un_trj,'(14A)')'ITEM: TIMESTEP' 
@@ -357,18 +959,45 @@ contains
         
         do n=1,nnucl
             
-            rcom = segcom(:,n)
-            uvec = segunitvector(:,n)
+            rcom = rveccom(:,n) * 10.0_dp 
+            uvec = unitvector(:,n) ! unit less
 
             call rot_axis_angle(uref, uvec, rotaxis, theta) 
-            qu = rot_axis_angle_to_quat(rotaxis, theta) ! ???
+            qu = rot_axis_angle_to_quat(rotaxis, theta) 
 
             item=item+1  
             write(un_trj,*)item,idatom,rcom(1),rcom(2),rcom(3),qu(1),qu(2),qu(3),qu(4),shapex,shapey,shapez
 
-        enddo    
-        
-      
+        enddo  
+
+        ! extra points
+        ! item=item+1  
+        ! rcom=(/0.0_dp,0.0_dp,0.0_dp/)
+        ! uvec=(/1.0_dp,1.0_dp,0.0_dp/)
+        ! unorm=dot_product(uvec,uvec)
+        ! uvec=uvec/sqrt(unorm)
+        ! call rot_axis_angle(uref, uvec, rotaxis, theta) 
+        ! qu = rot_axis_angle_to_quat(rotaxis, theta) 
+        ! print*,"rotaxis=",rotaxis
+        ! print*,"angle=",theta
+
+
+        ! write(un_trj,*)item,idatom,rcom(1),rcom(2),rcom(3),qu(1),qu(2),qu(3),qu(4),shapex,shapey,shapez
+     
+        ! item=item+1  
+        ! rcom=(/xbox1(1),0.0_dp,0.0_dp/)
+        ! uvec=(/1.0_dp,1.0_dp,0.0_dp/)
+        ! unorm=dot_product(uvec,uvec)
+        ! uvec=uvec/sqrt(unorm)
+
+        ! call rot_axis_angle(uref, uvec, rotaxis, theta) 
+        ! qu = rot_axis_angle_to_quat(rotaxis, theta) 
+        ! print*,"rotaxis=",rotaxis
+        ! print*,"angle=",theta
+   
+        ! write(un_trj,*)item,idatom,rcom(1),rcom(2),rcom(3),qu(1),qu(2),qu(3),qu(4),shapex,shapey,shapez
+
+
     end subroutine write_chain_com_unitvec_lammps_trj
 
 
@@ -382,6 +1011,7 @@ contains
         use mpivars, only : rank
         use myutils, only : newunit, lenText
         use myio, only : myio_err_chainsfile
+        use GB_potential, only : GBtype, GBCOMtype
 
         integer, intent(inout) :: info
 
@@ -389,14 +1019,17 @@ contains
 
         ! local
         character(len=lenText) :: istr
-        character(len=35) :: fname
+        character(len=lenText) :: fname
         integer :: ios
         logical :: exist
         
         info = 0    
 
         write(istr,'(I4)')rank
-        fname='trajcomunit'//trim(adjustl(istr))//'.lammpstrj'
+
+        fname='trajcomunit_'//trim(adjustl(GBtype))//trim(adjustl(GBCOMtype))
+        fname=trim(adjustl(fname))//trim(adjustl(istr))//'.lammpstrj'
+       
         inquire(file=fname,exist=exist)
         if(.not.exist) then
             open(unit=newunit(un_trj),file=fname,status='new',action="write",iostat=ios)

@@ -29,7 +29,8 @@ module myio
     integer, parameter ::  myio_err_readfile  = 22
     integer, parameter ::  myio_err_file_exist = 23
     integer, parameter ::  myio_err_equilat   = 24 
-
+    integer, parameter ::  myio_err_GBtype    = 25
+    integer, parameter ::  myio_err_GBCOMtype = 26 
 
     integer :: num_cNaCl   ! number of salt concentration considered
     integer :: num_cMgCl2
@@ -76,20 +77,21 @@ subroutine read_inputfile(info)
     use surface
     use myutils, only : newunit
     use chains, only : sgraftpts, distphoscutoff 
+    use GB_potential, only : GBtype, GBCOMtype
 
     integer, intent(out), optional :: info
 
     ! .. local arguments
 
     integer :: info_sys, info_bc, info_run, info_geo, info_meth, info_chaintype, info_combi, info_VdWeps
-    integer :: info_chainmethod, info_dielect
+    integer :: info_chainmethod, info_dielect, info_GB, info_GBCOM
     character(len=8) :: fname
     integer :: ios,un_input  ! un = unit number
     character(len=100) :: buffer, label
     integer :: pos
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
-    logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains
+    logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
 
     if (present(info)) info = 0
 
@@ -104,22 +106,24 @@ subroutine read_inputfile(info)
 
     ! defaults
 
-    isSet_maxnchains  =.false.
-    isSet_maxnchainsxy=.false.
-    isSet_precondition=.false.
+    isSet_maxnchains   =.false.
+    isSet_maxnchainsxy =.false.
+    isSet_precondition =.false.
     isSet_write_Palpha =.false.
-    isSet_EnergyShift =.false.
+    isSet_EnergyShift  =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false. 
     isSet_pbc_chains   =.false.
+    isSet_GBtype       =.false.
+    isSet_GBCOMtype    =.false.
 
-    write_mc_chains   =.false.
-    write_struct      =.false.
-    write_rotations   =.false.
-    write_localcharge =.false.
+    write_mc_chains    =.false.
+    write_struct       =.false.
+    write_rotations    =.false.
+    write_localcharge  =.false.
     write_iondensities =.false.
     write_frac         =.false.
-    write_Palpha      =.false.
+    write_Palpha       =.false.
 
     ! default concentrations
     cKCl=0.0_dp
@@ -314,6 +318,12 @@ subroutine read_inputfile(info)
             case ('pbc_chains')
                 read(buffer,*,iostat=ios) pbc_chains
                 isSet_pbc_chains = .true.
+            case ('GBtype')
+                read(buffer, *,iostat=ios) GBtype
+                isSet_GBtype=.true.
+            case ('GBCOMtype')
+                read(buffer, *,iostat=ios) GBCOMtype 
+                isSet_GBCOMtype=.true. 
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped
@@ -332,7 +342,6 @@ subroutine read_inputfile(info)
     endif
 
     close(un_input)
-
 
     ! .. check error flag
 
@@ -384,6 +393,7 @@ subroutine read_inputfile(info)
         return
     endif
 
+    
     !  .. set input values
 
     call set_value_isVdW(systype,isVdW)
@@ -400,15 +410,23 @@ subroutine read_inputfile(info)
     call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
+    call set_value_char_array_var(GBtype,isSet_GBtype,"GayBerneLJ")
+    call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"simple")
 
-!    call set_value_maxnchains(maxnchainsrotations,isSet_maxnchains)
-!    call set_value_maxnchainsxy(maxnchainsrotationsxy,isSet_maxnchainsxy)
-!    call set_value_precondition(precondition,isSet_precondition)
-!    call set_value_isEnergyShift(isEnergyShift,isSet_EnergyShift)
-!    call set_value_maxfkfunevals(maxfkfunevals,isSet_maxfkfunevals)
-!    call set_value_maxniter(maxniter,isSet_maxniter)
+    ! check value after set value
 
-    ! after set_value_isVdW
+    call check_value_GBtype(GBtype,info_GB)
+    if (info_GB == myio_err_GBtype) then
+        if (present(info)) info = info_GB
+        return
+    endif
+
+    call check_value_GBCOMtype(GBCOMtype,info_GBCOM)
+    if (info_GBCOM == myio_err_GBCOMtype) then
+        if (present(info)) info = info_GBCOM
+        return
+    endif
+
     call check_value_VdWeps(systype,isVdW,info_VdWeps)
     if (info_VdWeps == myio_err_VdWeps) then
         if (present(info)) info = info_VdWeps
@@ -553,6 +571,73 @@ subroutine check_value_bcflag(bcflag,info)
     endif
 
 end subroutine check_value_bcflag
+
+
+subroutine check_value_GBtype(GBtype,info)
+
+    character(len=15), intent(in) :: GBtype
+    integer, intent(out),optional :: info
+
+    character(len=15) :: GBtypestr(4)
+    integer :: i
+    logical :: flag
+
+    ! permissible values of GBtype
+
+    GBtypestr(1)="GayBerneLJ" 
+    GBtypestr(2)="GayBerneVdW"
+    GBtypestr(3)="PerssonLJ"
+    GBtypestr(4)="PerssonVdW"
+    
+    flag=.FALSE.
+
+    do i=1,4
+        if(GBtype==GBtypestr(i)) flag=.TRUE.
+    enddo
+
+    if (present(info)) info = 0
+
+    if (flag.eqv. .FALSE.) then
+        print*,"Error: value of GBtype is not permissible"
+        print*,"GBtype = ",GBtype
+        if (present(info)) info = myio_err_GBtype
+        return
+    endif
+
+end subroutine check_value_GBtype
+
+
+subroutine check_value_GBCOMtype(GBCOMtype,info)
+
+    character(len=15), intent(in) :: GBCOMtype
+    integer, intent(out),optional :: info
+
+    character(len=15) :: GBCOMtypestr(3)
+    integer :: i
+    logical :: flag
+
+    ! permissible values of GBCOMtype
+
+    GBCOMtypestr(1)="simple" 
+    GBCOMtypestr(2)="simpleCOM"
+    GBCOMtypestr(3)="rotation"
+    
+    flag=.FALSE.
+
+    do i=1,3
+        if(GBCOMtype==GBCOMtypestr(i)) flag=.TRUE.
+    enddo
+
+    if (present(info)) info = 0
+
+    if (flag.eqv. .FALSE.) then
+        print*,"Error: value of GBCOMtype is not permissible"
+        print*,"GBCOMtype = ",GBCOMtype
+        if (present(info)) info = myio_err_GBCOMtype
+        return
+    endif
+
+end subroutine check_value_GBCOMtype
 
 
 subroutine set_value_NaCl(runtype,info)
@@ -1168,6 +1253,16 @@ subroutine set_value_double_var(var,isSet_var,default_value_var)
 
 end subroutine set_value_double_var
 
+
+subroutine set_value_char_array_var(var,isSet_var,default_value_var)
+
+    character(len=*), intent(inout) :: var
+    logical, intent(in) :: isSet_var
+    character(len=*), intent(in) :: default_value_var
+
+    if(.not.isSet_var) var=default_value_var ! default value
+
+end subroutine set_value_char_array_var
 
 subroutine output()
 

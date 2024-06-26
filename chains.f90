@@ -45,6 +45,7 @@ module chains
     ! sgraftpts used to be in volume.f90
     integer                                     :: sgraftpts(3)             ! triplet of unit number of histone that is rotated into fixed orientation
     integer, dimension(:,:), allocatable        :: orientation_triplets     ! triplet of unit number for all nnucl histone
+    integer, dimension(:,:), allocatable        :: unitvector_triplets      ! triplet of for norm vectos and com for all nnucl histone
     integer, dimension(:), allocatable          :: nelem                    ! number of elements of every segment
     integer, dimension(:), allocatable          :: nelemAA                  ! number of elements of every AA segment
     integer, dimension(:), allocatable          :: typeAA                   ! type of number of elements of every AA segment

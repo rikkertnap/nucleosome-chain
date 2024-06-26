@@ -24,6 +24,9 @@ module GB_potential
     real(dp) :: chi             ! 
     real(dp) :: chiprime        !   
 
+    character(len=15) :: GBtype   
+    character(len=15) :: GBCOMtype 
+
 
     private :: dotproduct, shapefunc_chi, shapefunc_chiprime
     private :: shapefunc_sigma, shapefunc_epsilon
@@ -108,7 +111,7 @@ contains
     ! output real(dp) VGB: value of Gay-Berne potential
     ! pre : call to init_GB_const() to set (axisratio, energyratio) chi, chiprime, epsilon0, and sigma0
     
-    function GBpotential(u1,u2,rvec)result(VGB)
+    function GBpotential_LJ(u1,u2,rvec)result(VGB)
         
         real(dp), intent(in) , dimension(3) :: u1, u2, rvec
         real(dp) :: VGB
@@ -126,8 +129,35 @@ contains
 
         VGB=4.0_dp*epsilon*(ratio**12-ratio**6) ! factor 4 is not in  equation in Persson 
     
-    end function GBpotential
+    end function GBpotential_LJ
 
+
+    ! Computes energy of Gay-Berne potential
+    ! Van der Waals attraction only 
+    ! input real(dp),  u1(3), u2(3) : orientation vector of interaction ellipsoids
+    !       real(dp),  rvec(3) :  center-to-center vector difference 
+    ! output real(dp) VGB: value of Gay-Berne potential
+    ! pre : call to init_GB_const() to set (axisratio, energyratio) chi, chiprime, epsilon0, and sigma0
+    
+    function GBpotential_VdW(u1,u2,rvec)result(VGB)
+        
+        real(dp), intent(in) , dimension(3) :: u1, u2, rvec
+        real(dp) :: VGB
+
+        ! local variables
+        real(dp), dimension(3) :: runit
+        real(dp) :: normr, sigma, epsilon, ratio
+
+        normr=sqrt(dotproduct(rvec,rvec)) 
+        runit=rvec/normr
+
+        sigma=shapefunc_sigma(u1,u2,runit,chi) 
+        epsilon=epsilon0 * shapefunc_epsilon(u1,u2,runit,chi,chiprime)
+        ratio=1.0_dp/(normr/sigma0-sigma+1.0_dp) 
+
+        VGB=4.0_dp*epsilon*(ratio**12-ratio**6) ! factor 4 is not in  equation in Persson 
+    
+    end function GBpotential_VdW
 
     function shapefunc_sigma_Persson(u1,u2,runit,l) result(sigma) 
     
@@ -167,7 +197,7 @@ contains
     ! output real(dp) VGB: value of Gay-Berne potential
     ! pre : call to init_GB_Persson_const() to set (axisratio, energyratio) chi, chiprime, epsilon0, and sigma0
 
-    function GBpotential_Persson(u1,u2,rvec)result(VGB)
+    function GBpotential_Persson_LJ(u1,u2,rvec)result(VGB)
         
         real(dp), intent(in) , dimension(3) :: u1, u2, rvec
         real(dp) :: VGB
@@ -182,28 +212,85 @@ contains
         sigma=shapefunc_sigma_Persson(u1,u2,runit,axisratio) 
         epsilon=epsilon0 * shapefunc_epsilon_Persson(u1,u2,runit,energyratio)
         ratio=1.0_dp/(normr/sigma0-sigma+1.0_dp) 
+
         VGB=4.0_dp*epsilon*(ratio**12-ratio**6) ! factor 4 is not in  equation in Persson 
     
-    end function GBpotential_Persson
+    end function GBpotential_Persson_LJ
+
+    ! Computes energy of Gay-Berne potential using Persson modifications
+    ! VdW attraction only 
+    ! input real(dp),  u1(3), u2(3) : orientation vector of interaction ellipsoids
+    !       real(dp),  rvec(3) :  center-to-center vector difference 
+    ! output real(dp) VGB: value of Gay-Berne potential
+    ! pre : call to init_GB_Persson_const() to set (axisratio, energyratio) chi, chiprime, epsilon0, and sigma0
+
+    function GBpotential_Persson_VdW(u1,u2,rvec)result(VGB)
+        
+        real(dp), intent(in) , dimension(3) :: u1, u2, rvec
+        real(dp) :: VGB
+
+        ! local variables
+        real(dp), dimension(3) :: runit
+        real(dp) :: normr,  sigma, epsilon, ratio
+
+        normr=sqrt(dotproduct(rvec,rvec)) 
+        runit=rvec/normr
+
+        sigma=shapefunc_sigma_Persson(u1,u2,runit,axisratio) 
+        epsilon=epsilon0 * shapefunc_epsilon_Persson(u1,u2,runit,energyratio)
+        ratio=1.0_dp/(normr/sigma0-sigma+1.0_dp) 
+
+        VGB=4.0_dp*epsilon*(-ratio**6) ! factor 4 is not in  equation in Persson 
+    
+    end function GBpotential_Persson_VdW
+
+
+    function GBpotential_general(u1,u2,rvec)result(VGB)
+        
+        real(dp), intent(in) , dimension(3) :: u1, u2, rvec
+        real(dp) :: VGB
+
+        select case (GBtype)
+        case ("GayBerneLJ") 
+            VGB = GBpotential_LJ(u1,u2,rvec)
+        case ("GayBerneVdW") 
+            VGB = GBpotential_VdW(u1,u2,rvec)
+        case ("PerssonLJ")
+            VGB = GBpotential_Persson_LJ(u1,u2,rvec)
+        case ("PerssonVdW")
+            VGB = GBpotential_Persson_VdW(u1,u2,rvec)   
+        case default 
+            print*,"Error in GBpotential_general"
+            print*,"Wrong value GBtype : ", GBtype
+            VGB = 0.0_dp
+        end select
+
+    end function GBpotential_general
+
+    subroutine init_GB_const_defaults()
+
+        epsilonS = 1.0_dp  
+        epsilonE = 6.0_dp 
+
+        sigmaS = 1.0_dp
+        sigmaE = 0.5733672387811127_dp
+        sigma0 = 10.289880194520919_dp
+
+    end subroutine
 
 
     ! Sets Gay-Berne constants: axisratio, energyratio, sigma0, and epislon0
 
     subroutine init_GB_const()
-        
-        epsilonS = 1.0_dp  
-        epsilonE = 6.0_dp
+    
         energyratio = epsilonS/epsilonE
-
-        sigmaS = 1.0_dp
-        sigmaE = 0.507_dp
-        sigma0 = sigmaS
         axisratio = sigmaE/sigmaS 
+        
+        sigmaS = sigma0
+        sigmaE = axisratio * sigmaS
 
         chi=shapefunc_chi(axisratio)
         chiprime=shapefunc_chiprime(energyratio)
-        
-        print*,"#chi=",chi
 
         epsilon0=set_epsilon0(chi) ! this set scale of VGB to units of epsilonS 
 
@@ -214,17 +301,13 @@ contains
 
     subroutine init_GB_Persson_const()
         
-        epsilonS = 1.0_dp  
-        epsilonE = 6.0_dp ! 0.2_dp
         energyratio = epsilonS/epsilonE
-
-        sigmaS = 1.0_dp
-        sigmaE = 0.507_dp
-        sigma0 = sigmaS
         axisratio = sigmaE/sigmaS 
 
+        sigmaS = sigma0
+        sigmaE = axisratio * sigmaS
+
         chi=shapefunc_chi(axisratio)
-        print*,"#chi=",chi
         chiprime=shapefunc_chiprime(energyratio)
         
         epsilon0=epsilonS ! this set scale of VGB_Persson to units of epsilonS 
@@ -232,13 +315,29 @@ contains
     end subroutine init_GB_Persson_const
 
 
+    subroutine init_GB_general_const()
+        
+        select case (GBtype)
+        case ("GayBerneLJ","GayBerneVdW") 
+            call  init_GB_const()
+        case ("PerssonLJ","PerssonVdW")
+            call init_GB_Persson_const()
+        case default 
+            print*,"Error in init_GB_general_const"
+            print*,"Wrong value GBtype : ", GBtype
+        end select 
+       
+    end subroutine init_GB_general_const
+
     subroutine print_GB_const()
+
         print*,"# version     = ",VERSION
         print*,"# axisratio   = ",axisratio
         print*,"# energyratio = ",energyratio
         print*,"# sigma0      = ",sigma0
         print*,"# epsilon0    = ",epsilon0
-
+        print*,"# sigmaS      = ",sigmaS
+        print*,"# sigmaE      = ",sigmaE 
     end subroutine
 
 

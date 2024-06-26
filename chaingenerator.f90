@@ -308,7 +308,7 @@ subroutine read_chains_xyz_nucl(info)
     use myio, only : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
-    use VdW_potential, only : VGBenergyeffective, init_VGBenergyeffective
+    use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
 
     ! .. argument
 
@@ -348,6 +348,7 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: equilat, equilat_rot
     integer :: ii
     integer :: s_local
+    integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
 
     ! .. executable statements   
 
@@ -411,7 +412,12 @@ subroutine read_chains_xyz_nucl(info)
 
     if(isVdW) then 
         allocate(segunitvector(nnucl))   
-        call init_VGBenergyeffective(segcm,nnucl,segunitvector)
+        
+        !call init_GBenergyeffective(segcm,nnucl,segunitvector) 
+        
+        call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
+        call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
+        call init_GBenergyeffective(segcm,nnucl,segunitvector,segnumAAstart,segnumAAend)
     endif
         
     isReadGood=.true. 
@@ -522,7 +528,8 @@ subroutine read_chains_xyz_nucl(info)
                 
                 enddo
                
-                if(isVdW) EnergyLJ = VdWpotentialenergy(chain_pbc)
+                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl)
+
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
 
@@ -577,7 +584,8 @@ subroutine read_chains_xyz_nucl(info)
 
                 enddo
                 
-                if(isVdW) EnergyLJ = VdWpotentialenergy(chain_pbc)
+                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl)
+
 
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
@@ -668,7 +676,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
     use myutils, only  : error_handler
-    use VdW_potential, only : VGBenergyeffective, init_VGBenergyeffective, VGBenergyeffective_comb
+    use VdW_potential, only : GBenergyeffective, init_GBenergyeffective, GBenergyeffective_comb
 
     ! .. argument
 
@@ -797,15 +805,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     rcm=(/xcm,ycm,zcm/)
     Lr=(/Lx,Ly,Lz/)
 
-    if(isVdW) then 
-        allocate(segunitvector(nnucl))   
-        call init_VGBenergyeffective(segcm,nnucl,segunitvector)
-    endif
-
     sqrDphoscutoff=distphoscutoff**2
     !print*,"sqrDphoscutoff=",sqrDphoscutoff
     max_range_nneigh = 10                             ! assume at maximum there  at 10 ! 
-   ! allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
+    ! allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
 
     nrotpts=sgraftpts(1)  ! nucleosome id /segment number around which to rotate whole conformation
     !nrotpts=rotation_triplets(1)
@@ -862,6 +865,10 @@ subroutine read_chains_xyz_nucl_volume(info)
         tPhos = find_type_phosphate()
     endif
    
+    if(isVdW) then 
+        allocate(segunitvector(nnucl))   
+        call init_GBenergyeffective(segcm,nnucl,segunitvector,segnumAAstart,segnumAAend)
+    endif 
     
     isReadGood=.true. 
 
@@ -904,7 +911,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
-        !if(isVdW)  energyLJ    = VGBenergyeffective(xseg,nnucl,segcm,segunitvector) 
+        !if(isVdW)  energyLJ    = GBenergyeffective(xseg,nnucl,segcm,segunitvector) 
         
         if(isReadGood) then ! read was succesfull  
 
@@ -977,17 +984,13 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain_rot,chain_elem_rot,chain_elem_index) 
 
 
-            if(DEBUG)then
-            !if(conf==1.or.(161<=conf .and. conf<=163)) then
+            !if(DEBUG)then
                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
                 call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
                 close(un_traj)
-            endif     
-
-
+            !endif     
 
             ! 6. make indexconfig i.e. place conformation on lattice
-
 
             select case (geometry)
             case ("cubic")
@@ -1071,9 +1074,9 @@ subroutine read_chains_xyz_nucl_volume(info)
  !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
             
                 if(isVdW) then 
-                     energyLJ    = VGBenergyeffective(chain_pbc,nnucl,segcm,segunitvector) 
-                     energyLJ_comb    = VGBenergyeffective_comb(chain_pbc,nnucl,segcm,segunitvector)
-                     print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
+                    energyLJ      = GBenergyeffective(chain_pbc,nnucl)
+                    energyLJ_comb = GBenergyeffective_comb(chain_pbc,nnucl)
+                    print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
                 endif    
 
                 energychainLJ(conf)    = energyLJ
@@ -1167,7 +1170,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = VGBenergyeffective(chain_pbc,nnucl,segcm,segunitvector)  
+                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl)   
                 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -2168,7 +2171,7 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     integer, intent(in) :: un_trj
     
     character(len=lenText) :: istr
-    real(dp) :: x, y, z
+    real(dp) :: x, y, z, xcm, ycm, zcm
     integer ::  j, s
     real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, conf, nsegtot
@@ -2178,6 +2181,12 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     xbox1(1)=nx*delta*10.0_dp
     xbox1(2)=ny*delta*10.0_dp
     xbox1(3)=nz*delta*10.0_dp
+
+    
+    xcm= nx*delta*10.0_dp/2.0_dp           
+    ycm= ny*delta*10.0_dp/2.0_dp          ! center box
+    zcm= nz*delta*10.0_dp/2.0_dp
+
 
     item=0
     conf_write=conf_write+1
@@ -2199,9 +2208,9 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
     do s=1,nseg
         do j=1,nelem(s)
-            x = chain_elem_index(1,s)%elem(j)*10.0_dp
-            y = chain_elem_index(2,s)%elem(j)*10.0_dp
-            z = chain_elem_index(3,s)%elem(j)*10.0_dp
+            x = chain_elem_index(1,s)%elem(j)*10.0_dp +xcm
+            y = chain_elem_index(2,s)%elem(j)*10.0_dp +ycm
+            z = chain_elem_index(3,s)%elem(j)*10.0_dp +zcm
         
             idatom=type_of_monomer(s)
             moltype=nucl_elem_type(j,type_of_monomer(s))  
@@ -2238,258 +2247,6 @@ function open_chain_energy(info)result(un_ene)
     endif
 
 end function
-
-function VdWpotentialenergy_MC(chain,nchains)result(Energy)
-
-    use globals, only : nseg
-    use myutils, only : newunit, lenText
-    use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
-    use chains, only : type_of_monomer
-    use parameters, only :  lsegAA,VdWeps
-
-    real(dp), intent(in) :: chain(:,:,:)
-    integer, intent(in) :: nchains
-
-    real(dp) :: Energy(nchains)
-    real(dp) :: Ene,sqrlseg,sqrdist
-    integer :: k,i,j,s,t
-    real(dp) :: xi,xj,yi,yj,zi,zj
-    real(dp) :: Lz,Ly,Lx
-
-    Lz= nz*delta            ! maximum height box s
-    Lx= nx*delta            ! maximum width box 
-    Ly= ny*delta            ! maximum depth box 
-
-    do k=1,nchains
-        Ene=0.0_dp      
-        do i=1,nseg
-            do j=i+1,nseg
-
-                s=type_of_monomer(i)
-                t=type_of_monomer(j)
-               
-                zi = pbc(chain(1,i,k),Lz)
-                xi = pbc(chain(2,i,k),Lx)
-                yi = pbc(chain(3,i,k),Ly) 
-                zj = pbc(chain(1,j,k),Lz)
-                xj = pbc(chain(2,j,k),Lx)
-                yj = pbc(chain(3,j,k),Ly) 
-
-                sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
-                sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
-
-                Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
-
-            enddo
-        enddo 
-        Energy(k) = Ene            
-    enddo
-
-end function VdWpotentialenergy_MC
- 
-! pre : chain conformation 
-! post: VdW of conformation and if conformation is saw or not
-
-subroutine VdWpotentialenergySaw(chain,Energy,saw)
-
-    use globals, only : nseg, nsegtypes
-    use chains, only : type_of_monomer
-    use parameters, only :  lsegAA,VdWeps
-
-    real(dp), intent(in)  :: chain(:,:)
-    real(dp), intent(out) :: Energy
-    logical, intent(out) :: saw
-
-    real(dp) :: Ene,sqrlseg,sqrdist
-    integer :: i,j,s,t
-    real(dp) :: xi,xj,yi,yj,zi,zj
-   
-    Ene=0.0_dp      
-    saw=.true.
-
-    do i=1,nseg
-        do j=i+1,nseg
-
-            s=type_of_monomer(i)
-            t=type_of_monomer(j)
-
-            zi = chain(1,i)
-            xi = chain(2,i)
-            yi = chain(3,i)
-
-            zj = chain(1,j)
-            xj = chain(2,j)
-            yj = chain(3,j) 
-
-            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
-            sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
-
-            Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
-            
-            if(j/=(i+1).and.sqrdist<sqrlseg) then 
-                saw=.false.
-             !   print*,"overlap occured for i= ",i," and j= ",j 
-            endif    
-        enddo
-    enddo 
-
-    !print*,"total ",Ene," saw ",saw,' ',(lsegAA(t),t=1,nsegtypes),VdWeps 
-    Energy = Ene            
-
-end subroutine VdWpotentialenergySaw
-   
-! pre : chain conformation 
-! post: VdW of conformation 
-! V_VdW(r) = -epsilon * (sigma/r)^6 : r >= 2*(1/6) sigma
-!          = -epsilon               : r  < 2*(1/6) sigma
-
-function VdWpotentialenergy(chain)result(Energy)
-
-    use globals, only : nseg, nsegtypes
-    use chains, only : type_of_monomer
-    use parameters, only :  lsegAA,VdWeps
-
-    real(dp), intent(in)  :: chain(:,:)
-    real(dp) :: Energy
-    
-    real(dp) :: Ene,sqrlseg,sqrdist !,maxdist
-    integer ::  i,j,s,t
-    real(dp) :: xi,xj,yi,yj,zi,zj
-    
-    Ene=0.0_dp 
-
-    !maxdist=VdWcutoff*delta 
-   
-    do i=1,nseg
-
-            s=type_of_monomer(i)
-            
-            zi = chain(1,i)
-            xi = chain(2,i)
-            yi = chain(3,i)
-
-
-        do j=i+1,nseg
-
-            t=type_of_monomer(j)
-
-            zj = chain(1,j)
-            xj = chain(2,j)
-            yj = chain(3,j) 
-
-            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
-            sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
-
-            if(sqrdist<sqrlseg) sqrdist=sqrlseg
-
-            Ene=Ene - VdWeps(s,t)*(sqrlseg/sqrdist)**3
-            
-        enddo
-    enddo 
-
-    Energy = Ene            
-
-end function  VdWpotentialenergy
-
- 
-! pre : chain conformation 
-! post: VLJ energy of conformation 
-! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
-
-function  VLJpotentialenergy(chain) result(Energy)
-
-    use globals, only : nseg, nsegtypes
-    use chains, only : type_of_monomer
-    use parameters, only :  lsegAA,VdWeps
-
-    real(dp), intent(in)  :: chain(:,:)
-    real(dp) :: Energy
-    
-    real(dp) :: Ene,sqrlseg,sqrdist
-    integer ::  i,j,s,t
-    real(dp) :: xi,xj,yi,yj,zi,zj
-    
-    Ene=0.0_dp 
-   
-    do i=1,nseg
-        s=type_of_monomer(i)
-        
-        zi = chain(1,i)
-        xi = chain(2,i)
-        yi = chain(3,i)
-        
-        do j=i+1,nseg
-
-            t=type_of_monomer(j)
-
-            zj = chain(1,j)
-            xj = chain(2,j)
-            yj = chain(3,j) 
-
-            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
-            sqrlseg=((lsegAA(t)+lsegAA(s))/2.0_dp)**2
-    
-            Ene=Ene + 4.0_dp*VdWeps(s,t)*((sqrlseg/sqrdist)**6-(sqrlseg/sqrdist)**3)
-        
-        enddo
-    enddo 
-
-    Energy = Ene            
-
-end function VLJpotentialenergy
-
-
-! pre : chain conformation 
-! post: effective VLJ energy conformation using location COM of nucleosome
-! VLJ(r) = 4 epsilon * [ (sigma/r)^12-(sigma/r)^6 
-
-function  VLJenergyeffective(chain,nmer,segcm)result(Energy)
-
-    use globals, only : nseg, nsegtypes
-    use chains, only : type_of_monomer
-    !use parameters, only :  omegaLJ,epsLJ
-
-    real(dp), intent(in) :: chain(:,:)
-    integer, intent(in) :: nmer
-    integer, intent(in) :: segcm(:) 
-
-    real(dp) :: Energy
-    
-    real(dp) :: Ene,sqrlseg,sqrdist,sqromega
-    integer ::  i,j,s,t
-    real(dp) :: xi,xj,yi,yj,zi,zj
-    integer :: isegcm, jsegcm
-
-    real(dp) :: omegaLJ  ! omega of LJ should be in parameters or GBpotential module
-    real(dp) :: epsLJ     
-
-    Ene=0.0_dp 
-    sqromega=omegaLJ**2
-   
-    do i=1,nmer
-        isegcm=segcm(i)
-        
-        xi = chain(1,isegcm)
-        yi = chain(2,isegcm)
-        zi = chain(3,isegcm)
-
-        do j=i+1,nmer
-            jsegcm=segcm(j)
-
-            xj = chain(1,jsegcm)
-            yj = chain(2,jsegcm)
-            zj = chain(3,jsegcm) 
-
-            sqrdist=(xi-xj)**2+(yi-yj)**2+(zi-zj)**2
-
-            Ene=Ene + 4.0_dp*epsLJ*((sqromega/sqrdist)**6-(sqromega/sqrdist)**3)
-        
-        enddo
-    enddo     
-
-    Energy = Ene            
-
-end function VLJenergyeffective
 
 
 ! .. commuter radius of gyration of a sub chain conformation
