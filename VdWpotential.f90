@@ -557,10 +557,10 @@ contains
 
                 rvecj =rcom(:,j)
                 uvecj =uvector(:,j) 
-                rvec=rvecj-rveci
+                rvec = rvecj-rveci
 
                 Ene = Ene + GBpotential_general(uveci,uvecj,rvec)
-            
+
             enddo
         enddo     
 

@@ -154,7 +154,7 @@ contains
         epsilon=epsilon0 * shapefunc_epsilon(u1,u2,runit,chi,chiprime)
         ratio=1.0_dp/(normr/sigma0-sigma+1.0_dp) 
 
-        VGB=4.0_dp*epsilon*(ratio**12-ratio**6) ! factor 4 is not in  equation in Persson 
+        VGB=4.0_dp*epsilon*(-ratio**6) ! factor 4 is not in  equation in Persson 
     
     end function GBpotential_VdW
 
