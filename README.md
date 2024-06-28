@@ -149,8 +149,13 @@ A central configuration file is called 'input.in' that contain following key wor
 |dielectscale%delta `real`	 | Minimal allowed stepsize. Stopping criteria    |  |
 |distphoscutoff `real`       | Cutoff distance to decide if two phospate can for a pair. Unit: nm| suggested value 0.80 nm|
 |pbc_chain      `logical`    | if .true. writing of periodic boundary condition are used for conformations | if not set default: __.false.__|
-                          
-
+|GBtype      `char` | Selects type of Gay-Berne potential to use for VdW/hydrophobic interaction  | __GBLJ__: Gay-Berne potential full Lennard Jones         |
+|  |  | __PerssonLJ__: Gay-Berne-Persson potential full Lennard Jones|
+|  |  | __GBVdW__: Gay-Berne potential only Van der Waals    |
+|  |  | __PerssonVdW__: Gay-Berne_Persson potential only Van der Waals    |
+|GBCOMtype      `char` | Selects method  to determined COM and unitvector for Gay-Berne potential | __Simple__: use COM nearest AA for COM and two AAs for unitvector        |
+|  |  | __SimpleCOM__:  use determine COM expliciet and two AAs for unitvector   |
+|  |  | __rotatation__: use rotation of reference points for COM and unitvector     |
 Format other input files:
  
 * input file 'salt.in' if runtype="inputcspH" or "inputcsT" or "rangedielect". Values of salt concentration read in from file the input file. First line indicates the number of salt concentrations to be considered. Subsequent lines are the values of the salt concentrations.'
@@ -174,7 +179,7 @@ If file absent, values set for acrylic acids <br/>
 * Input file '\<mtpdbfname\>' contains pdb-liek structure file wioth coordianate of all AA element for every AA. 
 * Input file '\<vnuclfname\>' contains volume of AA elements. First line the number of elements. Next lines: type char(2), type(int) volume(double) charged (logical).
 * Input file '\<orientfname\>' contains nnucl triplets of segment id used for orientation of nucleosome AA elements.
-* The program is a parrallel program. Every mpi_node holds it own set of 'cuantas' conformations.
+* The program is a parallel program. Every mpi_node holds it own set of 'cuantas' conformations.
 
 Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
@@ -185,7 +190,7 @@ Redundant variables: bcflag(RIGHT),bcflag(LEFT),sigmaSurfR,sigmaSurfL
 
 ## Versioning
 
-version 0.84 3-april-2024
+version 0.84 26-june-2024
 
 ## Authors
 

@@ -9,7 +9,7 @@
 ! function LJpotentialenergy(chain) result(Energy)
 ! function LJenergyeffective(chain,nmer)result(Energy)
 
-! subroutine init_GBenergyeffective(segcm,nmer,segunitvector)
+! subroutine init_GBenergyeffective(segcm,nmer,segnumAAstartGBcom, segnumAAendGBcom) 
 ! function  GBenergyeffective_comb(chain,nmer)result(Energy)
 ! function  GBenergyeff(nmer,rcom,uvector)result(Energy)
 
@@ -29,28 +29,30 @@ module VdW_potential
   
     implicit none
 
-    integer :: conf_write_com = 0 ! counter for write_chain_com_unitvec_lammps_trj
-    integer :: un_traj_com
+    integer :: conf_write_com = 0         ! counter for write_chain_com_unitvec_lammps_trj
+    integer :: un_traj_com                ! unit number for file 
     
-    ! auxilary variable used in determin COM and unitvectors 
+    ! auxilary variable used in determine COM and unitvectors 
+
     integer, allocatable :: segnumAAstartGBcom(:), segnumAAendGBcom(:) ! local variable 
-    !real(dp) :: vec_ref(3,3)              ! reference orientation vectors spanning plane through origin
+    real(dp) :: vec_ref(3,3)              ! reference orientation vectors spanning plane through origin
                                           ! first index coordiantes second index number 
-    !real(dp) :: unit_vec_ref(3)           ! init unitvector from python program pca  
-    !integer  :: atom_id_unit_relative(3)  ! relative to atomid/segnumber of first AA
+    real(dp) :: unit_vec_ref(3)           ! init unitvector from python program pca  
+    integer  :: atom_id_unit_relative(3)  ! relative to atomid/segnumber of first AA
+
+    integer :: deltaseg
+    integer, allocatable :: segunitvector(:) 
 
     private :: dotproduct, pbc
     private :: make_com_unit_vector_nucl_simple,make_com_unit_vector_nucl_simpleCOM 
     private :: make_com_unit_vector_nucl_rotation
     private :: parameter_com_ref, parameter_com, normal_vector
-
     private :: un_traj_com
     private :: segnumAAstartGBcom, segnumAAendGBcom
-    ! private :: vec_ref, unit_vec_ref, atom_id_unit_relative
-
+    private :: vec_ref, unit_vec_ref, atom_id_unit_relative
 
 contains 
- 
+
     
     function VdWpotentialenergy_MC(chain,nchains)result(Energy)
 
@@ -336,7 +338,7 @@ contains
     end function dotproduct
 
 
-    ! Inits constant varialbke used VGBenergyeffective: makes array segunitvector 
+    ! Inits constant variable used VGBenergyeffective: makes array segunitvector 
     ! Inits constant parameter of module GB_potential
     ! input : integer segcm
     !         integer nmer
@@ -345,33 +347,54 @@ contains
     ! output: integer segunitvector(nmer) 
     !         and all variable of Gay-Bern Potential in module GB_potential
 
-    subroutine init_GBenergyeffective(segcm,nmer,segunitvector,segnumAAstart,segnumAAend)
+    subroutine init_GBenergyeffective(segcm,nmer,segnumAAstart,segnumAAend)
         
         use GB_potential, only : init_GB_const_defaults, init_GB_const
         use chains, only : unitvector_triplets
 
         integer, intent(in) :: segcm(:)
         integer, intent(in) :: nmer
-        integer, intent(inout) :: segunitvector(:) 
         integer, intent(in)  :: segnumAAstart(nmer), segnumAAend(nmer) ! segment numbers first/last AAs 
 
-        integer :: i, deltaseg
+        integer :: i, info
+
+        info = 0
+
+        allocate(segunitvector(nmer)) 
 
         ! set default for GB potential
 
         call init_GB_const_defaults()
 
-        ! set default auxliary variable for determine COM and unit vector 
-        !deltaseg= (948-1069) ! using AA & DNA number from pca python program 
+        ! set default auxilary variable for determine COM and unit vector 
+
         deltaseg= (1577-1069) ! using only AA number from pca python program
 
+        ! init unitvector from python program pca 
+        
+        unit_vec_ref= (/0.99857452_dp, 0.02966983_dp, 0.0443692_dp/) 
+
+        ! set default  reference orientation vectors spanning plane through origin
+
+        vec_ref(:,1)=(/1.08398777_dp, -5.05775356_dp,  3.57485842_dp/)
+        vec_ref(:,2)=(/-1.95081223_dp,  0.48525144_dp, -2.62704158_dp/)
+        vec_ref(:,3)=(/1.43088777_dp, -1.73315356_dp,  2.53525842_dp/)
+   
+        ! relative to atomid/segnumber of first AA
+
+        atom_id_unit_relative=(/0, 233, 720/)  
+
+        ! overide default 
+        call read_GBinputfile(info)
+
+        ! compute dependent auxilary functions
+        
+        call init_GB_const()
 
         do i=1,nmer
             segunitvector(i)=segcm(i)+deltaseg
         enddo
-
-        call init_GB_const()
-       
+        
         allocate(unitvector_triplets(nmer,3))
         allocate(segnumAAstartGBcom(nmer))
         allocate(segnumAAendGBcom(nmer))
@@ -390,7 +413,7 @@ contains
     function  GBenergyeffective_comb(chain,nmer)result(Energy)
 
         use globals, only : nseg, nsegtypes
-        use chains, only : segcm,segunitvector
+        use chains, only : segcm 
         use GB_potential, only : GBpotential_general
 
         real(dp), intent(in) :: chain(:,:)
@@ -461,7 +484,7 @@ contains
 
     function  GBenergyeffective(chain,nmer)result(Energy)
  
-        use chains, only : segcm, segunitvector, unitvector_triplets
+        use chains, only : segcm, unitvector_triplets
         use GB_potential, only : GBCOMtype
 
         real(dp), intent(in) :: chain(:,:)
@@ -495,10 +518,11 @@ contains
 
         Energy = GBenergyeff(nmer,rcom,uvector)
 
-        info = 1
-        un_traj_com= open_chain_com_unitvec_lammps_trj(info)
-        call write_chain_com_unitvec_lammps_trj(un_traj_com,rcom,uvector)
-        close(un_traj_com)
+        ! 
+        !info = 1
+        !un_traj_com= open_chain_com_unitvec_lammps_trj(info)
+        !call write_chain_com_unitvec_lammps_trj(un_traj_com,rcom,uvector)
+        !close(un_traj_com)
 
     end function GBenergyeffective
 
@@ -546,6 +570,7 @@ contains
 
 
     ! Determine com and unit vector for a given nucloesome conformation
+    ! pre:  subroutine init_GBenergyeffective
     ! input :  real(dp :: chainchain(:,:) conformation 
     !          integer :: nmer : nnucl
     !          integer :: segcm(:) : atom_id closest to com 
@@ -587,6 +612,7 @@ contains
 
 
     ! Determine com and unit vector for a given nucloesome conformation
+    ! pre:  call to   init_GBenergyeffective
     ! input :  real(dp :: chainchain(:,:) conformation 
     !          integer :: nmer : nnucl
     !          integer :: segcm(:) : atom_id closest to com 
@@ -618,7 +644,7 @@ contains
 
             uvec=rvecunitvec-rvec   ! unit vector
             norm_uvec=sqrt(dot_product(uvec,uvec))  
-            uvec=uvec/norm_uvec  ! normalize
+            uvec=uvec/norm_uvec     ! normalize
 
             uvector(:,i) = uvec
         enddo     
@@ -760,6 +786,7 @@ contains
     !    origin plane or com
     ! 2. orientation vector: using 3 points and 3 point of a reference to compute rotation and apply rotation 
     !    one referece orientation vector 
+    ! pre:  subroutine  init_GBenergyeffective
     ! input :  real(dp :: chainchain(:,:) conformation 
     !          integer :: nmer : nnucl
     !          integer :: unitvector_triplets(:) atom_id used to make unit vector
@@ -778,8 +805,7 @@ contains
         real(dp), intent(inout) :: uvector(:,:)          ! dimension : (nnucl,3)
       
         real(dp) :: s_ref, t_ref
-        real(dp) :: unit_vec_ref(3), unit_vec(3)
-        real(dp) :: vec_ref(3,3), vec(3,3)
+        real(dp) :: unit_vec(3), vec(3,3)
         real(dp) :: vec_origin_ref(3), vec_origin(3)
         real(dp) :: triangle_vec_ref(3,3), triangle_vec(3,3,nmer)
         real(dp) :: norm_vec_ref(3), norm_vec(3,nmer), norm_tri(3,nmer)
@@ -788,24 +814,10 @@ contains
         real(dp) :: qu(4)
         real(dp) :: Rmat1(3,3), Rmat2(3,3), Rmat_comb(3,3)
         integer  :: i, k, n
-        real(dp) :: atom_id_unit_relative(3)
          
         ! determine com using unitvectortriplets
-        ! determine s_ref and t_ref value of parameter function of plane 
-        ! of reference vectors
-
-        ! init reference orientation vectors spanning plane through origin
-
-        vec_ref(:,1)=(/1.08398777_dp, -5.05775356_dp,  3.57485842_dp/)
-        vec_ref(:,2)=(/-1.95081223_dp,  0.48525144_dp, -2.62704158_dp/)
-        vec_ref(:,3)=(/1.43088777_dp, -1.73315356_dp,  2.53525842_dp/)
-
-
-        ! init unitvector from python program pca 
-        unit_vec_ref= (/0.99857452_dp, 0.02966983_dp, 0.0443692_dp/) 
-        
-        ! atom id AA 
-        atom_id_unit_relative=(/0, 233, 720/)  ! relative to atomid/segnumber of first AA
+        ! determine s_ref and t_ref value of parameter function of plane of reference vectors. 
+        ! use vec_ref and unit_vec_ref and atom_id_unit_relative in init_GBenergyeffective
 
         ! atom id AA of all nucleosome
         do n=1,nmer 
@@ -844,7 +856,7 @@ contains
             rcom(:,n) = vec_origin
             norm_vec(:,n)=normal_vector(vec)
             
-            do k=1,3 ! get vectors from origin plane
+            do k=1,3 ! get vectors from 'origin' plane
                triangle_vec(:,k,n) =vec(:,k)-rcom(:,n)
             enddo   
             
@@ -875,7 +887,8 @@ contains
 
             ! apply second in plane rotation to get coordinate to coincide
 
-            a =triangle_vec_ref(:,2)  ! this is not okay
+            a =triangle_vec_ref(:,2)  
+
             a_rot = matmul(Rmat1,a) ! apply rotation
             b = triangle_vec(:,2,n)
             call rot_axis_angle(a_rot, b, u, angle)
@@ -970,34 +983,6 @@ contains
 
         enddo  
 
-        ! extra points
-        ! item=item+1  
-        ! rcom=(/0.0_dp,0.0_dp,0.0_dp/)
-        ! uvec=(/1.0_dp,1.0_dp,0.0_dp/)
-        ! unorm=dot_product(uvec,uvec)
-        ! uvec=uvec/sqrt(unorm)
-        ! call rot_axis_angle(uref, uvec, rotaxis, theta) 
-        ! qu = rot_axis_angle_to_quat(rotaxis, theta) 
-        ! print*,"rotaxis=",rotaxis
-        ! print*,"angle=",theta
-
-
-        ! write(un_trj,*)item,idatom,rcom(1),rcom(2),rcom(3),qu(1),qu(2),qu(3),qu(4),shapex,shapey,shapez
-     
-        ! item=item+1  
-        ! rcom=(/xbox1(1),0.0_dp,0.0_dp/)
-        ! uvec=(/1.0_dp,1.0_dp,0.0_dp/)
-        ! unorm=dot_product(uvec,uvec)
-        ! uvec=uvec/sqrt(unorm)
-
-        ! call rot_axis_angle(uref, uvec, rotaxis, theta) 
-        ! qu = rot_axis_angle_to_quat(rotaxis, theta) 
-        ! print*,"rotaxis=",rotaxis
-        ! print*,"angle=",theta
-   
-        ! write(un_trj,*)item,idatom,rcom(1),rcom(2),rcom(3),qu(1),qu(2),qu(3),qu(4),shapex,shapey,shapez
-
-
     end subroutine write_chain_com_unitvec_lammps_trj
 
 
@@ -1049,5 +1034,95 @@ contains
 
     end function open_chain_com_unitvec_lammps_trj
 
+
+    subroutine read_GBinputfile(info)
+
+        use myutils, only : newunit
+        use GB_potential, only : epsilonE, epsilonS 
+        use myio, only : myio_err_GBinputfile, myio_err_GBinputlabel
+
+        integer, intent(out), optional :: info
+
+        ! .. local arguments
+
+        integer :: info_GBfile
+        character(len=10) :: fname
+        integer :: ios,un_input  ! un = unit number
+        character(len=100) :: buffer, label
+        integer :: pos
+        integer :: line
+        logical :: file_exist
+
+        if (present(info)) info = 0
+
+        !     .. reading in of variables from file
+        write(fname,'(A10)')'GBinput.in'
+
+        inquire(file=fname,exist=file_exist)
+        print*,"file_exist=",file_exist
+
+        if(file_exist) then
+            open(unit=newunit(un_input),file=fname,iostat=ios,status='old')
+        else
+            print*,'GBinput file does not exit: use default value for GB potential'
+            info = 0
+            return
+        endif
+
+        if(ios >0 ) then
+            print*, 'Error opening GBinput.in file : iostat =', ios
+            if (present(info)) info = myio_err_GBinputfile
+            return
+        endif
+
+        ios = 0
+        line = 0
+
+        ! ios<0 : if an end of record condition is encountered or if an end of file condition was detected.
+        ! ios>0 : if an error occured
+        ! ios=0 : otherwise.
+
+        do while (ios == 0)
+
+            read(un_input, '(A)', iostat=ios) buffer
+
+            if (ios == 0) then
+
+                line = line + 1
+
+                !  Split label and data based on first occurence of a whitespace
+                pos = scan(buffer, '     ')
+                label = buffer(1:pos)
+                buffer = buffer(pos+1:)
+
+                select case (label) !list-directed The character variable is treated as an 'internal file'
+                case ('epsilonE')
+                    read(buffer, *,iostat=ios) epsilonE
+                case ('epsilonS')
+                    read(buffer, *,iostat=ios) epsilonS
+                case ('deltaseg')
+                    read(buffer, *,iostat=ios) deltaseg
+                case default
+                    if(pos>1) then
+                        print *, 'Invalid label at line', line  ! empty lines are skipped
+                        if (present(info)) info = myio_err_GBinputlabel
+                        return
+                    endif
+                end select
+            endif
+        enddo
+
+        if(ios >0 ) then
+            print*, 'Error parsing file : iostat =', ios
+            print*, 'Read error at line =', line
+            if (present(info)) info = myio_err_GBinputfile
+            return
+        endif
+
+        close(un_input)
+
+        ! .. check error flag
+
+    end subroutine read_GBinputfile
 
 end module VdW_potential    

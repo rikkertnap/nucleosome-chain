@@ -31,6 +31,8 @@ module myio
     integer, parameter ::  myio_err_equilat   = 24 
     integer, parameter ::  myio_err_GBtype    = 25
     integer, parameter ::  myio_err_GBCOMtype = 26 
+    integer, parameter ::  myio_err_GBinputfile = 27
+    integer, parameter ::  myio_err_GBinputlabel = 28 
 
     integer :: num_cNaCl   ! number of salt concentration considered
     integer :: num_cMgCl2
@@ -63,6 +65,7 @@ module myio
     public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output, write_chain_config
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile, myio_err_equilat 
+    public :: myio_err_GBinputfile, myio_err_GBinputlabel
     public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
     public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
     public :: set_value_isVdW_on_values
@@ -411,7 +414,7 @@ subroutine read_inputfile(info)
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"GayBerneLJ")
-    call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"simple")
+    call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"simpleCOM")
 
     ! check value after set value
 
@@ -441,6 +444,9 @@ subroutine read_inputfile(info)
     endif
 
 end subroutine read_inputfile
+
+
+
 
 
 subroutine check_value_systype(systype,info)
@@ -1317,7 +1323,8 @@ subroutine output_nucl_ionbin_Mg
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
     use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
-    
+    use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype  
+   
     !     .. local arguments
 
     integer :: t
@@ -1665,6 +1672,16 @@ subroutine output_nucl_ionbin_Mg
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
 
+    ! setting Gay-Berne potential
+    write(un_sys,*)'GBtype      = ',GBtype
+    write(un_sys,*)'GBCOMtype   = ',GBCOMtype
+    write(un_sys,*)'sigma0      = ',sigma0
+    write(un_sys,*)'sigmaS      = ',sigmaS
+    write(un_sys,*)'sigmaE      = ',sigmaE
+    write(un_sys,*)'epsilonS    = ',epsilonS
+    write(un_sys,*)'epsilonE    = ',epsilonE
+
+
     ! .. closing files
 
     close(un_sys)
@@ -1714,6 +1731,7 @@ subroutine output_nucl_mul
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
     use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
+    use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
     
     !     .. local arguments
 
@@ -2099,6 +2117,14 @@ subroutine output_nucl_mul
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
 
+    ! setting Gay-Berne potential
+    write(un_sys,*)'GBtype      = ',GBtype
+    write(un_sys,*)'GBCOMtype   = ',GBCOMtype
+    write(un_sys,*)'sigma0      = ',sigma0
+    write(un_sys,*)'sigmaS      = ',sigmaS
+    write(un_sys,*)'sigmaE      = ',sigmaE
+    write(un_sys,*)'epsilonS    = ',epsilonS
+    write(un_sys,*)'epsilonE    = ',epsilonE
 
     ! .. closing files
 
@@ -2147,6 +2173,7 @@ subroutine output_elect
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle,avnucl_spacing 
+    use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. local arguments
 
@@ -2464,7 +2491,15 @@ subroutine output_elect
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
-
+ 
+    ! setting Gay-Berne potential
+    write(un_sys,*)'GBtype      = ',GBtype
+    write(un_sys,*)'GBCOMtype   = ',GBCOMtype
+    write(un_sys,*)'sigma0      = ',sigma0
+    write(un_sys,*)'sigmaS      = ',sigmaS
+    write(un_sys,*)'sigmaE      = ',sigmaE
+    write(un_sys,*)'epsilonS    = ',epsilonS
+    write(un_sys,*)'epsilonE    = ',epsilonE
 
     ! .. closing files
     
@@ -2508,6 +2543,7 @@ subroutine output_neutral
     use energy
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
+    use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. output file names
     character(len=90) :: sysfilename
@@ -2650,6 +2686,17 @@ subroutine output_neutral
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val = ',VdWscale%val
+
+    ! setting Gay-Berne potential
+    write(un_sys,*)'GBtype      = ',GBtype
+    write(un_sys,*)'GBCOMtype   = ',GBCOMtype
+    write(un_sys,*)'sigma0      = ',sigma0
+    write(un_sys,*)'sigmaS      = ',sigmaS
+    write(un_sys,*)'sigmaE      = ',sigmaE
+    write(un_sys,*)'epsilonS    = ',epsilonS
+    write(un_sys,*)'epsilonE    = ',epsilonE
+
+
 
     ! .. closing files
     

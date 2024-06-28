@@ -142,11 +142,11 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info) 
+
     if(write_struct)call error_handler(1,"stop after write_chains_struct")
 
 
     ! call test_index_histone(info)  
-
 
     !  .. computation starts
 

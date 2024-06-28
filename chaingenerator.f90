@@ -410,14 +410,13 @@ subroutine read_chains_xyz_nucl(info)
     ycm= Ly/2.0_dp
     zcm= Lz/2.0_dp
 
+    
     if(isVdW) then 
-        allocate(segunitvector(nnucl))   
-        
-        !call init_GBenergyeffective(segcm,nnucl,segunitvector) 
-        
+                
         call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
         call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
-        call init_GBenergyeffective(segcm,nnucl,segunitvector,segnumAAstart,segnumAAend)
+
+        call init_GBenergyeffective(segcm,nnucl,segnumAAstart,segnumAAend)
     endif
         
     isReadGood=.true. 
@@ -639,8 +638,6 @@ subroutine read_chains_xyz_nucl(info)
     call normed_weightchains()     
 
     deallocate(energychain) ! free unused variables 
-
-    if(isVdW) deallocate(segunitvector)
     
 end subroutine read_chains_XYZ_nucl
 
@@ -865,10 +862,7 @@ subroutine read_chains_xyz_nucl_volume(info)
         tPhos = find_type_phosphate()
     endif
    
-    if(isVdW) then 
-        allocate(segunitvector(nnucl))   
-        call init_GBenergyeffective(segcm,nnucl,segunitvector,segnumAAstart,segnumAAend)
-    endif 
+    if(isVdW) call init_GBenergyeffective(segcm,nnucl,segnumAAstart,segnumAAend) 
     
     isReadGood=.true. 
 
@@ -984,11 +978,11 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain_rot,chain_elem_rot,chain_elem_index) 
 
 
-            !if(DEBUG)then
+            if(DEBUG)then
                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
                 call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
                 close(un_traj)
-            !endif     
+            endif     
 
             ! 6. make indexconfig i.e. place conformation on lattice
 
@@ -1075,8 +1069,8 @@ subroutine read_chains_xyz_nucl_volume(info)
             
                 if(isVdW) then 
                     energyLJ      = GBenergyeffective(chain_pbc,nnucl)
-                    energyLJ_comb = GBenergyeffective_comb(chain_pbc,nnucl)
-                    print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
+                    ! energyLJ_comb = GBenergyeffective_comb(chain_pbc,nnucl)
+                    ! print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
                 endif    
 
                 energychainLJ(conf)    = energyLJ
@@ -1228,7 +1222,6 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
-    if(isVdW) deallocate(segunitvector)
 
 end subroutine read_chains_xyz_nucl_volume
 

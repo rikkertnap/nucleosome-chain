@@ -27,7 +27,6 @@ module GB_potential
     character(len=15) :: GBtype   
     character(len=15) :: GBCOMtype 
 
-
     private :: dotproduct, shapefunc_chi, shapefunc_chiprime
     private :: shapefunc_sigma, shapefunc_epsilon
     private :: shapefunc_sigma_Persson, shapefunc_epsilon_Persson

@@ -45,7 +45,7 @@ module chains
     ! sgraftpts used to be in volume.f90
     integer                                     :: sgraftpts(3)             ! triplet of unit number of histone that is rotated into fixed orientation
     integer, dimension(:,:), allocatable        :: orientation_triplets     ! triplet of unit number for all nnucl histone
-    integer, dimension(:,:), allocatable        :: unitvector_triplets      ! triplet of for norm vectos and com for all nnucl histone
+    integer, dimension(:,:), allocatable        :: unitvector_triplets      ! triplet of for norm vectors and com for all nnucl histone
     integer, dimension(:), allocatable          :: nelem                    ! number of elements of every segment
     integer, dimension(:), allocatable          :: nelemAA                  ! number of elements of every AA segment
     integer, dimension(:), allocatable          :: typeAA                   ! type of number of elements of every AA segment
@@ -55,7 +55,6 @@ module chains
     ! chain stuctural quantities
 
     integer, dimension(:), allocatable          :: segcm                    ! monomer or units of chain closest to cm of histone  
-    integer, dimension(:), allocatable          :: segunitvector            ! monomer or units of chain such that with segcm make an unitvecotr  
     real(dp), dimension(:), allocatable         :: Rgsqr                    ! radius of gyration 
     real(dp), dimension(:), allocatable         :: Rendsqr                  ! end-to-end distance
     real(dp), dimension(:,:), allocatable       :: bond_angle               ! bond angle
@@ -66,7 +65,6 @@ module chains
     real(dp), dimension(:), allocatable         :: avnucl_spacing           ! average spacing or distance between Nuclesome
     real(dp)                                    :: avRgsqr                  ! radius of gyration 
     real(dp)                                    :: avRendsqr                ! end-to-end distance
-
 
     ! .. pairing parameters 
 
