@@ -67,7 +67,7 @@ contains
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : newunit, lenText
@@ -138,23 +138,27 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)      
-            do s=1,nseg        ! loop over segments                     
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+lnexppi(k,t)
-            enddo  
-            pro=exp(lnpro-lnproshift)  
+            if(no_overlapchain(c)) then 
 
-            FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+energychainLJ(c)*pro
-            Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
+                lnpro=logweightchain(c) -energychainLJ(c)      
+                do s=1,nseg        ! loop over segments                     
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro+lnexppi(k,t)
+                enddo  
+                pro=exp(lnpro-lnproshift)  
 
-           if(write_Palpha) write(un,*)pro/q
+                FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+energychainLJ(c)*pro
+                Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
+
+               if(write_Palpha) write(un,*)pro/q
+            endif   
+
         enddo
         
         Econf_local=Econf_local/q
@@ -222,7 +226,7 @@ contains
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
         use myutils, only : newunit, lenText
@@ -286,24 +290,25 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)         ! internal energy  
-            do s=1,nseg        ! loop over segments                     
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+ lnexppi(k,t)
-            enddo    
-            pro=exp(lnpro-lnproshift)
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)         ! internal energy  
+                do s=1,nseg        ! loop over segments                     
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro+ lnexppi(k,t)
+                enddo    
+                pro=exp(lnpro-lnproshift)
 
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local = Rgsqr_local + Rgsqr(c)*pro
-            Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro 
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local = Rgsqr_local + Rgsqr(c)*pro
+                Rendsqr_local = Rendsqr_local + Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro 
 
-           if(write_Palpha) write(un,*)pro/q
-
+               if(write_Palpha) write(un,*)pro/q
+            endif   
         enddo
         Econf_local=Econf_local/q
         Rgsqr_local = Rgsqr_local/q
@@ -379,7 +384,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -458,22 +463,24 @@ contains
         ndihedrals=nnucl-3
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)    
-            do s=1,nseg        ! loop over segments                     
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+lnexppi(k,t)
-            enddo 
-            pro=exp(lnpro-lnproshift)      
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-       
-           if(write_Palpha) write(un,*)pro/q
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)    
+                do s=1,nseg        ! loop over segments                     
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro+lnexppi(k,t)
+                enddo 
+                pro=exp(lnpro-lnproshift)      
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+           
+                if(write_Palpha) write(un,*)pro/q
+            endif    
 
         enddo
 
@@ -541,7 +548,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters, only : vpol, zpol, write_Palpha
         use myutils, only : lenText, newunit
@@ -623,23 +630,24 @@ contains
         
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)      ! internal energy  
-            do s=1,nseg        ! loop over segments                     
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+ lnexppi(k,t)
-            enddo    
-            pro=exp(lnpro-lnproshift)
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
-       
-            if(write_Palpha) write(un,*)pro/q
-
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)      ! internal energy  
+                do s=1,nseg        ! loop over segments                     
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro+ lnexppi(k,t)
+                enddo    
+                pro=exp(lnpro-lnproshift)
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
+           
+                if(write_Palpha) write(un,*)pro/q
+            endif    
         enddo
         
          Econf_local=Econf_local/q
@@ -706,7 +714,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
         use myutils, only : lenText, newunit
@@ -774,26 +782,27 @@ contains
         ndihedrals=nnucl-3
 
         do c=1,cuantas             ! loop over cuantas
-        
-            lnpro=logweightchain(c) -energychainLJ(c)              ! initial weight conformation 
-            do s=1,nseg              ! loop over segments 
-                k=indexchain(s,c)         
-                if(isAmonomer(s)) then ! A segment 
-                    lnpro = lnpro+lnexppiA(k)
-                else
-                    lnpro = lnpro+lnexppiB(k)
-                endif
-            enddo
-            pro=exp(lnpro-lnproshift)
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)              ! initial weight conformation 
+                do s=1,nseg              ! loop over segments 
+                    k=indexchain(s,c)         
+                    if(isAmonomer(s)) then ! A segment 
+                        lnpro = lnpro+lnexppiA(k)
+                    else
+                        lnpro = lnpro+lnexppiB(k)
+                    endif
+                enddo
+                pro=exp(lnpro-lnproshift)
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
 
-            if(write_Palpha) write(un,*) pro/q     
+                if(write_Palpha) write(un,*) pro/q   
+            endif      
         enddo  
 
         Econf_local=Econf_local/q
@@ -863,7 +872,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle  
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
@@ -1017,22 +1026,24 @@ contains
         ndihedrals=nnucl-3 
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)  -energychainLJ(c)   
-            do s=1,nseg        ! loop over segments                     
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro+lnexppi(k,t)
-            enddo 
-            pro=exp(lnpro-lnproshift)      
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c)  -energychainLJ(c)   
+                do s=1,nseg        ! loop over segments                     
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro+lnexppi(k,t)
+                enddo 
+                pro=exp(lnpro-lnproshift)      
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
 
-             if(write_Palpha) write(un,*)pro/q
+                if(write_Palpha) write(un,*)pro/q
+            endif    
         enddo
 
         Econf_local=Econf_local/q
@@ -1100,7 +1111,7 @@ contains
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -1182,31 +1193,32 @@ contains
 
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)    
-            do s=1,nseg        ! loop over segments                     
-                t = type_of_monomer(s)                
-                do j=1,nelem(s)               ! loop over elements of segment  
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                enddo
-                if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(t)
-                    k = indexconf(s,c)%elem(jcharge) 
-                    lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                endif
-            enddo 
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)    
+                do s=1,nseg        ! loop over segments                     
+                    t = type_of_monomer(s)                
+                    do j=1,nelem(s)               ! loop over elements of segment  
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                    endif
+                enddo 
 
-            pro=exp(lnpro-lnproshift)      
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local +pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-            
-            if(write_Palpha) write(un,*)pro/q
-
+                pro=exp(lnpro-lnproshift)      
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local +pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+                
+                if(write_Palpha) write(un,*)pro/q
+            endif    
         enddo
         
         Econf_local=Econf_local/q
@@ -1289,7 +1301,7 @@ contains
         use chains, only : index_phos, inverse_index_phos, len_index_phos
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1415,48 +1427,49 @@ contains
  
  
         do c=1,cuantas                            ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)
-            do s=1,nseg                           ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
-                    k_ind = inverse_index_phos(k)
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c) -energychainLJ(c)
+                do s=1,nseg                           ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                        enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
+                        k_ind = inverse_index_phos(k)
 
-                    do jj=1,nneigh(s,c)           ! loop neighbors 
- 
-                        m = indexconfpair(s,c)%elem(jj)
-                        !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
-                        mr = inverse_indexneighbor_phos(k_ind,m) 
+                        do jj=1,nneigh(s,c)           ! loop neighbors 
+     
+                            m = indexconfpair(s,c)%elem(jj)
+                            !mr = inverse_indexneighbor(k,m) ! relative label of index m relative to k
+                            mr = inverse_indexneighbor_phos(k_ind,m) 
 
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo    
-                endif        
-            enddo    
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                    -log(fdisPP(k_ind,mr,Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                        enddo    
+                    endif        
+                enddo    
 
-            pro = exp(lnpro-lnproshift)  
+                pro = exp(lnpro-lnproshift)  
 
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
 
-            if(write_Palpha) write(un,*)pro/q
-        
+                if(write_Palpha) write(un,*)pro/q
+            endif
         enddo
         
         Econf_local=Econf_local/q
@@ -1538,7 +1551,7 @@ contains
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1655,46 +1668,47 @@ contains
  
  
         do c=1,cuantas                            ! loop over cuantas
-            lnpro=logweightchain(c)-energychainLJ(c) 
-            do s=1,nseg                           ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c)-energychainLJ(c) 
+                do s=1,nseg                           ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                        enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
 
-                    do jj=1,nneigh(s,c)           ! loop neighbors 
- 
-                        m = indexconfpair(s,c)%elem(jj)
-                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,k ,m)
+                        do jj=1,nneigh(s,c)           ! loop neighbors 
+     
+                            m = indexconfpair(s,c)%elem(jj)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,k ,m)
 
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo    
-                endif        
-            enddo    
+                            lnpro =lnpro +(lnexppi(k,ta)+lnexppi(m,ta)+ (lnexppivw(k) +lnexppivw(m))*vnucl(1,ta) &
+                                    -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                        enddo    
+                    endif        
+                enddo    
 
-            pro = exp(lnpro-lnproshift)  
+                pro = exp(lnpro-lnproshift)  
 
-            FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
 
-            if(write_Palpha) write(un,*)pro/q
-        
+                if(write_Palpha) write(un,*)pro/q
+            endif    
         enddo
 
         Econf_local=Econf_local/q
@@ -1773,7 +1787,7 @@ contains
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
-        use chains, only : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vsol, vnucl, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -1840,27 +1854,28 @@ contains
         ndihedrals=nnucl-3
             
         do c=1,cuantas                        ! loop over cuantas
-            lnpro = logweightchain(c)-energychainLJ(c)   
-            do s=1,nseg                       ! loop over segments 
-                t=type_of_monomer(s)   
-                do j=1,nelem(s)               ! loop over elements of segment  
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
-                enddo
-            enddo     
+            if(no_overlapchain(c)) then 
+                lnpro = logweightchain(c)-energychainLJ(c)   
+                do s=1,nseg                       ! loop over segments 
+                    t=type_of_monomer(s)   
+                    do j=1,nelem(s)               ! loop over elements of segment  
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
+                    enddo
+                enddo     
 
-            pro = exp(lnpro-lnproshift)  
-        
-            FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
-            Econf_local=Econf_local+pro*energychainLJ(c)
-            Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
-            Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
-            bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
-            dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
-            nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
+                pro = exp(lnpro-lnproshift)  
             
-            if(write_Palpha) write(un,*)pro/q 
-
+                FEconf_local = FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local = Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local = Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
+                
+                if(write_Palpha) write(un,*)pro/q 
+            endif    
         enddo
 
         Econf_local=Econf_local/q

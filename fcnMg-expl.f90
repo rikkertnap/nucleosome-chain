@@ -83,7 +83,7 @@ contains
 
         use mpivars
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,qPP,K0aAA,K0a,K0aion
@@ -92,13 +92,12 @@ contains
         use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        !use chains, only     : index_phos, inverse_index_phos, len_index_phos
-        use chains, only     : energychainLJ
+        use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
-        use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
+        use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
         use Poisson, only    : Poisson_Equation
 
         !     .. scalar arguments
@@ -250,39 +249,41 @@ contains
         
         do c=1,cuantas                            ! loop over cuantas
 
-            lnpro = lnpro+logweightchain(c) - energychainLJ(c)
-            
-            do s=1,nseg                           ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
+            if(no_overlapchain(c)) then 
 
-                    do jj=1,nneigh(s,c)           ! loop neighbors 
+                lnpro = lnpro+logweightchain(c) - energychainLJ(c)
+                
+                do s=1,nseg                           ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
+                        enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
 
-                        m = indexconfpair(s,c)%elem(jj)
+                        do jj=1,nneigh(s,c)           ! loop neighbors 
 
-                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
+                            m = indexconfpair(s,c)%elem(jj)
 
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                      -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
-                    enddo
-                endif        
-            enddo     
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
 
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                          -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
+                        enddo
+                    endif        
+                enddo
+            endif         
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -290,94 +291,98 @@ contains
        
         lnproshift=globallnproshift(1)
          
-
         do c=1,cuantas                            ! loop over cuantas
 
-            lnpro=logweightchain(c) - energychainLJ(c)
+            if(no_overlapchain(c)) then 
+
+                lnpro=logweightchain(c) - energychainLJ(c)
            
-            do s=1,nseg                           ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
-
-                    do jj=1,nneigh(s,c)           ! loop neighbors 
-
-                        m = indexconfpair(s,c)%elem(jj)
-
-                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,  k , m)
-
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                      -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo
-
-                endif        
-            enddo    
-
-
-            pro = exp(lnpro-lnproshift)   
-            local_q = local_q+pro
-           
-            do s=1,nseg
-                t=type_of_monomer(s)
-                if(t/=ta) then  ! not phosphates
-                    do j=1,nelem(s)
-                        k = indexconf(s,c)%elem(j) 
-                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
-                    endif
-                else
-                    ! pair density of phosphates 
-                    k = indexconf(s,c)%elem(1)
-                    ! k_ind = inverse_index_phos(k) 
-
-                    do j=1,nneigh(s,c)
-
-                        m = indexconfpair(s,c)%elem(j)
-                         
-                        call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
-                        call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,  m , k)    
-
-                        sum_rhoqphos=0.0_dp
-                        sum_xphos=0.0_dp 
-                    
-                        do JJ=1,5
-                            do KK=1,5
-                                sum_rhoqphos = sum_rhoqphos+&
-                                    (fdisPP_loc(JJ,KK)*qPP(JJ)+fdisPP_loc_swap(JJ,KK)*qPP(KK))/2.0_dp
-                                sum_xphos = sum_xphos   +&
-                                    (fdisPP_loc(JJ,KK)*vPP(JJ)+fdisPP_loc_swap(JJ,KK)*vPP(KK))/2.0_dp
-                            enddo
+                do s=1,nseg                           ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
                         enddo
-    
-                        sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
-                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
-                  
-                        local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
-                        local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
 
-                        local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
+                        do jj=1,nneigh(s,c)           ! loop neighbors 
+
+                            m = indexconfpair(s,c)%elem(jj)
+
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,  k , m)
+
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                          -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                        enddo
+
+                    endif        
+                enddo    
+
+
+                pro = exp(lnpro-lnproshift)   
+                local_q = local_q+pro
+               
+                do s=1,nseg
+                    t=type_of_monomer(s)
+                    if(t/=ta) then  ! not phosphates
+                        do j=1,nelem(s)
+                            k = indexconf(s,c)%elem(j) 
+                            local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction
+                        enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
+                        endif
+                    else
+                        ! pair density of phosphates 
+                        k = indexconf(s,c)%elem(1)
+                        ! k_ind = inverse_index_phos(k) 
+
+                        do j=1,nneigh(s,c)
+
+                            m = indexconfpair(s,c)%elem(j)
+                             
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
+                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,  m , k)    
+
+                            sum_rhoqphos=0.0_dp
+                            sum_xphos=0.0_dp 
                         
-                    enddo 
-     
-                endif
+                            do JJ=1,5
+                                do KK=1,5
+                                    sum_rhoqphos = sum_rhoqphos+&
+                                        (fdisPP_loc(JJ,KK)*qPP(JJ)+fdisPP_loc_swap(JJ,KK)*qPP(KK))/2.0_dp
+                                    sum_xphos = sum_xphos   +&
+                                        (fdisPP_loc(JJ,KK)*vPP(JJ)+fdisPP_loc_swap(JJ,KK)*vPP(KK))/2.0_dp
+                                enddo
+                            enddo
+        
+                            sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
+                                ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                      
+                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
 
-            enddo
-        enddo
+                            local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
+                            
+                        enddo 
+         
+                    endif
+
+                enddo
+            
+            endif 
+                
+        enddo ! cuantas loop
         
         !   .. import results 
 
@@ -570,7 +575,7 @@ contains
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : energychainLJ
+        use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,psi,fdis, rhopol_charge, fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
         use field, only      : q, lnproshift
         use myutils, only    : error_handler
@@ -670,65 +675,68 @@ contains
               
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=logweightchain(c) - energychainLJ(c)
-           
-            do s=1,nseg                       ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
-
-                    do jj=1,nneigh(s,c) ! loop neighbors 
-                        m = indexconfpair(s,c)%elem(jj)
-
-                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
- 
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo    
-                endif        
-            enddo    
-
-            pro = exp(lnpro-lnproshift)   
-        
-            do s=1,nseg
-                
-                t=type_of_monomer(s)
-
-                if(t==ta) then 
-                                
-                    ! pair density of phosphates 
-                    k = indexconf(s,c)%elem(1)
-   
-                    do j=1,nneigh(s,c)
-
-                        m = indexconfpair(s,c)%elem(j)
-
-                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
-
-                        do JJ=1,5
-                            do KK=1,5
-                             local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
-                                fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
-                        
-                            enddo
+            if( no_overlapchain(c)) then     
+            
+                lnpro=logweightchain(c) - energychainLJ(c)
+               
+                do s=1,nseg                       ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
                         enddo
-                        
-                        local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg_loc*pro/nneigh(s,c)
-                
-                    enddo 
-                endif
-            enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
+
+                        do jj=1,nneigh(s,c) ! loop neighbors 
+                            m = indexconfpair(s,c)%elem(jj)
+
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
+     
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                    -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                        enddo    
+                    endif        
+                enddo    
+
+                pro = exp(lnpro-lnproshift)   
+            
+                do s=1,nseg
+                    
+                    t=type_of_monomer(s)
+
+                    if(t==ta) then 
+                                    
+                        ! pair density of phosphates 
+                        k = indexconf(s,c)%elem(1)
+       
+                        do j=1,nneigh(s,c)
+
+                            m = indexconfpair(s,c)%elem(j)
+
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
+
+                            do JJ=1,5
+                                do KK=1,5
+                                 local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
+                                    fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                            
+                                enddo
+                            enddo
+                            
+                            local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg_loc*pro/nneigh(s,c)
+                    
+                        enddo 
+                    endif
+                enddo
+            endif    
         enddo
 
        
@@ -784,7 +792,7 @@ contains
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
-        use chains, only     : energychainLJ
+        use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,psi,fdis, rhopol_charge 
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
         use field, only      : q, lnproshift
@@ -885,85 +893,88 @@ contains
               
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=logweightchain(c) - energychainLJ(c)
-           
-            do s=1,nseg                       ! loop over segments 
-                t=type_of_monomer(s)
-                if(t/=ta) then 
-                    do j=1,nelem(s)               ! loop over elements of segment 
-                        k = indexconf(s,c)%elem(j)
-                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-                    enddo
-                    if(ismonomer_chargeable(t)) then
-                        jcharge=elem_charge(t)
-                        k = indexconf(s,c)%elem(jcharge) 
-                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                    endif
-                else 
-                    ! phosphates 
-                    k = indexconf(s,c)%elem(1)
-  
-                    do jj=1,nneigh(s,c) ! loop neighbors 
-                        m = indexconfpair(s,c)%elem(jj)
+            if(no_overlapchain(c)) then
 
-                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
-
-                        lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                    enddo    
-                endif        
-            enddo    
-
-            pro = exp(lnpro-lnproshift)   
-        
-            do s=1,nseg
-                
-                t=type_of_monomer(s)
-
-                if(t==ta) then 
-                                
-                    ! pair density of phosphates 
-                    k = indexconf(s,c)%elem(1)
-                    !k_ind = inverse_index_phos(k)
-
-
-                    betapi_k=-log(xsol(k))/vsol
-                    psi_k = psi(k)
-   
-                    do j=1,nneigh(s,c)
-
-                        m = indexconfpair(s,c)%elem(j)
-
-                        betapi_m= -log(xsol(m))/vsol
-                        psi_m = psi(m)
-                    
-                        call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
-
-                         ! Lagrange multiplier lambd(r,r') 
-
-                        lambda = -(betapi_k +betapi_m)*vPP(Phos) -(psi_k+psi_m)*qPP(Phos) &
-                            -log(fdisPP_loc(Phos,Phos))
-
-                        lambda = lambda*pro/nneigh(s,c)        
-
-                        sum_pi  = 0.0_dp
-                        sum_psi = 0.0_dp
-
-                        do JJ=1,5
-                            do KK=1,5
-                                sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
-                                sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
-                            enddo
+                lnpro=logweightchain(c) - energychainLJ(c)
+               
+                do s=1,nseg                       ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
                         enddo
-    
-                        sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                        endif
+                    else 
+                        ! phosphates 
+                        k = indexconf(s,c)%elem(1)
+      
+                        do jj=1,nneigh(s,c) ! loop neighbors 
+                            m = indexconfpair(s,c)%elem(jj)
 
-                            ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
+
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                    -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
+                        enddo    
+                    endif        
+                enddo    
+
+                pro = exp(lnpro-lnproshift)   
+            
+                do s=1,nseg
+                    
+                    t=type_of_monomer(s)
+
+                    if(t==ta) then 
+                                    
+                        ! pair density of phosphates 
+                        k = indexconf(s,c)%elem(1)
+                        !k_ind = inverse_index_phos(k)
+
+
+                        betapi_k=-log(xsol(k))/vsol
+                        psi_k = psi(k)
+       
+                        do j=1,nneigh(s,c)
+
+                            m = indexconfpair(s,c)%elem(j)
+
+                            betapi_m= -log(xsol(m))/vsol
+                            psi_m = psi(m)
                         
-                        local_FEchempair = local_FEchempair+(-lambda +sum_pi+sum_psi)/2.0_dp             
-                    enddo 
-                endif
-            enddo
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k, m)
+
+                             ! Lagrange multiplier lambd(r,r') 
+
+                            lambda = -(betapi_k +betapi_m)*vPP(Phos) -(psi_k+psi_m)*qPP(Phos) &
+                                -log(fdisPP_loc(Phos,Phos))
+
+                            lambda = lambda*pro/nneigh(s,c)        
+
+                            sum_pi  = 0.0_dp
+                            sum_psi = 0.0_dp
+
+                            do JJ=1,5
+                                do KK=1,5
+                                    sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                                    sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                                enddo
+                            enddo
+        
+                            sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
+
+                                ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
+                            
+                            local_FEchempair = local_FEchempair+(-lambda +sum_pi+sum_psi)/2.0_dp             
+                        enddo 
+                    endif
+                enddo
+            endif    
         enddo
 
        

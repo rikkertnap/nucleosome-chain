@@ -348,7 +348,8 @@ subroutine read_chains_xyz_nucl(info)
     real(dp) :: equilat, equilat_rot
     integer :: ii
     integer :: s_local
-    integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
+    integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
+    logical :: no_overlap
 
     ! .. executable statements   
 
@@ -398,8 +399,10 @@ subroutine read_chains_xyz_nucl(info)
     conffile=0                ! counter for conformations in file    
     ios=0
     scalefactor=unit_conv
+
     energy=0.0_dp
     energyLJ= 0.0_dp
+    no_overlap = .true.
    
     ios=0
 
@@ -527,17 +530,18 @@ subroutine read_chains_xyz_nucl(info)
                 
                 enddo
                
-                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl)
+                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
 
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
+                no_overlapchain(conf)  = no_overlap
 
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-                
+
                 conf=conf+1   
                                     
             case("prism") 
@@ -583,17 +587,17 @@ subroutine read_chains_xyz_nucl(info)
 
                 enddo
                 
-                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl)
-
+                if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
 
                 energychainLJ(conf)    = EnergyLJ
                 energychain(conf)      = energy
-
+                no_overlapchain(conf)  = no_overlap
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+
                 conf = conf + 1   
 
             case default
@@ -634,6 +638,7 @@ subroutine read_chains_xyz_nucl(info)
     close(un) 
     if(isChainEnergyFile) close(un_ene)
 
+    cuantas_no_overlap = compute_cuantas_no_overlap(cuantas,no_overlapchain)
 
     call normed_weightchains()     
 
@@ -709,7 +714,6 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: i_type_num, i_atom_num
     logical :: isReadGood
     integer :: nrotpts
-    ! character(len=80), parameter  :: fmt3reals = "(5F25.16)"
     real(dp) :: equilat,equilat_rot
     integer :: nelem2(3),nsegAA2 
     integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
@@ -727,14 +731,12 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
     
     integer :: un_traj, info_traj
-
     real(dp) :: chain_lammps(3,nseg,1)
-
     real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
-
     ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
-    integer :: s_local
+    integer :: s_local 
+    logical :: no_overlap
 
     ! .. executable statements   
 
@@ -787,8 +789,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     
     ios=0
     scalefactor=unit_conv
-    energy=0.0_dp
-    energyLJ= 0.0_dp
+
+    energy = 0.0_dp
+    energyLJ = 0.0_dp
+    no_overlap = .true.
   
     ios=0
 
@@ -1068,19 +1072,21 @@ subroutine read_chains_xyz_nucl_volume(info)
  !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
             
                 if(isVdW) then 
-                    energyLJ      = GBenergyeffective(chain_pbc,nnucl)
+                    energyLJ      = GBenergyeffective(chain_pbc,nnucl,no_overlap)
+
                     ! energyLJ_comb = GBenergyeffective_comb(chain_pbc,nnucl)
                     ! print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
                 endif    
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
+                no_overlapchain(conf)  = no_overlap
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-
+            
                 conf=conf+1   
                                     
             case("prism") 
@@ -1164,15 +1170,17 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl)   
+                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)   
                 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
+                no_overlapchain(conf)  = no_overlap
                 Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                 Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
                 bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                 dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                 nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+            
 
                 conf=conf+1   
 
@@ -1215,6 +1223,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     close(un) 
     if(isChainEnergyFile) close(un_ene)
 
+    cuantas_no_overlap = compute_cuantas_no_overlap(cuantas,no_overlapchain)
 
     call normed_weightchains()     
 
@@ -3772,6 +3781,26 @@ subroutine test_index_histone(info)
     if(flag) call test_nmer_indexchain_histone(s0,s1,info)
 
 end subroutine
+
+
+function compute_cuantas_no_overlap(cuantas,no_overlapchain)result(num_no_overlap)
+    
+    integer, intent(in) :: cuantas 
+    logical, intent(in) :: no_overlapchain(:)
+    integer :: num_no_overlap
+
+
+    integer :: num, conf
+
+    num=0
+    do conf=1,cuantas 
+        if(no_overlapchain(conf)) num=num+1
+    enddo    
+
+    num_no_overlap = num
+
+end function compute_cuantas_no_overlap
+
 
 
 end module chaingenerator

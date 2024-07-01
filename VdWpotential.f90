@@ -43,6 +43,9 @@ module VdW_potential
     integer :: deltaseg
     integer, allocatable :: segunitvector(:) 
 
+    ! 
+    real(dp), parameter :: EGB_threshold = 0.5_dp 
+
     private :: dotproduct, pbc
     private :: make_com_unit_vector_nucl_simple,make_com_unit_vector_nucl_simpleCOM 
     private :: make_com_unit_vector_nucl_rotation
@@ -50,6 +53,7 @@ module VdW_potential
     private :: un_traj_com
     private :: segnumAAstartGBcom, segnumAAendGBcom
     private :: vec_ref, unit_vec_ref, atom_id_unit_relative
+    private :: EGB_threshold 
 
 contains 
 
@@ -477,18 +481,18 @@ contains
 
     ! Calculate sum value Gay-Berne potential for nucleosome conformation 
     ! input :  real(dp :: chainchain(:,:) conformation 
-    !          integer :: nmer : nnucl
-    !          integer :: segcm(:) : atom_id closest to com 
-    !          integer :: segunitvector(:) atom_id used to make unit vector
+    !          integer :: nmer : nnucl 
+    ! output:  logical :: no_overlap
     ! output/return:  real(dp) :: energy 
 
-    function  GBenergyeffective(chain,nmer)result(Energy)
+    function  GBenergyeffective(chain,nmer,no_overlap)result(Energy)
  
         use chains, only : segcm, unitvector_triplets
         use GB_potential, only : GBCOMtype
 
         real(dp), intent(in) :: chain(:,:)
         integer, intent(in) :: nmer
+        logical, intent(inout) :: no_overlap
         real(dp) :: Energy
 
         real(dp) :: rcom(3,nmer)
@@ -516,7 +520,7 @@ contains
         
         end select
 
-        Energy = GBenergyeff(nmer,rcom,uvector)
+        Energy = GBenergyeff(nmer,rcom,uvector,no_overlap)
 
         ! 
         !info = 1
@@ -530,21 +534,26 @@ contains
     !  Calculate sum of value Gay-Berne potential for given set of com and unitvectors
     !  input : real(dp) : rcom(:,:) : ceom of nucleosome 
     !          real(dp) : uvector(:,:) : orientation vector ( normalized) of each nucleosome 
+    !  output:  logical : no_overlap
     !  output/return : real(dp)  energy : effective GB energy = VLJ(u1,u2,r)  
 
-    function  GBenergyeff(nmer,rcom,uvector)result(Energy)
+    function  GBenergyeff(nmer,rcom,uvector,no_overlap)result(Energy)
 
         use GB_potential, only : GBpotential_general
 
         integer, intent(in)  :: nmer
         real(dp), intent(in) :: rcom(:,:)
         real(dp), intent(in)  :: uvector(:,:) 
+        logical,  intent(inout) :: no_overlap
+
         real(dp) :: Energy
         
-        real(dp) :: Ene
+        real(dp) :: Ene, EneGB
         integer ::  i,j
         real(dp) :: uveci(3), uvecj(3) ! unitvector
         real(dp) :: rvec(3), rveci(3), rvecj(3) ! distance between com's
+
+        no_overlap=.true.
 
         Ene=0.0_dp 
        
@@ -558,9 +567,9 @@ contains
                 rvecj =rcom(:,j)
                 uvecj =uvector(:,j) 
                 rvec = rvecj-rveci
-
-                Ene = Ene + GBpotential_general(uveci,uvecj,rvec)
-
+                EneGB = GBpotential_general(uveci,uvecj,rvec)
+                Ene = Ene + EneGB
+                if( EneGB > EGB_threshold) no_overlap=.false.
             enddo
         enddo     
 

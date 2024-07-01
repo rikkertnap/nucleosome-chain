@@ -41,6 +41,7 @@ module chains
     real(dp), dimension(:),   allocatable       :: energychainLJ            ! Lennard Jones internal VdW energy 
     logical                                     :: isHomopolymer
     double precision, dimension(:),allocatable  :: lsegseq                  ! segment length only needed for copolymer
+    logical,dimension(:), allocatable           :: no_overlapchain          ! .true. chain conf overlaps, use of GBpotential as criteria 
     
     ! sgraftpts used to be in volume.f90
     integer                                     :: sgraftpts(3)             ! triplet of unit number of histone that is rotated into fixed orientation
@@ -96,6 +97,7 @@ contains
         allocate(ismonomer_of_type(nseg,nsegtypes)) 
         allocate(ismonomer_chargeable(nsegtypes))
         allocate(type_of_charge(nsegtypes))
+        allocate(no_overlapchain(maxcuantas))
 
         ! chain stuctural quantities
         allocate(segcm(nnucl))

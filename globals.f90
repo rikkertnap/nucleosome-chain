@@ -16,10 +16,12 @@ module globals
     integer  :: nsegAA        ! number of AA segments
     integer  :: nsegtypes     ! number of segment types
     integer  :: nsegtypesAA   ! number of AA segment types 
+
     integer  :: cuantas       ! number of configurations
+    integer  :: cuantas_no_overlap ! number of configurations with no overlap
     integer  :: max_confor    ! maximum number of configurations
   
-    ! .. development varaibles
+    ! .. development variables
     integer :: nsegsource     ! number of segment in source traj files
     integer :: s_begin        ! first segment to actually use from source traj file
     integer :: s_end          ! last segement to actually use from source traj file 

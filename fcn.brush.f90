@@ -38,9 +38,9 @@ contains
         use mpivars
         use globals
         use parameters, Tlocal=>Tref 
-        use volume
-        use chains
-        use chains, only     : energychainLJ
+        use volume, only     : volcell
+        use chains, only     : indexchain, type_of_monomer, logweightchain,ismonomer_chargeable
+        use chains, only     : energychainLJ, no_overlapchain
         use field
         use vectornorm
         use surface
@@ -137,16 +137,20 @@ contains
         
         do c=1,cuantas         ! loop over cuantas
 
-            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
+            if(no_overlapchain(c)) then 
 
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+                lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
+
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo  
+
+            endif     
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -156,19 +160,22 @@ contains
              
              
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
-            pro=exp(lnpro-lnproshift) 
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then 
+
+                lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo   
+                pro=exp(lnpro-lnproshift) 
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
          
         !   .. import results 
@@ -363,15 +370,17 @@ contains
         lnpro=0.0_dp
 
         do c=1,cuantas         ! loop over cuantas
-            lnpro=lnpro +logweightchain(c)-energychainLJ(c)        ! internal weight
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+            if(no_overlapchain(c)) then
+                lnpro=lnpro +logweightchain(c)-energychainLJ(c)        ! internal weight
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank   
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -380,19 +389,21 @@ contains
         lnproshift=globallnproshift(1)
           
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo
-            pro=exp(lnpro-lnproshift)    
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+                pro=exp(lnpro-lnproshift)    
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
          
         !   .. import results 
@@ -624,17 +635,18 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
-            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -644,19 +656,21 @@ contains
              
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c)-energychainLJ(c) 
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo 
-            pro=exp(lnpro-lnproshift)   
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c)-energychainLJ(c) 
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo 
+                pro=exp(lnpro-lnproshift)   
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
 
         !   .. import results 
@@ -787,7 +801,7 @@ contains
 
         use mpivars
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap
         use parameters, only : Tlocal=>Tref 
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
@@ -796,7 +810,7 @@ contains
         use volume, only     : volcell
         use chains, only     : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge 
-        use chains, only     : energychainLJ
+        use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa
         use field, only      : rhopol,rhopolin,rhoqpol,rhoq, xpol, rhopol
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
@@ -980,17 +994,18 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
-            lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -1000,19 +1015,21 @@ contains
              
          
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo 
-            pro=exp(lnpro-lnproshift)   
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c) -energychainLJ(c)
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo 
+                pro=exp(lnpro-lnproshift)   
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
 
         !   .. import results 
@@ -1157,7 +1174,7 @@ contains
 
         use mpivars
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,K0aAA,K0a,K0aion
@@ -1165,7 +1182,7 @@ contains
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge 
-        use chains, only     : energychainLJ   
+        use chains, only     : energychainLJ , no_overlapchain 
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xRb,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
@@ -1363,24 +1380,25 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
-
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)
-            do s=1,nseg                       ! loop over segments 
-                t=type_of_monomer(s)
-                do j=1,nelem(s)               ! loop over elements of segment 
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)
+                do s=1,nseg                       ! loop over segments 
+                    t=type_of_monomer(s)
+                    do j=1,nelem(s)               ! loop over elements of segment 
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
+                    endif
                 enddo
-                if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(t)
-                    k = indexconf(s,c)%elem(jcharge) 
-                    lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                endif
-            enddo     
+            endif        
 
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -1389,35 +1407,37 @@ contains
         lnproshift=globallnproshift(1)
               
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)
-            do s=1,nseg                       ! loop over segments 
-                t = type_of_monomer(s) 
-                do j=1,nelem(s)               ! loop over elements of segment 
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                enddo
-                if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(t)
-                    k = indexconf(s,c)%elem(jcharge)
-                    lnpro = lnpro + lnexppi(k,t)            !  elect and chemical contribution
-                endif
-            enddo     
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c) -energychainLJ(c)
+                do s=1,nseg                       ! loop over segments 
+                    t = type_of_monomer(s) 
+                    do j=1,nelem(s)               ! loop over elements of segment 
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge)
+                        lnpro = lnpro + lnexppi(k,t)            !  elect and chemical contribution
+                    endif
+                enddo     
 
-            pro=exp(lnpro-lnproshift)   
-            local_q = local_q+pro
+                pro=exp(lnpro-lnproshift)   
+                local_q = local_q+pro
 
-            do s=1,nseg
-                t=type_of_monomer(s)
-                do j=1,nelem(s)
-                    k = indexconf(s,c)%elem(j) 
-                    local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)  ! unnormed polymer volume fraction 
+                do s=1,nseg
+                    t=type_of_monomer(s)
+                    do j=1,nelem(s)
+                        k = indexconf(s,c)%elem(j) 
+                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)  ! unnormed polymer volume fraction 
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge=elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
+                    endif    
                 enddo
-                if(ismonomer_chargeable(t)) then
-                    jcharge=elem_charge(t)
-                    k = indexconf(s,c)%elem(jcharge) 
-                    local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
-                endif    
-            enddo
+            endif    
         enddo
 
         !   .. import results 
@@ -1611,12 +1631,12 @@ contains
 
         use mpivars
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap,  DEBUG
         use parameters, only : vsol,vpol, vnucl
         use parameters, only : iter
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem 
-        use chains, only     : energychainLJ 
+        use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t xpol_tot pointer to xpol !!!
         use field, only      : q, lnproshift
         use vectornorm, only : L2norm_f90
@@ -1680,20 +1700,22 @@ contains
         lnpro   = 0.0_dp
         
         do c=1,cuantas                           ! loop over cuantas
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal weight
-            !lnpro_per_c =0.0_dp
-            do s=1,nseg                          ! loop over segments 
-                t=type_of_monomer(s)                
-                do j=1,nelem(s)                  ! loop over element of segment
-                    k=indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)
-                enddo    
-            enddo 
-            !print*,"c=",c," lnpro_per_c= ",lnpro_per_c
-            !lnpro=lnpro+lnpro_per_c
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal weight
+                !lnpro_per_c =0.0_dp
+                do s=1,nseg                          ! loop over segments 
+                    t=type_of_monomer(s)                
+                    do j=1,nelem(s)                  ! loop over element of segment
+                        k=indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppi(k)*vnucl(j,t)
+                    enddo    
+                enddo 
+                !print*,"c=",c," lnpro_per_c= ",lnpro_per_c
+                !lnpro=lnpro+lnpro_per_c
+            endif    
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -1702,25 +1724,27 @@ contains
         lnproshift=globallnproshift(1)
         
         do c=1,cuantas                        ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)
-            do s=1,nseg                       ! loop over segments 
-                t=type_of_monomer(s)   
-                do j=1,nelem(s)               ! loop over elements of segment  
-                    k = indexconf(s,c)%elem(j)
-                    lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
-                enddo
-            enddo     
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c) -energychainLJ(c)
+                do s=1,nseg                       ! loop over segments 
+                    t=type_of_monomer(s)   
+                    do j=1,nelem(s)               ! loop over elements of segment  
+                        k = indexconf(s,c)%elem(j)
+                        lnpro = lnpro +lnexppi(k)*vnucl(j,t)              
+                    enddo
+                enddo     
 
-            pro = exp(lnpro-lnproshift)   
-            local_q = local_q+pro
-            
-            do s=1,nseg
-                t=type_of_monomer(s)
-                do j=1,nelem(s)
-                    k = indexconf(s,c)%elem(j) 
-                    local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t) 
+                pro = exp(lnpro-lnproshift)   
+                local_q = local_q+pro
+                
+                do s=1,nseg
+                    t=type_of_monomer(s)
+                    do j=1,nelem(s)
+                        k = indexconf(s,c)%elem(j) 
+                        local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t) 
+                    enddo
                 enddo
-            enddo
+            endif    
         enddo    
 
         !   .. import results 
@@ -1806,7 +1830,7 @@ contains
         use parameters
         use volume
         use chains, only : indexchain, type_of_monomer,logweightchain, ismonomer_chargeable
-        use chains, only     : energychainLJ
+        use chains, only : energychainLJ, no_overlapchain
         use field
         use vectornorm
         use dielectric_const, only : dielectfcn, born
@@ -2028,17 +2052,18 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -2047,20 +2072,22 @@ contains
         lnproshift=globallnproshift(1)
              
         do c=1,cuantas         ! loop over cuantas
-            !pro=1.0_dp         ! initial weight conformation (1 or 0)
-            lnpro=logweightchain(c)-energychainLJ(c) 
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo    
-            pro=exp(lnpro-lnproshift)
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then
+                !pro=1.0_dp         ! initial weight conformation (1 or 0)
+                lnpro=logweightchain(c)-energychainLJ(c) 
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo    
+                pro=exp(lnpro-lnproshift)
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
 
          
@@ -2315,21 +2342,22 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    if(isAmonomer(s)) then ! A segment 
+                        lnpro = lnpro+lnexppiA(k)      
+                    else
+                        lnpro = lnpro+lnexppiB(k)
+                    endif
 
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                if(isAmonomer(s)) then ! A segment 
-                    lnpro = lnpro+lnexppiA(k)      
-                else
-                    lnpro = lnpro+lnexppiB(k)
-                endif
-
-            enddo   
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -2338,31 +2366,31 @@ contains
         lnproshift=globallnproshift(1)
 
         do c=1,cuantas               ! loop over cuantas
-            
-            lnpro=logweightchain(c)  -energychainLJ(c) 
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c)  -energychainLJ(c) 
 
-            do s=1,nseg              ! loop over segments 
-                k=indexchain(s,c)           
-                if(isAmonomer(s)) then ! A segment 
-                    lnpro = lnpro+lnexppiA(k)
-                else
-                    lnpro = lnpro+lnexppiB(k)
-                endif
-            enddo
+                do s=1,nseg              ! loop over segments 
+                    k=indexchain(s,c)           
+                    if(isAmonomer(s)) then ! A segment 
+                        lnpro = lnpro+lnexppiA(k)
+                    else
+                        lnpro = lnpro+lnexppiB(k)
+                    endif
+                enddo
 
-            pro=exp(lnpro-lnproshift)
-            q_local = q_local+pro
+                pro=exp(lnpro-lnproshift)
+                q_local = q_local+pro
 
-            do s=1,nseg
-                k=indexchain(s,c)
-                if(isAmonomer(s)) then ! A segment 
-                    rhopol_local(k,A)=rhopol_local(k,A)+pro
-                else
-                    rhopol_local(k,B)=rhopol_local(k,B)+pro
-                endif
-            enddo
-      
-            
+                do s=1,nseg
+                    k=indexchain(s,c)
+                    if(isAmonomer(s)) then ! A segment 
+                        rhopol_local(k,A)=rhopol_local(k,A)+pro
+                    else
+                        rhopol_local(k,B)=rhopol_local(k,B)+pro
+                    endif
+                enddo
+            endif
+                
         enddo   ! end cuantas loop 
 
        
@@ -2526,17 +2554,18 @@ contains
         lnpro = 0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal energy
 
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal energy
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
     
         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -2545,19 +2574,21 @@ contains
         lnproshift=globallnproshift(1)
              
         do c=1,cuantas         ! loop over cuantas
-            lnpro=logweightchain(c) -energychainLJ(c)       ! initial weight conformation (1 or 0)
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo    
-            pro=exp(lnpro-lnproshift)
-            local_q = local_q+pro
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c) -energychainLJ(c)       ! initial weight conformation (1 or 0)
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo    
+                pro=exp(lnpro-lnproshift)
+                local_q = local_q+pro
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
          
         !   .. import results 
@@ -2702,15 +2733,17 @@ contains
         lnpro=0.0_dp
         
         do c=1,cuantas         ! loop over cuantas
-            lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
+            if(no_overlapchain(c)) then
+                lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo
+            endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas
+        locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank
     
         ! print*,"rank ",rank ," has local lnproshift value of", locallnproshift(1)
@@ -2726,22 +2759,23 @@ contains
 
 
         do c=1,cuantas         ! loop over cuantas
+            if(no_overlapchain(c)) then
+                lnpro=logweightchain(c) -energychainLJ(c)        ! internal energy
 
-            lnpro=logweightchain(c) -energychainLJ(c)        ! internal energy
-
-            do s=1,nseg        ! loop over segments 
-                k=indexchain(s,c)
-                t=type_of_monomer(s)                
-                lnpro = lnpro +lnexppi(k,t)
-            enddo   
-            pro=exp(lnpro-lnproshift)
-            local_q = local_q+pro
-            
-            do s=1,nseg
-                k=indexchain(s,c) 
-                t=type_of_monomer(s)
-                local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
-            enddo
+                do s=1,nseg        ! loop over segments 
+                    k=indexchain(s,c)
+                    t=type_of_monomer(s)                
+                    lnpro = lnpro +lnexppi(k,t)
+                enddo   
+                pro=exp(lnpro-lnproshift)
+                local_q = local_q+pro
+                
+                do s=1,nseg
+                    k=indexchain(s,c) 
+                    t=type_of_monomer(s)
+                    local_rhopol(k,t)=local_rhopol(k,t)+pro ! unnormed polymer density at k given that the 'beginning'of chain is at l
+                enddo
+            endif    
         enddo
          
         !   .. import results 
