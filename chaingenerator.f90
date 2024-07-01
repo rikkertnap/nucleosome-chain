@@ -2552,7 +2552,7 @@ subroutine write_chain_struct(write_struct,info)
     use globals, only : cuantas,nnucl
     use myutils, only : lenText
     use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing,energychainLJ
-
+    use chains, only : no_overlapchain
     implicit none 
 
     logical, intent(in) :: write_struct
@@ -2590,7 +2590,7 @@ subroutine write_chain_struct(write_struct,info)
             write(un_bond,*)(bond_angle(s,c),s=1,nangles)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
             write(un_dist,*)(nucl_spacing(s,c),s=1,nbonds)
-            write(un_VdW,*)energychainLJ(c)
+            write(un_VdW,*)energychainLJ(c),no_overlapchain(c)
         enddo 
 
         close(un_dihedral)
