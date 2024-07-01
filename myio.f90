@@ -414,7 +414,7 @@ subroutine read_inputfile(info)
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"GayBerneLJ")
-    call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"simpleCOM")
+    call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
 
     ! check value after set value
 
