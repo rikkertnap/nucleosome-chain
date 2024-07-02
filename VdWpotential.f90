@@ -44,7 +44,7 @@ module VdW_potential
     integer, allocatable :: segunitvector(:) 
 
     ! 
-    real(dp), parameter :: EGB_threshold = 0.5_dp 
+    real(dp) :: EGB_threshold = 0.5_dp 
 
     private :: dotproduct, pbc
     private :: make_com_unit_vector_nucl_simple,make_com_unit_vector_nucl_simpleCOM 
@@ -405,6 +405,8 @@ contains
 
         segnumAAstartGBcom = segnumAAstart
         segnumAAendGBcom   = segnumAAend
+
+        print*,"EGB_threshold=",EGB_threshold     
  
     end subroutine init_GBenergyeffective
 
@@ -1110,7 +1112,9 @@ contains
                 case ('epsilonS')
                     read(buffer, *,iostat=ios) epsilonS
                 case ('deltaseg')
-                    read(buffer, *,iostat=ios) deltaseg
+                    read(buffer, *,iostat=ios) deltaseg  
+                case ('EGB_threshold')
+                    read(buffer, *,iostat=ios) EGB_threshold
                 case default
                     if(pos>1) then
                         print *, 'Invalid label at line', line  ! empty lines are skipped

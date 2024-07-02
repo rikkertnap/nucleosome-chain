@@ -2252,7 +2252,7 @@ contains
             enddo    
         endif
     
-        n=nsize                      ! size vector neq=4*nsizeß x=(pi,psi,rhopolA,rhopolB]
+        n=nsize                      ! size vector neq=4*nsize x=(pi,psi,rhopolA,rhopolB]
     
         do i=1,n                     ! init x 
             xsol(i)= x(i)            ! solvent volume fraction 

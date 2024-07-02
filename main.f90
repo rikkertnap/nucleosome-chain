@@ -116,9 +116,14 @@ program main
         
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
-    call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
-    print*,"isVdW=",isVdW
-
+    ! call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
+    call set_value_isVdW(systype,isVdW)
+ 
+    write(istr,'(L2)')isVdW
+    text='VdW interaction: isVdW = '//istr
+    call print_to_log(LogUnit,text) 
+    if(rank==0) print*,text
+ 
     call make_chains(chainmethod,systype)   
 
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
@@ -148,7 +153,7 @@ program main
 
     ! call test_index_histone(info)  
 
-    !  .. computation starts
+    ! .. computation starts
 
     allocate(xstored(neq))
     allocate(x(neq))

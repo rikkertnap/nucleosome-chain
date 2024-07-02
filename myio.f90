@@ -68,7 +68,7 @@ module myio
     public :: myio_err_GBinputfile, myio_err_GBinputlabel
     public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
     public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
-    public :: set_value_isVdW_on_values
+    public :: set_value_isVdW ! set_value_isVdW_on_values
     public :: maxlist_step
 
 contains

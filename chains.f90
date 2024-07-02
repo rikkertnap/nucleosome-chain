@@ -39,6 +39,8 @@ module chains
     real(dp)                                    :: energychain_min          ! mimimum energy chain
     real(dp), dimension(:),   allocatable       :: logweightchain    
     real(dp), dimension(:),   allocatable       :: energychainLJ            ! Lennard Jones internal VdW energy 
+    real(dp), dimension(:),   allocatable       :: energychainLJ0           ! Lennard Jones internal VdW energy: used for runtype==rangeVdWeps
+    
     logical                                     :: isHomopolymer
     double precision, dimension(:),allocatable  :: lsegseq                  ! segment length only needed for copolymer
     logical,dimension(:), allocatable           :: no_overlapchain          ! .true. chain conf overlaps, use of GBpotential as criteria 

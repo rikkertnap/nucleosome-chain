@@ -294,13 +294,17 @@ end subroutine
 !           bond_angle,
 !           dihedral_angle,
 !           nucl_spacing = nucleosomal_spacing
+!           no_overalchain = logical indicating overlap 
 
 subroutine read_chains_xyz_nucl(info)
 
     !     .. variable and constant declaractions  
     use mpivars, only : rank,size                                                                                   
-    use globals
-    use chains
+    use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
+    use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
+    use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
+    use chains, only : energychain, energychainLJ, energychainLJ0
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing
     use parameters
     use volume, only :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
@@ -628,7 +632,6 @@ subroutine read_chains_xyz_nucl(info)
         info=0
     endif
 
-
     write(istr,'(L2)')isVdWintEne
     text="isVdWintEne = "//trim(adjustl(istr))
     call print_to_log(LogUnit,text)
@@ -643,6 +646,13 @@ subroutine read_chains_xyz_nucl(info)
     call normed_weightchains()     
 
     deallocate(energychain) ! free unused variables 
+
+    if(runtype=="rangeVdWeps") then 
+        allocate(energychainLJ0(cuantas))
+        do i=1,cuantas
+            energychainLJ0(i)=energychainLJ(i)
+        enddo 
+    endif        
     
 end subroutine read_chains_XYZ_nucl
 
@@ -662,6 +672,7 @@ end subroutine read_chains_XYZ_nucl
 !           bond_angle =
 !           dihedral_angle =
 !           nucl_spacing = nucleosomal_spacing
+!           no_overalchain = logical indicating overlap 
 
 subroutine read_chains_xyz_nucl_volume(info)
 
@@ -1231,6 +1242,12 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
+    if(runtype=="rangeVdWeps") then 
+        allocate(energychainLJ0(cuantas))
+        do i=1,cuantas
+            energychainLJ0(i)=energychainLJ(i)
+        enddo 
+    endif       
 
 end subroutine read_chains_xyz_nucl_volume
 

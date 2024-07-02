@@ -903,27 +903,33 @@ contains
             call init_expmu_elect()
             call set_VdWepsAAandBB() ! special assigemnt of VdWepsAA etc  
             call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
         case ("neutral","neutralnoVdW")
             call init_expmu_neutral()   
             call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale)
         case ("brush_mul","brush_mulnoVdW") 
             call init_expmu_elect() 
-            call set_VdWeps_scale(VdWscale) 
+            call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
         case ("nucl_neutral_sv") 
             ! call init_dna() 
             call init_expmu_neutral()
             call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale)
         case("brushborn") 
             call init_dna()
             call init_expmu_elect()  
             call set_VdWeps_scale(VdWscale)
+            call set_energchainLJ_scale(VdWscale)
         case default   
             print*,"Error: systype incorrect at init_vars_input" 
             print*,"Wrong value systype : ", systype
@@ -1576,6 +1582,24 @@ contains
 
     end subroutine set_VdWepsAAandBB
 
+    ! special assignment for runtype==rangeVdWeps
+    
+    subroutine set_energchainLJ_scale(VdWscale)
+
+        use globals, only : cuantas
+        use chains, only : energychainLJ, energychainLJ0
+        use globals, only : runtype 
+
+        TYPE(looplist), intent(in) :: VdWscale
+
+        integer :: c
+
+        do c=1,cuantas
+            energychainLJ(c)=VdWscale%val*energychainLJ0(c)
+        enddo
+
+
+    end subroutine set_energchainLJ_scale
 
     ! special assignment for runtype==rangeVdWeps
     
