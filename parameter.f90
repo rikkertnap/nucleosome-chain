@@ -903,33 +903,33 @@ contains
             call init_expmu_elect()
             call set_VdWepsAAandBB() ! special assigemnt of VdWepsAA etc  
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
         case ("neutral","neutralnoVdW")
             call init_expmu_neutral()   
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
         case ("brush_mul","brush_mulnoVdW") 
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale) 
+            call set_energychainLJ_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
         case ("nucl_neutral_sv") 
             ! call init_dna() 
             call init_expmu_neutral()
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
         case("brushborn") 
             call init_dna()
             call init_expmu_elect()  
             call set_VdWeps_scale(VdWscale)
-            call set_energchainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
         case default   
             print*,"Error: systype incorrect at init_vars_input" 
             print*,"Wrong value systype : ", systype
@@ -1584,7 +1584,7 @@ contains
 
     ! special assignment for runtype==rangeVdWeps
     
-    subroutine set_energchainLJ_scale(VdWscale)
+    subroutine set_energychainLJ_scale(VdWscale)
 
         use globals, only : cuantas
         use chains, only : energychainLJ, energychainLJ0
@@ -1594,12 +1594,14 @@ contains
 
         integer :: c
 
-        do c=1,cuantas
-            energychainLJ(c)=VdWscale%val*energychainLJ0(c)
-        enddo
+        if(runtype=="rangeVdWeps") then 
+            do c=1,cuantas
+                energychainLJ(c)=VdWscale%val*energychainLJ0(c)
+            enddo
+        endif    
 
 
-    end subroutine set_energchainLJ_scale
+    end subroutine set_energychainLJ_scale
 
     ! special assignment for runtype==rangeVdWeps
     
