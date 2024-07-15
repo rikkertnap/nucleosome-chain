@@ -413,7 +413,7 @@ subroutine read_inputfile(info)
     call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
-    call set_value_char_array_var(GBtype,isSet_GBtype,"GayBerneLJ")
+    call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
 
     ! check value after set value

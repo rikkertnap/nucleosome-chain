@@ -681,7 +681,13 @@ subroutine read_chains_xyz_nucl(info)
         do i=1,cuantas
             energychainLJ0(i)=energychainLJ(i)
         enddo 
-    endif        
+    else 
+        ! energy of conformation fixed: VdWscale%val set the energy scale relative to epsilonS
+        ! for runtype=="rangVdWeps" loop over values of VdWscale%val     
+        do i=1,cuantas
+            energychainLJ(i)=VdWscale%val*energychainLJ(i)
+        enddo
+    endif           
     
 end subroutine read_chains_XYZ_nucl
 
@@ -1309,7 +1315,13 @@ subroutine read_chains_xyz_nucl_volume(info)
         do i=1,cuantas
             energychainLJ0(i)=energychainLJ(i)
         enddo 
-    endif       
+    else 
+        ! energy of conformation fixed: VdWscale%val set the energy scale relative to epsilonS
+        ! for runtype=="rangVdWeps" loop over values of VdWscale%val     
+        do i=1,cuantas
+            energychainLJ(i)=VdWscale%val*energychainLJ(i)
+        enddo
+    endif            
 
 end subroutine read_chains_xyz_nucl_volume
 
