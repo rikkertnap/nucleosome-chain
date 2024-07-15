@@ -1,3 +1,4 @@
+
 ! ---------------------------------------------------------------|
 ! Solves the SCMFT eqs for nucleosomes chains and                |
 ! weak  polyelectrolytes polymers                                |
@@ -148,7 +149,7 @@ program main
     call write_chain_config()
     call write_chain_struct(write_struct,info) 
 
-    if(write_struct)call error_handler(1,"stop after write_chains_struct")
+    if(write_struct) call error_handler(1,"stop after write_chains_struct")
 
 
     ! call test_index_histone(info)  

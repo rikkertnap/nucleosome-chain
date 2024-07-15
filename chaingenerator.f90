@@ -18,6 +18,9 @@ module chaingenerator
 
     real(dp),          parameter :: eps_equilat=1.0e-8_dp
     character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
+    ! 
+
+    logical, parameter :: COMOLD =.FALSE.
 
     private 
 
@@ -28,6 +31,7 @@ module chaingenerator
     public :: write_indexchain_histone, test_index_histone
 
     private ::  eps_equilat, fmt3xyz
+    private COMOLD
 
 contains
 
@@ -299,12 +303,12 @@ end subroutine
 subroutine read_chains_xyz_nucl(info)
 
     !     .. variable and constant declaractions  
-    use mpivars, only : rank,size                                                                                   
+    use mpivars, only : rank !,size                                                                                   
     use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
     use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
-    use chains, only : energychain, energychainLJ, energychainLJ0
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing
+    use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
     use parameters
     use volume, only :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
@@ -313,6 +317,7 @@ subroutine read_chains_xyz_nucl(info)
     use myutils,  only :  print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
     use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
+    use VdW_potential, only : make_com_nucl_rotation
 
     ! .. argument
 
@@ -354,6 +359,7 @@ subroutine read_chains_xyz_nucl(info)
     integer :: s_local
     integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     logical :: no_overlap
+    real(dp) :: rcom(3,nnucl)       ! hold mean or com of nucleosome coordinate
 
     ! .. executable statements   
 
@@ -536,15 +542,26 @@ subroutine read_chains_xyz_nucl(info)
                
                 if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
 
-                energychainLJ(conf)    = EnergyLJ
-                energychain(conf)      = energy
-                no_overlapchain(conf)  = no_overlap
+                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
 
-                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                energychainLJ(conf)    = energyLJ
+                energychain(conf)      = energy
+                no_overlapchain(conf)  = no_overlap 
+                Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
+                
+                if(COMOLD) then 
+                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                endif    
 
                 conf=conf+1   
                                     
@@ -593,15 +610,27 @@ subroutine read_chains_xyz_nucl(info)
                 
                 if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
 
-                energychainLJ(conf)    = EnergyLJ
-                energychain(conf)      = energy
-                no_overlapchain(conf)  = no_overlap
-                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
 
+                energychainLJ(conf)    = energyLJ
+                energychain(conf)      = energy
+                no_overlapchain(conf)  = no_overlap 
+                Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
+                
+                if(COMOLD) then 
+                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                    gyr_tensor(:,:,conf)     = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                endif    
+                    
                 conf = conf + 1   
 
             case default
@@ -677,8 +706,10 @@ end subroutine read_chains_XYZ_nucl
 subroutine read_chains_xyz_nucl_volume(info)
 
     !     .. variable and constant declaractions  
-    use mpivars, only  : rank,size                                                                                   
-    use globals
+    use mpivars, only  : rank !,size                                                                                   
+    !use globals
+    use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
+    use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
     use chains
     use parameters
     use volume, only   :  nx, ny,nz, delta
@@ -689,8 +720,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
     use Eqtriangle
     use myutils, only  : error_handler
-    use VdW_potential, only : GBenergyeffective, init_GBenergyeffective, GBenergyeffective_comb
-
+    use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
+    use VdW_potential, only : make_com_nucl_rotation
     ! .. argument
 
     integer, intent(out) :: info
@@ -740,6 +771,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   :: chain_elem  
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
+    real(dp) :: rcom(3,nnucl)
+    !real(dp) :: eigenvalues(3)
+    !integer :: info_eigen
     
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
@@ -1078,26 +1112,43 @@ subroutine read_chains_xyz_nucl_volume(info)
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                     !call error_handler(1,"hello!!!!")
                 endif    
-
- 
- !               if(DEBUG) call write_indexconf_lammps_trj(info_traj)
             
-                if(isVdW) then 
-                    energyLJ      = GBenergyeffective(chain_pbc,nnucl,no_overlap)
-
-                    ! energyLJ_comb = GBenergyeffective_comb(chain_pbc,nnucl)
-                    ! print*,"enegyLJ=",energyLJ,"energyLJ_comb=",energyLJ_comb,"ratio=",energyLJ/energyLJ_comb
-                endif    
+                if(isVdW) energyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
+    
+                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
-                no_overlapchain(conf)  = no_overlap
-                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
+                no_overlapchain(conf)  = no_overlap 
+                Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
+      
+                if(COMOLD) then     
+                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                endif 
             
+                ! call comp_eigenvalues(3,gyr_tensor(:,:,conf),eigenvalues,info_eigen)
+
+                ! print *, "com coordinate"
+                ! do i=1,nnucl
+                !     print*, i, rcom(:,i) 
+                ! enddo    
+
+                ! print *, "Radius of gyration = ",Rgsqr(conf)
+                ! print *, "Eigenvalues of gyration tensor =",eigenvalues
+                ! print *, "Sum Eigenvalues = ",sum(eigenvalues)
+                ! print *, "gyration tensor rota: conf = ",conf
+                ! call print_gyration_tensor(gyr_tensor(:,:,conf))
+
                 conf=conf+1   
                                     
             case("prism") 
@@ -1181,17 +1232,28 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)   
-                
+                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
+
+                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
-                no_overlapchain(conf)  = no_overlap
-                Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                nucl_spacing(:,conf)   = nucleosomal_spacing(chain_pbc,nnucl,segcm)
-            
+                no_overlapchain(conf)  = no_overlap 
+                Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
+
+                if(COMOLD) then 
+                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                endif    
 
                 conf=conf+1   
 
@@ -2267,8 +2329,35 @@ function open_chain_energy(info)result(un_ene)
 
 end function
 
+! .. Compute radius of gyration of a sub chain conformation
+! .. sub chain confomation defined by sequence segcm = segment number 
+! .. denoting center mass of  the nmer histone of the nucleosome nmer-array
+! .. use rcom estalished with rotation alogrithme
 
-! .. commuter radius of gyration of a sub chain conformation
+function radius_gyration_com_rotation(rcom,nmer) result(Rgsqr)
+
+    real(dp), intent(in) :: rcom(:,:) ! dimension : (3,nnucl)
+    integer, intent(in) :: nmer
+
+    real(dp) :: Rgsqr
+    integer :: i,j,k
+
+    Rgsqr=0.0_dp
+    
+    do i=1,nmer
+        do j=1,nmer
+            do k=1,3
+                Rgsqr = Rgsqr+(rcom(k,i)-rcom(k,j))**2
+            enddo
+        enddo
+    enddo     
+
+    Rgsqr=Rgsqr/(2.0_dp*nmer*nmer)
+
+end function radius_gyration_com_rotation
+
+
+! .. Compute radius of gyration of a sub chain conformation
 ! .. sub chain confomation defined by sequence segcm = segment number 
 ! .. denoting center mass of  the nmer histone of the nucleosome nmer-array
 
@@ -2319,6 +2408,21 @@ function radius_gyration(chain,nseg) result(Rgsqr)
 
 end function radius_gyration
 
+function end_to_end_distance_com_rotation(rcom,nmer) result(Rendsqr)
+
+    real(dp), intent(in) :: rcom(:,:)! dimension : (3,nnucl)
+    integer, intent(in) :: nmer
+
+    real(dp) :: Rendsqr
+    integer :: k
+
+    Rendsqr=0.0_dp
+       
+    do k=1,3
+        Rendsqr=Rendsqr+(rcom(k,1)-rcom(k,nmer))**2
+    enddo     
+
+end function end_to_end_distance_com_rotation
 
 function end_to_end_distance_com(chain,nmer,segcm) result(Rendsqr)
 
@@ -2340,7 +2444,29 @@ function end_to_end_distance_com(chain,nmer,segcm) result(Rendsqr)
 
 end function end_to_end_distance_com
 
-function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
+function nucleosomal_spacing_com_rotation(rcom,nmer) result(spacing)
+
+    real(dp), intent(in) :: rcom(:,:) ! dimension : (3,nnucl)
+    integer, intent(in) :: nmer
+
+    real(dp) :: spacing(nmer-1)
+    integer :: i,k
+    real(dp) :: spacingsqr
+        
+    spacing=0.0_dp
+    if(nmer>=2) then  ! need at least 2 unit/nucleosomes
+        do i=1,nmer-1
+            spacingsqr=0.0_dp
+            do k=1,3
+                spacingsqr=spacingsqr+(rcom(k,i+1)-rcom(k,i))**2
+            enddo
+            spacing(i)=sqrt(spacingsqr)
+        enddo  
+    endif           
+
+end function nucleosomal_spacing_com_rotation
+
+function nucleosomal_spacing_com(chain,nmer,segcom) result(spacing)
 
     real(dp), intent(in) :: chain(:,:)
     integer, intent(in) :: nmer
@@ -2361,7 +2487,99 @@ function nucleosomal_spacing(chain,nmer,segcom) result(spacing)
         enddo  
     endif           
 
-end function nucleosomal_spacing
+end function nucleosomal_spacing_com
+
+
+function gyr_tensor_com(chain,nmer,segcom) result(mat)
+
+    real(dp), intent(in) :: chain(:,:)
+    integer, intent(in) :: nmer
+    integer, intent(in) :: segcom(:)  
+    
+    real(dp) :: mat(3,3)
+    integer :: m, n, i, j, ii, jj
+        
+    mat=0.0_dp
+
+    do m=1,3
+        do n=m,3
+            do i=1,nmer
+                ii=segcom(i)
+                do j=1,nmer
+                    jj=segcom(j)
+                    mat(m,n)=mat(m,n)+(chain(m,ii)-chain(m,jj))*(chain(n,ii)-chain(n,jj))
+                enddo 
+            enddo 
+            mat(m,n)=mat(m,n)/(2.0_dp*nmer*nmer)
+            mat(n,m)=mat(m,n) ! symmetric 
+        enddo    
+    enddo      
+
+end function gyr_tensor_com
+
+function gyr_tensor_com_rotation(rcom,nmer) result(mat)
+
+    real(dp), intent(inout) :: rcom(:,:) ! dimension : (3,nnucl)
+    integer, intent(in) :: nmer  
+    
+    real(dp) :: mat(3,3)
+    integer :: m, n, i, j, ii, jj
+        
+    mat=0.0_dp
+
+    do m=1,3
+        do n=1,3
+            mat(m,n)=0.0_dp
+            do i=1,nmer
+                do j=1,nmer
+                    mat(m,n)=mat(m,n)+(rcom(m,i)-rcom(m,j))*(rcom(n,i)-rcom(n,j ))
+                enddo 
+            enddo 
+            mat(m,n)=mat(m,n)/(2.0_dp*nmer*nmer)
+            !mat(n,m)=mat(m,n) ! symmetric 
+        enddo    
+    enddo      
+
+end function gyr_tensor_com_rotation
+
+function bond_angles_com_rotation(rcom,nmer) result(bondangle)
+
+    real(dp), intent(in) :: rcom(:,:) ! dimension : (3,nnucl)
+    integer, intent(in) :: nmer
+
+    real(dp) :: bondangle(nmer-2)
+
+    ! .. local variables
+    real(dp) :: u1(3), u2(3), absu1, absu2
+    integer :: i, j, k ,isegcom, ipls1segcom
+
+
+    bondangle=0.0_dp    
+
+    if(nmer>=3) then  ! need at least 3 unit/nucleosomes
+        isegcom=1
+        ipls1segcom=2
+        do k=1,3
+            u1(k)=(rcom(k,ipls1segcom)-rcom(k,isegcom))
+        enddo
+
+        absu1=sqrt(dot_product(u1,u1))
+
+        do i=3,nmer
+            isegcom=i-1
+            ipls1segcom=i
+            do k=1,3
+                u2(k)=(rcom(k,ipls1segcom)-rcom(k,isegcom))
+            enddo
+            absu2=sqrt(dot_product(u2,u2))
+            bondangle(i-2)=acos(dot_product(u1,u2)/(absu2*absu1))
+            u1=u2
+            absu1=absu2
+        enddo
+    endif         
+
+end function bond_angles_com_rotation
+
 
 function bond_angles_com(chain,nmer,segcom) result(bondangle)
 
@@ -2480,6 +2698,85 @@ function dihedral_angles_com(chain,nmer,segcm) result(dihedral)
     dihedral=theta    
 
 end function dihedral_angles_com
+
+
+function dihedral_angles_com_rotation(rcom,nmer) result(dihedral)
+
+    real(dp), intent(in) :: rcom(:,:)
+    integer, intent(in) :: nmer
+    
+    real(dp) :: dihedral(nmer-3)
+    
+    ! .. local variables
+    integer  :: i,j,k 
+    real(dp) :: u1(3),u2(3),u3(3),n123(3),n234(3)
+    real(dp) :: absn123, absn234, absu2
+    integer  :: isegcm,ipls1segcm,ipls2segcm,ipls3segcm
+    real(dp) :: theta(nmer-3), costheta, x, y, sintheta, sintheta2 ,theta2,sintheta3, sintheta4
+    
+
+
+    if(nmer>=4) then  ! need at least 4 unit/nucleosomes
+
+        isegcm    =1
+        ipls1segcm=2
+        ipls2segcm=3
+        ipls3segcm=4
+
+        do k=1,3
+            u1(k)=(rcom(k,ipls1segcm)-rcom(k,isegcm    ))
+            u2(k)=(rcom(k,ipls2segcm)-rcom(k,ipls1segcm))
+            u3(k)=(rcom(k,ipls3segcm)-rcom(k,ipls2segcm))
+        enddo
+
+        n123=crossproduct(u1,u2)
+        n234=crossproduct(u2,u3)
+
+        absn123=sqrt(dot_product(n123,n123))  ! or sqrt(sum(n123*n123)) 
+        absn234=sqrt(dot_product(n234,n234))
+        absu2=sqrt(dot_product(u2,u2))
+   
+        y = dot_product(u2,crossproduct(n123,n234)) 
+        x = absu2*dot_product(n123,n234)   
+            
+        theta(1)=atan2(y,x)  !formula See e.g. Bondel and Karplus j. comp. chem. 17 1132
+
+        costheta= dot_product(n123,n234)/(absn123*absn234) ! cos first dihedral angle
+        sintheta= dot_product(u2,crossproduct(n123,n234))/(absu2*absn123*absn234)
+
+       ! following dihedral angles 
+
+        do i=5,nmer 
+        
+            ! advance one unit
+            n123=n234 
+            absn123=absn234 
+            u1=u2
+            u2=u3 
+
+            ipls2segcm=ipls3segcm
+            ipls3segcm= i 
+
+            do k=1,3
+                u3(k)=(rcom(k,ipls3segcm)-rcom(k,ipls2segcm))
+            enddo
+
+            n234=crossproduct(u2,u3)
+            absn234=sqrt(dot_product(n234,n234))
+            absu2=sqrt(dot_product(u2,u2))
+           
+            y = dot_product(u2,crossproduct(n123,n234)) 
+            x = absu2*dot_product(n123,n234)
+            
+            theta(i-3)=atan2(y,x) ! i-3 dihedral angle
+
+        enddo    
+   
+    endif   
+
+    dihedral=theta    
+
+end function dihedral_angles_com_rotation
 
 
 
@@ -3093,7 +3390,7 @@ function find_type_phosphate()result(tPhos)
         if(type_of_monomer_char(s)=="P")  tPhos =type_of_monomer(s)
     enddo   
     
-    if(tPhos==0) ios=1  ! phosphate monomer is defined in list of typesfname
+    if(tPhos==0) ios=1  ! phosphate monomer "P" not found in type_of_monomer_char 
 
     if(ios>0) then
         text='find_type_phosphate : phosphate monomer is not defined'
@@ -3817,6 +4114,43 @@ function compute_cuantas_no_overlap(cuantas,no_overlapchain)result(num_no_overla
     num_no_overlap = num
 
 end function compute_cuantas_no_overlap
+
+subroutine print_gyration_tensor(mat)
+
+    real(dp), intent(in) :: mat(3,3)
+
+    integer :: i, j
+
+    do i = 1,3
+        do j = 1,3
+            print *, i, j, mat(i,j)
+        enddo
+    enddo
+
+end subroutine 
+
+! call lapack double precision routine dsyev to compute eigenvalues of a real symmetric matrix 
+
+! subroutine comp_eigenvalues(k,A,eigenvalues,info)
+
+!     integer, intent(in)     :: k
+!     real(dp), intent(in)    :: A(k,k)
+!     real(dp), intent(inout) :: eigenvalues(k)
+!     integer, intent(inout)  :: info
+
+!     !local 
+!     real(dp),allocatable :: work(:)
+!     integer              :: lwork
+!     real(dp)    :: B(k,k)
+
+!     B=A ! prevent overwritting of input matrix A 
+
+!     lwork = max(1,3*k-1)
+!     allocate(work(lwork))
+    
+!     call dsyev('N','U',k,B,k,eigenvalues,WORK,LWORK,info) 
+
+! end subroutine
 
 
 

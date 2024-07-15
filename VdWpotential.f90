@@ -924,6 +924,81 @@ contains
   
     end subroutine make_com_unit_vector_nucl_rotation
 
+    ! Determine com a for a given nucleosome conformation
+    ! 1. com : using set of 3 points==(unitvector_triplets) as auxilary points to span a plane that include the
+    !    origin plane or com
+    !  
+    ! pre:  subroutine  init_GBenergyeffective
+    ! input :  real(dp :: chain(:,:) conformation 
+    !          integer :: nmer : nnucl
+    !          integer :: unitvector_triplets(:) atom_id used to make unit vector
+    ! output:  real(dp) :: rcom(:,:)    : com of each nucleosome 
+
+    subroutine make_com_nucl_rotation(chain,nmer,unitvector_triplets,rcom)
+
+        use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
+        use chains, only : segcm
+
+        real(dp), intent(in) :: chain(:,:)               ! dimension : (3,s) 
+        integer, intent(in) :: nmer
+        integer, intent(inout) :: unitvector_triplets(:,:)  ! dimension : (nnucl,3)=(nmer,3)
+        real(dp), intent(inout) :: rcom(:,:)             ! dimension : (nnucl,3)
+      
+        real(dp) :: s_ref, t_ref
+        real(dp) :: unit_vec(3), vec(3,3)
+        real(dp) :: vec_origin_ref(3), vec_origin(3)
+        real(dp) :: triangle_vec_ref(3,3), triangle_vec(3,3,nmer)
+        real(dp) :: norm_vec_ref(3), norm_vec(3,nmer), norm_tri(3,nmer)
+        real(dp) :: rcom_ref(3)
+        integer  :: i, k, n
+         
+        ! determine com using unitvectortriplets
+        ! determine s_ref and t_ref value of parameter function of plane of reference vectors. 
+        ! use vec_ref and unit_vec_ref and atom_id_unit_relative in init_GBenergyeffective
+
+        ! atom id AA of all nucleosome
+        do n=1,nmer 
+            do k=1,3
+                unitvector_triplets(n,k)= atom_id_unit_relative(k)+segnumAAstartGBcom(n)
+            enddo
+        enddo    
+
+        ! end init 
+
+        call parameter_com_ref(vec_ref,s_ref,t_ref,vec_origin_ref)
+        rcom_ref=vec_origin_ref
+        norm_vec_ref=normal_vector(vec_ref)
+
+        do k=1,3
+            triangle_vec_ref(:,k) = vec_ref(:,k)-rcom_ref
+        enddo
+
+        ! print*,"s_ref=",s_ref," t_ref=",t_ref
+        ! print*,"rcom_ref        =",rcom_ref
+        ! print*,"vec_origin_ref  =",vec_origin_ref
+
+        ! do k=1,3
+        !     print*,"vec_ref         =",vec_ref(:,k)
+        !     print*,"triangle_vec_ref=",triangle_vec_ref(:,k)
+        ! enddo    
+        
+        ! compute com 
+
+        do n=1,nmer 
+            do k=1,3 ! get vector spanning plane
+                vec(:,k)=chain(:,unitvector_triplets(n,k))
+            enddo
+
+            call parameter_com(vec,s_ref,t_ref,vec_origin)
+            rcom(:,n) = vec_origin
+           
+            ! print*,""
+            ! print*,"rcom(:,n)=",rcom(:,n)
+        enddo
+
+  
+    end subroutine make_com_nucl_rotation
+
 
     ! Writes the coordinates of com of nucleosomes orientation vector associated with com to a lammps trajectory file.
     ! Unit length in Angstrom

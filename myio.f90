@@ -1310,7 +1310,6 @@ subroutine output()
 end subroutine output
 
 
-
 subroutine output_nucl_ionbin_Mg
 
     !     .. variables and constant declaractions
@@ -1322,7 +1321,7 @@ subroutine output_nucl_ionbin_Mg
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype  
    
     !     .. local arguments
@@ -1609,7 +1608,12 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'FEalt       = ',FEalt
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
-    write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    write(un_sys,*)'avRendsqr   = ',avRendsqr
+    do i=1,3
+        do j=1,3
+            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
+        enddo       
+    enddo        
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -1730,7 +1734,7 @@ subroutine output_nucl_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
     
     !     .. local arguments
@@ -2039,6 +2043,11 @@ subroutine output_nucl_mul
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    do i=1,3
+        do j=1,3
+            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
+        enddo       
+    enddo        
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -2173,6 +2182,7 @@ subroutine output_elect
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle,avnucl_spacing 
+    use chains, only : avgyr_tensor
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. local arguments
@@ -2438,6 +2448,11 @@ subroutine output_elect
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    do i=1,3
+        do j=1,3
+            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
+        enddo       
+    enddo       
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -2543,6 +2558,7 @@ subroutine output_neutral
     use energy
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
+    use chains, only : avgyr_tensor
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. output file names
@@ -2555,7 +2571,7 @@ subroutine output_neutral
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
-    integer :: i, t
+    integer :: i, j, t
     character(len=100) :: fnamelabel
     character(len=20) :: rstr,istr
     logical :: isopen
@@ -2684,6 +2700,11 @@ subroutine output_neutral
     write(un_sys,*)'mu          = ',-log(q)
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
+    do i=1,3
+        do j=1,3
+            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
+        enddo       
+    enddo       
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val = ',VdWscale%val
 
