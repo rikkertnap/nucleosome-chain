@@ -420,7 +420,7 @@ contains
         ! .. see also subroutine set_chain_properties 
 
         pKw = 14.0_dp                 ! water equilibruim constant
-        Tref = 298.0_dp               ! temperature in Kelvin
+        Tref = 310.0_dp               ! temperature in Kelvin
         dielectW = 78.54_dp         ! dielectric constant water
         dielectP = 2.0_dp 
 
