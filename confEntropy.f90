@@ -64,10 +64,10 @@ contains
         !  .. variables and constant declaractions 
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
-        use chains, only : indexchain, type_of_monomer, logweightchain
+        use chains, only : indexchain, type_of_monomer, logweightchain 
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : newunit, lenText
@@ -85,6 +85,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname, istr
@@ -134,6 +135,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -158,8 +160,9 @@ contains
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
                 gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
-
-               if(write_Palpha) write(un,*)pro/q
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
+                
+                if(write_Palpha) write(un,*)pro/q
             endif   
 
         enddo
@@ -170,7 +173,8 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local /q
+        gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
 
         ! communicate local quantities
 
@@ -186,7 +190,7 @@ contains
             avdihedral_angle = dihedral_angle_local 
             avnucl_spacing = nucl_spacing_local 
             avgyr_tensor = gyr_tensor_local
-
+            avAsphparam = Asphparam_local
             
             do i=1, size-1
                 source = i
@@ -198,6 +202,7 @@ contains
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -207,6 +212,7 @@ contains
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local 
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avAsphparam = avAsphparam + Asphparam_local 
 
             enddo 
         else     ! Export results
@@ -219,6 +225,7 @@ contains
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
 
@@ -237,7 +244,7 @@ contains
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
         use myutils, only : newunit, lenText
@@ -255,6 +262,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3) 
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname, istr
@@ -297,6 +305,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -320,17 +329,20 @@ contains
                 dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro 
                 gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                if(write_Palpha) write(un,*)pro/q
             endif   
         enddo
+
         Econf_local=Econf_local/q
         Rgsqr_local = Rgsqr_local/q
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q
-         gyr_tensor_local = gyr_tensor_local/q
+        gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q 
 
         ! communicate FEconf
 
@@ -345,6 +357,7 @@ contains
             avdihedral_angle = dihedral_angle_local 
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local 
+            avAsphparam = Asphparam_local
 
             do i=1, size-1
                 source = i
@@ -362,7 +375,7 @@ contains
                     call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 endif
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -372,6 +385,7 @@ contains
                 avdihedral_angle = avdihedral_angle+ dihedral_angle_local 
                 avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avAsphparam = avAsphparam + Asphparam_local
 
             enddo 
         else     ! Export results
@@ -390,6 +404,7 @@ contains
                 call MPI_SEND(nucl_spacing_local, nbonds ,     MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif 
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
         if(write_Palpha) close(un)
@@ -405,7 +420,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -423,6 +438,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=LenText) :: fname 
@@ -479,7 +495,8 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local  = 0.0_dp
+        gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -501,7 +518,8 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local+gyr_tensor(:,:,c)*pro
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
            
                 if(write_Palpha) write(un,*)pro/q
             endif    
@@ -515,6 +533,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
         gyr_tensor_local = gyr_tensor_local/q 
+        Asphparam_local = Asphparam_local/q
 
         ! communicate 
 
@@ -530,6 +549,7 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
 
             do i=1, size-1
                 source = i
@@ -541,7 +561,7 @@ contains
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local             
@@ -551,7 +571,7 @@ contains
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
                 avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
-
+                avAsphparam = avAsphparam + Asphparam_local
             enddo 
         else     ! Export results
             dest = 0
@@ -563,7 +583,9 @@ contains
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
+
 
         if(write_Palpha) close(un)
 
@@ -578,7 +600,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters, only : vpol, zpol, write_Palpha
         use myutils, only : lenText, newunit
@@ -595,7 +617,8 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3) 
+        real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local 
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -655,6 +678,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp 
+        Asphparam_local = 0.0_dp
             
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -677,7 +701,8 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local+ gyr_tensor(:,:,c)*pro
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
            
                 if(write_Palpha) write(un,*)pro/q
             endif    
@@ -690,6 +715,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local= nucl_spacing_local/q
         gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
 
         ! communicate FEconf
 
@@ -704,7 +730,8 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
-            
+            avAsphparam = Asphparam_local
+
             do i=1, size-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -715,6 +742,7 @@ contains
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf +FEconf_local
                 Econf =Econf + Econf_local      
@@ -724,6 +752,7 @@ contains
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
                 avnucl_spacing = avnucl_spacing+ nucl_spacing_local
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avAsphparam = avAsphparam + Asphparam_local
 
             enddo 
         else     ! Export results
@@ -736,6 +765,7 @@ contains
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         
         endif
 
@@ -752,7 +782,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
         use myutils, only : lenText, newunit
@@ -771,6 +801,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -816,6 +847,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local= 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -839,8 +871,9 @@ contains
                 Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro 
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
-                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local +gyr_tensor(:,:,c) * pro
+                nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c) * pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                 if(write_Palpha) write(un,*) pro/q   
             endif      
@@ -852,7 +885,8 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q
-        gyr_tensor_local =   gyr_tensor_local/q
+        gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q 
 
         ! communicate FEconf
 
@@ -867,6 +901,7 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing =  nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
             
             do i=1, size-1
                 source = i
@@ -878,6 +913,7 @@ contains
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
@@ -887,6 +923,7 @@ contains
                 avdihedral_angle =  avdihedral_angle +dihedral_angle_local
                 avnucl_spacing = avnucl_spacing+ nucl_spacing_local
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local 
+                avAsphparam = avAsphparam + Asphparam_local
 
             enddo 
         else     ! Export results
@@ -899,6 +936,7 @@ contains
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
         Econf=0.0_dp
@@ -917,7 +955,7 @@ contains
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
@@ -945,6 +983,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
         real(dp) :: gyr_tensor_local(3,3) 
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -1067,6 +1106,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
          
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -1089,6 +1129,7 @@ contains
                 dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
                 gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                 if(write_Palpha) write(un,*)pro/q
             endif    
@@ -1101,6 +1142,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q
         gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
 
         ! communicate 
 
@@ -1115,7 +1157,8 @@ contains
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local 
+            avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local 
             
             do i=1, size-1
                 source = i
@@ -1127,6 +1170,7 @@ contains
                 call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr) 
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr) 
 
                 FEconf=FEconf + FEconf_local 
                 Econf= Econf  + Econf_local  
@@ -1136,6 +1180,7 @@ contains
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avAsphparam = avAsphparam + Asphparam_local 
                            
             enddo 
         else     ! Export results
@@ -1148,6 +1193,7 @@ contains
             call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
        
         if(write_Palpha) close(un)
@@ -1163,7 +1209,7 @@ contains
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -1182,6 +1228,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
         real(dp) :: gyr_tensor_local(3,3) 
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -1238,6 +1285,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -1268,8 +1316,9 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local +gyr_tensor(:,:,c)*pro 
-
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro 
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
+                
                 if(write_Palpha) write(un,*)pro/q
             endif    
         enddo
@@ -1281,6 +1330,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
         gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
         
         ! communicate 
 
@@ -1296,6 +1346,7 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
 
             do i=1, size-1
                 source = i
@@ -1314,6 +1365,7 @@ contains
                     call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 endif 
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+ FEconf_local
                 Econf =Econf + Econf_local             
@@ -1322,7 +1374,8 @@ contains
                 avbond_angle = avbond_angle+ bond_angle_local
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local  
+                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
+                avAsphparam = avAsphparam + Asphparam_local 
 
             enddo 
         else     ! Export results
@@ -1341,6 +1394,7 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
          endif
          
          if(write_Palpha) close(un)
@@ -1360,7 +1414,7 @@ contains
         use chains, only : index_phos, inverse_index_phos, len_index_phos
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1381,6 +1435,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -1479,6 +1534,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -1527,7 +1583,8 @@ contains
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
                 gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
-
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
+                
                 if(write_Palpha) write(un,*)pro/q
             endif
         enddo
@@ -1539,6 +1596,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
         gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
 
         ! communicate 
 
@@ -1554,6 +1612,7 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
 
 
             do i=1, numproc-1
@@ -1573,6 +1632,7 @@ contains
                     call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 endif
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf + FEconf_local
                 Econf =Econf + Econf_local             
@@ -1581,7 +1641,8 @@ contains
                 avbond_angle = avbond_angle + bond_angle_local
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
+                avAsphparam = avAsphparam + Asphparam_local
 
             enddo 
         else     ! Export results
@@ -1600,6 +1661,7 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
         
         if(write_Palpha) close(un)
@@ -1617,7 +1679,7 @@ contains
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
@@ -1638,6 +1700,7 @@ contains
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
         real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -1729,6 +1792,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -1774,7 +1838,8 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local +gyr_tensor(:,:,c)*pro
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                 if(write_Palpha) write(un,*)pro/q
             endif    
@@ -1787,7 +1852,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
         gyr_tensor_local = gyr_tensor_local/q
-
+        Asphparam_local = Asphparam_local/q
         ! communicate 
 
         if(rank==0) then
@@ -1802,6 +1867,7 @@ contains
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
 
             do i=1, numproc-1
                 source = i
@@ -1820,6 +1886,7 @@ contains
                     call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 endif
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf + FEconf_local
                 Econf =Econf + Econf_local             
@@ -1829,6 +1896,7 @@ contains
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local 
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local 
+                avAsphparam = avAsphparam + Asphparam_local
 
             enddo 
         else     ! Export results
@@ -1847,6 +1915,7 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
         
         if(write_Palpha) close(un)
@@ -1861,7 +1930,7 @@ contains
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
-        use chains, only : energychainLJ, no_overlapchain
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vsol, vnucl, isVdW, isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
@@ -1878,7 +1947,8 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
-        real(dp) :: gyr_tensor_local(3,3) 
+        real(dp) :: gyr_tensor_local(3,3)
+        real(dp) :: Asphparam_local 
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
         character(len=lenText) :: fname
@@ -1924,6 +1994,7 @@ contains
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
         gyr_tensor_local = 0.0_dp
+        Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -1949,7 +2020,8 @@ contains
                 bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro   
-                gyr_tensor_local = gyr_tensor_local +gyr_tensor(:,:,c)*pro      
+                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro    
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro   
                 
                 if(write_Palpha) write(un,*)pro/q 
             endif    
@@ -1962,6 +2034,7 @@ contains
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
         gyr_tensor_local = gyr_tensor_local/q
+        Asphparam_local = Asphparam_local/q
 
         ! communicate local quantities
 
@@ -1977,6 +2050,7 @@ contains
             avdihedral_angle = dihedral_angle_local 
             avnucl_spacing = nucl_spacing_local 
             avgyr_tensor = gyr_tensor_local
+            avAsphparam = Asphparam_local
             
             do i=1, size-1
                 source = i
@@ -1995,6 +2069,7 @@ contains
                     call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 endif
                 call MPI_RECV(gyr_tensor_local,6,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
+                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
 
                 FEconf=FEconf+FEconf_local
                 Econf =Econf +Econf_local
@@ -2004,6 +2079,7 @@ contains
                 avdihedral_angle =  avdihedral_angle + dihedral_angle_local
                 avnucl_spacing = avnucl_spacing + nucl_spacing_local 
                 avgyr_tensor = avgyr_tensor + gyr_tensor_local
+                avAsphparam = avAsphparam + Asphparam_local
             enddo 
         else     ! Export results
             dest = 0
@@ -2021,6 +2097,7 @@ contains
                 call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
             endif
             call MPI_SEND(gyr_tensor_local,6, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
         if(write_Palpha) close(un)

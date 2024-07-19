@@ -64,7 +64,7 @@ module chains
     real(dp), dimension(:,:), allocatable       :: dihedral_angle           ! dihedralangle
     real(dp), dimension(:,:), allocatable       :: nucl_spacing             ! spacing or distance between Nuclesome 
     real(dp), dimension(:,:,:), allocatable     :: gyr_tensor               ! asphericity matrix/gyration tensor (for each graft point)
-
+    real(dp), dimension(:), allocatable         :: Asphparam                ! asphericity parameter  invariant of gyration tensor
 
     real(dp), dimension(:), allocatable         :: avbond_angle             ! average bond angle
     real(dp), dimension(:), allocatable         :: avdihedral_angle         ! average dihedral angle
@@ -72,7 +72,7 @@ module chains
     real(dp)                                    :: avRgsqr                  ! radius of gyration 
     real(dp)                                    :: avRendsqr                ! end-to-end distance
     real(dp), dimension(:,:), allocatable       :: avgyr_tensor             ! average asphericity matrix /gyration tensor (for each graft point)
-
+    real(dp)                                    :: avAsphparam              ! asphericity parameter
 
     ! .. pairing parameters 
 
@@ -105,7 +105,7 @@ contains
         allocate(ismonomer_chargeable(nsegtypes))
         allocate(type_of_charge(nsegtypes))
         allocate(no_overlapchain(maxcuantas))
-        allocate(gyr_tensor(3,3,maxcuantas)) 
+    
 
         ! chain stuctural quantities
         allocate(segcm(nnucl))
@@ -114,6 +114,9 @@ contains
         allocate(bond_angle(nnucl-2,maxcuantas))
         allocate(dihedral_angle(nnucl-3,maxcuantas))
         allocate(nucl_spacing(nnucl-1,maxcuantas)) 
+        allocate(gyr_tensor(3,3,maxcuantas)) 
+        allocate(Asphparam(maxcuantas)) 
+
         allocate(avnucl_spacing(nnucl-1)) 
         allocate(avbond_angle(nnucl-2))
         allocate(avdihedral_angle(nnucl-3)) 
