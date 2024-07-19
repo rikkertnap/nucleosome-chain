@@ -30,8 +30,7 @@ module chaingenerator
     public :: find_phosphate_location
     public :: write_indexchain_histone, test_index_histone
 
-    private ::  eps_equilat, fmt3xyz
-    private COMOLD
+    private :: eps_equilat,fmt3xyz, COMOLD
 
 contains
 
@@ -310,6 +309,7 @@ subroutine read_chains_xyz_nucl(info)
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
     use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
     use chains, only :  Asphparam
+    use eigenvalues, only : asphericty_parameter
     use parameters
     use volume, only :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
@@ -719,7 +719,7 @@ end subroutine read_chains_XYZ_nucl
 subroutine read_chains_xyz_nucl_volume(info)
 
     !     .. variable and constant declaractions  
-    use mpivars, only : rank !,size                                                                                   
+    use mpivars, only : rank                                                                                   
     use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype, systype, DEBUG
     use chains, only : var_darray
@@ -728,7 +728,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
     use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
-    
+    use eigenvalues, only : asphericty_parameter
     use parameters
     use volume, only   :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
@@ -2879,7 +2879,7 @@ subroutine write_chain_struct(write_struct,info)
     use globals, only : cuantas,nnucl
     use myutils, only : lenText
     use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing,energychainLJ
-    use chains, only : no_overlapchain
+    use chains, only : no_overlapchain, Asphparam
     implicit none 
 
     logical, intent(in) :: write_struct
@@ -2887,7 +2887,7 @@ subroutine write_chain_struct(write_struct,info)
  
     ! .. local
     character(len=lenText) :: filename
-    integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist, un_VdW
+    integer :: un_dihedral,un_bond,un_Rg,un_Rend, un_dist, un_VdW, un_Asph
     integer :: c,s,nbonds,nangles,ndihedrals
 
     info=0
@@ -2906,6 +2906,8 @@ subroutine write_chain_struct(write_struct,info)
         un_dist=open_chain_struct_file(filename,info)
         filename="VdWenergy."
         un_VdW=open_chain_struct_file(filename,info)
+        filename="Aspherparam."
+        un_Asph=open_chain_struct_file(filename,info)
         
         nbonds=nnucl-1
         nangles=nnucl-2
@@ -2918,6 +2920,7 @@ subroutine write_chain_struct(write_struct,info)
             write(un_dihedral,*)(dihedral_angle(s,c),s=1,ndihedrals)
             write(un_dist,*)(nucl_spacing(s,c),s=1,nbonds)
             write(un_VdW,*)energychainLJ(c),no_overlapchain(c)
+            write(un_Asph,*)Asphparam(c)
         enddo 
 
         close(un_dihedral)
@@ -2926,6 +2929,7 @@ subroutine write_chain_struct(write_struct,info)
         close(un_Rend)  
         close(un_dist)
         close(un_VdW)
+        close(un_Asph)
       
     endif
 
@@ -4128,71 +4132,5 @@ function compute_cuantas_no_overlap(cuantas,no_overlapchain)result(num_no_overla
 
 end function compute_cuantas_no_overlap
 
-subroutine print_gyration_tensor(mat)
-
-    real(dp), intent(in) :: mat(3,3)
-
-    integer :: i, j
-
-    do i = 1,3
-        do j = 1,3
-            print *, i, j, mat(i,j)
-        enddo
-    enddo
-
-end subroutine 
-
-! call lapack double precision routine dsyev to compute eigenvalues of a real symmetric matrix 
-
-subroutine comp_eigenvalues(k,A,eigenvalues,info)
-
-    integer, intent(in)     :: k
-    real(dp), intent(in)    :: A(k,k)
-    real(dp), intent(inout) :: eigenvalues(k)
-    integer, intent(inout)  :: info
-
-    !local 
-    real(dp),allocatable :: work(:)
-    integer              :: lwork
-    real(dp)    :: B(k,k)
-
-    B=A ! prevent overwritting of input matrix A 
-
-    lwork = max(1,3*k-1)
-    allocate(work(lwork))
-    
-    call dsyev('N','U',k,B,k,eigenvalues,WORK,LWORK,info) 
-
-end subroutine
-
-function Asphericty_parameter(Rgsqr,gyr_tensor)result(Ap)
-    
-    real(dp), intent(in) :: Rgsqr
-    real(dp), intent(in) :: gyr_tensor(3,3)
-    real(dp) :: Ap
-
-    ! local 
-    real(dp):: eigenvalues(3)
-    integer :: info_eigen
-    real(dp) :: bsph,ccyl
-    real(dp) :: sumeigen
-    integer :: i, j
-
-    call comp_eigenvalues(3,gyr_tensor,eigenvalues,info_eigen)
-    
-    bsph = eigenvalues(3)-(eigenvalues(1)+eigenvalues(2))/2.0_dp
-    ccyl = eigenvalues(2)-eigenvalues(1)
-
-    Ap=(bsph*bsph+(3.0_dp/4.0_dp)*ccyl*ccyl)/Rgsqr**2
-
-    sumeigen = sum(eigenvalues)
-    print*,"eigenvalues = ",eigenvalues
-    print*,"sum eigenvalues = ",sumeigen," Rg2 = ",Rgsqr, " diff=",sumeigen-Rgsqr
-    print*,"Gyration tensor:"
-    do i=1,3
-        print*,(gyr_tensor(i,j),j=1,3)
-    enddo    
-    
-end function
 
 end module chaingenerator

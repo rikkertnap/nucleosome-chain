@@ -73,6 +73,7 @@ module chains
     real(dp)                                    :: avRendsqr                ! end-to-end distance
     real(dp), dimension(:,:), allocatable       :: avgyr_tensor             ! average asphericity matrix /gyration tensor (for each graft point)
     real(dp)                                    :: avAsphparam              ! asphericity parameter
+    real(dp)                                    :: eigen_avgyr_tensor(3)    ! Eigenvalues of Avgyr_tensor, Principal componts of radius of gyration squared 
 
     ! .. pairing parameters 
 

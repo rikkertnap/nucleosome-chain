@@ -55,6 +55,7 @@ contains
             stop
         end select   
 
+
     end subroutine FEconf_entropy
 
    ! computes conformational entropy in neutral state 
@@ -228,8 +229,8 @@ contains
             call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
         endif
 
-
         if(write_Palpha) close(un)
+
 
     end subroutine FEconf_neutral
 
