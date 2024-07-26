@@ -1143,6 +1143,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
                 gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+
       
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
