@@ -91,6 +91,7 @@ subroutine read_inputfile(info)
     character(len=8) :: fname
     integer :: ios,un_input  ! un = unit number
     character(len=100) :: buffer, label
+    character(len=100) :: io_msg  
     integer :: pos
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
@@ -100,9 +101,10 @@ subroutine read_inputfile(info)
 
     !     .. reading in of variables from file
     write(fname,'(A8)')'input.in'
-    open(unit=newunit(un_input),file=fname,iostat=ios,status='old')
+    open(unit=newunit(un_input),file=fname,iostat=ios,status='old',iomsg=io_msg)
     if(ios >0 ) then
         print*, 'Error opening input.in file : iostat =', ios
+        print*, 'Error message : ',trim(io_msg)
         if (present(info)) info = myio_err_inputfile
         return
     endif
