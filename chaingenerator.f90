@@ -1145,7 +1145,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                 gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
 
-      
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                     Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -1254,6 +1253,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
       
+
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                     Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -1563,9 +1563,9 @@ subroutine normed_weightchains()
         localsum=localsum+exp(energychain(c))   
     enddo    
   
-   ! call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-   ! call MPI_ALLREDUCE(localsum, totalsum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD,ierr) 
-    
+    ! call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+    ! call MPI_ALLREDUCE(localsum, totalsum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD,ierr) 
+    totalsum=localsum
     ! normalize
     logtotalsum=log(totalsum)
     do c=1,cuantas
