@@ -1518,7 +1518,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
-    write(un_sys,*)'numproc     = ',numproc
+    write(un_sys,*)'numproc     = ',1
 
 
     ! concentration
@@ -1955,7 +1955,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
-    write(un_sys,*)'numproc     = ',numproc
+    write(un_sys,*)'numproc     = ',1
 	
     ! concentration
     write(un_sys,*)'cNaCl       = ',cNaCl
@@ -2679,7 +2679,7 @@ subroutine output_neutral
     write(un_sys,*)'nz          = ',nz
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
-    write(un_sys,*)'numproc     = ',numproc
+    write(un_sys,*)'numproc     = ',1
 
     ! other physical parameters
     write(un_sys,*)'T           = ',Tref
@@ -3155,7 +3155,6 @@ end subroutine compute_vars_and_output
 
 subroutine write_chain_config()
 
-    use mpivars, only : rank
     use globals, only: nseg, nsegtypes
     use chains, only : type_of_monomer,type_of_monomer_char,isAmonomer,type_of_charge, ismonomer_chargeable 
     use chains, only : mapping_num_to_char
@@ -3166,33 +3165,28 @@ subroutine write_chain_config()
     integer :: i, un_cc
     character(len=10) ::istr
    
-
-    if(rank==0) then
         
-        write(istr,'(I4)')rank
-        fname='chain_config.'//trim(adjustl(istr))//'.log'
-        !     .. opening file
-        open(unit=newunit(un_cc),file=fname)
+    fname='chain_config.log'
+    !     .. opening file
+    open(unit=newunit(un_cc),file=fname)
 
-        write(un_cc,*)"chain configuration summary"
-        write(un_cc,*)"#nsegtypes char charge_type chargeable"
-        do i=1,nsegtypes
-            write(un_cc,*)i,mapping_num_to_char(i),' ',type_of_charge(i),' ',ismonomer_chargeable(i) 
-        enddo
-        write(un_cc,*)"###"
-        write(un_cc,*)"lseg=",lseg
-        write(un_cc,*)"#nsegtypes   lsegAA    vpol"
-        do i=1,nsegtypes
-            write(un_cc,*)i,lsegAA(i),vpol(i)*vsol
-        enddo
-        write(un_cc,*)"#segment type_num  type_char  isAmonomer"
-        do i=1,nseg
-            write(un_cc,*)i,type_of_monomer(i),type_of_monomer_char(i),isAmonomer(i)
-        enddo
-        write(un_cc,*)"###"
-        close(un_cc)
-
-    endif
+    write(un_cc,*)"chain configuration summary"
+    write(un_cc,*)"#nsegtypes char charge_type chargeable"
+    do i=1,nsegtypes
+        write(un_cc,*)i,mapping_num_to_char(i),' ',type_of_charge(i),' ',ismonomer_chargeable(i) 
+    enddo
+    write(un_cc,*)"###"
+    write(un_cc,*)"lseg=",lseg
+    write(un_cc,*)"#nsegtypes   lsegAA    vpol"
+    do i=1,nsegtypes
+        write(un_cc,*)i,lsegAA(i),vpol(i)*vsol
+    enddo
+    write(un_cc,*)"#segment type_num  type_char  isAmonomer"
+    do i=1,nseg
+        write(un_cc,*)i,type_of_monomer(i),type_of_monomer_char(i),isAmonomer(i)
+    enddo
+    write(un_cc,*)"###"
+    close(un_cc)
 
 
 end subroutine write_chain_config

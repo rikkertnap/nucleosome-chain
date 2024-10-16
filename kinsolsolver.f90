@@ -71,7 +71,7 @@ end subroutine fkpsol
 
 subroutine kinsol_gmres_solver(x, xguess, error, fnorm,isSolution)
   
-    use mpivars
+    !use mpivars
     !use ieee_arithmetic, only : ieee_is_nan    ! alternative for function isNaN in myutils
     use globals, only : nsize, neq, systype
     use kinsolvars

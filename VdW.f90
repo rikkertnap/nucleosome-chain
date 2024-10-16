@@ -70,7 +70,6 @@ end function
  
 subroutine read_VdWeps(info)
     
-    use mpivars
     use globals, only : nsegtypes , runtype
     use parameters, only : VdWeps, VdWepsin 
     use myutils, only : newunit
@@ -109,7 +108,6 @@ subroutine read_VdWeps(info)
         print*,str
         str="read file "//trim(adjustl(fname))//" failed"
         print*,str
-        call MPI_FINALIZE(ierr)
         stop
     endif
 

@@ -1079,7 +1079,7 @@ contains
 
     function open_chain_com_unitvec_lammps_trj(info)result(un_trj)
 
-        use mpivars, only : rank
+    
         use myutils, only : newunit, lenText
         use myio, only : myio_err_chainsfile
         use GB_potential, only : GBtype, GBCOMtype
@@ -1096,10 +1096,10 @@ contains
         
         info = 0    
 
-        write(istr,'(I4)')rank
+       
 
         fname='trajcomunit_'//trim(adjustl(GBtype))//trim(adjustl(GBCOMtype))
-        fname=trim(adjustl(fname))//trim(adjustl(istr))//'.lammpstrj'
+        fname=trim(adjustl(fname))//'.lammpstrj'
        
         inquire(file=fname,exist=exist)
         if(.not.exist) then

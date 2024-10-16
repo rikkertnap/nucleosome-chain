@@ -26,7 +26,6 @@ end module fcnpointer
 
 module listfcn
    
-    use mpivars
     implicit none
 
 contains
@@ -35,7 +34,6 @@ contains
 
     subroutine fcnelectbrushmulti(x,f,nn)
 
-        use mpivars
         use globals
         use parameters, Tlocal=>Tref 
         use volume, only     : volcell
@@ -69,17 +67,7 @@ contains
 
 
         !     .. executable statements 
-
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+ 
 
         n=nsize
         ! read out x 
@@ -151,13 +139,13 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
+        locallnproshift(2)=0 !rank  
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        !call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+        !call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
-        lnproshift=globallnproshift(1)
-             
+        !lnproshift=globallnproshift(1)
+        lnproshift= locallnproshift(1)   
              
         do c=1,cuantas         ! loop over cuantas
             if(no_overlapchain(c)) then 
@@ -178,18 +166,12 @@ contains
             endif    
         enddo
          
-        !   .. import results 
-
-        if (rank==0) then 
+        
          
             q=0.0_dp 
             q=local_q
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
+          
            
             ! first graft point 
             do t=1,nsegtypes
@@ -198,15 +180,7 @@ contains
                 enddo
             enddo
            
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
+           
                 
             !  .. construction of fcn and volume fraction polymer   
             !  .. volume polymer segment per volume cell 
@@ -247,18 +221,7 @@ contains
 
             print*,'iter=', iter ,'norm=',norm
 
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-        endif
-
+        
 
     end subroutine fcnelectbrushmulti
 
@@ -267,7 +230,6 @@ contains
 
     subroutine fcnelectbrushmultinoVdW(x,f,nn)
 
-        use mpivars
         use globals
         use parameters, Tlocal=>Tref 
         use volume
@@ -301,16 +263,7 @@ contains
 
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+       
 
         n=nsize
         ! read out x 
@@ -381,12 +334,12 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank   
+        locallnproshift(2)=0! rank   
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        !call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+        !call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
                
-        lnproshift=globallnproshift(1)
+        lnproshift= locallnproshift(1) ! globallnproshift(1)
           
         do c=1,cuantas         ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -405,19 +358,12 @@ contains
                 enddo
             endif    
         enddo
-         
-        !   .. import results 
-
-        if (rank==0) then 
+        
 
             q=0.0_dp 
             q=local_q
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
+           
 
             ! first graft point 
             do t=1,nsegtypes
@@ -426,15 +372,7 @@ contains
                 enddo
             enddo
            
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
+           
 
             !     .. construction of fcn and volume fraction polymer             
             rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
@@ -468,19 +406,6 @@ contains
 
             print*,'iter=', iter ,'norm=',norm
 
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-            
-        endif
-
-
     end subroutine fcnelectbrushmultinoVdW
 
     ! brush of dna polymers
@@ -488,7 +413,7 @@ contains
 
     subroutine fcnbrushdna(x,f,nn)
 
-        use mpivars
+
         use globals
         use parameters, Tlocal=>Tref 
         use volume
@@ -525,16 +450,7 @@ contains
 
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+        
 
         n=nsize
         ! read out x 
@@ -647,12 +563,10 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
+        locallnproshift(2)=0! rank  
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-       
-        lnproshift=globallnproshift(1)
+    
+        lnproshift= locallnproshift(1) ! globallnproshift(1)
              
          
         do c=1,cuantas         ! loop over cuantas
@@ -673,19 +587,11 @@ contains
             endif    
         enddo
 
-        !   .. import results 
-
-        if (rank==0) then 
-
+        
             q=0.0_dp 
             q=local_q
             
-             do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo
-
+        
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
@@ -693,15 +599,7 @@ contains
                 enddo
             enddo
            
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)! polymer density 
-                    enddo
-                enddo
-            enddo     
+           
 
 
             !  .. construction of fcn and volume fraction polymer 
@@ -778,19 +676,7 @@ contains
            
             print*,'iter=', iter ,'norm=',norm
 
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-    
-        endif
-
+       
 
     end subroutine fcnbrushdna
 
@@ -799,7 +685,6 @@ contains
 
     subroutine fcnnucl_ionbin(x,f,nn)
 
-        use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap
         use parameters, only : Tlocal=>Tref 
@@ -846,16 +731,7 @@ contains
 
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+       
 
         n=nsize
         ! read out x 
@@ -1006,12 +882,11 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
+        locallnproshift(2)=0! rank  
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        
        
-        lnproshift=globallnproshift(1)
+        lnproshift=  locallnproshift(1) ! globallnproshift(1)
              
          
         do c=1,cuantas         ! loop over cuantas
@@ -1032,35 +907,18 @@ contains
             endif    
         enddo
 
-        !   .. import results 
-
-        if (rank==0) then 
+        
 
             q=0.0_dp 
             q=local_q
             
-             do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo
-
-            ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
                     rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
            
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)! polymer density 
-                    enddo
-                enddo
-            enddo     
+           
 
 
             !  .. construction of fcn and volume fraction polymer 
@@ -1148,19 +1006,7 @@ contains
             print*,'iter=', iter ,'norm=',norm, "normvol=",normvol, "normPE=",normPE
             print*,'iter=', iter ,'norm=',norm
 
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-    
-        endif
-
+      
 
     end subroutine fcnnucl_ionbin
 
@@ -1172,7 +1018,7 @@ contains
 
     subroutine fcnnucl_ionbin_sv_general(x,f,nn)
 
-        use mpivars
+
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
         use parameters, only : expmu 
@@ -1222,17 +1068,7 @@ contains
 
         ! .. executable statements 
 
-        ! .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
-
+        
         n=nsize
         ! read out x 
         k=n
@@ -1399,12 +1235,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
+        locallnproshift(2)=0 ! rank  
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-       
-        lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
               
         do c=1,cuantas         ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -1440,18 +1273,11 @@ contains
             endif    
         enddo
 
-        !   .. import results 
-
-        if (rank==0) then 
-
+       
             q=0.0_dp 
             q=local_q
             
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo
+            
 
             ! first graft point 
             do t=1,nsegtypes
@@ -1465,27 +1291,7 @@ contains
                 endif   
             enddo
            
-            do i=1, numproc-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer density 
-                    enddo
-                enddo
-                
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then
-                        call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,&
-                                MPI_COMM_WORLD,stat,ierr)
-                        do k=1,nsize
-                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)! polymer density 
-                        enddo
-                    endif    
-                enddo
-                
-            enddo     
-
+        
 
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
@@ -1602,24 +1408,6 @@ contains
 
             if(DEBUG) call locate_xpol_lager_one(xpol_tot)
             
-        else                      ! Export results 
-            
-            dest = 0 
-
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_xpol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-            do t=1,nsegtypes
-                if(ismonomer_chargeable(t)) then
-                    call MPI_SEND(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,dest,tag,MPI_COMM_WORLD,ierr)
-                endif
-            enddo
-
-        endif
-
 
 
     end subroutine fcnnucl_ionbin_sv_general
@@ -1629,7 +1417,6 @@ contains
 
     subroutine fcnnucl_neutral_sv(x,f,nn)
 
-        use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap,  DEBUG
         use parameters, only : vsol,vpol, vnucl
@@ -1666,16 +1453,7 @@ contains
       
         ! .. executable statements 
 
-        ! .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+       
  
         do i=1,nsize                     
             xsol(i) = x(i)        ! volume fraction solvent
@@ -1716,12 +1494,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        locallnproshift(2)=0
        
-        lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
         
         do c=1,cuantas                        ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -1747,18 +1522,11 @@ contains
             endif    
         enddo    
 
-        !   .. import results 
-
-        if (rank==0) then 
-
+        
             q = 0.0_dp 
             q = local_q
             
-             do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q = q + local_q
-            enddo
+            
 
             ! conformation on rank zero 
             do t=1,nsegtypes
@@ -1767,15 +1535,7 @@ contains
                 enddo
             enddo
            
-            do i=1, numproc-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer volume fraction
-                    enddo
-                enddo
-            enddo     
+            
 
             !  .. construction of fcn and volume fraction polymer 
             !  .. normalization volume polymer segment per volume cell
@@ -1807,25 +1567,12 @@ contains
             call locate_xpol_lager_one(xpol_tot)
 
 
-        else                      ! Export results 
-            
-            dest = 0 
-
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_xpol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-        endif
-
     end subroutine fcnnucl_neutral_sv
 
 
 
     subroutine fcnbrushborn(x,f,nn)
 
-        use mpivars
         use globals
         use parameters
         use volume
@@ -1866,16 +1613,7 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+        
 
         ! read out x 
         n=nsize             
@@ -2064,12 +1802,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-       
-        lnproshift=globallnproshift(1)
+        locallnproshift(2)=0
+
+        lnproshift=locallnproshift(1)
              
         do c=1,cuantas         ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -2093,17 +1828,11 @@ contains
          
         !   .. import results 
 
-        if (rank==0) then 
-
+       
             q=0.0_dp
             q=local_q
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
-
+         
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
@@ -2111,15 +1840,7 @@ contains
                 enddo
             enddo
  
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
+           
 
           
             !     .. construction of fcn and volume fraction polymer             
@@ -2185,19 +1906,7 @@ contains
             iter=iter+1
 
             print*,'iter=', iter ,'norm=',norm
-            
-
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-        endif
+   
 
     end subroutine fcnbrushborn
 
@@ -2241,17 +1950,9 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
         
         !     .. executable statements 
-        !     .. communication between processors
+      
         
-        if (rank.eq.0) then
-            flag_solver = 1      !  continue program
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1,   MPI_INTEGER, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x,neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo    
-        endif
-    
+        
         n=nsize                      ! size vector neq=4*nsize x=(pi,psi,rhopolA,rhopolB]
     
         do i=1,n                     ! init x 
@@ -2261,7 +1962,7 @@ contains
             rhopolin(i,B)=x(i+3*n)
         enddo
    
-        if(rank.eq.0) then 
+      
             neq_bc=0
             if(bcflag(RIGHT)/="cc") then
                 neq_bc=nx*ny
@@ -2275,8 +1976,7 @@ contains
                 enddo
                 neq_bc=neq_bc+nx*ny
             endif    
-        endif
-
+        
         do i=1,n                     ! init volume fractions 
             rhopol_local(i,A) = 0.0_dp     ! A polymer density 
             rhopol_local(i,B) = 0.0_dp     ! B polymer density  
@@ -2325,7 +2025,7 @@ contains
 
         enddo
 
-        if(rank==0) then            ! global polymer density
+        
             do i=1,n
                 xpol(i) = 0.0_dp 
                 rhopol(i,A) = 0.0_dp     ! A polymer density 
@@ -2334,8 +2034,7 @@ contains
             
             q=0.0_dp
             
-        endif
-
+       
         !     .. computation polymer volume fraction 
        
         q_local=0.0_dp       ! init q
@@ -2358,12 +2057,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        locallnproshift(2)=0
        
-        lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
 
         do c=1,cuantas               ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -2397,34 +2093,19 @@ contains
 
         !     .. import results
 
-        if (rank==0) then
+      
 
             q=0.0_dp
             q=q_local
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(q_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+q_local
-            enddo 
-        
+            
             ! first graft point 
             do i=1,n
                 rhopol(i,A)=rhopol_local(i,A) ! polymer density 
                 rhopol(i,B)=rhopol_local(i,B) ! polymer density 
             enddo
            
-            do i=1, size-1
-                source = i
-                
-                call MPI_RECV(rhopol_local(:,A), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(rhopol_local(:,B), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                do k=1,nsize
-                    rhopol(k,A)=rhopol(k,A)+rhopol_local(k,A) ! polymer density 
-                    rhopol(k,B)=rhopol(k,B)+rhopol_local(k,B) ! polymer
-                enddo
-            enddo
+            
     
             !  .. construction of fcn and volume fraction polymer        
             rhopol0=(1.0_dp/volcell)/q! volume polymer segment per volume cell
@@ -2473,14 +2154,6 @@ contains
             call print_to_log(LogUnit,text)
 
 
-        else          ! Export results
-
-            dest = 0
-            call MPI_SEND(q_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(rhopol_local(:,A), nsize, MPI_DOUBLE_PRECISION,dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(rhopol_local(:,B), nsize, MPI_DOUBLE_PRECISION,dest, tag, MPI_COMM_WORLD, ierr)
-        
-        endif
 
 
     end subroutine fcnelect
@@ -2488,7 +2161,7 @@ contains
 
     subroutine fcnneutral(x,f,nn)
 
-        use mpivars
+
         use globals
         use parameters, Tlocal=>Tref 
         use volume
@@ -2519,16 +2192,7 @@ contains
 
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+        
 
         n=nsize
         
@@ -2566,12 +2230,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        locallnproshift(2)=0
        
-        lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
              
         do c=1,cuantas         ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -2593,16 +2254,12 @@ contains
          
         !   .. import results 
 
-        if (rank==0) then 
+      
           
             q=0.0_dp
             q=local_q
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
+           
 
             ! first graft point 
             do t=1,nsegtypes
@@ -2611,16 +2268,7 @@ contains
                 enddo
             enddo
            
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
-                
+           
             !     .. construction of fcn and volume fraction polymer             
             rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
 
@@ -2644,25 +2292,14 @@ contains
 
             print*,'iter=', iter ,'norm=',norm
 
-        else                      ! Export results 
-            
-            dest = 0 
-           
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-
-        endif
+       
 
     end subroutine fcnneutral
 
 
     subroutine fcnneutralnoVdW(x,f,nn)
 
-        use mpivars
+        
         use globals
         use parameters, Tlocal=>Tref 
         use volume
@@ -2692,16 +2329,7 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
         !     .. executable statements 
 
-        !     .. communication between processors 
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
+       
 
         n=nsize
         
@@ -2744,18 +2372,9 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank
-    
-        ! print*,"rank ",rank ," has local lnproshift value of", locallnproshift(1)
-    
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-    
-!        if (rank == 0) then  
-!             print*,"Rank ",globallnproshift(2)," has lowest value of", globallnproshift(1)  
-!        endif            
+        locallnproshift(2)=0
 
-        lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
 
 
         do c=1,cuantas         ! loop over cuantas
@@ -2780,16 +2399,11 @@ contains
          
         !   .. import results 
 
-        if (rank==0) then 
+       
           
             q=0.0_dp 
             q=local_q
  
-            do i=1, size-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
-            enddo 
            
            ! first graft point 
             do t=1,nsegtypes
@@ -2798,15 +2412,7 @@ contains
                 enddo
             enddo
 
-            do i=1, size-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t) ! polymer density 
-                    enddo
-                enddo
-            enddo     
+            
                 
             !     .. construction of fcn and volume fraction polymer             
             rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
@@ -2832,22 +2438,14 @@ contains
 
             call locate_xpol_lager_one(xpol)
 
-        else                      ! Export results 
-            
-            dest = 0 
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            do t=1,nsegtypes
-                call MPI_SEND(local_rhopol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-        endif
+      
 
     end subroutine fcnneutralnoVdW
 
 
     subroutine fcnnucl_ionbin_sv_Mg(x,f,nn)
 
-        use mpivars
+        
         use globals , only : neq
         use modfcnMg
        
@@ -2866,7 +2464,7 @@ contains
 
     subroutine fcnnucl_ionbin_sv_Mg_A(x,f,nn)
 
-        use mpivars
+ 
         use globals , only : neq
         use modfcnMgexpl
 

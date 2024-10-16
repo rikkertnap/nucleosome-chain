@@ -91,8 +91,6 @@ contains
     
     subroutine error_handler(info,message)
         
-        use mpivars
-
         integer, intent(in) :: info
         character(len=*), intent(in) :: message
 
@@ -103,7 +101,6 @@ contains
             text="Error in "//trim(adjustl(message))//" : info = "//istr//" : end program."
             call print_to_log(LogUnit,text)
             print*,text
-            call MPI_FINALIZE(ierr)
             stop
         endif
 

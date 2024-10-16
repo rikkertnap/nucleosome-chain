@@ -9,7 +9,7 @@
 program main
 
     !  .. variable and constant declaractions
-    use mpivars
+    ! use mpivars
     use globals       ! parameters definitions
     use physconst
     use mathconst
@@ -61,34 +61,22 @@ program main
 
     ! .. executable statements
 
-    ! .. mpi
-
-    call MPI_INIT(ierr)
-    call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(MPI_COMM_WORLD, numproc, ierr)
-    size=numproc ! needs to be removed !!!!!!!!!!
+   
 
     ! .. logfile
     
-    write(istr,'(I4)')rank
-    if( numproc>9999) then 
-        text="Error: numproc to large for status file number"
-        ! call print_to_log(LogUnit,text)
-        print*,text
-        call MPI_FINALIZE(ierr)
-        stop
-    endif
+   
 
-    fname='status.'//trim(adjustl(istr))//'.log'
+    fname='status.log'
     call open_logfile(logUnit,fname)
-    write(istr,'(I4)')rank
+
     
-    text='program begins : rank '//istr
+    text='program begins'
     call print_to_log(LogUnit,text)
     write(istr,'(A40)')VERSION
     text='program version     = '//istr
     call print_to_log(LogUnit,'program version     = '//istr)
-    if(rank==0) print*,text
+    print*,text
 
     ! .. init
 
@@ -123,7 +111,7 @@ program main
     write(istr,'(L2)')isVdW
     text='VdW interaction: isVdW = '//istr
     call print_to_log(LogUnit,text) 
-    if(rank==0) print*,text
+    print*,text
  
     call make_chains(chainmethod,systype)   
 
@@ -253,32 +241,11 @@ program main
             isfirstguess=(loop%val==loopbegin) 
 
             call init_vars_input()  ! sets chem potentials
+              
+            call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
+            call solver(x, xguess, tol_conv, fnorm, isSolution)
+            call fcnptr(x, fvec, neq)
             
-            flag_solver = 0
-
-            if(rank==0) then     ! node rank=0
-                call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                call solver(x, xguess, tol_conv, fnorm, isSolution)
-                call fcnptr(x, fvec, neq)
-                flag_solver = 0   ! stop nodes
-                do i = 1, numproc-1
-                    dest =i
-                    call MPI_SEND(flag_solver, 1, MPI_INTEGER, dest, tag, MPI_COMM_WORLD,ierr)
-                enddo
-            else
-                flag_solver = 1
-                do while(flag_solver.eq.1)
-                    flag_solver = 0
-                    source = 0
-                    call MPI_RECV(flag_solver, 1, MPI_INTEGER, source, tag,MPI_COMM_WORLD,stat, ierr)
-                    if(flag_solver.eq.1) then
-                        call MPI_RECV(x, neqint, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
-                        call fcnptr(x, fvec, neq)
-                    endif
-                enddo
-            endif
-        
-
             call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
             
             if(systype=="nucl_ionbin_Mg") then  
@@ -292,93 +259,72 @@ program main
                 call compute_FEchem_react_PP_expl(FEchempair)
             endif          
 
-            if(rank==0) then
+           
 
-                if(isSolution) then
+            if(isSolution) then
 
-                    call compute_vars_and_output()
-                    if(isfirstguess) then
-                       do i=1,neqint
-                          xstored(i)=x(i)
-                       enddo
-                       use_xstored=.false.
-                    endif
-                
-                    isfirstguess =.false.
-                    loop%val=loop%val+loop%stepsize
-                
-                else if(abs(loop%val-loopbegin)>loopeps) then ! no solution and not first loop value
-
-                    text="no solution: backstep" 
-                    call print_to_log(LogUnit,text)
-                    loop%stepsize=loop%stepsize/2.0d0   ! decrease increment
-                    loop%val=loop%val-loop%stepsize     ! step back
-                    
-                    do i=1,neq
-                        x(i)=xguess(i)
-                    enddo
-            
-                else 
-                    ! break while loop over loop%val by making loop%stepsize smaller loop%delta
-                    loop%stepsize = loop%delta/2.0_dp 
+                call compute_vars_and_output()
+                if(isfirstguess) then
+                   do i=1,neqint
+                      xstored(i)=x(i)
+                   enddo
+                   use_xstored=.false.
                 endif
-                 
+            
+                isfirstguess =.false.
+                loop%val=loop%val+loop%stepsize
+            
+            else if(abs(loop%val-loopbegin)>loopeps) then ! no solution and not first loop value
+
+                text="no solution: backstep" 
+                call print_to_log(LogUnit,text)
+                loop%stepsize=loop%stepsize/2.0d0   ! decrease increment
+                loop%val=loop%val-loop%stepsize     ! step back
                 
-                ! communicate new values of loop from head to compute nodes to advance while loop on compute nodes
-                do i = 1, numproc-1
-                    dest = i
-                    call MPI_SEND(loop%val, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD,ierr)
-                    call MPI_SEND(loop%stepsize, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD,ierr)
+                do i=1,neq
+                    x(i)=xguess(i)
                 enddo
-            else ! receive values
-                source = 0
-                call MPI_RECV(loop%val, 1, MPI_DOUBLE_PRECISION, source, tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(loop%stepsize, 1, MPI_DOUBLE_PRECISION, source, tag,MPI_COMM_WORLD,stat, ierr)
+        
+            else 
+                ! break while loop over loop%val by making loop%stepsize smaller loop%delta
+                loop%stepsize = loop%delta/2.0_dp 
             endif
+            
 
             iter  = 0              ! reset of iteration counter
 
         enddo ! end while loop
 
 
-        if(rank==0) then
+        
+        if(isSolution.or.(abs(loop%val-loopbegin)>loopeps) )then 
+            if(abs(list_val-list(nlist_elem))<listeps) then 
+                if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
+                    list_step = list(nlist_elem+1) - list(nlist_elem)
+                endif    
+                nlist_step = nlist_step + 1
+                nlist_elem = nlist_elem + 1 ! advance element in input list values 
+            else  
+                if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
+                    list_step = list(nlist_elem) - list_val
+                endif
+                nlist_step = nlist_step + 1
+            endif        
+            list_val = list_val+list_step                
+        else 
+            if(nlist_elem>1) then     ! not first element list
+                list_step = list_step/2.0_dp      
+                nlist_step = nlist_step +1
+                list_val = list_val-list_step  
+            else if(nlist_elem==1) then 
+                nlist_step = maxlist_step+1       ! break out while over list
+                text="no solution first call of double while loop"
+                call print_to_log(LogUnit,text)
+                print*,text
+            endif   
+        endif       
 
-            if(isSolution.or.(abs(loop%val-loopbegin)>loopeps) )then 
-                if(abs(list_val-list(nlist_elem))<listeps) then 
-                    if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
-                        list_step = list(nlist_elem+1) - list(nlist_elem)
-                    endif    
-                    nlist_step = nlist_step + 1
-                    nlist_elem = nlist_elem + 1 ! advance element in input list values 
-                else  
-                    if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
-                        list_step = list(nlist_elem) - list_val
-                    endif
-                    nlist_step = nlist_step + 1
-                endif        
-                list_val = list_val+list_step                
-            else 
-                if(nlist_elem>1) then     ! not first element list
-                    list_step = list_step/2.0_dp      
-                    nlist_step = nlist_step +1
-                    list_val = list_val-list_step  
-                else if(nlist_elem==1) then 
-                    nlist_step = maxlist_step+1       ! break out while over list
-                    text="no solution first call of double while loop"
-                    call print_to_log(LogUnit,text)
-                    print*,text
-                endif   
-            endif       
-
-        endif
-
-        call MPI_Barrier(MPI_COMM_WORLD, ierr) ! synchronize 
-
-        call MPI_Bcast(list_val,   1, MPI_DOUBLE_PRECISION, 0 ,MPI_COMM_WORLD, ierr)
-        call MPI_Bcast(list_step,  1, MPI_DOUBLE_PRECISION, 0 ,MPI_COMM_WORLD, ierr)
-        call MPI_Bcast(nlist_elem, 1, MPI_INTEGER, 0 ,MPI_COMM_WORLD, ierr)
-        call MPI_Bcast(nlist_step, 1, MPI_INTEGER, 0 ,MPI_COMM_WORLD, ierr)
-
+        
         use_xstored=.true.
 
     enddo ! end loop list item
@@ -387,8 +333,7 @@ program main
     deallocate(xguess)
     deallocate(fvec)
 
-    call MPI_FINALIZE(ierr)
-
+    
     deallocate(xstored)
       
     call deallocate_field()

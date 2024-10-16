@@ -3,7 +3,6 @@
 
 module energy 
 
-    use mpivars    
     use precision_definition
     use molecules
     

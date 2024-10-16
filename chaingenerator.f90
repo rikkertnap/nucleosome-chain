@@ -74,7 +74,7 @@ end subroutine make_chains
 
 subroutine make_chains_mc()
   
-    use mpivars
+!    use mpivars
     use globals
     use chains
     use random
@@ -115,7 +115,8 @@ subroutine make_chains_mc()
     !  .. initializations of variables     
        
     conf = 1                 ! counter for conformations
-    seed = 435672*(rank+1)   ! seed for random number generator  different on each node
+    !seed = 435672*(rank+1)   ! seed for random number generator  different on each node
+    seed = 435672
     maxnchains = maxnchainsrotations
     maxntheta = maxnchainsrotationsxy         ! maximum number of rotation in xy-plane  
     !theta_angle = 2.0_dp*pi/maxntheta
@@ -239,8 +240,8 @@ subroutine make_chains_mc()
     
     !  .. end chains generation 
       
-    write(istr,'(I4)')rank
-    text='AB Chains generated on node '//istr
+   
+    text='AB Chains generated'
     call print_to_log(LogUnit,text)
 
   
@@ -302,7 +303,7 @@ end subroutine
 subroutine read_chains_xyz_nucl(info)
 
     !     .. variable and constant declaractions  
-    use mpivars, only : rank !,size                                                                                   
+   ! use mpivars, only : rank !,size                                                                                   
     use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
     use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
@@ -368,7 +369,7 @@ subroutine read_chains_xyz_nucl(info)
 
     ! .. open file   
 
-    rankfile=rank                                                                                     
+    rankfile=0                                                                                    
     
     write(istr,'(I4)')rankfile
     fname='traj.'//trim(adjustl(istr))//'.xyz'
@@ -719,7 +720,7 @@ end subroutine read_chains_XYZ_nucl
 subroutine read_chains_xyz_nucl_volume(info)
 
     !     .. variable and constant declaractions  
-    use mpivars, only : rank                                                                                   
+    !use mpivars, only : rank                                                                                   
     use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype, systype, DEBUG
     use chains, only : var_darray
@@ -805,7 +806,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. open file   
 
-    rankfile=rank                                                                                     
+    rankfile=0                                                                                     
     
     write(istr,'(I4)')rankfile
     fname='traj.'//trim(adjustl(istr))//'.xyz'
@@ -1329,7 +1330,7 @@ end subroutine read_chains_xyz_nucl_volume
 
 subroutine read_graftpts_xyz_nucl(info)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use parameters, only : unit_conv
     use myio, only : myio_err_chainsfile, myio_err_graft
     use myutils,  only : newunit
@@ -1356,7 +1357,7 @@ subroutine read_graftpts_xyz_nucl(info)
     info=0
 
     !. . open file    
-    rankfile=rank                                                                                           
+    rankfile=0                                                                                           
     write(istr,'(I4)')rankfile
     fname='traj-graft.'//trim(adjustl(istr))//'.xyz'
     inquire(file=fname,exist=exist)
@@ -1548,7 +1549,7 @@ end subroutine read_sequence_copoly_from_file
 
 subroutine normed_weightchains()
 
-    use mpivars
+    !use mpivars
     use globals, only : cuantas
     use chains, only : energychain, logweightchain
    
@@ -1562,8 +1563,8 @@ subroutine normed_weightchains()
         localsum=localsum+exp(energychain(c))   
     enddo    
   
-    call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-    call MPI_ALLREDUCE(localsum, totalsum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD,ierr) 
+   ! call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+   ! call MPI_ALLREDUCE(localsum, totalsum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD,ierr) 
     
     ! normalize
     logtotalsum=log(totalsum)
@@ -1577,7 +1578,7 @@ end subroutine
 
 function minimum_chainenergy() result(min_chainenergy)
 
-    use  mpivars
+   ! use  mpivars
     use  globals, only :cuantas
     use  chains, only : energychain
 
@@ -1595,7 +1596,7 @@ end function
 
 subroutine global_minimum_chainenergy()
 
-    use  mpivars
+    !use  mpivars
     use  globals, only : cuantas
     use  chains, only : energychain, energychain_min
     use  parameters, only: isEnergyShift
@@ -1604,15 +1605,15 @@ subroutine global_minimum_chainenergy()
     integer :: i
 
     localmin(1)=minimum_chainenergy()
-    localmin(2)=rank   
-    print*,"rank ",rank ," has local lowest value of", localmin(1)
+    localmin(2)=0 !rank   
+    print*,"rank ",0 ," has local lowest value of", localmin(1)
     
-    call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-    call MPI_ALLREDUCE(localmin, globalmin, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+!    call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+!    call MPI_ALLREDUCE(localmin, globalmin, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
     
-    if (rank == 0) then  
-        print*,"Rank ",globalmin(2)," has lowest value of", globalmin(1)  
-    endif
+    !if (rank == 0) then  
+        print*,"0 ",globalmin(2)," has lowest value of", globalmin(1)  
+   ! endif
     
     energychain_min =globalmin(1)
 
@@ -1799,7 +1800,7 @@ end function number_Amonomers
 
 subroutine read_type_of_monomer(type_of_monomer, type_of_monomer_char,filename, nseg)
 
-    use mpivars
+    !use mpivars
     use myutils, only : newunit
     use parameters, only : lenfname
     
@@ -1820,7 +1821,7 @@ subroutine read_type_of_monomer(type_of_monomer, type_of_monomer_char,filename, 
         write(istr,'(I2)')ios
         str='Error opening file '//trim(adjustl(filename))//' : iostat = '//istr
         print*,str
-        call MPI_FINALIZE(ierr)
+!        call MPI_FINALIZE(ierr)
         stop
     endif
     
@@ -1837,7 +1838,7 @@ subroutine read_type_of_monomer(type_of_monomer, type_of_monomer_char,filename, 
         print*,str
         str="read file "//trim(adjustl(filename))//" failed"
         print*,str
-        call MPI_FINALIZE(ierr)
+!        call MPI_FINALIZE(ierr)
         stop
     endif
 
@@ -1949,7 +1950,7 @@ end function is_polymer_neutral
 
 subroutine write_indexchain_lammps_trj(info)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use globals, only : nseg, cuantas
     use myutils, only : newunit, lenText
     use volume, only : delta, nz, nx, ny, indextocoord
@@ -1969,7 +1970,7 @@ subroutine write_indexchain_lammps_trj(info)
     if (present(info)) info=0
 
     ! open file 
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname='traj_indexchain_'//trim(adjustl(istr))//'.lammpstrj'
     open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
     if(ios >0 ) then
@@ -2020,7 +2021,7 @@ end subroutine write_indexchain_lammps_trj
 
 subroutine write_indexconf_lammps_trj(info)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use globals, only : nseg, cuantas
     use myutils, only : newunit, lenText
     use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
@@ -2042,7 +2043,7 @@ subroutine write_indexconf_lammps_trj(info)
     if (present(info)) info=0
 
     ! open file 
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname='traj_indexconf'//trim(adjustl(istr))//'.lammpstrj'
     open(unit=newunit(un_trj),file=fname,status='new',iostat=ios)
     if(ios >0 ) then
@@ -2105,7 +2106,7 @@ end subroutine write_indexconf_lammps_trj
 
 function open_chain_lammps_trj(info)result(un_trj)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
 
@@ -2120,7 +2121,7 @@ function open_chain_lammps_trj(info)result(un_trj)
     
     info = 0    
 
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname='trajchain'//trim(adjustl(istr))//'.lammpstrj'
     inquire(file=fname,exist=exist)
     if(.not.exist) then
@@ -2150,7 +2151,7 @@ end function
 
 function open_chain_elem_index_lammps_trj(info)result(un_trj)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
 
@@ -2166,7 +2167,7 @@ function open_chain_elem_index_lammps_trj(info)result(un_trj)
     
     info = 0    
 
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname='trajchainelemindex'//trim(adjustl(istr))//'.lammpstrj'
     inquire(file=fname,exist=exist)
     if(.not.exist) then
@@ -2320,7 +2321,7 @@ end subroutine write_chain_elem_index_lammps_trj
 
 function open_chain_energy(info)result(un_ene)
 
-    use mpivars, only : rank
+   ! use mpivars, only : rank
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
 
@@ -2332,7 +2333,7 @@ function open_chain_energy(info)result(un_ene)
     character(len=25) :: fname
     integer :: ios
 
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname='traj.'//trim(adjustl(istr))//'.ene'
     open(unit=newunit(un_ene),file=fname,status='replace',iostat=ios)
     if(ios >0 ) then
@@ -2830,7 +2831,7 @@ end function crossproduct
 
 subroutine make_segcom(segcom,nnucl,filename)
 
-    use mpivars
+    !use mpivars
     use myutils
     use parameters, only : lenfname
     
@@ -2850,7 +2851,6 @@ subroutine make_segcom(segcom,nnucl,filename)
         write(istr,'(I2)')ios
         str='Error opening file '//trim(adjustl(filename))//' : iostat = '//istr
         print*,str
-        call MPI_FINALIZE(ierr)
         stop
     endif
     
@@ -2867,7 +2867,7 @@ subroutine make_segcom(segcom,nnucl,filename)
         print*,str
         str="read file "//trim(adjustl(filename))//" failed"
         print*,str
-        call MPI_FINALIZE(ierr)
+!        call MPI_FINALIZE(ierr)
         stop
     endif
 
@@ -2940,7 +2940,7 @@ end subroutine write_chain_struct
 
 function open_chain_struct_file(filename,info)result(un)
 
-    use mpivars, only : rank
+    !use mpivars, only : rank
     use myutils, only : newunit, lenText
     use myio, only : myio_err_chainsfile
 
@@ -2957,7 +2957,7 @@ function open_chain_struct_file(filename,info)result(un)
     
     if (present(info))  info=0 ! init
     
-    write(istr,'(I4)')rank
+    write(istr,'(I4)')0
     fname=trim(adjustl(filename))//trim(adjustl(istr))//'.dat'
 
     inquire(file=fname,exist=exist)
@@ -3745,7 +3745,7 @@ end subroutine add_chain_rot_and_chain_elem_rot
 
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
 
-    use mpivars, only : rank
+   !use mpivars, only : rank
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
@@ -3805,7 +3805,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     ! print 
 
     if(.true.)then
-        write(istr,'(I4)')rank
+        write(istr,'(I4)')0
         fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
         !     .. opening file
         open(unit=newunit(un_pp),file=fname)
@@ -3962,7 +3962,6 @@ subroutine write_indexchain_histone(sbegin,send,conf_begin,conf_end)
     use globals, only : cuantas
     use chains,  only : indexchain
     use myutils, only : lenText, newunit, error_handler
-    use mpivars, only : rank
     use volume, only : indextocoord
 
     integer, intent(in) :: sbegin,send, conf_begin
@@ -3983,8 +3982,8 @@ subroutine write_indexchain_histone(sbegin,send,conf_begin,conf_end)
         call error_handler(info,"write_indexchain")
     endif
     do conf=conf_begin,conf_end
-        write(istr,'(I4)')rank
-        fname='index-chain.'//trim(adjustl(istr))//'cuantas'
+       
+        fname='index-chain.cuantas'
         write(istr,'(I4)')conf
         fname=trim(fname)//trim(adjustl(istr))//'.dat'
         open(unit=newunit(un),file=fname,status='new',iostat=ios)
@@ -4006,7 +4005,7 @@ subroutine compare_indexchain_histone(sbegin,send,info)
 
     use globals, only : cuantas
     use chains,  only : indexchain
-    use mpivars, only : rank
+   ! use mpivars, only : rank
 
     integer, intent(in) :: sbegin,send
     integer, intent(out) :: info
@@ -4020,11 +4019,11 @@ subroutine compare_indexchain_histone(sbegin,send,info)
            ind = indexchain(s,conf)
            if(ind/=indref) then 
               info=info+1
-              print*,"rank=",rank," conf=",conf,"s=",s,"ind=",ind," indref=",indref
+              print*,"rank=",0," conf=",conf,"s=",s,"ind=",ind," indref=",indref
            endif
         enddo
     enddo
-    print*,"rank=",rank," info=",info
+    print*,"rank=",0," info=",info
 
 
 end subroutine
@@ -4038,7 +4037,7 @@ subroutine compare_indexconf_histone(sbegin,send,info)
 
     use globals, only : cuantas
     use chains,  only : indexconf, nelem
-    use mpivars, only : rank
+    !use mpivars, only : rank
 
     integer, intent(in) :: sbegin,send
     integer, intent(out) :: info
@@ -4053,13 +4052,13 @@ subroutine compare_indexconf_histone(sbegin,send,info)
               ind   = indexconf(s,conf)%elem(j)
               if(ind/=indref) then
                  info=info+1
-                 print*,"rank=",rank," conf=",conf," s=",s," j= ",j," ind=",ind," indref=",indref
+                 print*,"rank=",0," conf=",conf," s=",s," j= ",j," ind=",ind," indref=",indref
               endif
            enddo
         enddo
     enddo
 
-    print*,"rank=",rank," info=",info
+    print*,"rank=",0," info=",info
 
 
 end subroutine

@@ -8,7 +8,6 @@
 
 module modfcnMgexpl
    
-    use mpivars
     use precision_definition
 
     implicit none
@@ -81,7 +80,6 @@ contains
 
     subroutine fcnnucl_Mg_expl(x,f,nn)
 
-        use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
         use parameters, only : expmu 
@@ -135,19 +133,9 @@ contains
 
         ! .. executable statements 
 
-        ! .. communication between processors
 
         ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg
-
-        if (rank.eq.0) then 
-            flag_solver = 1      !  continue program  
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(flag_solver, 1, MPI_INTEGER,dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(x, neqint , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        endif
 
         n=nsize
 
@@ -284,12 +272,13 @@ contains
         enddo
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
-        locallnproshift(2)=rank  
+        locallnproshift(2)=1  ! rank  
     
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
+        ! call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
+        !call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
-        lnproshift=globallnproshift(1)
+        ! lnproshift=globallnproshift(1)
+        lnproshift=locallnproshift(1)
          
         do c=1,cuantas                            ! loop over cuantas
 
@@ -384,18 +373,11 @@ contains
                 
         enddo ! cuantas loop
         
-        !   .. import results 
-
-        if (rank==0) then 
+    
 
             q = 0.0_dp 
             q = local_q
-            
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q = q + local_q
-            enddo
+        
 
             ! first graft point 
             do t=1,nsegtypes
@@ -413,31 +395,7 @@ contains
                 rhoqphos(i)=local_rhoqphos(i) 
             enddo
 
-            do i=1, numproc-1
-                source = i
-                do t=1,nsegtypes
-                    call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                    do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer density 
-                    enddo
-                enddo
-                
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then
-                        call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,&
-                                MPI_COMM_WORLD,stat,ierr)
-                        do k=1,nsize
-                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)! polymer density 
-                        enddo
-                    endif    
-                enddo
-
-                call MPI_RECV(local_rhoqphos, nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                do k=1,nsize
-                    rhoqphos(k)=rhoqphos(k)+local_rhoqphos(k) ! density  phosphate charge
-                enddo
-                
-            enddo     
+           
 
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
@@ -534,28 +492,7 @@ contains
            ! print*,"vnucl(1,ta)=",vnucl(1,ta)," ta=",ta
            ! print*,"vPP(Phos)=",vPP(phos)
         
-            
-        else                      ! Export results 
-            
-            dest = 0 
 
-            call MPI_SEND(local_q, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            do t=1,nsegtypes
-                call MPI_SEND(local_xpol(:,t),nsize, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            enddo
-
-            do t=1,nsegtypes
-                if(ismonomer_chargeable(t)) then
-                    call MPI_SEND(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,dest,tag,MPI_COMM_WORLD,ierr)
-                endif
-            enddo
-
-            call MPI_SEND(local_rhoqphos, nsize , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-            iter=iter+1
-
-        endif
 
     end subroutine fcnnucl_Mg_expl
 
@@ -565,7 +502,7 @@ contains
 
     subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
 
-        use mpivars
+       
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
         use parameters, only : vsol,vnucl
@@ -604,36 +541,7 @@ contains
 
 
         local_avfdisPP =0.0_dp
-        local_avfdisP2Mg =0.0_dp
-
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-
-        if(rank==0) then
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(rhopol_charge(:,ta) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then 
-                        call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                    endif
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            call MPI_RECV(rhopol_charge(:,ta) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes
-                if(ismonomer_chargeable(t)) then 
-                    call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                endif
-            enddo
-
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
+        local_avfdisP2Mg =0.0_dp    
 
         n=nsize
 
@@ -740,23 +648,12 @@ contains
         enddo
 
        
-        !   .. import results 
-
-        if (rank==0) then 
 
             avfdisP2Mg = local_avfdisP2Mg
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_avfdisP2Mg, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                  avfdisP2Mg = avfdisP2Mg + local_avfdisP2Mg
-            enddo
+          
 
             avfdisPP = local_avfdisPP
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_avfdisPP, 25, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                avfdisPP = avfdisPP + local_avfdisPP
-            enddo
+            
 
             ! .. construction of avfdisP2Mg and avfdisPP 
             ! .. normalized avfdisPP with number of average number pairs = integral of rhopol_charge(:,ta)
@@ -767,14 +664,6 @@ contains
             avfdisPP=avfdisPP/(sumrhopairs*q) ! also norm with q
             avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
             
-        else                      ! Export results 
-            
-            dest = 0 
-
-            call MPI_SEND(local_avfdisP2Mg, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(local_avfdisPP,25, MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-
-        endif
 
     end subroutine compute_average_charge_PP_expl
 
@@ -783,7 +672,6 @@ contains
 
     subroutine compute_FEchem_react_PP_expl(FEchemPP)
 
-        use mpivars
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
         use parameters, only : vsol,vnucl
@@ -824,34 +712,6 @@ contains
         local_FEchempair =0.0_dp
        
 
-        call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-
-        if(rank==0) then
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(rhopol_charge(:,ta) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then 
-                        call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                    endif
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            call MPI_RECV(rhopol_charge(:,ta) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes
-                if(ismonomer_chargeable(t)) then 
-                    call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                endif
-            enddo
-
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
 
         n=nsize
 
@@ -980,29 +840,17 @@ contains
        
         !   .. import results 
 
-        if (rank==0) then 
+      
 
             FEchempair= local_FEchempair
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(local_FEchempair, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                FEchempair = FEchempair + local_FEchempair
-            enddo
-
+           
             ! .. normalized FEchempair  with q 
             FEchempair = FEchempair/q 
 
             FEchemPP=FEchempair 
 
             
-        else                      ! Export results 
-            
-            dest = 0 
-
-            call MPI_SEND(local_FEchempair, 1 , MPI_DOUBLE_PRECISION, dest,tag, MPI_COMM_WORLD, ierr)
-            
-        endif
-
+      
     end subroutine compute_FEchem_react_PP_expl
 
    

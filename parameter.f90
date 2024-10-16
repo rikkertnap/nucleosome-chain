@@ -681,7 +681,7 @@ contains
         use physconst, only : Na
         use dielectric_const
         use myutils, only : print_to_log,LogUnit,lenText
-        use mpivars
+    !    use mpivars
         
         !     .. local variable
         
@@ -752,7 +752,7 @@ contains
             text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
             call print_to_log(LogUnit,text)
             print*,text
-            call MPI_FINALIZE(ierr)
+        !    call MPI_FINALIZE(ierr)
             stop
         endif   
         

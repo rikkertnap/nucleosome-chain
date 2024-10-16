@@ -3,7 +3,7 @@
 module volume      
 
     use precision_definition
-    use mpivars
+!    use mpivars
 
     implicit none
   

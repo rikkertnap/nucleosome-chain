@@ -9,7 +9,6 @@
 
 module conform_entropy
 
-    use mpivars
     use precision_definition
     implicit none
 
@@ -93,29 +92,10 @@ contains
 
         !  .. opens file to save Palpha 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            do t=1,nsegtypes
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-        endif    
 
         !     .. executable statements 
 
@@ -177,57 +157,20 @@ contains
         gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
 
-        ! communicate local quantities
 
-        if(rank==0) then
-
-            ! normalize
+        ! normalize from past mpi program
             
-            FEconf = FEconf_local
-            Econf = Econf_local
-            avRgsqr = Rgsqr_local
-            avRendsqr = Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local 
-            avnucl_spacing = nucl_spacing_local 
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
-            
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-               
-                FEconf=FEconf+FEconf_local
-                Econf =Econf +Econf_local
-                avRgsqr=avRgsqr+Rgsqr_local
-                avRendsqr=avRendsqr+Rendsqr_local
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local 
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
+        FEconf = FEconf_local
+        Econf = Econf_local
+        avRgsqr = Rgsqr_local
+        avRendsqr = Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local 
+        avnucl_spacing = nucl_spacing_local 
+        avgyr_tensor = gyr_tensor_local
+        avAsphparam = Asphparam_local
+        
+    
 
         if(write_Palpha) close(un)
 
@@ -270,23 +213,11 @@ contains
         
         !  .. opens file to save Palpha 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif   
 
-       ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-        endif    
+       
 
         !     .. executable statements 
 
@@ -347,8 +278,7 @@ contains
 
         ! communicate FEconf
 
-        if(rank==0) then
-            ! normalize
+       
            
             FEconf=FEconf_local
             Econf=Econf_local
@@ -360,53 +290,8 @@ contains
             avgyr_tensor = gyr_tensor_local 
             avAsphparam = Asphparam_local
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local,  1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local,   1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local,   1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                if(nangles>=1) then  
-                    call MPI_RECV(bond_angle_local, nangles,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(ndihedrals>=1) then
-                    call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(nbonds>=1) then 
-                    call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf+FEconf_local
-                Econf =Econf +Econf_local
-                avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local
-                avbond_angle = avbond_angle +bond_angle_local
-                avdihedral_angle = avdihedral_angle+ dihedral_angle_local 
-                avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local,  1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local,   1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local,   1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            if(nangles>=1) then 
-                call MPI_SEND(bond_angle_local, nangles,       MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(ndihedrals>=1) then 
-                call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(nbonds>=1) then
-                call MPI_SEND(nucl_spacing_local, nbonds ,     MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif 
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
+            
+       
 
         if(write_Palpha) close(un)
 
@@ -445,33 +330,12 @@ contains
         character(len=LenText) :: fname 
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif   
 
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes
-                call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
 
         !     .. executable statements 
 
@@ -538,8 +402,6 @@ contains
 
         ! communicate 
 
-        if(rank==0) then
-
             ! normalize
 
             FEconf=FEconf_local
@@ -552,42 +414,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf+FEconf_local
-                Econf =Econf +Econf_local             
-                avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
-                avnucl_spacing = avnucl_spacing+ nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
-
-
+           
         if(write_Palpha) close(un)
 
     end subroutine FEconf_brush_mul
@@ -626,33 +453,11 @@ contains
 
 
         if(write_Palpha) then
-             call make_filename_Palpha(fname,rank)
+             call make_filename_Palpha(fname,0)
              open(unit=newunit(un),file=fname)
         endif
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes
-                call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
+        
 
         !     .. executable statements 
 
@@ -718,10 +523,7 @@ contains
         gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
 
-        ! communicate FEconf
-
-        if(rank==0) then
-            ! normalize
+        
            
             FEconf =FEconf_local
             Econf  =Econf_local
@@ -733,43 +535,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf +FEconf_local
-                Econf =Econf + Econf_local      
-                avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
-                avnucl_spacing = avnucl_spacing+ nucl_spacing_local
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        
-        endif
-
+           
         if(write_Palpha) close(un)
 
     end subroutine FEconf_brush_mulnoVdW
@@ -808,31 +574,13 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif   
  
         ! .. executable statements 
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(fdisA(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(fdisB(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            call MPI_RECV(fdisA(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)    
-            call MPI_RECV(fdisB(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif
+        
             
         do i=1,nsize
               lnexppiA(i)=log(xsol(i))*vpolA(1)-zpolA(1)*psi(i)-log(fdisA(i,1)) ! auxiliary variable
@@ -891,8 +639,6 @@ contains
 
         ! communicate FEconf
 
-        if(rank==0) then
-            ! normalize
             
             FEconf=FEconf_local
             Econf=Econf_local
@@ -904,41 +650,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
             
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf + FEconf_local 
-                Econf= Econf  + Econf_local  
-                avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local  
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle +dihedral_angle_local
-                avnucl_spacing = avnucl_spacing+ nucl_spacing_local
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
-                avAsphparam = avAsphparam + Asphparam_local
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
+           
 
         Econf=0.0_dp
          
@@ -990,7 +702,7 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif   
 
@@ -1000,38 +712,7 @@ contains
         tcfdis(2)=4
         tcfdis(3)=6
         
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(epsfcn, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(Depsfcn, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,3
-                    tc=tcfdis(t)
-                    call MPI_SEND(fdisA(:,tc) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo    
-                do t=1,nsegtypes
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-            call MPI_RECV(epsfcn, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(Depsfcn, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            do t=1,3
-                tc=tcfdis(t)
-                call MPI_RECV(fdisA(:,tc) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)    
-            enddo
-            do t=1,nsegtypes
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
-
+        
         !     .. executable statements 
 
         ! gradient potential contribution to PDF
@@ -1145,9 +826,7 @@ contains
         gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
 
-        ! communicate 
-
-        if(rank==0) then
+        
 
             ! normalize
              
@@ -1161,42 +840,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local 
             
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr) 
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr) 
-
-                FEconf=FEconf + FEconf_local 
-                Econf= Econf  + Econf_local  
-                avRgsqr=avRgsqr+Rgsqr_local   
-                avRendsqr=avRendsqr+Rendsqr_local   
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local 
-                           
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(nucl_spacing_local, nbonds , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
-       
+           
         if(write_Palpha) close(un)
 
     end subroutine FEconf_brush_born
@@ -1235,33 +879,9 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif   
-
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes
-                call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
 
         !     .. executable statements 
         do i=1,nsize   
@@ -1335,8 +955,6 @@ contains
         
         ! communicate 
 
-        if(rank==0) then
-
             ! normalize
 
             FEconf=FEconf_local
@@ -1349,54 +967,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
 
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                if(nangles>=1) then 
-                    call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                endif
-                if(ndihedrals>=1) then
-                    call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,&
-                        tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(nbonds>=1) then
-                    call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif 
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf+ FEconf_local
-                Econf =Econf + Econf_local             
-                avRgsqr=avRgsqr+ Rgsqr_local   
-                avRendsqr=avRendsqr+ Rendsqr_local
-                avbond_angle = avbond_angle+ bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
-                avAsphparam = avAsphparam + Asphparam_local 
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            if(nangles>=1) then
-                call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(ndihedrals>=1) then
-                call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(nbonds>=1) then
-                call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-         endif
+             
          
          if(write_Palpha) close(un)
 
@@ -1442,57 +1013,11 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then
-                        if(t/=ta) then
-                            if(type_of_charge(t)=="A") then
-                                call MPI_SEND(gdisA(:,1,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                            else 
-                                call MPI_SEND(gdisB(:,2,t), nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                            endif
-                        else 
-                            do jj=1,maxneigh
-                                call MPI_SEND(fdisPP(:,jj,Phos,Phos), len_index_phos , MPI_DOUBLE_PRECISION,&
-                                    dest, tag,MPI_COMM_WORLD,ierr)  
-                            enddo
-                        endif
-                    endif            
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes 
-                if(ismonomer_chargeable(t)) then
-                    if(t/=ta) then
-                        if(type_of_charge(t)=="A") then
-                            call MPI_RECV(gdisA(:,1,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                        else
-                            call MPI_RECV(gdisB(:,2,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
-                        endif
-                    else
-                        do jj=1,maxneigh
-                            call MPI_RECV(fdisPP(:,jj,Phos,Phos) , len_index_phos, MPI_DOUBLE_PRECISION, &
-                                source,tag, MPI_COMM_WORLD,stat, ierr)   
-                        enddo
-                    endif
-                endif              
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
+        
 
         !     .. executable statements 
         do i=1,nsize   
@@ -1601,7 +1126,7 @@ contains
 
         ! communicate 
 
-        if(rank==0) then
+      
 
             ! normalize
 
@@ -1616,55 +1141,7 @@ contains
             avAsphparam = Asphparam_local
 
 
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                if(nangles>=1) then
-                    call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                endif
-                if(ndihedrals>=1) then
-                    call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,&
-                    tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(nbonds>=1) then
-                    call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf + FEconf_local
-                Econf =Econf + Econf_local             
-                avRgsqr=avRgsqr + Rgsqr_local   
-                avRendsqr=avRendsqr + Rendsqr_local
-                avbond_angle = avbond_angle + bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
-                avAsphparam = avAsphparam + Asphparam_local
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            if(nangles>=1) then 
-                 call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(ndihedrals>=1) then
-                call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif 
-            if(nbonds>=1) then 
-                call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
-        
+            
         if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_ionbin_Mg
@@ -1707,47 +1184,9 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif
-
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, numproc-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    if(ismonomer_chargeable(t)) then
-                        if(t/=ta) then
-                            if(type_of_charge(t)=="A") then
-                                call MPI_SEND(gdisA(:,1,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                            else 
-                                call MPI_SEND(gdisB(:,2,t), nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                            endif
-                        endif
-                    endif            
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
-            do t=1,nsegtypes 
-                if(ismonomer_chargeable(t)) then
-                    if(t/=ta) then
-                        if(type_of_charge(t)=="A") then
-                            call MPI_RECV(gdisA(:,1,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-                        else
-                            call MPI_RECV(gdisB(:,2,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
-                        endif
-                    endif
-                endif              
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
-        endif    
 
         !     .. executable statements 
         do i=1,nsize   
@@ -1856,8 +1295,7 @@ contains
         Asphparam_local = Asphparam_local/q
         ! communicate 
 
-        if(rank==0) then
-
+       
             ! normalize
 
             FEconf=FEconf_local
@@ -1870,55 +1308,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
 
-            do i=1, numproc-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                if(nangles>=1) then
-                    call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                endif
-                if(ndihedrals>=1) then
-                    call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,&
-                    tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(nbonds>=1) then
-                    call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf + FEconf_local
-                Econf =Econf + Econf_local             
-                avRgsqr=avRgsqr + Rgsqr_local   
-                avRendsqr=avRendsqr + Rendsqr_local
-                avbond_angle = avbond_angle + bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local 
-                avAsphparam = avAsphparam + Asphparam_local
-
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            if(nangles>=1) then 
-                 call MPI_SEND(bond_angle_local, nangles, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(ndihedrals>=1) then
-                call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif 
-            if(nbonds>=1) then 
-                call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
-        
+            
         if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_ionbin_MgA    
@@ -1955,31 +1345,12 @@ contains
         character(len=lenText) :: fname
 
         if(write_Palpha) then
-            call make_filename_Palpha(fname,rank)
+            call make_filename_Palpha(fname,0)
             open(unit=newunit(un),file=fname)
         endif
 
-        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
-
-        if(rank==0) then
-            do i = 1, size-1
-                dest = i
-                call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                do t=1,nsegtypes
-                    call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-            enddo
-        else
-            source = 0 
-            call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            do t=1,nsegtypes
-                call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            enddo
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-        endif    
-
-        !     .. executable statements 
+    
+        ! .. executable statements 
 
         do i=1,nsize
             lnexppi(i) = log(xsol(i))/vsol 
@@ -2039,7 +1410,7 @@ contains
 
         ! communicate local quantities
 
-        if(rank==0) then
+        
 
             ! normalize
             
@@ -2053,53 +1424,7 @@ contains
             avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
             
-            do i=1, size-1
-                source = i
-                call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rgsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                call MPI_RECV(Rendsqr_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
-                if(nangles>=1) then
-                    call MPI_RECV(bond_angle_local, nangles, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(ndihedrals>=1) then
-                    call MPI_RECV(dihedral_angle_local,ndihedrals,MPI_DOUBLE_PRECISION,source,&
-                    tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                if(nbonds>=1) then
-                    call MPI_RECV(nucl_spacing_local,nbonds,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                endif
-                call MPI_RECV(gyr_tensor_local,9,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-                call MPI_RECV(Asphparam_local,1,MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
-
-                FEconf=FEconf+FEconf_local
-                Econf =Econf +Econf_local
-                avRgsqr=avRgsqr+Rgsqr_local
-                avRendsqr=avRendsqr+Rendsqr_local
-                avbond_angle = avbond_angle+bond_angle_local
-                avdihedral_angle =  avdihedral_angle + dihedral_angle_local
-                avnucl_spacing = avnucl_spacing + nucl_spacing_local 
-                avgyr_tensor = avgyr_tensor + gyr_tensor_local
-                avAsphparam = avAsphparam + Asphparam_local
-            enddo 
-        else     ! Export results
-            dest = 0
-            call MPI_SEND(FEconf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Econf_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rgsqr_local, 1 , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Rendsqr_local, 1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            if(nangles>=1) then
-                call MPI_SEND(bond_angle_local, nangles , MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(ndihedrals>=1) then    
-                call MPI_SEND(dihedral_angle_local,ndihedrals, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            if(nbonds>=1) then
-                call MPI_SEND(nucl_spacing_local,nbonds, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            endif
-            call MPI_SEND(gyr_tensor_local,9, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(Asphparam_local,1, MPI_DOUBLE_PRECISION, dest, tag, MPI_COMM_WORLD, ierr)
-        endif
+            
 
         if(write_Palpha) close(un)
 
@@ -2114,12 +1439,12 @@ contains
         character(len=*), intent(inout) :: fname
         integer, intent(in) :: rank
 
-        character(len=lenText) :: fnamelabel, istr
+        character(len=lenText) :: fnamelabel !, istr
 
-        write(istr,'(I4)')rank
+        !write(istr,'(I4)')rank
         call make_filename_label(fnamelabel)
-        fname='Palpha.'//trim(fnamelabel)//'rank'//trim(adjustl(istr))//'.dat'
-
+        !fname='Palpha.'//trim(fnamelabel)//'rank'//trim(adjustl(istr))//'.dat'
+        fname='Palpha.'//trim(fnamelabel)//'.dat'
     end subroutine make_filename_Palpha
 
 
