@@ -955,21 +955,19 @@ contains
         
         ! communicate 
 
-            ! normalize
+        ! normalize
 
-            FEconf=FEconf_local
-            Econf =Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
-
-             
+        FEconf=FEconf_local
+        Econf =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avgyr_tensor = gyr_tensor_local
+        avAsphparam = Asphparam_local     
          
-         if(write_Palpha) close(un)
+        if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_ionbin_sv
 
