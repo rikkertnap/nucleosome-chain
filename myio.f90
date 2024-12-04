@@ -96,6 +96,7 @@ subroutine read_inputfile(info)
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
     logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
+    logical :: isSet_isRandom_pos_graft, isSet_seed_graft, isSet_scale_ran_step
 
     if (present(info)) info = 0
 
@@ -121,6 +122,9 @@ subroutine read_inputfile(info)
     isSet_pbc_chains   =.false.
     isSet_GBtype       =.false.
     isSet_GBCOMtype    =.false.
+    isSet_isRandom_pos_graft =.false.
+    isSet_seed_graft   = .false.
+    isSet_scale_ran_step =.false.
 
     write_mc_chains    =.false.
     write_struct       =.false.
@@ -265,7 +269,20 @@ subroutine read_inputfile(info)
             case ('geometry')
                 read(buffer,*,iostat=ios) geometry
             case ('sgraft')
-                read(buffer,*,iostat=ios) sgraftpts(1),sgraftpts(2),sgraftpts(3)  
+                read(buffer,*,iostat=ios) sgraftpts(1),sgraftpts(2),sgraftpts(3) 
+            case ('ngr_freq')
+                read(buffer,*,iostat=ios) ngr_freq
+            case ('nset_per_graft')
+                read(buffer,*,iostat=ios) nset_per_graft
+            case ('isRandom_pos_graft')
+                read(buffer,*,iostat=ios) isRandom_pos_graft
+                isSet_isRandom_pos_graft=.true.
+            case ('seed_graft')
+                read(buffer,*,iostat=ios) seed_graft
+                isSet_seed_graft=.true.
+            case ('scale_ran_step')
+                read(buffer,*,iostat=ios) scale_ran_step
+                isSet_scale_ran_step=.true.    
             case ('gamma')
                 read(buffer,*,iostat=ios) gamma
             case ('write_mc_chains')
@@ -417,6 +434,9 @@ subroutine read_inputfile(info)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
+    call set_value_logical_var(isRandom_pos_graft,isSet_isRandom_pos_graft,.false.)
+    call set_value_int_var(seed_graft,isSet_seed_graft,12345)
+    call set_value_double_var(scale_ran_step,isSet_scale_ran_step,1.25_dp)
 
     ! check value after set value
 

@@ -17,7 +17,15 @@ module chain_rotation
 
 contains  
 
-!Euler rotation Z1X2Z3
+! Euler rotation Z1X2Z3
+!
+! pre  : xend hold coordinate of chain conformation : size(xend)=(3,nseg+1)
+!        xend(:,1)=(0,0,0) : anchor  
+! post : xendr holds coordinate of chain conformation rotated 
+!   order of coordinate 
+!   xend(1,) = z-coordinate
+!   xend(2,) = x-coordinate 
+!   xend(3,) = y-coordinate
 
 function rotation(xend,xendr,nseg)result(is_positive_z)
   
@@ -473,7 +481,7 @@ end subroutine
 
 
 ! Make rotation axis/angle for all nnucl nucleosome
-! Apply rotation for all nucleosome to chain_elem retruned in chain_elem_rot
+! Apply rotation for all nucleosome to chain_elem returned in chain_elem_rot
 
 
 subroutine rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem,chain_elem_rot,&
@@ -625,6 +633,77 @@ subroutine unit_test_rotation(info)
 
 
 end subroutine unit_test_rotation
+
+! random rotation chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j 
+
+subroutine rotate_chain_elem_index(nseg,nelem,chain_elem_index,chain_elem_index_rot) 
+
+    use random
+    use mathconst
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(in) ::chain_elem_index
+    type(var_darray), dimension(:,:), allocatable, intent(inout) ::chain_elem_index_rot
+
+    integer :: s, i, j, k
+    real(dp) :: fac,fac1,fac2
+    real(dp) :: sbe,cbe,sal,cal,sga
+    real(dp) :: alfa,gama,cga
+    real(dp) :: Rmat(3,3), vec(3), vec_rot(3)
+    
+    !print*,"rotate_chain_elem_index: seed=",seed
+    !seed=      871344
+    print*,"rotate_chain_elem_index: seed=",seed
+    ! random orientation angle number on a sphere
+    fac =rands(seed)
+    fac1=rands(seed)
+    fac2=rands(seed)
+
+    alfa=fac*2.0_dp*pi
+    cbe=fac1*2.0_dp-1.0_dp
+    gama=fac2*2.0_dp*pi
+  
+    sbe=(1.0_dp-cbe**2)**0.5_dp
+    cal=cos(alfa)
+    sal=sin(alfa)
+    cga=cos(gama)
+    sga=sin(gama)
+
+    ! rotation matrix
+
+    Rmat(1,1) = -cbe*sal*sga+cal*cga
+    Rmat(1,2) = -(cbe*sal*cga+cal*sga)
+    Rmat(1,3) = sbe*sal
+    Rmat(2,1) = cbe*cal*sga+sal*cga
+    Rmat(2,2) = cbe*cal*cga-sal*sga
+    Rmat(2,3) = -sbe*cal
+    Rmat(3,1) = sbe*sga
+    Rmat(3,2) = sbe*cga
+    Rmat(3,3) = cbe 
+  
+    ! apply rotation
+
+    do s=1,nseg              ! loop over segments
+        do j=1,nelem(s)      ! loop over number of elements for segment s 
+
+            do i=1,3
+                vec(i)=chain_elem_index(i,s)%elem(j)
+            enddo
+                
+            vec_rot = matmul(Rmat,vec) 
+            
+            do i=1,3
+                chain_elem_index_rot(i,s)%elem(j)=vec_rot(i)
+            enddo
+            
+            ! chain_elem_index_rot(:,s)%elem(j)=matmul(Rmat,chain_elem_index(:,s)%elem(j)) 
+        
+        enddo     
+    enddo    
+
+end subroutine rotate_chain_elem_index
 
 
 end module chain_rotation

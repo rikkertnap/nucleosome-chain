@@ -733,6 +733,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     use volume, only   :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
     use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
+    ! Extra ....
+    use chain_rotation, only : rotate_chain_elem_index
+    
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
@@ -740,13 +743,14 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : error_handler
     use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
     use VdW_potential, only : make_com_nucl_rotation
+    use volume, only : position_graft
     ! .. argument
 
     integer, intent(out) :: info
 
     ! .. local variables
 
-    integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos ! dummy indices
+    integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos , gpt ! dummy indices
     integer :: idx                  ! index label
     integer :: ix,iy,iz,idxtmp 
     integer :: conf,conffile        ! counts number of conformations  
@@ -758,6 +762,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
     integer  :: xi,yi,zi, ri(3)
+    real(dp) :: rzmin(3),rtranslate(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc             ! coordinates            
@@ -789,6 +794,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   :: chain_elem  
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
+
+    type(var_darray), dimension(:,:), allocatable   ::  chain_elem_index_rot
+
     real(dp) :: rcom(3,nnucl)
     
     integer :: un_traj, info_traj
@@ -919,7 +927,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     call allocate_nucl_chain_elements(nnucl,nsegAA,nelemAA,chain_elem_rot) 
     call allocate_chain_elements(nseg,nelem,chain_elem_index)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
-    
+
+    ! EXTRA !!! tijdenlijk 
+    call allocate_chain_elements(nseg,nelem,chain_elem_index_rot)
+
     ! pairs variable 
     if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA") then 
         call allocate_indexconfpair(cuantas,nseg)
@@ -1040,14 +1051,39 @@ subroutine read_chains_xyz_nucl_volume(info)
             ! 5. add chain+chain_elem_rot together
             
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
-                chain_rot,chain_elem_rot,chain_elem_index) 
+                chain_rot,chain_elem_rot,chain_elem_index)    
 
+            ! 5.a. tethered conformation to z=0 plane 
+            ! 5.b. rotate random 
 
-            if(DEBUG)then
+            call rotate_chain_elem_index(nseg,nelem,chain_elem_index,chain_elem_index_rot)
+
+            ! 5.c.  
+            call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
+
+            ! determine translatevector  chain_elem_index such 
+            ! such that the object is  anchored at z=zcm, and x=position_graft(1,1)+xcm
+            ! write_chain_elem_index_lammps_trj translate T=(xcm,ycm,zcm)
+
+            gpt =int(rank/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
+            print*,"gpt=",gpt
+        
+            rtranslate(3) = -zcm -rzmin(3)
+            rtranslate(1) = -xcm -rzmin(1)+ position_graft(gpt,1)
+            rtranslate(2) = -ycm -rzmin(2)+ position_graft(gpt,2)
+
+            print*,"rzmin=",rzmin
+            print*,"position_graft(",gpt,",1)=",position_graft(gpt,1)
+            print*,"position_graft(",gpt,",2)=",position_graft(gpt,2)
+
+            call translate_chain_elem_index(nseg,nelem,chain_elem_index_rot,rtranslate) 
+
+            !if(DEBUG)then
                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
-                call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
+                call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_rot)
                 close(un_traj)
-            endif     
+            !endif  
+
 
             ! 6. make indexconfig i.e. place conformation on lattice
 
@@ -1087,8 +1123,8 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                     endif
 
-                    ! apply elements other than CA
-                    do j=2,nelem(s) 
+                    ! apply elements 
+                    do j=2,nelem(s) ! include j=1
 
                         if(pbc_chains) then 
                             chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
@@ -1106,7 +1142,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                         
                         call linearIndexFromCoordinate(xi,yi,zi,idx)
                         
-                        indexconf(s,conf)%elem(j) = idx ! all other element
+                        indexconf(s,conf)%elem(j) = idx ! all element
 
                         if(idx<=0.or.idx>nsize) then   
 
@@ -3740,8 +3776,67 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
 
 end subroutine add_chain_rot_and_chain_elem_rot
 
+
+! Translate chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j by 
+! translation_vector(k)
+
+subroutine translate_chain_elem_index(nseg,nelem,chain_elem_index,translation_vector) 
+
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(inout) ::chain_elem_index
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, j, k
+
+    do s=1,nseg              ! loop over segment
+        do j=1,nelem(s)      ! loop over number of chain elements for segment s 
+            do k=1,3
+                chain_elem_index(k,s)%elem(j)= chain_elem_index(k,s)%elem(j)+translation_vector(k)
+            enddo
+        enddo 
+    enddo     
+
+end subroutine translate_chain_elem_index
+
+! Finds minimal z-value of  object chain_elem_index
+
+subroutine find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index,rmin)
+
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem 
+    type(var_darray), dimension(:,:), allocatable, intent(in) :: chain_elem_index
+    real(dp), dimension(3), intent(inout) :: rmin
+
+    integer :: n, s, j, k
+    real(dp) :: zmin,ztemp
+
+    do k=1,3
+        rmin(k)=chain_elem_index(k,1)%elem(1)
+    enddo
+
+    zmin=rmin(3)
+
+    do s=1,nseg              ! loop over segments
+        do j=1,nelem(s)      ! loop over number of chain elements for segment s 
+            ztemp=chain_elem_index(3,s)%elem(j)
+            if(ztemp<=zmin) then 
+                zmin=ztemp
+                do k=1,3
+                    rmin(k)=chain_elem_index(k,s)%elem(j)
+                enddo 
+            endif    
+        enddo 
+    enddo  
+
+end subroutine 
+
 ! Finds phosphate pairs for given conformation number conf.
-! Assigns  nneigh(s,conf) and indexconfpair9s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
 
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
 

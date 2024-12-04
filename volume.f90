@@ -24,16 +24,25 @@ module volume
     character(len=11) :: geometry
 
     ! variable for grafting position
-
-    ! integer :: sgraftpts(3)         ! triplet of units number of histone that is rotated into fixed orientation
-    ! integer, dimension(:), allocatable :: sRg ! unit numbers of AA in histone close to cm of : number of number = nnucl
+    
+    integer :: ngr                  ! total number of graft points    
+    integer :: ngr_node             ! number of grafted areas assigned to an individual node
+    integer :: ngr_freq             ! frequence spacing in terms of delta 
+    integer :: ngrx                 ! total number of graft points along x-axis 
+    integer :: ngry                 ! total number of graft points along y-axis                                                       
+    logical :: isRandom_pos_graft   ! true random position, false regual pattern
+    integer :: seed_graft           ! seed for graft points 
+    real(dp) :: scale_ran_step      ! scale random postition,minimum value =1.0 =half ngr_freq
+    integer :: sgraft               ! item number of graft point to which loop is attached 
+    integer :: nset_per_graft       ! number of confomation set to read in graft point
+    real(dp), dimension(:,:), allocatable :: position_graft
+   
 
     ! hash table
     integer, dimension(:,:,:), allocatable :: coordtoindex 
     integer, dimension(:,:),  allocatable  :: indextocoord
-
-   integer, dimension(:,:), allocatable   :: indexneighbor
-!    integer, dimension(:,:), allocatable   :: inverse_indexneighbor
+    integer, dimension(:,:), allocatable   :: indexneighbor
+    !    integer, dimension(:,:), allocatable   :: inverse_indexneighbor
     integer, dimension(:,:), allocatable   :: inverse_indexneighbor_phos
 
     private
@@ -42,13 +51,15 @@ module volume
     public :: gamma,cos_two_beta, sin_two_beta
     public :: indexneighbor !, inverse_indexneighbor, 
     public :: inverse_indexneighbor_phos
-    public :: coordtoindex,indextocoord
+    public :: coordtoindex, indextocoord
     public :: coordinateFromLinearIndex, linearIndexFromCoordinate
     public :: xt, yt, ut, vt, ipbc
     public :: make_geometry
-
     public :: allocate_index_neighbors_phos, make_table_index_neighbors_phos
+    public :: position_graft, isRandom_pos_graft , ngr, ngr_freq, nset_per_graft, seed_graft
+    public :: scale_ran_step
 
+    
 contains
 
     subroutine init_lattice
@@ -78,9 +89,12 @@ contains
         volcell = delta*delta*delta*1.0_dp     ! volume of one latice volume 
         areacell = delta*delta
         nsurf = nx*ny  
-
-        areasurf=nsurf*delta*delta
+        areasurf = nsurf*delta*delta
       
+        ! setup graft points
+
+        call make_graftpoints
+
         ! use of hash table 
         call allocate_hashtable(nx,ny,nz)
         call make_hashtable()
@@ -412,6 +426,166 @@ contains
         enddo
 
     end subroutine make_table_index_neighbors_phos
+
+
+    ! Assins positions to position_graft
+    ! real(dp) position_graft(ngr,2) holds position  
+
+    subroutine init_graftpoints()
+
+        use random 
+
+        integer :: i, j, ig
+        real(dp) :: rnd
+        real(dp) :: u, v
+
+        ! array of regular graft points positions
+
+        ig = 1   
+        do i=1,ngrx            ! location graft points 
+            do j=1,ngry
+                position_graft(ig,1) = (i-0.5_dp)*delta*ngr_freq
+                position_graft(ig,2) = (j-0.5_dp)*delta*ngr_freq
+                ig = ig + 1
+            enddo
+        enddo
+        
+        ! array of regular graft points plus random shift 
+
+        if(isRandom_pos_graft) then
+ 
+            seed=seed_graft         ! randomize
+
+            do ig=1,ngr          
+                rnd = (rands(seed)-0.5_dp)*ngr_freq/scale_ran_step
+                position_graft(ig,1) = position_graft(ig,1) + delta*rnd
+                rnd = (rands(seed)-0.5_dp)*ngr_freq/scale_ran_step
+                position_graft(ig,2) = position_graft(ig,2) + delta*rnd
+            enddo
+        
+        endif  
+      
+        ! position_graft is on a regular square pattern applicable to geometry ="cubic" 
+        ! For hexagonal/oblique geometry one needs to tranform (u,v) to (x,y),
+        ! then above square pattern becomes a hexagonal/oblique pattern. 
+
+        if(geometry=="prism") then 
+
+            do ig=1,ngr   
+                u = position_graft(ig,1)
+                v = position_graft(ig,2)  
+                position_graft(ig,1) = xt(u, v)  
+                position_graft(ig,2) = yt(u, v)
+            enddo    
+        
+        endif   
+
+    end subroutine init_graftpoints
+
+    ! Writes position_graft(ngr,2) to a file only if DEBUG==.true. or rank ==
+
+    subroutine write_graftpoints(info)
+
+        use globals, only : DEBUG
+        use myutils, only : newunit,lenText
+
+        integer, intent(out) :: info
+
+        character(len=lenText) :: fname, istr
+        integer :: ios, un_pgpt
+        character(len=100) :: io_msg
+        integer :: ig 
+        
+        
+        !if(DEBUG.or.rank==0) then
+        if(.true.) then
+            info = 0
+
+            write(fname,'(A18)')'positiongraft-rank'
+            write(istr,'(I4)')rank
+            fname=trim(fname)//trim(adjustl(istr))//'.dat'
+            open(unit=newunit(un_pgpt),file=fname,iostat=ios,iomsg=io_msg)
+            if(ios >0 ) then
+                print*, 'Error opening positiongraftpt.dat file : iostat =', ios
+                print*, 'Error message : ',trim(io_msg)
+                info = 1 !myio_err_inputfile
+                return
+            endif
+
+            do ig=1,ngr          
+                write(un_pgpt,*)position_graft(ig,1),position_graft(ig,2) 
+            enddo
+
+            close(un_pgpt)
+
+        else
+
+            info = 1
+        
+        endif         
+
+    end subroutine write_graftpoints
+
+
+    ! Set up and assigns variable asociated with grafting points 
+
+    subroutine set_var_graftpoints(info)
+   
+        integer, intent(out) :: info
+
+        info = 0
+        ! temporary init of auxilary variable needs to be read in for input.in
+        ! ngr_freq = nx
+        ! isRandom_pos_graft = .true.
+        ! seed_graft  = 123456
+        !scale_ran_step = 1.0_dp
+        ! 
+        print*,"scale_ran_step=",scale_ran_step
+
+        ngrx = int(nx/ngr_freq)
+        ngry = int(ny/ngr_freq)
+        ngr  = int(nx/ngr_freq)*int(ny/ngr_freq) ! number of surface elements to be end-grafted with chains
+
+        ! check ngr_freq compatible with nx and ny 
+        
+        if(.not.(mod(nx,ngr_freq).eq.0))then 
+             print*,"ngr test for x-direction failed: exiting"
+             print*,"nx= ",nx," ngr_freq = ",ngr_freq
+             info = 1
+             stop
+        endif  
+
+        if(.not.(mod(ny,ngr_freq).eq.0)) then 
+             print*,"ngr test for y-direction  failed: exiting"
+             print*,"ny= ",ny," ngr_freq = ",ngr_freq
+             info = 1
+             stop
+        endif      
+        
+        !  check if values of nset_per_graft and numproc are compatible
+        
+        if((ngr*nset_per_graft)/=numproc) then
+            print*,"nset_per_graft test failed: exiting"
+            print*,"nset_per_graft=",nset_per_graft,"ngr=",ngr,"numproc=",numproc
+            info = 1
+            stop
+        endif
+
+        allocate(position_graft(ngr,2)) ! only after ngr has been established position_graft can be allocated
+
+    end subroutine set_var_graftpoints
+
+
+    subroutine make_graftpoints()
+
+        integer :: info
+
+        call set_var_graftpoints(info)
+        call init_graftpoints()
+        call write_graftpoints(info)
+
+    end subroutine make_graftpoints
+
 
 end module volume
   
