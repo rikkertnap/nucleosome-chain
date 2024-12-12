@@ -99,6 +99,8 @@ contains
         call allocate_hashtable(nx,ny,nz)
         call make_hashtable()
 
+        ! call write_hashtable()
+
         ! this should go somewhere else
  
         if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
@@ -259,21 +261,64 @@ contains
 
         use globals, only : nsize
 
-        integer :: idx, ix, iy, iz
+        integer :: idx, ix, iy, iz ,idxtmp
             
         do idx=1,nsize
             
             call coordinateFromLinearIndex(idx, ix, iy,iz)
-
             coordtoindex(ix,iy,iz)=idx
             
             indextocoord(idx,1)=ix
             indextocoord(idx,2)=iy
             indextocoord(idx,3)=iz
 
+            ! ..check 
+            call LinearIndexFromCoordinate(ix,iy,iz,idxtmp)
+            if(idx/=idxtmp)then
+                print*,"Error in hashtable :idx=",idx," not equal to idxtmp",idxtmp
+            endif
+            
         enddo
         
     end subroutine make_hashtable
+
+    subroutine write_hashtable
+
+        use globals, only : nsize
+        use myutils, only : lenText, newunit, error_handler
+
+        integer :: idx, ix, iy, iz, idxtmp
+        integer :: ios, un, info
+        character(len=20) :: fname, istr
+        character(len=lenText) :: text   
+        character(len=100) :: io_msg  
+
+        write(istr,'(I4)')rank
+        fname='hashtable.'//trim(adjustl(istr))//'.dat'
+        open(unit=newunit(un),file=fname,iostat=ios,status='new',iomsg=io_msg)
+        if(ios >0 ) then
+            write(istr,'(I4)')ios
+            text='Error opening hashtable file : iostat ='//istr
+            print*,text
+            print*, 'Error message : ',trim(io_msg)
+            info=1
+            call error_handler(info,text)
+        endif
+
+        write(un,*)nsize
+
+        do idx=1,nsize
+            
+            ix=indextocoord(idx,1)
+            iy=indextocoord(idx,2)
+            iz=indextocoord(idx,3)
+
+            write(un,*)idx,ix,iy,iz
+        enddo
+
+        close(un)
+
+    end subroutine write_hashtable
 
     ! compute periodic boundary condition in integer units 
     ! real(dp) version  : pbbc is located in chaingenerator  
@@ -534,14 +579,7 @@ contains
         integer, intent(out) :: info
 
         info = 0
-        ! temporary init of auxilary variable needs to be read in for input.in
-        ! ngr_freq = nx
-        ! isRandom_pos_graft = .true.
-        ! seed_graft  = 123456
-        !scale_ran_step = 1.0_dp
-        ! 
-        print*,"scale_ran_step=",scale_ran_step
-
+         
         ngrx = int(nx/ngr_freq)
         ngry = int(ny/ngr_freq)
         ngr  = int(nx/ngr_freq)*int(ny/ngr_freq) ! number of surface elements to be end-grafted with chains

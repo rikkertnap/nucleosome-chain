@@ -89,7 +89,7 @@ contains
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg 
-        use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
+        use volume, only     : volcell, indexneighbor, nset_per_graft !, inverse_indexneighbor_phos
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : energychainLJ, no_overlapchain
@@ -119,7 +119,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind,g        ! dummy indices
         integer  :: JJ, KK
         integer  :: ix,iy
         real(dp) :: norm, normvol,normPE, normscf
@@ -389,36 +389,39 @@ contains
         if (rank==0) then 
 
             q = 0.0_dp 
-            q = local_q
+            g=1
+            q(g) = local_q
             
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q = q + local_q
+                q(g) = q(g) + local_q
             enddo
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction density 
+                    xpol(i,t)=local_xpol(i,t)/q(1) ! polymer volume fraction density 
                 enddo
                 if(ismonomer_chargeable(t)) then
                     do i=1,nsize
-                        rhopol_charge(i,t)=local_rhopol_charge(i,t)   ! polymer density of charge center
+                        rhopol_charge(i,t)=local_rhopol_charge(i,t)/q(1)   ! polymer density of charge center
                     enddo    
                 endif   
             enddo
 
             do i=1,nsize
-                rhoqphos(i)=local_rhoqphos(i) 
+                rhoqphos(i)=local_rhoqphos(i)/q(1) 
             enddo
 
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1
                 do t=1,nsegtypes
                     call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer density 
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)/q(g)! polymer density 
                     enddo
                 enddo
                 
@@ -427,14 +430,14 @@ contains
                         call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,&
                                 MPI_COMM_WORLD,stat,ierr)
                         do k=1,nsize
-                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)! polymer density 
+                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)/q(g)! polymer density 
                         enddo
                     endif    
                 enddo
 
                 call MPI_RECV(local_rhoqphos, nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                 do k=1,nsize
-                    rhoqphos(k)=rhoqphos(k)+local_rhoqphos(k) ! density  phosphate charge
+                    rhoqphos(k)=rhoqphos(k)+local_rhoqphos(k)/q(g) ! density  phosphate charge
                 enddo
                 
             enddo     
@@ -442,7 +445,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell)!/q 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -571,8 +574,8 @@ contains
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta,isVdW! isrhoselfconsistent 
-        use volume, only     : nx, ny, nz
-        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
+        use volume, only     : nx, ny, nz, ngr
+        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor, nset_per_graft
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : energychainLJ, no_overlapchain
@@ -588,7 +591,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge,g                 ! dummy indices
         integer  :: k_ind, m_ind
         integer  :: JJ, KK
         real(dp) :: local_avfdisP2Mg,local_avfdisPP(5,5)
@@ -619,7 +622,7 @@ contains
                         call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     endif
                 enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(q , ngr , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -632,7 +635,7 @@ contains
                 endif
             enddo
 
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+            call MPI_RECV(q , ngr, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif    
 
         n=nsize
@@ -743,19 +746,21 @@ contains
         !   .. import results 
 
         if (rank==0) then 
-
-            avfdisP2Mg = local_avfdisP2Mg
+        
+            avfdisP2Mg = local_avfdisP2Mg/q(1)
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1
                 call MPI_RECV(local_avfdisP2Mg, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                  avfdisP2Mg = avfdisP2Mg + local_avfdisP2Mg
+                  avfdisP2Mg = avfdisP2Mg + local_avfdisP2Mg/q(g)
             enddo
 
-            avfdisPP = local_avfdisPP
+            avfdisPP = local_avfdisPP/q(1)
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1
                 call MPI_RECV(local_avfdisPP, 25, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                avfdisPP = avfdisPP + local_avfdisPP
+                avfdisPP = avfdisPP + local_avfdisPP/q(g)
             enddo
 
             ! .. construction of avfdisP2Mg and avfdisPP 
@@ -764,8 +769,9 @@ contains
             sumrhopairs=sum(rhopol_charge(:,tA)) 
             sumrhopairs=sumrhopairs*volcell
 
-            avfdisPP=avfdisPP/(sumrhopairs*q) ! also norm with q
-            avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
+            avfdisPP=avfdisPP/(sumrhopairs)  !*q) ! also norm with q
+           ! avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
+            avfdisP2Mg=avfdisP2Mg/(sumrhopairs)
             
         else                      ! Export results 
             
@@ -788,8 +794,8 @@ contains
         use globals, only    : nsize, nsegtypes, nseg, cuantas, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg, ta 
-        use volume, only     : nx, ny, nz
-        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
+        use volume, only     : nx, ny, nz, ngr
+        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor, nset_per_graft
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : energychainLJ, no_overlapchain
@@ -805,7 +811,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge,g                ! dummy indices
         integer  :: JJ, KK
         real(dp) :: local_FEchempair, FEchempair
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
@@ -837,7 +843,7 @@ contains
                         call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     endif
                 enddo
-                call MPI_SEND(q , 1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(q , ngr , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
             enddo
         else
             source = 0 
@@ -850,7 +856,7 @@ contains
                 endif
             enddo
 
-            call MPI_RECV(q , 1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+            call MPI_RECV(q , ngr, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
         endif    
 
         n=nsize
@@ -981,16 +987,19 @@ contains
         !   .. import results 
 
         if (rank==0) then 
+            g=1
+            FEchempair= local_FEchempair/q(g)
 
-            FEchempair= local_FEchempair
             do i=1, numproc-1
                 source = i
+                g = int(source/nset_per_graft)+1
                 call MPI_RECV(local_FEchempair, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                FEchempair = FEchempair + local_FEchempair
+                FEchempair = FEchempair + local_FEchempair/q(g)
+                 
             enddo
 
             ! .. normalized FEchempair  with q 
-            FEchempair = FEchempair/q 
+            FEchempair = FEchempair !/q 
 
             FEchemPP=FEchempair 
 

@@ -99,7 +99,9 @@ program main
     call make_geometry()                        ! generate volume elements lattice
     call allocate_chain_parameters()            !  
     call init_matrices()                        ! init matrices for MC chain generation
-    call allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchainsrotations,maxnchainsrotationsxy)
+    call allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,&
+        maxnchainsrotations,maxnchainsrotationsxy,ngr)
+    call allocate_part_fnc(ngr)
     call init_chain_parameters()                                   ! reads pKa, pKaions zpol and vpol from file
     call make_sequence_chain(chainperiod,chaintype)                ! set isAmonomer, type_of_monomer and  type_of_monomer_char
     call make_charge_table(ismonomer_chargeable,zpol,nsegtypes)    ! set ismonomer_chargeable,

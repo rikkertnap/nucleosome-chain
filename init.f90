@@ -189,6 +189,7 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
 
     do i=1,nsize
         x(i)=xbulk%sol
+        x(i)=0.9_dp
     enddo
 
     if (infile.eq.1) then   ! infile is read in from file/stdio  

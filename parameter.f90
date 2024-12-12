@@ -624,12 +624,14 @@ contains
 
     end subroutine init_elect_constants
    
-    ! compute number density density polymer
+    ! Compute number density of polymers for ngr grafted polymers or nucleosome chains
+    ! Units 1/nm^3
+    ! Warning: definition for nucleosome 'ambigeous' since nseg only the number DNA elements and CA atoms of AA 
 
     function init_denspol()result(denspol)
 
         use globals, only : nseg, nsize
-        use volume, only : delta
+        use volume, only : delta ,ngr
 
         real(dp) :: denspol
 
@@ -637,11 +639,12 @@ contains
         real(dp) :: vol
 
         vol = nsize*(delta**3)
-        denspol = nseg*1.0_dp/vol   
+        denspol = ngr*nseg*1.0_dp/vol   
  
     end function
 
-    ! compute global volume fraction polymer-chain
+
+    ! Compute global volume fraction polymer-chain
 
     function init_xvolpol(rhopol)result(xvolpol)
 
@@ -670,6 +673,23 @@ contains
  
     end function
 
+    ! Compute number density of number of nucleosome/histone octamer
+    ! Units 1/nm^3
+   
+    function init_densnucl()result(densnucl)
+
+        use globals, only : nseg, nsize,nnucl
+        use volume, only : delta , ngr
+
+        real(dp) :: densnucl
+
+        ! local 
+        real(dp) :: vol
+
+        vol = nsize*(delta**3)
+        densnucl = ngr*nnucl*1.0_dp/vol   
+ 
+    end function
          
    
     !     purpose: initialize expmu needed by fcn 

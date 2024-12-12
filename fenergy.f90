@@ -180,11 +180,12 @@ contains
         FEbind = FEbindA+FEbindB
         
         ! .. calcualtion of FEq
-        FEq=-log(q)    
+        do g=1,ngr
+            FEq=FEq-log(q(g))
+        enddo        
         
-         
         ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift! *ngr  
+        Eshift=lnproshift *ngr  
 
         !  .. total free energy  
 
@@ -499,11 +500,13 @@ contains
 
         ! .. calcualtion of FEq
      
-        FEq=-log(q)    
-    
-     
+        do g=1,ngr
+            FEq=FEq-log(q(g))    
+        enddo
+         
         ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift !*ngr
+        Eshift=lnproshift*ngr  
+ 
        
         ! .. total free energy per area of surface 
 
@@ -630,7 +633,12 @@ contains
 
         ! .. calculaltion of FEq
      
-        FEq=-log(q)    
+        do g=1,ngr
+            FEq=FEq-log(q(g))
+        enddo        
+        
+        ! .. Shift in palpha  i.e q 
+        Eshift=lnproshift *ngr  
     
      
         ! .. Shift in palpha  i.e q 
@@ -716,10 +724,13 @@ contains
             FEVdW=0.0_dp
         endif
 
-        ! .. shift in palpha  i.e q 
-        Eshift=lnproshift
-    
-        FEq=-log(q)    
+        ! .. calcualtion of FEq
+        do g=1,ngr
+            FEq=FEq-log(q(g))
+        enddo        
+        
+        ! .. Shift in palpha  i.e q 
+        Eshift=lnproshift *ngr 
        
         !  .. total free energy 
 
@@ -795,10 +806,16 @@ contains
             FEVdW=0.0_dp
         endif
 
+        ! .. calcualtion of FEq 
+        do g=1,ngr 
+            FEq=FEq-log(q(g))
+        enddo    
+
         ! .. shift in palpha  i.e q 
-        Eshift=lnproshift
-    
-        FEq=-log(q)    
+        Eshift=lnproshift*ngr
+ 
+
+        ! .. calcualtion of FEq  
        
         !  .. total free energy 
 
@@ -1764,7 +1781,7 @@ contains
     end function FE_selfenergy_brush
 
     ! Calculates the total number of monomers for all (nsegtypes) monomer type 
-    ! post real(d) sumphi(nsegtypes)
+    ! returns real(dp) sumphi(nsegtypes)
  
     function calculate_sumphi()result(sumphi)
     
@@ -1941,13 +1958,13 @@ contains
     ! Check volume for systype="nucl_neutral_sv"
     ! Integral over xpol compared to expected outcome
     ! output : real(dp)  checksumxpoltot : difference
-    ! pre sumphi need to be computed 
+    ! pre xpol_t 
 
     subroutine check_volume_nucl_neutral_sv(checksumxpoltot)
 
         use globals, only : nsegtypes, nseg
         use field, only   : xpol_t  
-        use volume, only  : volcell 
+        use volume, only  : volcell, ngr
 
         real(dp),intent(inout) :: checksumxpoltot
 
@@ -1960,12 +1977,12 @@ contains
         endif
 
         do t=1,nsegtypes 
-            sumxpol(t) = sum(xpol_t(:,t))*volcell       
+            sumxpol(t) = sum(xpol_t(:,t))*volcell ! sumxpol(t) total volume of monomer type t     
         enddo
 
         sumvolnucl=calculate_sumvolnucl()
         
-        checksumxpoltot=sum(sumxpol)- sumvolnucl
+        checksumxpoltot=sum(sumxpol)- sumvolnucl*ngr
         
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
             print*,"sumxpol        = ",(sumxpol(t),t=1,nsegtypes)

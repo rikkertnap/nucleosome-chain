@@ -731,11 +731,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     use eigenvalues, only : asphericty_parameter
     use parameters
     use volume, only   :  nx, ny,nz, delta
-    use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
-    use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
-    ! Extra ....
-    use chain_rotation, only : rotate_chain_elem_index
-    
+    use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
+    use chain_rotation, only : orientation_coordinates, orientation_vector_ref, orientation_vector
+    use chain_rotation, only : rotate_chain_elem, rotate_chain_elem_index_and_chain,check_chain_elem_index_and_chain
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
@@ -750,13 +748,14 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. local variables
 
-    integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos , gpt ! dummy indices
+    integer :: i,j,s,sprime,rot,g,gn,k,sAA,tPhos,gpt ,kk,kl ! dummy indices
     integer :: idx                  ! index label
     integer :: ix,iy,iz,idxtmp 
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg),chain_pbc_tmp(3),chain_tmp(3)    ! chains(x,i)= coordinate x of segement i
+    real(dp) :: chainABC(3,nseg)
     real(dp) :: xseg(3,nseg)
     real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
@@ -794,7 +793,6 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   :: chain_elem  
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
-
     type(var_darray), dimension(:,:), allocatable   ::  chain_elem_index_rot
 
     real(dp) :: rcom(3,nnucl)
@@ -802,18 +800,19 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
     real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
-    ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
     integer :: s_local 
     logical :: no_overlap
+    logical :: isCheck
 
     ! .. executable statements   
 
     info=0
-
+  
     ! .. open file   
 
-    rankfile=rank                                                                                     
+    rankfile=mod(rank,nset_per_graft)   
+    print*,"rank=",rank," rankfile=",rankfile                                                                                  
     
     write(istr,'(I4)')rankfile
     fname='traj.'//trim(adjustl(istr))//'.xyz'
@@ -1048,44 +1047,67 @@ subroutine read_chains_xyz_nucl_volume(info)
                 enddo
             endif      
 
-            ! 5. add chain+chain_elem_rot together
+            ! 5. add chain_rot+chain_elem_rot together into chain_elem_index
             
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
                 chain_rot,chain_elem_rot,chain_elem_index)    
 
-            ! 5.a. tethered conformation to z=0 plane 
-            ! 5.b. rotate random 
+            ! 6. tether conformation to z=0 plane 
+            
+            chain=chain_rot ! this allign names chain_elem_index and chain : contain same backbone conformation
 
-            call rotate_chain_elem_index(nseg,nelem,chain_elem_index,chain_elem_index_rot)
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then 
+                print*,"rank= ",rank,conf,"chain=chain_rot => chain_elem_index==chain",isCheck
+            endif    
+                
+            ! 6.a. rotate random 
 
-            ! 5.c.  
+            call rotate_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain_elem_index_rot,chain,chain_rot)
+            
+
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then 
+                print*,"rank= ",rank,conf," rotation => chain_elem_index==chain",isCheck
+            endif
+            
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index_rot,chain_rot,isCheck)
+            if(.not.isCheck) then
+                print*,"rank= ",rank,conf," rotation => chain_elem_index_rot==chain_rot",isCheck
+            endif
+
+
+            ! 6.b. locate minimal z coordinate 
+
             call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
+            
+            ! 6.c.
+            ! Determines translation vector of chain_elem_index_rot such 
+            ! that the object is  anchored at z=zcm, and x=position_graft(1,1), y=position_graft(1,2)
+            ! write_chain_elem_index_lammps_trj translate
 
-            ! determine translatevector  chain_elem_index such 
-            ! such that the object is  anchored at z=zcm, and x=position_graft(1,1)+xcm
-            ! write_chain_elem_index_lammps_trj translate T=(xcm,ycm,zcm)
+            ! one graft point can be distributed over mutiple node nset_per_graft = int(size/ngr)
 
-            gpt =int(rank/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
-            print*,"gpt=",gpt
+            gpt =int(rank/nset_per_graft)+1 
+           
+            rtranslate(3) =  - rzmin(3)
+            rtranslate(1) =  - rzmin(1) + position_graft(gpt,1)
+            rtranslate(2) =  - rzmin(2) + position_graft(gpt,2)
         
-            rtranslate(3) = -zcm -rzmin(3)
-            rtranslate(1) = -xcm -rzmin(1)+ position_graft(gpt,1)
-            rtranslate(2) = -ycm -rzmin(2)+ position_graft(gpt,2)
-
-            print*,"rzmin=",rzmin
-            print*,"position_graft(",gpt,",1)=",position_graft(gpt,1)
-            print*,"position_graft(",gpt,",2)=",position_graft(gpt,2)
-
             call translate_chain_elem_index(nseg,nelem,chain_elem_index_rot,rtranslate) 
+            call translate_chain(nseg,chain_rot,rtranslate)
+
+            !call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
+            !print*,"again :rzmin=",rzmin
 
             !if(DEBUG)then
-                un_traj=open_chain_elem_index_lammps_trj(info_traj)
-                call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_rot)
-                close(un_traj)
+                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
+                 call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_rot)
+                 close(un_traj)
             !endif  
 
 
-            ! 6. make indexconfig i.e. place conformation on lattice
+            ! 7. make indexconfig i.e. place conformation on lattice
 
             select case (geometry)
             case ("cubic")
@@ -1094,13 +1116,13 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                     ! transforming form real- to lattice coordinates  
                     if(pbc_chains) then 
-                        chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions  
-                        chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly) 
-                        chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz) 
+                        chain_pbc(1,s) = pbc(chain_rot(1,s),Lx) ! periodic boundary conditions  
+                        chain_pbc(2,s) = pbc(chain_rot(2,s),Ly) 
+                        chain_pbc(3,s) = chain_rot(3,s) 
                     else
-                        chain_pbc(1,s) = chain_rot(1,s)+xcm  
-                        chain_pbc(2,s) = chain_rot(2,s)+ycm
-                        chain_pbc(3,s) = chain_rot(3,s)+zcm
+                        chain_pbc(1,s) = chain_rot(1,s)  
+                        chain_pbc(2,s) = chain_rot(2,s)
+                        chain_pbc(3,s) = chain_rot(3,s)
                     endif                    
 
                     xi  = int(chain_pbc(1,s)/delta)+1
@@ -1124,16 +1146,17 @@ subroutine read_chains_xyz_nucl_volume(info)
                     endif
 
                     ! apply elements 
-                    do j=2,nelem(s) ! include j=1
-
+                    do j=2,nelem(s) ! exclude j=1
+                        
+                        ! transforming form real- to lattice coordinates  
                         if(pbc_chains) then 
-                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
-                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j)+ycm,Ly)
-                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j)+zcm,Lz)  
+                            chain_pbc_tmp(1) = pbc(chain_elem_index_rot(1,s)%elem(j),Lx) ! periodic boundary conditions 
+                            chain_pbc_tmp(2) = pbc(chain_elem_index_rot(2,s)%elem(j),Ly)
+                            chain_pbc_tmp(3) = chain_elem_index_rot(3,s)%elem(j)
                         else
-                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm   
-                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
-                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm
+                            chain_pbc_tmp(1) = chain_elem_index_rot(1,s)%elem(j)
+                            chain_pbc_tmp(2) = chain_elem_index_rot(2,s)%elem(j)
+                            chain_pbc_tmp(3) = chain_elem_index_rot(3,s)%elem(j)
                         endif 
 
                         xi = int(chain_pbc_tmp(1)/delta)+1
@@ -1149,7 +1172,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
                             print*,text  
-                            print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
+                            print*,"chain_elem_index_rot= ",(chain_elem_index_rot(k,s)%elem(j),k=1,3)
                             print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
                             print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                             info= myio_err_index
@@ -1162,12 +1185,15 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-                    !call error_handler(1,"hello!!!!")
+                    ! use chain_pbc or chain_rot !!!!
                 endif    
             
-                if(isVdW) energyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
-    
-                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+                ! for energy, overlap and rcom use chain conformation 
+                ! chain_rot that has NOT applied pbc not use chain_pbc!!
+
+                if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
+
+                call make_com_nucl_rotation(chain_rot,nnucl,unitvector_triplets,rcom)  
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1274,9 +1300,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
+                if(isVdW)  energyLJ    = GBenergyeffective(chain_rot,nnucl,no_overlap)  
 
-                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+                call make_com_nucl_rotation(chain_rot,nnucl,unitvector_triplets,rcom)
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1786,7 +1812,7 @@ function pbc(z,deltaz) result(zpbc)
     real(dp), intent(in) :: deltaz
     real(dp), intent(in) :: z
     real(dp) :: zpbc 
-    if(z>0) then 
+    if(z>0.0_dp) then 
         zpbc=z-int(z/deltaz)*deltaz
     else
         zpbc=z-(int(z/deltaz)-1)*deltaz
@@ -2339,9 +2365,9 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
     do s=1,nseg
         do j=1,nelem(s)
-            x = chain_elem_index(1,s)%elem(j)*10.0_dp +xcm
-            y = chain_elem_index(2,s)%elem(j)*10.0_dp +ycm
-            z = chain_elem_index(3,s)%elem(j)*10.0_dp +zcm
+            x = chain_elem_index(1,s)%elem(j)*10.0_dp 
+            y = chain_elem_index(2,s)%elem(j)*10.0_dp 
+            z = chain_elem_index(3,s)%elem(j)*10.0_dp 
         
             idatom=type_of_monomer(s)
             moltype=nucl_elem_type(j,type_of_monomer(s))  
@@ -3775,6 +3801,26 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
     enddo           
 
 end subroutine add_chain_rot_and_chain_elem_rot
+
+
+! Translate chain(s,k)  coordinate (component k) of segment s  
+! translation_vector(k)
+
+subroutine translate_chain(nseg,chain,translation_vector) 
+
+    integer, intent(in) :: nseg
+    real(dp), intent(inout) :: chain(:,:)
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, k
+
+    do s=1,nseg              ! loop over segment 
+        do k=1,3
+            chain(k,s) = chain(k,s)+translation_vector(k)
+        enddo     
+    enddo     
+
+end subroutine translate_chain
 
 
 ! Translate chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j by 

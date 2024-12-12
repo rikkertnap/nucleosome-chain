@@ -36,8 +36,8 @@ module field
     real(dp), dimension(:,:,:), allocatable :: gdisA   ! degree of dissociation of acid including condensed states  
     real(dp), dimension(:,:,:), allocatable :: gdisB   ! degree of dissociation of base including condensed states  
 
-    real(dp) :: q          ! normalization partion fnc polymer 
-    real(dp) :: lnq        ! exponent of normalization partion fnc polymer 
+    real(dp), dimension(:), allocatable :: q         ! normalization partion fnc polymer 
+    real(dp), dimension(:), allocatable :: lnq       ! exponent of normalization partion fnc polymer 
     real(dp) :: lnproshift ! shift in exponent palpha
 
     real(dp), dimension(:), allocatable       :: rhoqphos       ! charged density of phosphate needed systype="nucl_ionbin_Mg"
@@ -131,8 +131,8 @@ contains
        
         integer, intent(in) :: N
 
-        ! allocate(lnq(N))
-        ! allocate(q(N))
+        allocate(lnq(N))
+        allocate(q(N))
 
     end subroutine allocate_part_fnc
 

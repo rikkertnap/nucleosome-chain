@@ -73,27 +73,29 @@ contains
         real(dp), intent(inout) :: fvec(:)
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
+        !real(dp), intent(in) :: sigmaqSurfR(:)
+        !real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
         integer :: ix, iy, iz, noffset
         integer :: idxR, idxL, id2D  
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
 
+        ! temporay local variable:
+        real(dp) :: sigmaqSurfR(nx*ny)
+        real(dp) :: sigmaqSurfL(nx*ny)
+
         ! .. electrostatics 
+        sigmaqSurfR=0.0_dp
+        sigmaqSurfL=0.0_dp
+
        
         noffset=nsize
 
         do ix=1,nx
             do iy=1,ny
-                do iz=1,nz
-                    !call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                    !call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                    !call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
-                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
-                    !call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                    !call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)            
-
+                do iz=2,nz-1
+                    
                     id     = coordtoindex(ix,           iy,iz)
                     idxpls = coordtoindex(ipbc(ix+1,nx),iy,iz)
                     idxmin = coordtoindex(ipbc(ix-1,nx),iy,iz)
@@ -105,6 +107,46 @@ contains
                     fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
                         -6.0_dp*psi(id) +rhoq(id)*constqW)
                 enddo
+            enddo
+        enddo    
+
+        ! boundary iz=1 
+
+        do ix=1,nx
+            do iy=1,ny
+                iz=1
+
+                id     = coordtoindex(ix,           iy,iz)
+                idxpls = coordtoindex(ipbc(ix+1,nx),iy,iz)
+                idxmin = coordtoindex(ipbc(ix-1,nx),iy,iz)
+                idzpls = coordtoindex(ix,           iy,iz+1)
+                idypls = coordtoindex(ix,ipbc(iy+1,ny),iz)
+                idymin = coordtoindex(ix,ipbc(iy-1,ny),iz)
+
+    
+                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls) +sigmaqSurfL(id) &
+                    - 5.0_dp*psi(id) +rhoq(id)*constqW)
+            
+            enddo
+        enddo    
+
+        ! boundary iz=nz 
+
+        do ix=1,nx
+            do iy=1,ny
+                iz=nz
+
+                id     = coordtoindex(ix,           iy,iz)
+                idxpls = coordtoindex(ipbc(ix+1,nx),iy,iz)
+                idxmin = coordtoindex(ipbc(ix-1,nx),iy,iz)
+                idzmin = coordtoindex(ix,           iy,ipbc(iz-1,nz))
+                idypls = coordtoindex(ix,ipbc(iy+1,ny),iz)
+                idymin = coordtoindex(ix,ipbc(iy-1,ny),iz)
+                
+                id2D=id-(nsize-nx*ny)
+                
+                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzmin) +sigmaqSurfR(id2D) &
+                    -5.0_dp*psi(id) +rhoq(id)*constqW)
             enddo
         enddo    
 
@@ -138,6 +180,7 @@ contains
         do ix=1,nx
             do iy=1,ny
                 do iz=1,nz
+
                     call linearIndexFromCoordinate(ix,           iy,iz  ,id)
                     call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
                     call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)

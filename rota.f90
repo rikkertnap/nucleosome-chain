@@ -653,9 +653,9 @@ subroutine rotate_chain_elem_index(nseg,nelem,chain_elem_index,chain_elem_index_
     real(dp) :: alfa,gama,cga
     real(dp) :: Rmat(3,3), vec(3), vec_rot(3)
     
+    
     !print*,"rotate_chain_elem_index: seed=",seed
-    !seed=      871344
-    print*,"rotate_chain_elem_index: seed=",seed
+
     ! random orientation angle number on a sphere
     fac =rands(seed)
     fac1=rands(seed)
@@ -705,6 +705,124 @@ subroutine rotate_chain_elem_index(nseg,nelem,chain_elem_index,chain_elem_index_
 
 end subroutine rotate_chain_elem_index
 
+! random rotation chain_elem_index_and_chain
+! chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j 
+! chain(3,nseg)
+
+subroutine rotate_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain_elem_index_rot,chain,chain_rot) 
+
+    use random
+    use mathconst
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(in) ::chain_elem_index
+    type(var_darray), dimension(:,:), allocatable, intent(inout) ::chain_elem_index_rot
+    real(dp), intent(in)    :: chain(:,:)
+    real(dp), intent(inout) :: chain_rot(:,:)
+
+    integer :: s, i, j, k
+    real(dp) :: fac,fac1,fac2
+    real(dp) :: sbe,cbe,sal,cal,sga
+    real(dp) :: alfa,gama,cga
+    real(dp) :: Rmat(3,3), vec(3), vec_rot(3)
+
+    ! select orientation angle number on a sphere 
+    fac =rands(seed)
+    fac1=rands(seed)
+    fac2=rands(seed)
+
+    alfa=fac*2.0_dp*pi
+    cbe=fac1*2.0_dp-1.0_dp
+    gama=fac2*2.0_dp*pi
+  
+    sbe=(1.0_dp-cbe**2)**0.5_dp
+    cal=cos(alfa)
+    sal=sin(alfa)
+    cga=cos(gama)
+    sga=sin(gama)
+
+    ! rotation matrix
+
+    Rmat(1,1) = -cbe*sal*sga+cal*cga
+    Rmat(1,2) = -(cbe*sal*cga+cal*sga)
+    Rmat(1,3) = sbe*sal
+    Rmat(2,1) = cbe*cal*sga+sal*cga
+    Rmat(2,2) = cbe*cal*cga-sal*sga
+    Rmat(2,3) = -sbe*cal
+    Rmat(3,1) = sbe*sga
+    Rmat(3,2) = sbe*cga
+    Rmat(3,3) = cbe 
+  
+    ! apply rotation to  chain_elem_index
+
+    do s=1,nseg              ! loop over segments
+        do j=1,nelem(s)      ! loop over number of elements for segment s 
+
+            do i=1,3
+                vec(i)=chain_elem_index(i,s)%elem(j)
+            enddo
+                
+            vec_rot = matmul(Rmat,vec) 
+            
+            do i=1,3
+                chain_elem_index_rot(i,s)%elem(j)=vec_rot(i)
+            enddo
+            
+        enddo     
+    enddo    
+
+    ! apply rotation to 
+
+    do s=1,nseg              ! loop over segments
+        chain_rot(:,s)=matmul(Rmat,chain(:,s)) 
+    enddo    
+
+end subroutine rotate_chain_elem_index_and_chain
+
+
+! Check if chain_index(k,s)%elem(1) == nseg(k,s) 
+! input :  integer :: nseg       
+!          integer :: nelem(nseg)
+!          type(var_darray):: chain_elem_index
+!          real(dp) :: chain(3,nseg)
+! output : logical ::isSame  : isSame =.true chain_index(k,s)%elem(1) == nseg(k,s) .false. otherwise
+
+subroutine check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isSame)
+     
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg       
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(in) ::chain_elem_index
+    real(dp),dimension(:,:), intent(in)    :: chain
+    logical, intent(inout) :: isSame
+
+    integer :: s, i
+    logical :: flag
+    real(dp) :: sqrdiff 
+    real(dp), parameter  :: epssqrdiff = 0.00000001_dp 
+
+    s=1              ! loop over segments
+    flag=.true.
+
+    do while(s<=nseg.and.flag)    
+       
+        sqrdiff=0.0_dp
+        do i=1,3
+            sqrdiff=sqrdiff+(chain_elem_index(i,s)%elem(1)-chain(i,s))**2
+        enddo
+        if(sqrdiff>=epssqrdiff) then 
+            flag=.false.
+            ! print*,"sqrdiff=",sqrdiff,"s= ",s
+        endif    
+        s=s+1    
+    enddo    
+
+    isSame=flag
+
+end subroutine check_chain_elem_index_and_chain
 
 end module chain_rotation
     

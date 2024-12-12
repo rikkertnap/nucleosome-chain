@@ -63,17 +63,17 @@ module chains
     real(dp), dimension(:,:), allocatable       :: bond_angle               ! bond angle
     real(dp), dimension(:,:), allocatable       :: dihedral_angle           ! dihedralangle
     real(dp), dimension(:,:), allocatable       :: nucl_spacing             ! spacing or distance between Nuclesome 
-    real(dp), dimension(:,:,:), allocatable     :: gyr_tensor               ! asphericity matrix/gyration tensor (for each graft point)
-    real(dp), dimension(:), allocatable         :: Asphparam                ! asphericity parameter  invariant of gyration tensor
+    real(dp), dimension(:,:,:), allocatable     :: gyr_tensor               ! asphericity matrix/gyration tensor 
+    real(dp), dimension(:), allocatable         :: Asphparam                ! asphericity parameter invariant of gyration tensor 
 
-    real(dp), dimension(:), allocatable         :: avbond_angle             ! average bond angle
-    real(dp), dimension(:), allocatable         :: avdihedral_angle         ! average dihedral angle
-    real(dp), dimension(:), allocatable         :: avnucl_spacing           ! average spacing or distance between Nuclesome
-    real(dp)                                    :: avRgsqr                  ! radius of gyration 
-    real(dp)                                    :: avRendsqr                ! end-to-end distance
-    real(dp), dimension(:,:), allocatable       :: avgyr_tensor             ! average asphericity matrix /gyration tensor (for each graft point)
-    real(dp)                                    :: avAsphparam              ! asphericity parameter
-    real(dp)                                    :: eigen_avgyr_tensor(3)    ! Eigenvalues of Avgyr_tensor, Principal componts of radius of gyration squared 
+    real(dp), dimension(:,:), allocatable       :: avbond_angle             ! average bond angle
+    real(dp), dimension(:,:), allocatable       :: avdihedral_angle         ! average dihedral angle
+    real(dp), dimension(:,:), allocatable       :: avnucl_spacing           ! average spacing or distance between Nuclesome
+    real(dp), dimension(:), allocatable         :: avRgsqr                  ! radius of gyration 
+    real(dp), dimension(:), allocatable         :: avRendsqr                ! end-to-end distance
+    real(dp), dimension(:,:,:), allocatable     :: avgyr_tensor             ! average asphericity matrix /gyration tensor for each graft point
+    real(dp), dimension(:), allocatable         :: avAsphparam              ! asphericity parameter for each graft point
+    real(dp), dimension(:,:), allocatable       :: eigen_avgyr_tensor       ! Eigenvalues of Avgyr_tensor, Principal componts of radius of gyration squared 
 
     ! .. pairing parameters 
 
@@ -85,10 +85,11 @@ module chains
  
 contains 
 
-    subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy)
+    subroutine allocate_chains(cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA,maxnchains,maxnchainsxy,ngr)
 
         integer, intent(in) :: cuantas,nnucl,nseg,nsegAA,nsegtypes,nsegtypesAA
         integer, intent(in) :: maxnchains,maxnchainsxy
+        integer, intent(in) :: ngr
 
         integer :: maxcuantas
     
@@ -107,7 +108,6 @@ contains
         allocate(type_of_charge(nsegtypes))
         allocate(no_overlapchain(maxcuantas))
     
-
         ! chain stuctural quantities
         allocate(segcm(nnucl))
         allocate(Rgsqr(maxcuantas))
@@ -118,10 +118,15 @@ contains
         allocate(gyr_tensor(3,3,maxcuantas)) 
         allocate(Asphparam(maxcuantas)) 
 
-        allocate(avnucl_spacing(nnucl-1)) 
-        allocate(avbond_angle(nnucl-2))
-        allocate(avdihedral_angle(nnucl-3)) 
-        allocate(avgyr_tensor(3,3)) 
+        ! average chain stuctural quantities per graft point
+        allocate(avRgsqr(ngr))
+        allocate(avRendsqr(ngr))
+        allocate(avbond_angle(nnucl-2,ngr))
+        allocate(avdihedral_angle(nnucl-3,ngr))
+        allocate(avnucl_spacing(nnucl-1,ngr)) 
+        allocate(avgyr_tensor(3,3,ngr)) 
+        allocate(avAsphparam(ngr)) 
+        allocate(eigen_avgyr_tensor(3,ngr)) 
 
         ! rotational and orientational segments 
         allocate(orientation_triplets(nnucl,3))

@@ -1379,16 +1379,13 @@ subroutine output_nucl_ionbin_Mg
     character(len=20) :: rstr
 
     logical :: isopen
-    integer :: i,j,k          ! dummy indexes
+    integer :: i,j,k,g          ! dummy indexes
     real(dp) :: denspol
-
-
 
     ! .. executable statements
 
     denspol=init_denspol()
 
-   
     !     .. make label filenames f
     call make_filename_label(fnamelabel)
 
@@ -1450,14 +1447,16 @@ subroutine output_nucl_ionbin_Mg
 
 
     !  .. output of bond and dihedral angles
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
+    do g=1,ngr
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i,g),avdihedral_angle(i,g)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2,g)   
 
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i,g)
+        enddo
+    enddo    
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
@@ -1632,15 +1631,17 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
+    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
     write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo        
+    do g=1,ngr
+        do i=1,3
+            do j=1,3
+                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
+            enddo       
+        enddo
+    enddo            
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -1797,7 +1798,7 @@ subroutine output_nucl_mul
     character(len=20) :: rstr
 
     logical :: isopen
-    integer :: i,j,k          ! dummy indexes
+    integer :: i,j,k,g          ! dummy indexes
     real(dp) :: denspol
 
 
@@ -1869,14 +1870,16 @@ subroutine output_nucl_mul
 
 
     !  .. output of bond and dihedral angles
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
+    do g=1,ngr
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i,g),avdihedral_angle(i,g)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2,g)
 
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i,g)
+        enddo
+    enddo    
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
@@ -2071,15 +2074,17 @@ subroutine output_nucl_mul
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
+    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
     write(un_sys,*)'avAs        = ',avAsphparam 
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo        
+    do g=1,ngr
+        do i=1,3
+            do j=1,3
+                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
+            enddo       
+        enddo
+    enddo            
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -2244,7 +2249,7 @@ subroutine output_elect
     character(len=100) :: fnamelabel
     character(len=20) :: rstr
     logical :: isopen
-    integer :: i,j,k,t          ! dummy indexes
+    integer :: i,j,k,t,g          ! dummy indexes
     real(dp) :: denspol
 
     ! .. executable statements
@@ -2310,16 +2315,16 @@ subroutine output_elect
 
 
     !  .. output of bond and dihedral 
-    
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-
-        
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+    do g=1,ngr
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i,g),avdihedral_angle(i,g)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2,g)
+   
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i,g)
+        enddo
+    enddo    
 
     do i=1,nsize
         write(un_xsol,*)xsol(i)
@@ -2480,13 +2485,13 @@ subroutine output_elect
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
+    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
     write(un_sys,*)'avAs        = ',avAsphparam
     do i=1,3
         do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
+            write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
         enddo       
     enddo       
     write(un_sys,*)'qpolA       = ',qpolA
@@ -2607,7 +2612,7 @@ subroutine output_neutral
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
-    integer :: i, j, t
+    integer :: i, j, t, g
     character(len=100) :: fnamelabel
     character(len=20) :: rstr,istr
     logical :: isopen
@@ -2660,18 +2665,18 @@ subroutine output_neutral
         enddo
     endif 
 
+    do g=1,ngr
+        !  .. output of bond and dihedral angles
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i,g),avdihedral_angle(i,g)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2,g)
 
-    !  .. output of bond and dihedral angles
-   
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-    
-    !  .. output of nuclesome distance 
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        !  .. output of nuclesome distance 
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i,g)
+        enddo
+    enddo    
 
     !     .. system information
 
@@ -2736,15 +2741,19 @@ subroutine output_neutral
     write(un_sys,*)'mu          = ',-log(q)
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
+    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
+    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
     write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo       
+
+    do g=1,ngr
+        do i=1,3
+            do j=1,3
+                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
+            enddo       
+        enddo
+    enddo 
+
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val = ',VdWscale%val
 
@@ -3079,6 +3088,9 @@ subroutine compute_vars_and_output()
     use field, only : distribution_charge_nucl_ionbin_sv, max_potential
     use chains, only : avgyr_tensor, eigen_avgyr_tensor, avAsphparam
     use eigenvalues, only : eigenvalue_of_avgyr_tensor
+    use volume, only : ngr
+
+    integer :: g
 
     select case (systype)
     case ("elect")
@@ -3089,14 +3101,17 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
-
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()
 
     case ("neutral","neutralnoVdW")
 
         call fcnenergy()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()           
 
     case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
@@ -3107,7 +3122,9 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()        
 
     case ("nucl_ionbin")
@@ -3118,7 +3135,9 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential() 
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()  
            
 
@@ -3130,7 +3149,9 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()           
     
     case ("nucl_ionbin_Mg")
@@ -3141,7 +3162,9 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()           
 
       case ("nucl_ionbin_MgA")
@@ -3152,14 +3175,17 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential() 
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo  
         call output()       
 
-    
      case ("nucl_neutral_sv")
 
         call fcnenergy()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
+        do g=1,ngr
+            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
+        enddo    
         call output()           
 
     case default

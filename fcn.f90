@@ -1,5 +1,5 @@
 ! --------------------------------------------------------------|
-! fcn.f90:                                                    |
+! fcn.f90:                                                      |
 ! constructs the vector function  needed by the                 |
 ! routine solver, which solves the SCMFT eqs for weak poly-     |
 ! electrolytes onto a tethered planar surface                   |
@@ -210,7 +210,7 @@ contains
             !  .. construction of fcn and volume fraction polymer   
             !  .. volume polymer segment per volume cell 
 
-            rhopol0=(1.0_dp/volcell)/q  
+            rhopol0=(1.0_dp/volcell)!/q  
 
 
             do t=1, nsegtypes
@@ -436,7 +436,7 @@ contains
             enddo     
 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)!/q  ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n
@@ -707,7 +707,7 @@ contains
 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell)!/q 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1066,7 +1066,7 @@ contains
 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell)!/q 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1178,7 +1178,7 @@ contains
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
-        use volume, only     : volcell
+        use volume, only     : volcell, nset_per_graft 
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge 
         use chains, only     : energychainLJ , no_overlapchain 
@@ -1206,7 +1206,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge                        ! dummy indices
+        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,g                        ! dummy indices
         real(dp) :: norm, normvol, normPE,normscf
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
@@ -1444,32 +1444,34 @@ contains
         if (rank==0) then 
 
             q=0.0_dp 
-            q=local_q
+            q(1)=local_q
             
             do i=1, numproc-1
                 source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
+                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
+                g =int(source/nset_per_graft)+1             
+                q(g)=q(g)+local_q
             enddo
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction density 
+                    xpol(i,t)=local_xpol(i,t)/q(1) ! polymer volume fraction density 
                 enddo
                 if(ismonomer_chargeable(t)) then
                     do i=1,nsize
-                        rhopol_charge(i,t)=local_rhopol_charge(i,t)   ! polymer density of charge center
+                        rhopol_charge(i,t)=local_rhopol_charge(i,t)/q(1)   ! polymer density of charge center
                     enddo    
                 endif   
             enddo
            
             do i=1, numproc-1
                 source = i
+                g = int(source/nset_per_graft)+1
                 do t=1,nsegtypes
                     call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer density 
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)/q(g)! polymer density 
                     enddo
                 enddo
                 
@@ -1478,7 +1480,7 @@ contains
                         call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,&
                                 MPI_COMM_WORLD,stat,ierr)
                         do k=1,nsize
-                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)! polymer density 
+                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)/q(g)! polymer density 
                         enddo
                     endif    
                 enddo
@@ -1489,7 +1491,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell)!/q 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1633,7 +1635,7 @@ contains
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap,  DEBUG
         use parameters, only : vsol,vpol, vnucl
         use parameters, only : iter
-        use volume, only     : volcell
+        use volume, only     : volcell, nset_per_graft 
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem 
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t xpol_tot pointer to xpol !!!
@@ -1655,13 +1657,14 @@ contains
         real(dp) :: local_q                           ! local normalization q 
         real(dp) :: lnexppi(nsize)                    ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro                         ! probability and logarithem of probabilty
-        integer  :: i,j,k,c,s,t                       ! dummy indices
+        integer  :: i,j,k,c,s,t,g                     ! dummy indices
         real(dp) :: norm, normvol
         real(dp) :: xpol0 
         real(dp) :: locallnproshift(2)
         real(dp) :: globallnproshift(2)
         real(dp) :: lnpro_per_c
 
+        integer :: gg
       
         ! .. executable statements 
 
@@ -1680,7 +1683,7 @@ contains
             xsol(i) = x(i)        ! volume fraction solvent
         enddo  
     
-        !  .. assign global and local polymer volume fraction 
+        !  .. assign global and local nucleosome volume fraction 
         do t=1,nsegtypes
             do i=1,nsize
                 xpol(i,t)=0.0_dp 
@@ -1693,7 +1696,7 @@ contains
         enddo      
                
     
-        !  .. computation polymer density fraction      
+        !  .. computation nucleosome density fraction      
  
         local_q = 0.0_dp    ! init q
         lnpro   = 0.0_dp
@@ -1701,7 +1704,6 @@ contains
         do c=1,cuantas                           ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal weight
-                !lnpro_per_c =0.0_dp
                 do s=1,nseg                          ! loop over segments 
                     t=type_of_monomer(s)                
                     do j=1,nelem(s)                  ! loop over element of segment
@@ -1709,10 +1711,12 @@ contains
                         lnpro = lnpro +lnexppi(k)*vnucl(j,t)
                     enddo    
                 enddo 
-                !print*,"c=",c," lnpro_per_c= ",lnpro_per_c
-                !lnpro=lnpro+lnpro_per_c
+                print*,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
             endif    
         enddo
+
+        gg=int(rank/nset_per_graft)+1
+        print*,"rank=",rank,"gg=",gg,"lnpro=",lnpro
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
@@ -1721,6 +1725,7 @@ contains
         call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
        
         lnproshift=globallnproshift(1)
+
         
         do c=1,cuantas                        ! loop over cuantas
             if(no_overlapchain(c)) then
@@ -1751,27 +1756,30 @@ contains
         if (rank==0) then 
 
             q = 0.0_dp 
-            q = local_q
+            g = 1
+            q(g) = local_q
             
-             do i=1, numproc-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q = q + local_q
+                g =int(source/nset_per_graft)+1
+                q(g) = q(g) + local_q
             enddo
 
             ! conformation on rank zero 
             do t=1,nsegtypes
                 do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction 
+                    xpol(i,t)=local_xpol(i,t)/q(1) ! nuclesome volume fraction 
                 enddo
             enddo
            
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer volume fraction
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)/q(g)! polymer volume fraction
                     enddo
                 enddo
             enddo     
@@ -1779,7 +1787,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. normalization volume polymer segment per volume cell
 
-            xpol0=(1.0_dp/volcell)/q 
+            xpol0=(1.0_dp/volcell) ! 
 
             do t=1, nsegtypes           ! volumer fraction of polymer of type t 
                 do i=1,nsize
@@ -2122,7 +2130,7 @@ contains
 
           
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)!/q ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -2426,7 +2434,7 @@ contains
             enddo
     
             !  .. construction of fcn and volume fraction polymer        
-            rhopol0=(1.0_dp/volcell)/q! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell) !/q! volume polymer segment per volume cell
 
             do i=1,n
 
@@ -2621,7 +2629,7 @@ contains
             enddo     
                 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)/q ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)!/q ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n
@@ -2808,7 +2816,7 @@ contains
             enddo     
                 
             !     .. construction of fcn and volume fraction polymer             
-            rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
+            rhopol0=(1.0_dp/volcell)!/q  ! volume polymer segment per volume cell
 
             do t=1, nsegtypes
                 do i=1,n
@@ -2957,19 +2965,18 @@ contains
 
 
 
-
-
     subroutine locate_xpol_lager_one(xpol)
         
         use precision_definition
         use globals, only : nsize
+        use volume, only : indextocoord
 
         real(dp), intent(in), dimension(:) :: xpol
 
         ! local arguments
 
         real(dp) :: maxxpol
-        integer :: i, j
+        integer :: idx, j, ix, iy, iz
     
         ! .. executable statements 
     
@@ -2979,10 +2986,13 @@ contains
 
         ! find all elements of xpol larger 1.0
         j=0
-        do i=1,nsize
-            if(xpol(i) >= 1.0_dp) then 
-                j=j+1
-                print*,"i=",i,"xpol=",xpol(i)                
+        do idx=1,nsize
+            if(xpol(idx) >= 1.0_dp) then 
+                j=j+1 
+                ix=indextocoord(idx,1)
+                iy=indextocoord(idx,2)
+                iz=indextocoord(idx,3)
+                print*,"idx=",idx,"xpol=",xpol(idx)," ix=",ix," iy=",iy," iz=",iz                
             endif
         enddo         
         print*,"total number of lattice cell =",j
