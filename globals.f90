@@ -20,14 +20,16 @@ module globals
     integer  :: cuantas       ! number of configurations
     integer  :: cuantas_no_overlap ! number of configurations with no overlap
     integer  :: max_confor    ! maximum number of configurations
+    integer  :: set_confor    ! number that indicates which set of configuration to use in 
+    integer  :: local_conf    ! conformation number used from set
   
     ! .. development variables
     integer :: nsegsource     ! number of segment in source traj files
     integer :: s_begin        ! first segment to actually use from source traj file
     integer :: s_end          ! last segement to actually use from source traj file 
  
-    integer(8)  :: neq        ! number of non-linear equations
-    integer(8)  :: neqmax     ! maximum number of non-linear equations
+    integer(8) :: neq         ! number of non-linear equations
+    integer(8) :: neqmax      ! maximum number of non-linear equations
     integer  :: neqint        ! number of non-linear equations, for mpi fnc bindings
     
     character(len=15) :: systype   ! systype selects fcn    

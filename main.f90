@@ -56,17 +56,13 @@ program main
     real(dp), pointer :: list_val
     real(dp) :: list_first, list_step
     integer  :: nlist_elem, maxlist_elem, nlist_step
-
     integer :: phoscutoff
+    logical :: isVolfracLargerOne
 
     ! .. executable statements
 
-   
-
     ! .. logfile
     
-   
-
     fname='status.log'
     call open_logfile(logUnit,fname)
 
@@ -202,132 +198,145 @@ program main
 
     ! call error_handler(1,"stop")
 
-    isfirstguess = .true.
-    use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
-    iter = 0                    ! iteration counter
+    print*,"write_sys_only=", write_sys_only  
+    do c=1,cuantas
 
-    if(loop%stepsize>0) then
-        loop%val = loop%min
-    else
-        loop%val = loop%max
-    endif
-
-    call set_fcn()
+        local_conf=c
+        print*,"local_conf=",local_conf,"no_overlapchain=",no_overlapchain(c)
+        
+        call maximum_xnucl(local_conf,isVolfracLargerOne)
+        print*,"local_conf=",local_conf,"isVolfracLargerOne=",isVolfracLargerOne
      
-    loopstepsizebegin = loop%stepsize
-    list_val = list(1)                ! get value from array
-    nlist_elem = 1
-    maxlist_elem = num
-    nlist_step = 0
-    maxlist_step = 99
+        if(no_overlapchain(c)) then 
 
-   
-    do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
+            isfirstguess = .true.
+            use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
+            iter = 0                    ! iteration counter
 
-        iter = 0                        ! iteration counter 
-        loop%stepsize=loopstepsizebegin ! reset of loopstep size 
-                              
-        if(loop%stepsize>0) then        ! sign loops%stepsize determines direction loop
-            loop%val=loop%min
-            loopbegin=loop%min 
-        else
-            loop%val=loop%max
-            loopbegin=loop%max
-        endif 
-
-        do while (loop%min<=loop%val.and.loop%val<=loop%max.and.&
-                (abs(loop%stepsize)>=loop%delta))
-            
-            isfirstguess=(loop%val==loopbegin) 
-
-            call init_vars_input()  ! sets chem potentials
-              
-            call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-            call solver(x, xguess, tol_conv, fnorm, isSolution)
-            call fcnptr(x, fvec, neq)
-            
-            call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
-            
-            if(systype=="nucl_ionbin_Mg") then  
-                call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
-                call compute_FEchem_react_PP(FEchempair)
-            endif 
-
-           
-            if(systype=="nucl_ionbin_MgA") then
-                call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
-                call compute_FEchem_react_PP_expl(FEchempair)
-            endif          
-
-           
-
-            if(isSolution) then
-
-                call compute_vars_and_output()
-                if(isfirstguess) then
-                   do i=1,neqint
-                      xstored(i)=x(i)
-                   enddo
-                   use_xstored=.false.
-                endif
-            
-                isfirstguess =.false.
-                loop%val=loop%val+loop%stepsize
-            
-            else if(abs(loop%val-loopbegin)>loopeps) then ! no solution and not first loop value
-
-                text="no solution: backstep" 
-                call print_to_log(LogUnit,text)
-                loop%stepsize=loop%stepsize/2.0d0   ! decrease increment
-                loop%val=loop%val-loop%stepsize     ! step back
-                
-                do i=1,neq
-                    x(i)=xguess(i)
-                enddo
-        
-            else 
-                ! break while loop over loop%val by making loop%stepsize smaller loop%delta
-                loop%stepsize = loop%delta/2.0_dp 
+            if(loop%stepsize>0) then
+                loop%val = loop%min
+            else
+                loop%val = loop%max
             endif
-            
 
-            iter  = 0              ! reset of iteration counter
+            call set_fcn()
+             
+            loopstepsizebegin = loop%stepsize
+            list_val = list(1)                ! get value from array
+            nlist_elem = 1
+            maxlist_elem = num
+            nlist_step = 0
+            maxlist_step = 99
 
-        enddo ! end while loop
+
+            do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
+
+                iter = 0                        ! iteration counter 
+                loop%stepsize=loopstepsizebegin ! reset of loopstep size 
+                                      
+                if(loop%stepsize>0) then        ! sign loops%stepsize determines direction loop
+                    loop%val=loop%min
+                    loopbegin=loop%min 
+                else
+                    loop%val=loop%max
+                    loopbegin=loop%max
+                endif 
+
+                do while (loop%min<=loop%val.and.loop%val<=loop%max.and.&
+                        (abs(loop%stepsize)>=loop%delta))
+                    
+                    isfirstguess=(loop%val==loopbegin) 
+
+                    call init_vars_input()  ! sets chem potentials
+                      
+                    call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
+                    call solver(x, xguess, tol_conv, fnorm, isSolution)
+                    call fcnptr(x, fvec, neq)
+                    
+                    call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
+                    
+                    if(systype=="nucl_ionbin_Mg") then  
+                        call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+                        call compute_FEchem_react_PP(FEchempair)
+                    endif 
+
+                   
+                    if(systype=="nucl_ionbin_MgA") then
+                        call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
+                        call compute_FEchem_react_PP_expl(FEchempair)
+                    endif          
+
+                   
+
+                    if(isSolution) then
+
+                        call compute_vars_and_output()
+                        if(isfirstguess) then
+                           do i=1,neqint
+                              xstored(i)=x(i)
+                           enddo
+                           use_xstored=.false.
+                        endif
+                    
+                        isfirstguess =.false.
+                        loop%val=loop%val+loop%stepsize
+                    
+                    else if(abs(loop%val-loopbegin)>loopeps) then ! no solution and not first loop value
+
+                        text="no solution: backstep" 
+                        call print_to_log(LogUnit,text)
+                        loop%stepsize=loop%stepsize/2.0d0   ! decrease increment
+                        loop%val=loop%val-loop%stepsize     ! step back
+                        
+                        do i=1,neq
+                            x(i)=xguess(i)
+                        enddo
+                
+                    else 
+                        ! break while loop over loop%val by making loop%stepsize smaller loop%delta
+                        loop%stepsize = loop%delta/2.0_dp 
+                    endif
+                    
+
+                    iter  = 0              ! reset of iteration counter
+
+                enddo ! end while loop
 
 
-        
-        if(isSolution.or.(abs(loop%val-loopbegin)>loopeps) )then 
-            if(abs(list_val-list(nlist_elem))<listeps) then 
-                if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
-                    list_step = list(nlist_elem+1) - list(nlist_elem)
-                endif    
-                nlist_step = nlist_step + 1
-                nlist_elem = nlist_elem + 1 ! advance element in input list values 
-            else  
-                if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
-                    list_step = list(nlist_elem) - list_val
-                endif
-                nlist_step = nlist_step + 1
-            endif        
-            list_val = list_val+list_step                
-        else 
-            if(nlist_elem>1) then     ! not first element list
-                list_step = list_step/2.0_dp      
-                nlist_step = nlist_step +1
-                list_val = list_val-list_step  
-            else if(nlist_elem==1) then 
-                nlist_step = maxlist_step+1       ! break out while over list
-                text="no solution first call of double while loop"
-                call print_to_log(LogUnit,text)
-                print*,text
-            endif   
-        endif       
+                
+                if(isSolution.or.(abs(loop%val-loopbegin)>loopeps) )then 
+                    if(abs(list_val-list(nlist_elem))<listeps) then 
+                        if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
+                            list_step = list(nlist_elem+1) - list(nlist_elem)
+                        endif    
+                        nlist_step = nlist_step + 1
+                        nlist_elem = nlist_elem + 1 ! advance element in input list values 
+                    else  
+                        if(nlist_elem<maxlist_elem) then ! prevents list exceed upper bond
+                            list_step = list(nlist_elem) - list_val
+                        endif
+                        nlist_step = nlist_step + 1
+                    endif        
+                    list_val = list_val+list_step                
+                else 
+                    if(nlist_elem>1) then     ! not first element list
+                        list_step = list_step/2.0_dp      
+                        nlist_step = nlist_step +1
+                        list_val = list_val-list_step  
+                    else if(nlist_elem==1) then 
+                        nlist_step = maxlist_step+1       ! break out while over list
+                        text="no solution first call of double while loop"
+                        call print_to_log(LogUnit,text)
+                        print*,text
+                    endif   
+                endif       
 
-        
-        use_xstored=.true.
+                
+                use_xstored=.true.
 
-    enddo ! end loop list item
+            enddo ! loop list item
+        endif     
+    enddo ! loop cuantas
 
     deallocate(x)
     deallocate(xguess)

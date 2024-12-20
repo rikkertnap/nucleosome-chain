@@ -23,7 +23,7 @@ contains
     subroutine fcnnucl_Mg(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,qPP,K0aAA,K0a,K0aion
@@ -220,7 +220,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas                            ! loop over cuantas
+        do c=local_conf,local_conf                            ! loop over cuantas
 
             if(no_overlapchain(c)) then
 
@@ -260,7 +260,7 @@ contains
 
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)= 0 ! rank  
     
         !call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -269,7 +269,7 @@ contains
         !lnproshift=globallnproshift(1)   
         lnproshift=locallnproshift(1)
 
-        do c=1,cuantas                            ! loop over cuantas
+        do c=local_conf,local_conf                           ! loop over cuantas
 
             if(no_overlapchain(c)) then
 
@@ -488,8 +488,7 @@ contains
     subroutine compute_average_charge_PP(avfdisP2Mg,avfdisPP)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, cuantas, cuantas_no_overlap, DEBUG
-
+        use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta !isVdW! isrhoselfconsistent 
@@ -568,7 +567,7 @@ contains
 
         lnpro = 0.0_dp
               
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
 
             if(no_overlapchain(c)) then
 
@@ -675,7 +674,7 @@ contains
 
       
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, cuantas, cuantas_no_overlap, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg,local_conf, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg
         use parameters, only : ta !,isVdW! isrhoselfconsistent 
@@ -755,7 +754,7 @@ contains
 
         lnpro = 0.0_dp
               
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf       ! loop over cuantas
 
             if(no_overlapchain(c)) then
 

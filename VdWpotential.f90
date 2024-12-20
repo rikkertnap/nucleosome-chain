@@ -534,7 +534,7 @@ contains
 
 
     !  Calculate sum of value Gay-Berne potential for given set of com and unitvectors
-    !  input : real(dp) : rcom(:,:) : ceom of nucleosome 
+    !  input : real(dp) : rcom(:,:) : com of nucleosome 
     !          real(dp) : uvector(:,:) : orientation vector ( normalized) of each nucleosome 
     !  output:  logical : no_overlap
     !  output/return : real(dp)  energy : effective GB energy = VLJ(u1,u2,r)  

@@ -114,11 +114,12 @@
 
     !  .. output control
 
-    logical :: write_localcharge     ! if .true. rhoq and  rhoqpol also outputted
-    logical :: write_iondensities    ! if .true. density also outputted
+    logical :: write_localcharge     ! if .true. rhoq and rhoqpol also outputted
+    logical :: write_iondensities    ! if .true. ion density also outputted
     logical :: write_rotations       ! if .true. extra information by chain rotation test_rotate_nucl_chain written 
-    logical :: write_frac            ! if .true. densityfrac, densityfracP and densityfacion alos  
-    logical :: write_Palpha          ! if .true. Palha is outputted
+    logical :: write_frac            ! if .true. densityfrac, densityfracP and densityfacion also outputted
+    logical :: write_Palpha          ! if .true. Palpha is outputted
+    logical :: write_sys_only        ! if .true. only systemfile and energy file outputted
     
     ! .. chain variables 
     real(dp) :: lseg              ! segment length of A polymer in nm

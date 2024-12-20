@@ -63,7 +63,7 @@ contains
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, logweightchain 
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
@@ -122,7 +122,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3
             
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf         ! loop over cuantas
             if(no_overlapchain(c)) then 
 
                 lnpro=logweightchain(c) -energychainLJ(c)      
@@ -184,7 +184,7 @@ contains
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
@@ -243,7 +243,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3
             
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)         ! internal energy  
                 do s=1,nseg        ! loop over segments                     
@@ -302,7 +302,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
@@ -367,7 +367,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3
          
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf         ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)    
                 do s=1,nseg        ! loop over segments                     
@@ -424,7 +424,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
@@ -491,7 +491,7 @@ contains
         ndihedrals=nnucl-3
         
 
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf         ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)      ! internal energy  
                 do s=1,nseg        ! loop over segments                     
@@ -545,7 +545,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
@@ -602,7 +602,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3
 
-        do c=1,cuantas             ! loop over cuantas
+        do c=local_conf,local_conf             ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)              ! initial weight conformation 
                 do s=1,nseg              ! loop over segments 
@@ -664,7 +664,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
@@ -794,7 +794,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3 
 
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf          ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c)  -energychainLJ(c)   
                 do s=1,nseg        ! loop over segments                     
@@ -850,7 +850,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
@@ -913,7 +913,7 @@ contains
         ndihedrals=nnucl-3
 
          
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)    
                 do s=1,nseg        ! loop over segments                     
@@ -976,7 +976,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use parameters, only : ta, Phos
         use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
@@ -1065,7 +1065,7 @@ contains
         ndihedrals=nnucl-3
  
  
-        do c=1,cuantas                            ! loop over cuantas
+        do c=local_conf,local_conf                         ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c) -energychainLJ(c)
                 do s=1,nseg                           ! loop over segments 
@@ -1148,7 +1148,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use parameters, only : ta, Phos
         use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
@@ -1237,7 +1237,7 @@ contains
         ndihedrals=nnucl-3
  
  
-        do c=1,cuantas                            ! loop over cuantas
+        do c=local_conf,local_conf                          ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro=logweightchain(c)-energychainLJ(c) 
                 do s=1,nseg                           ! loop over segments 
@@ -1315,7 +1315,7 @@ contains
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
@@ -1370,7 +1370,7 @@ contains
         nangles=nnucl-2
         ndihedrals=nnucl-3
             
-        do c=1,cuantas                        ! loop over cuantas
+        do c=local_conf,local_conf                     ! loop over cuantas
             if(no_overlapchain(c)) then 
                 lnpro = logweightchain(c)-energychainLJ(c)   
                 do s=1,nseg                       ! loop over segments 

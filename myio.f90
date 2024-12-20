@@ -129,6 +129,7 @@ subroutine read_inputfile(info)
     write_iondensities =.false.
     write_frac         =.false.
     write_Palpha       =.false.
+    write_sys_only     =.false.
 
     ! default concentrations
     cKCl=0.0_dp
@@ -224,6 +225,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) s_begin
             case('s_end')  
                 read(buffer,*,iostat=ios) s_end  
+            case('set_confor')
+                read(buffer,*,iostat=ios) set_confor
             case ('cuantas')
                 read(buffer,*,iostat=ios) max_confor
             case ('chainperiod')
@@ -258,6 +261,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) write_iondensities
             case ('write_frac')
                 read(buffer,*,iostat=ios) write_frac
+            case ('write_sys_only')
+                read(buffer,*,iostat=ios) write_sys_only
             case ('delta')
                 read(buffer,*,iostat=ios) delta
             case('unit_conv')
@@ -446,9 +451,6 @@ subroutine read_inputfile(info)
     endif
 
 end subroutine read_inputfile
-
-
-
 
 
 subroutine check_value_systype(systype,info)
@@ -1068,9 +1070,6 @@ subroutine set_value_isVdWintEne(systype, isVdWintEne)
     character(len=15), intent(in) :: systype
     logical, intent(inout)  :: isVdWintEne
 
-    character(len=15) :: systypestr(2)
-    integer :: i
-
     ! all systype that involve internal VdW chain energy
 
     isVdWintEne=.true.
@@ -1362,14 +1361,12 @@ subroutine output_nucl_ionbin_Mg
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol
 
-
-
     ! .. executable statements
 
     denspol=init_denspol()
-
    
-    !     .. make label filenames f
+    ! .. make label filenames 
+
     call make_filename_label(fnamelabel)
 
     sysfilename    = 'system.'//trim(fnamelabel)
@@ -1396,19 +1393,22 @@ subroutine output_nucl_ionbin_Mg
 
     !     .. opening files
 
-    open(unit=newunit(un_sys),file=sysfilename)
-    open(unit=newunit(un_xsol),file=xsolfilename)
-    open(unit=newunit(un_psi),file=potentialfilename)
-    open(unit=newunit(un_xpol),file=xpolfilename)
-    
+    if(write_sys_only) then 
+        open(unit=newunit(un_sys),file=sysfilename)
+    else   
+        open(unit=newunit(un_sys),file=sysfilename)  
+        open(unit=newunit(un_xsol),file=xsolfilename)
+        open(unit=newunit(un_psi),file=potentialfilename)
+        open(unit=newunit(un_xpol),file=xpolfilename)
+        if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
+        if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
+    endif 
+
     if(write_frac) then 
         open(unit=newunit(un_fdis),file=densfracfilename)
         open(unit=newunit(un_fdisP),file=densfracPfilename)
         open(unit=newunit(un_fdision),file=densfracionfilename)
     endif
-  
-    if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
-    if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
         
     if(write_localcharge) then
         open(unit=newunit(un_charge),file=chargefilename)
@@ -1428,26 +1428,28 @@ subroutine output_nucl_ionbin_Mg
         open(unit=newunit(un_xOHmin),file=xOHminfilename)
     endif
 
+    if(.not.write_sys_only) then 
 
-    !  .. output of bond and dihedral angles
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
+        !  .. output of bond and dihedral angles
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i)
+        enddo
 
-    do i=1,nsize
-        write(un_xsol,*)xsol(i)
-        write(un_psi,*)psi(i)
-    enddo
+        do i=1,nsize
+            write(un_xsol,*)xsol(i)
+            write(un_psi,*)psi(i)
+        enddo
 
+        do i=1,nsize
+            write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
+        enddo
 
-    do i=1,nsize
-        write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
-    enddo
+    endif     
 
     if(write_frac) then 
         do i=1,nsize
@@ -1519,7 +1521,6 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'tol_conv    = ',tol_conv
     write(un_sys,*)'numproc     = ',1
-
 
     ! concentration
     write(un_sys,*)'cNaCl       = ',cNaCl
@@ -1695,19 +1696,24 @@ subroutine output_nucl_ionbin_Mg
 
     ! .. closing files
 
-    close(un_sys)
-    close(un_xsol)
-    close(un_psi)
-    close(un_xpol)
+    if(write_sys_only) then
+        close(un_sys)
+    else
+        close(un_sys)
+        close(un_xsol)
+        close(un_psi)
+        close(un_xpol)
+
+        if(nnucl>=3) close(un_angle)
+        if(nnucl>=2) close(un_dist)
+    
+    endif    
 
     if(write_frac) then
         close(un_fdis)
         close(un_fdisP)
         close(un_fdision)
     endif
-
-    if(nnucl>=3) close(un_angle)
-    if(nnucl>=2) close(un_dist)
 
     if(write_localcharge) then
         close(un_charge)
@@ -1780,13 +1786,11 @@ subroutine output_nucl_mul
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol
 
-
     ! .. executable statements
 
     denspol=init_denspol()
 
-   
-    !     .. make label filenames f
+    !  .. make label filenames 
     call make_filename_label(fnamelabel)
 
     sysfilename    = 'system.'//trim(fnamelabel)
@@ -1812,23 +1816,32 @@ subroutine output_nucl_mul
     spacingfilename = 'spacing.'//trim(fnamelabel)
 
     !     .. opening files
+    if(write_sys_only) then 
+        open(unit=newunit(un_sys),file=sysfilename)
+    else 
+        open(unit=newunit(un_sys),file=sysfilename)
+        open(unit=newunit(un_xsol),file=xsolfilename)
+        open(unit=newunit(un_psi),file=potentialfilename)
+        open(unit=newunit(un_xpol),file=xpolfilename)
+        if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
+        if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
+    endif    
 
-    open(unit=newunit(un_sys),file=sysfilename)
-    open(unit=newunit(un_xsol),file=xsolfilename)
-    open(unit=newunit(un_psi),file=potentialfilename)
-    open(unit=newunit(un_xpol),file=xpolfilename)
-    open(unit=newunit(un_fdis),file=densfracfilename)
-
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
-        open(unit=newunit(un_fdisP),file=densfracPfilename)
-    endif
-
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
-       open(unit=newunit(un_fdision),file=densfracionfilename)
-    endif   
-    if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
-    if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
+    if(write_frac) then
         
+        if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
+            open(unit=newunit(un_fdis),file=densfracfilename)
+        endif    
+
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+            open(unit=newunit(un_fdisP),file=densfracPfilename)
+        endif
+
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+           open(unit=newunit(un_fdision),file=densfracionfilename)
+        endif 
+    endif 
+
     if(write_localcharge) then
         open(unit=newunit(un_charge),file=chargefilename)
         open(unit=newunit(un_chargepol),file=chargepolfilename)
@@ -1847,65 +1860,70 @@ subroutine output_nucl_mul
         open(unit=newunit(un_xOHmin),file=xOHminfilename)
     endif
 
+    if(.not.write_sys_only) then 
 
-    !  .. output of bond and dihedral angles
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
-
-    do i=1,nsize
-        write(un_xsol,*)xsol(i)
-        write(un_psi,*)psi(i)
-    enddo
-
-
-    if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
-        do i=1,nsize
-            write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+        !  .. output of bond and dihedral angles
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
         enddo
-    else 
-        do i=1,nsize
-            write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
+
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i)
         enddo
+
+        do i=1,nsize
+            write(un_xsol,*)xsol(i)
+            write(un_psi,*)psi(i)
+        enddo
+
+        if(systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
+            do i=1,nsize
+                write(un_xpol,*)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+            enddo
+        else 
+            do i=1,nsize
+                write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)
+            enddo
+        endif    
+
+    endif 
+
+    if(write_frac) then 
+
+        if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
+            do i=1,nsize
+                write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
+            enddo
+        endif     
+
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+             .or.systype=="nucl_ionbin_Mg") then
+            do i=1,nsize
+                write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
+            enddo
+        endif
+
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
+            do t=1,nsegtypes
+                if(type_of_charge(t)=="A") then 
+                    write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
+                    do i=1,nsize
+                        write(un_fdision,*)(gdisA(i,k,t),k=1,4)
+                    enddo
+                endif 
+            enddo    
+            do t=1,nsegtypes
+                if(type_of_charge(t)=="B") then 
+                    write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
+                    do i=1,nsize
+                        write(un_fdision,*)(gdisB(i,k,t),k=1,3)
+                    enddo
+                endif       
+            enddo
+        endif
+
     endif    
-
-
-    if(systype/="nucl_ionbin".and.systype/="nucl_ionbin_sv".and.systype/="nucl_ionbin_Mg") then
-        do i=1,nsize
-            write(un_fdis,*)(fdis(i,t),t=1,nsegtypes)
-        enddo
-    endif     
-
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
-         .or.systype=="nucl_ionbin_Mg") then
-        do i=1,nsize
-            write(un_fdisP,'(8ES25.16)')(fdisA(i,k),k=1,8)
-        enddo
-    endif
-
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv") then
-        do t=1,nsegtypes
-            if(type_of_charge(t)=="A") then 
-                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
-                do i=1,nsize
-                    write(un_fdision,*)(gdisA(i,k,t),k=1,4)
-                enddo
-            endif 
-        enddo    
-        do t=1,nsegtypes
-            if(type_of_charge(t)=="B") then 
-                write(un_fdision,*)"monomer type t=",t,mapping_num_to_char(t)
-                do i=1,nsize
-                    write(un_fdision,*)(gdisB(i,k,t),k=1,3)
-                enddo
-            endif       
-        enddo
-    endif
 
     if(write_localcharge) then 
         do i=1,nsize
@@ -2148,19 +2166,24 @@ subroutine output_nucl_mul
     write(un_sys,*)'epsilonE    = ',epsilonE
 
     ! .. closing files
-
-    close(un_sys)
-    close(un_xsol)
-    close(un_psi)
-    close(un_xpol)
-
-    if(systype/="nucl_ionbin")close(un_fdis)
-    if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
-         .or.systype=="nucl_ionbin_sv") close(un_fdisP)
-    if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
-         .or.systype=="nucl_ionbin_sv")close(un_fdision)
-    if(nnucl>=3) close(un_angle)
-    if(nnucl>=2) close(un_dist)
+    if(write_sys_only) then 
+        close(un_sys)
+    else
+        close(un_sys)
+        close(un_xsol)
+        close(un_psi)
+        close(un_xpol)
+        if(nnucl>=3) close(un_angle)
+        if(nnucl>=2) close(un_dist)
+    endif 
+    
+    if(write_frac) then
+        if(systype/="nucl_ionbin") close(un_fdis)
+        if(systype=="brushdna".or.systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+             .or.systype=="nucl_ionbin_sv") close(un_fdisP)
+        if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv"&
+             .or.systype=="nucl_ionbin_sv") close(un_fdision)
+    endif    
 
     if(write_localcharge) then
         close(un_charge)
@@ -2259,14 +2282,18 @@ subroutine output_elect
 
     !     .. opening files
 
-    open(unit=newunit(un_sys),file=sysfilename)
-    open(unit=newunit(un_xsol),file=xsolfilename)
-    open(unit=newunit(un_psi),file=potentialfilename)
-    open(unit=newunit(un_xpol),file=xpolfilename)
-    open(unit=newunit(un_fdisA),file=densfracAfilename)
-    open(unit=newunit(un_fdisB),file=densfracBfilename)
-    open(unit=newunit(un_angle),file=anglesfilename)
-    open(unit=newunit(un_dist),file=spacingfilename)
+    if(write_sys_only) then 
+        open(unit=newunit(un_sys),file=sysfilename)
+    else
+        open(unit=newunit(un_sys),file=sysfilename)
+        open(unit=newunit(un_xsol),file=xsolfilename)
+        open(unit=newunit(un_psi),file=potentialfilename)
+        open(unit=newunit(un_xpol),file=xpolfilename)
+        open(unit=newunit(un_fdisA),file=densfracAfilename)
+        open(unit=newunit(un_fdisB),file=densfracBfilename)
+        open(unit=newunit(un_angle),file=anglesfilename)
+        open(unit=newunit(un_dist),file=spacingfilename)
+    endif    
 
     if(write_localcharge) then
         open(unit=newunit(un_charge),file=chargefilename)
@@ -2288,29 +2315,32 @@ subroutine output_elect
 
     !   .. writting files
 
+    if(.not.write_sys_only) then 
 
-    !  .. output of bond and dihedral 
-    
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-
+        !  .. output of bond and dihedral 
         
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
 
-    do i=1,nsize
-        write(un_xsol,*)xsol(i)
-        write(un_psi,*)psi(i)
-    enddo
+            
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i)
+        enddo
 
-    do i=1,nsize
-        write(un_xpol,fmt3reals)xpol(i),rhopol(i,1),rhopol(i,2)
-        write(un_fdisA,fmt5reals)(fdisA(i,k),k=1,5)
-        write(un_fdisB,fmt5reals)(fdisB(i,k),k=1,5)
-    enddo
+        do i=1,nsize
+            write(un_xsol,*)xsol(i)
+            write(un_psi,*)psi(i)
+        enddo
+
+        do i=1,nsize
+            write(un_xpol,fmt3reals)xpol(i),rhopol(i,1),rhopol(i,2)
+            write(un_fdisA,fmt5reals)(fdisA(i,k),k=1,5)
+            write(un_fdisB,fmt5reals)(fdisB(i,k),k=1,5)
+        enddo
+
+    endif
 
     if(write_localcharge) then
         do i=1,nsize
@@ -2534,14 +2564,18 @@ subroutine output_elect
 
     ! .. closing files
     
-    close(un_sys)
-    close(un_xsol)
-    close(un_psi)
-    close(un_xpol)
-    close(un_fdisA)
-    close(un_fdisB)
-    close(un_angle)
-    close(un_dist)
+    if(write_sys_only) then
+        close(un_sys)
+    else 
+        close(un_sys)
+        close(un_xsol)
+        close(un_psi)
+        close(un_xpol)
+        close(un_fdisA)
+        close(un_fdisB)
+        close(un_angle)
+        close(un_dist)
+    endif    
 
     if(write_localcharge) then
         close(un_charge)
@@ -2619,39 +2653,44 @@ subroutine output_neutral
 
 
     !      .. opening files
-    open(unit=newunit(un_sys),file=sysfilename)
-    open(unit=newunit(un_xpol),file=xpolfilename)
-    open(unit=newunit(un_xsol),file=xsolfilename)
-    open(unit=newunit(un_angle),file=anglesfilename)
-    open(unit=newunit(un_dist),file=spacingfilename)
-
+    if(write_sys_only) then 
+        open(unit=newunit(un_sys),file=sysfilename)
+    else
+        open(unit=newunit(un_sys),file=sysfilename)
+        open(unit=newunit(un_xpol),file=xpolfilename)
+        open(unit=newunit(un_xsol),file=xsolfilename)
+        open(unit=newunit(un_angle),file=anglesfilename)
+        open(unit=newunit(un_dist),file=spacingfilename)
+    endif 
+        
     !  .. writting files
-    if(systype=="neutralnoVdW") then
-        do i=1,nsize
-            write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-            write(un_xsol,fmt1reals)xsol(i)
-        enddo
-    endif 
-    if(systype=="nucl_neutral_sv") then
-        do i=1,nsize
-            !write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
-            write(un_xpol,fmtNplus1reals)xpol(i),(xpol_t(i,t)/vnucl(1,t),t=1,nsegtypes)
-            write(un_xsol,fmt1reals)xsol(i)
-        enddo
-    endif 
+    if(.not. write_sys_only) then 
+        if(systype=="neutralnoVdW") then
+            do i=1,nsize
+                write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+                write(un_xsol,fmt1reals)xsol(i)
+            enddo
+        endif 
+        if(systype=="nucl_neutral_sv") then
+            do i=1,nsize
+                !write(un_xpol,fmtNplus1reals)xpol(i),(rhopol(i,t),t=1,nsegtypes)
+                write(un_xpol,fmtNplus1reals)xpol(i),(xpol_t(i,t)/vnucl(1,t),t=1,nsegtypes)
+                write(un_xsol,fmt1reals)xsol(i)
+            enddo
+        endif 
 
-
-    !  .. output of bond and dihedral angles
-   
-    do i=1,nnucl-3
-        write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
-    enddo
-    if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
-    
-    !  .. output of nuclesome distance 
-    do i=1,nnucl-1
-        write(un_dist,*)avnucl_spacing(i)
-    enddo
+        !  .. output of bond and dihedral angles
+       
+        do i=1,nnucl-3
+            write(un_angle,*)avbond_angle(i),avdihedral_angle(i)
+        enddo
+        if(nnucl>=3)write(un_angle,*)avbond_angle(nnucl-2)
+        
+        !  .. output of nuclesome distance 
+        do i=1,nnucl-1
+            write(un_dist,*)avnucl_spacing(i)
+        enddo
+    endif    
 
     !     .. system information
 
@@ -2737,15 +2776,17 @@ subroutine output_neutral
     write(un_sys,*)'epsilonS    = ',epsilonS
     write(un_sys,*)'epsilonE    = ',epsilonE
 
-
-
     ! .. closing files
-    
-    close(un_xsol)
-    close(un_xpol)
-    close(un_sys)
-    close(un_angle)
-    close(un_dist)
+    if(write_sys_only) then 
+        close(un_sys)
+    else
+        close(un_sys)
+        close(un_xsol)
+        close(un_xpol)
+        close(un_sys)
+        close(un_angle)
+        close(un_dist)
+    endif     
     
 end subroutine output_neutral
 
@@ -2839,7 +2880,7 @@ end subroutine output_individualcontr_fe
 
 subroutine make_filename_label(fnamelabel)
 
-    use globals, only : LEFT,RIGHT, systype, runtype
+    use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf
     use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
 
     character(len=*), intent(inout) :: fnamelabel
@@ -2847,8 +2888,12 @@ subroutine make_filename_label(fnamelabel)
     character(len=20) :: rstr
     real(dp) :: denspol
 
+    character(len=40) :: sublabel
+
 
     denspol=init_denspol()
+
+    call make_sublabel(set_confor,local_conf,sublabel)
 
     !     .. make label filename
 
@@ -2856,8 +2901,9 @@ subroutine make_filename_label(fnamelabel)
 
     case("elect","electnopoly","electA")
 
+        fnamelabel=trim(sublabel)
         write(rstr,'(F5.3)')denspol
-        fnamelabel="phi"//trim(adjustl(rstr))
+        fnamelabel=trim(fnamelabel)//"phi"//trim(adjustl(rstr))
         write(rstr,'(F5.3)')cNaCl
         fnamelabel=trim(fnamelabel)//"cNaCl"//trim(adjustl(rstr))
 
@@ -2883,26 +2929,30 @@ subroutine make_filename_label(fnamelabel)
 
     case("neutral","neutralnoVdW","nucl_neutral_sv")
 
+
+        fnamelabel=trim(sublabel)
         if(denspol>=0.001) then
             write(rstr,'(F5.3)')denspol
         else
             write(rstr,'(ES9.2E2)')denspol
         endif
 
-        fnamelabel="phi"//trim(adjustl(rstr))
+        fnamelabel=trim(fnamelabel)//"phi"//trim(adjustl(rstr))
         write(rstr,'(F5.3)')VdWscale%val
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
         "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
         
+        fnamelabel=trim(sublabel)
+        
         if(denspol>=0.001) then
             write(rstr,'(F5.3)')denspol
         else
             write(rstr,'(ES9.2E2)')denspol
         endif
         
-        fnamelabel="phi"//trim(adjustl(rstr))
+        fnamelabel=trim(fnamelabel)//"phi"//trim(adjustl(rstr))
 
         if(cNaCl>=0.001_dp) then
             write(rstr,'(F5.3)')cNaCl
@@ -2982,6 +3032,21 @@ subroutine make_filename_label(fnamelabel)
     endselect
 
 end subroutine make_filename_label
+
+
+subroutine  make_sublabel(set_confor,num_conf,sublabel)
+
+    integer, intent(in) :: set_confor, num_conf
+    character(len=*), intent(inout) :: sublabel
+
+    character(len=20) :: istr
+
+    write(istr,'(I4)')set_confor
+    sublabel="nset"//trim(adjustl(istr))
+    write(istr,'(I6)')num_conf
+    sublabel=trim(sublabel)//"conf"//trim(adjustl(istr))
+
+end subroutine  make_sublabel
 
 subroutine copy_solution(x)
 

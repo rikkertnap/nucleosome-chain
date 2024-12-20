@@ -123,7 +123,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
 
             if(no_overlapchain(c)) then 
 
@@ -138,7 +138,7 @@ contains
             endif     
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0 !rank  
     
         !call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -147,7 +147,7 @@ contains
         !lnproshift=globallnproshift(1)
         lnproshift= locallnproshift(1)   
              
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then 
 
                 lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
@@ -166,21 +166,17 @@ contains
             endif    
         enddo
          
-        
-         
+    
             q=0.0_dp 
             q=local_q
 
-          
-           
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
                     rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
-           
-           
+    
                 
             !  .. construction of fcn and volume fraction polymer   
             !  .. volume polymer segment per volume cell 
@@ -322,7 +318,7 @@ contains
         local_q = 0.0_dp    ! init q             
         lnpro=0.0_dp
 
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf       ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro +logweightchain(c)-energychainLJ(c)        ! internal weight
                 do s=1,nseg        ! loop over segments 
@@ -333,7 +329,7 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0! rank   
     
         !call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
@@ -341,7 +337,7 @@ contains
                
         lnproshift= locallnproshift(1) ! globallnproshift(1)
           
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf       ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c)-energychainLJ(c)     ! initial weight conformation (1 or 0)
                 do s=1,nseg        ! loop over segments 
@@ -550,7 +546,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
@@ -562,14 +558,14 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0! rank  
     
     
         lnproshift= locallnproshift(1) ! globallnproshift(1)
              
          
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf       ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c)-energychainLJ(c) 
                 do s=1,nseg        ! loop over segments 
@@ -686,7 +682,7 @@ contains
     subroutine fcnnucl_ionbin(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf
         use parameters, only : Tlocal=>Tref 
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
@@ -869,7 +865,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c)-energychainLJ(c)        ! internal weight
 
@@ -881,7 +877,7 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0! rank  
     
         
@@ -889,7 +885,7 @@ contains
         lnproshift=  locallnproshift(1) ! globallnproshift(1)
              
          
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)
                 do s=1,nseg        ! loop over segments 
@@ -917,9 +913,7 @@ contains
                     rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
-           
-           
-
+        
 
             !  .. construction of fcn and volume fraction polymer 
 
@@ -1020,7 +1014,7 @@ contains
 
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vpol,vNa,vK,vCl,vRb,vCa,vMg,vpolAA,deltavAA, vnucl
         use parameters, only : zpol,zNa,zK,zCl,zRb,zCa,zMg,K0aAA,K0a,K0aion
@@ -1215,7 +1209,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)
                 do s=1,nseg                       ! loop over segments 
@@ -1234,12 +1228,12 @@ contains
 
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0 ! rank  
     
         lnproshift=locallnproshift(1)
               
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)
                 do s=1,nseg                       ! loop over segments 
@@ -1418,7 +1412,7 @@ contains
     subroutine fcnnucl_neutral_sv(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, cuantas, cuantas_no_overlap,  DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf,  DEBUG
         use parameters, only : vsol,vpol, vnucl
         use parameters, only : iter
         use volume, only     : volcell
@@ -1452,8 +1446,6 @@ contains
 
       
         ! .. executable statements 
-
-       
  
         do i=1,nsize                     
             xsol(i) = x(i)        ! volume fraction solvent
@@ -1477,7 +1469,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro   = 0.0_dp
         
-        do c=1,cuantas                           ! loop over cuantas
+        do c=local_conf,local_conf                         ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal weight
                 !lnpro_per_c =0.0_dp
@@ -1490,15 +1482,16 @@ contains
                 enddo 
                 !print*,"c=",c," lnpro_per_c= ",lnpro_per_c
                 !lnpro=lnpro+lnpro_per_c
+                print*,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
             endif    
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0
        
         lnproshift=locallnproshift(1)
         
-        do c=1,cuantas                        ! loop over cuantas
+        do c=local_conf,local_conf                     ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)
                 do s=1,nseg                       ! loop over segments 
@@ -1522,49 +1515,46 @@ contains
             endif    
         enddo    
 
+        q = 0.0_dp 
+        q = local_q
         
-            q = 0.0_dp 
-            q = local_q
-            
-            
-
-            ! conformation on rank zero 
-            do t=1,nsegtypes
-                do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction 
-                enddo
-            enddo
-           
-            
-
-            !  .. construction of fcn and volume fraction polymer 
-            !  .. normalization volume polymer segment per volume cell
-
-            xpol0=(1.0_dp/volcell)/q 
-
-            do t=1, nsegtypes           ! volumer fraction of polymer of type t 
-                do i=1,nsize
-                    xpol(i,t)  = xpol0 * xpol(i,t)    
-                enddo   
-            enddo    
-
+        ! conformation on rank zero 
+        do t=1,nsegtypes
             do i=1,nsize
-                xpol_tot(i)=0.0_dp
-                do t=1,nsegtypes
-                    xpol_tot(i)  = xpol_tot(i) + xpol(i,t)    
-                enddo  
-
-                f(i) = xpol_tot(i)+xsol(i)-1.0_dp
+                xpol(i,t)=local_xpol(i,t) ! polymer volume fraction 
             enddo
-          
-            ! .. end computation polymer volume fraction 
+        enddo
+       
+        
 
-            norm = l2norm_f90(f)
-            iter = iter + 1 
-                         
-            print*,'iter=', iter ,'norm=',norm
+        !  .. construction of fcn and volume fraction polymer 
+        !  .. normalization volume polymer segment per volume cell
 
-            call locate_xpol_lager_one(xpol_tot)
+        xpol0=(1.0_dp/volcell)/q 
+
+        do t=1, nsegtypes           ! volumer fraction of polymer of type t 
+            do i=1,nsize
+                xpol(i,t)  = xpol0 * xpol(i,t)    
+            enddo   
+        enddo    
+
+        do i=1,nsize
+            xpol_tot(i)=0.0_dp
+            do t=1,nsegtypes
+                xpol_tot(i)  = xpol_tot(i) + xpol(i,t)    
+            enddo  
+
+            f(i) = xpol_tot(i)+xsol(i)-1.0_dp
+        enddo
+      
+        ! .. end computation polymer volume fraction 
+
+        norm = l2norm_f90(f)
+        iter = iter + 1 
+                     
+        print*,'iter=', iter ,'norm=',norm
+
+        call locate_xpol_lager_one(xpol_tot)
 
 
     end subroutine fcnnucl_neutral_sv
@@ -1789,7 +1779,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
@@ -1801,12 +1791,12 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0
 
         lnproshift=locallnproshift(1)
              
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 !pro=1.0_dp         ! initial weight conformation (1 or 0)
                 lnpro=logweightchain(c)-energychainLJ(c) 
@@ -2040,7 +2030,7 @@ contains
         q_local=0.0_dp       ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
 
@@ -2056,12 +2046,12 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0
        
         lnproshift=locallnproshift(1)
 
-        do c=1,cuantas               ! loop over cuantas
+        do c=local_conf,local_conf              ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c)  -energychainLJ(c) 
 
@@ -2161,7 +2151,6 @@ contains
 
     subroutine fcnneutral(x,f,nn)
 
-
         use globals
         use parameters, Tlocal=>Tref 
         use volume
@@ -2192,8 +2181,6 @@ contains
 
         !     .. executable statements 
 
-        
-
         n=nsize
         
         ! read out x 
@@ -2217,7 +2204,7 @@ contains
         local_q = 0.0_dp    ! init q
         lnpro = 0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)       ! internal energy
 
@@ -2229,12 +2216,12 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0
        
         lnproshift=locallnproshift(1)
              
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf      ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)       ! initial weight conformation (1 or 0)
                 do s=1,nseg        ! loop over segments 
@@ -2253,13 +2240,9 @@ contains
         enddo
          
         !   .. import results 
-
-      
           
             q=0.0_dp
-            q=local_q
-
-           
+            q=local_q      
 
             ! first graft point 
             do t=1,nsegtypes
@@ -2317,7 +2300,7 @@ contains
         real(dp), intent(out) :: f(neq)
 
         !     .. local variables
-        
+    
         real(dp) :: local_rhopol(nsize,nsegtypes)
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
@@ -2327,9 +2310,8 @@ contains
         real(dp) :: rhopol0 !integra_q
         integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
-        !     .. executable statements 
 
-       
+        !     .. executable statements 
 
         n=nsize
         
@@ -2360,7 +2342,7 @@ contains
              
         lnpro=0.0_dp
         
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf      ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=lnpro+logweightchain(c) -energychainLJ(c)        ! internal energy
                 do s=1,nseg        ! loop over segments 
@@ -2371,13 +2353,13 @@ contains
             endif       
         enddo
 
-        locallnproshift(1)=lnpro/cuantas_no_overlap
+        locallnproshift(1)=lnpro
         locallnproshift(2)=0
 
         lnproshift=locallnproshift(1)
 
 
-        do c=1,cuantas         ! loop over cuantas
+        do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)        ! internal energy
 
@@ -2554,8 +2536,64 @@ contains
 
     end subroutine fcnbulk
 
+   ! Compute maximun volume fraction for conformation conf
+   ! returns logical isVolfracLargerOne : .true. if xnucl(i)>1 for an i , .false. otherwise
 
+    subroutine maximum_xnucl(conf,isVolfracLargerOne)
+        
+        use precision_definition
+        use globals, only : nsize, nseg
+        use chains, only : indexconf, nelem, type_of_monomer
+        use parameters, only : vnucl
+        use volume, only : volcell
 
+        integer, intent(in) :: conf
+        logical, intent(inout) :: isVolfracLargerOne 
+
+        ! local arguments
+
+        real(dp) :: maxxnucl
+        integer  :: i, s, t, j, k
+        real(dp) :: xnucl(nsize)
+    
+        ! .. executable statements 
+
+        xnucl=0.0_dp
+        isVolfracLargerOne=.false.
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            do j=1,nelem(s)
+                k = indexconf(s,conf)%elem(j) 
+                xnucl(k)=xnucl(k)+vnucl(j,t) 
+            enddo
+        enddo    
+    
+        do i=1,nsize
+            xnucl(i)=xnucl(i)/volcell
+        enddo
+
+        ! find maximum 
+        maxxnucl=maxval(xnucl)
+
+        if(maxxnucl>=1.0_dp) then 
+
+            isVolfracLargerOne=.true.
+
+            print*,"max xnucl= ",maxxnucl
+
+            ! find all elements of xnucl larger 1.0
+            j=0
+            do i=1,nsize
+                if(xnucl(i) >= 1.0_dp) then 
+                    j=j+1
+                    print*,"i=",i,"xnucl=",xnucl(i)                
+                endif
+            enddo         
+            print*,"total number of lattice cell =",j
+        endif    
+    
+    end subroutine  
 
 
     subroutine locate_xpol_lager_one(xpol)
