@@ -3790,9 +3790,9 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                             list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
                             ! transforming form real- to lattice coordinates                 
-                            xi = int(chain_pbc(1,s)/delta)+1
-                            yi = int(chain_pbc(2,s)/delta)+1
-                            zi = int(chain_pbc(3,s)/delta)+1
+                            xi = int(chain_pbc(1,sprime)/delta)+1
+                            yi = int(chain_pbc(2,sprime)/delta)+1
+                            zi = int(chain_pbc(3,sprime)/delta)+1
                             call linearIndexFromCoordinate(xi,yi,zi,idx)
                             index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
                         endif

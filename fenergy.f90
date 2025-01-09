@@ -2169,7 +2169,7 @@ contains
         sumxphos=sumrhophos*vpol(tPhos)*vsol
 
 
-        if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+    !    if(abs(checksumxpoltot)>epsilon_sumxpol) then 
             print*,"Warning: checksumxpoltot larger epsilon_sumxpol ",epsilon_sumxpol
             print*,"checksumxpoltot = ",checksumxpoltot  
             print*,"sumxpol         = ",(sumxpol(t),t=1,nsegtypes)
@@ -2180,7 +2180,7 @@ contains
             print*,"sumxpol(tPhos)     = ",sumxpol(tPhos)
             print*,"deltaxpol(tPhos)   = ",deltaxpol(tPhos)           
 
-        endif
+    !    endif
 
     end subroutine check_volume_nucl_ionbin_Mg
 
