@@ -2178,7 +2178,6 @@ contains
             print*,"sumxphos        = ",sumxphos
             print*,"sumxpol(tPhos)     = ",sumxpol(tPhos)
             print*,"deltaxpol(tPhos)   = ",deltaxpol(tPhos)           
-
         endif
 
     end subroutine check_volume_nucl_ionbin_Mg

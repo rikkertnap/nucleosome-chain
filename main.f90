@@ -259,15 +259,13 @@ program main
                         call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
                         call compute_FEchem_react_PP(FEchempair)
                     endif 
-
                    
                     if(systype=="nucl_ionbin_MgA") then
                         call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
 
-                   
-
+                
                     if(isSolution) then
 
                         call compute_vars_and_output()
@@ -341,8 +339,6 @@ program main
     deallocate(x)
     deallocate(xguess)
     deallocate(fvec)
-
-    
     deallocate(xstored)
       
     call deallocate_field()

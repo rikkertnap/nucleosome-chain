@@ -7,9 +7,9 @@ module quaternions
 contains  
 
 !  Computes conjugates of quaternion q = a + bi + cj + dk 
-!  The conjugate of q is 
-!  q* =  = a - bi - cj - dk
-!  input real(dp) q(4) output real(dp) q_conj(4)
+!  The conjugate of q is q* =  = a - bi - cj - dk
+!  input real(dp) q(4) 
+!  output real(dp) q_conj(4)
 
     function  quat_conjugate(q) result(q_conj)
 

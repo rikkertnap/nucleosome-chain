@@ -734,9 +734,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     use eigenvalues, only : asphericty_parameter
     use parameters, only : VdWscale, isChainEnergyFile, isVdW, isvdwintene, mtpdbfname, orientfname
     use parameters, only : pbc_chains, readinchains, unit_conv, vnucl, write_rotations
-    use volume, only   :  nx, ny,nz, delta, geometry, ut, vt, linearindexfromcoordinate
+    use volume, only   :  nx, ny,nz, delta, geometry, ut, vt, linearindexfromcoordinate, coordtoindex
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
     use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
+    use chain_rotation, only : check_chain_elem_index_and_chain
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
@@ -753,8 +754,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! .. local variables
 
     integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos ! dummy indices
-    integer :: idx                  ! index label
-    integer :: ix,iy,iz,idxtmp 
+    integer :: idx, idx_tmp                   ! index label
+    integer :: ix,iy,iz 
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
@@ -763,6 +764,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
+    real(dp) :: rtranslate(3)
     integer  :: xi,yi,zi, ri(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
     real(dp) :: xpt,ypt              ! coordinates
@@ -803,7 +805,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
     integer :: s_local 
-    logical :: no_overlap
+    logical :: no_overlap, isCheck
 
     ! .. executable statements   
 
@@ -972,7 +974,6 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             endif
         enddo
-    
 
         if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
 
@@ -1048,6 +1049,27 @@ subroutine read_chains_xyz_nucl_volume(info)
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
                 chain_rot,chain_elem_rot,chain_elem_index) 
 
+            chain=chain_rot ! this alligns variables chain_elem_index and chain : contain same backbone conformation
+
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then 
+                print*,"chain=chain_rot => chain_elem_index==chain",isCheck
+            endif    
+
+            ! 6.a translate conformation 
+
+            rtranslate(1) =  xcm
+            rtranslate(2) =  ycm
+            rtranslate(3) =  zcm
+        
+            call translate_chain_elem_index(nseg,nelem,chain_elem_index,rtranslate) 
+            call translate_chain(nseg,chain,rtranslate)
+
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then 
+                print*,"post translation => chain_elem_index==chain",isCheck
+            endif    
+
 
             if(DEBUG)then
                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
@@ -1064,13 +1086,13 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                     ! transforming form real- to lattice coordinates  
                     if(pbc_chains) then 
-                        chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions  
-                        chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly) 
-                        chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz) 
+                        chain_pbc(1,s) = pbc(chain(1,s),Lx) ! periodic boundary conditions  
+                        chain_pbc(2,s) = pbc(chain(2,s),Ly) 
+                        chain_pbc(3,s) = pbc(chain(3,s),Lz) 
                     else
-                        chain_pbc(1,s) = chain_rot(1,s)+xcm  
-                        chain_pbc(2,s) = chain_rot(2,s)+ycm
-                        chain_pbc(3,s) = chain_rot(3,s)+zcm
+                        chain_pbc(1,s) = chain(1,s)  
+                        chain_pbc(2,s) = chain(2,s)
+                        chain_pbc(3,s) = chain(3,s)
                     endif                    
 
                     xi  = int(chain_pbc(1,s)/delta)+1
@@ -1090,7 +1112,17 @@ subroutine read_chains_xyz_nucl_volume(info)
                     endif
 
                     call linearIndexFromCoordinate(xi,yi,zi,idx)
-                    ! idx=coordtoindex(xi,yi,zi)
+                    
+                    idx_tmp=coordtoindex(xi,yi,zi)
+
+                    ! test 
+                    if(idx/=idx_tmp) then
+                        text="idx/=idx_tmp"
+                        call print_to_log(LogUnit,text)  
+                        print*,text 
+                        info= myio_err_index
+                        return
+                    endif
                         
                     indexconf(s,conf)%elem(1) = idx ! CA element
 
@@ -1098,13 +1130,13 @@ subroutine read_chains_xyz_nucl_volume(info)
                     do j=2,nelem(s) 
 
                         if(pbc_chains) then 
-                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
-                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j)+ycm,Ly)
-                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j)+zcm,Lz)  
+                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j),Lx) ! periodic boundary conditions 
+                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j),Ly)
+                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j),Lz)  
                         else
-                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm   
-                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
-                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm
+                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)   
+                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)
+                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)
                         endif 
 
                         xi = int(chain_pbc_tmp(1)/delta)+1
@@ -1134,15 +1166,16 @@ subroutine read_chains_xyz_nucl_volume(info)
                 enddo ! end s loop
 
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
-                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_rot,Lx,Ly)
+                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                    call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
+                    call write_phosphate_pairs(.true.,conf,info)
                 endif    
             
-                !if(isVdW) 
-                
+                ! if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
+
                 energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
 
                 call maximum_xnucl(conf,isVolfracLargerOne)
-
                 print*,"conf=",conf,"isVolfracLargerOne=",isVolfracLargerOne
 
                 if(isVolfracLargerOne) no_overlap=.false. 
@@ -1221,6 +1254,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                         chain_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm  
                         chain_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
                         chain_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm  
+
                         if(pbc_chains) then 
                             chain_pbc_tmp(1) = pbc(ut(chain_tmp(1),chain_tmp(2)),Lx) 
                             chain_pbc_tmp(2) = pbc(vt(chain_tmp(1),chain_tmp(2)),Ly)
@@ -1256,7 +1290,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
+                ! energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
 
                 call make_com_nucl_rotation(chain_rot,nnucl,unitvector_triplets,rcom)
                 
@@ -1307,13 +1341,13 @@ subroutine read_chains_xyz_nucl_volume(info)
     conf=conf-1  ! lower by one  
 
     if(conf<max_confor) then
-        print*,"subroutine make_chains_xyz_nucl_volume :" 
+        print*,"subroutine read_chains_xyz_nucl_volume :" 
         print*,"conf     = ",conf," less then imposed max cuantas     = ",max_confor
         print*,"conffile = ",conffile
         cuantas=conf   
         info = myio_err_conf        
     else
-        text="Chains generated: subroutine make_chains_xyz_nucl_volume"
+        text="Chains generated: subroutine read_chains_xyz_nucl_volume"
         call print_to_log(LogUnit,text)
         readinchains=conffile
         info = 0
@@ -3028,44 +3062,89 @@ function open_chain_struct_file(filename,info)result(un)
     endif    
 end function open_chain_struct_file
 
+function open_output_file(filename,info)result(un)
 
-subroutine write_phosphate_pairs(write_pairs,info)
+    use myutils, only : newunit, lenText
+    use myio, only : myio_err_chainsfile
+
+    character(len=lenText) :: filename
+    integer, optional, intent(inout) :: info
+
+    integer :: un
+
+    ! local
+    character(len=lenText) :: istr
+    character(len=25) :: fname
+    integer :: ios
+    logical :: exist
+    
+    if (present(info))  info=0 ! init
+    
+    fname=trim(adjustl(filename))
+
+    inquire(file=fname,exist=exist)
+    if(.not.exist) then
+        open(unit=newunit(un),file=fname,status='new',iostat=ios)
+        if(ios >0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    else
+        open(unit=newunit(un),file=fname,status='old',iostat=ios)
+        if(ios >0 ) then
+            print*, 'Error opening : ',fname,' file : iostat =', ios
+            if (present(info)) info = myio_err_chainsfile
+            return
+        endif
+    endif    
+end function open_output_file
+
+
+subroutine write_phosphate_pairs(write_pairs,conf,info)
 
     use globals, only : cuantas,nseg
-    use myutils, only : lenText
+    use myutils, only : lenText, newunit
     use chains, only : type_of_monomer, nneigh, indexconfpair, distphoscutoff
     use parameters, only : ta
+
 
     implicit none 
 
     logical, intent(in) :: write_pairs
+    integer, intent(in) :: conf
     integer, intent(inout) :: info
+
  
     ! .. local
     character(len=lenText) :: filename
     integer :: un_pp
-    integer :: conf, s, j, tPhos
+    integer :: s, j, tPhos
+    character(len=10) ::istr
 
     info=0
 
     if(write_pairs) then
 
         tPhos = find_type_phosphate()
-    
-        filename='phosphate_pairs.'
+        
+        write(istr,'(I4)')conf
+        filename='phosphate_pairs.'//trim(adjustl(istr))//'.log'
+        
         !     .. opening file
-        un_pp=open_chain_struct_file(filename,info)
+        open(unit=newunit(un_pp),file=filename)
+
+        !un_pp=open_chain_struct_file(filename,info)
 
         write(un_pp,*)"phosphate pairs"
         write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
         write(un_pp,*)"distphoscutoff=",distphoscutoff
-        do conf=1,cuantas
-            write(un_pp,*)"conf=",conf
-            do s=1,nseg
-                write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),&
-                    (indexconfpair(s,conf)%elem(j),j=1,nneigh(s,conf))
-            enddo
-        enddo 
+        
+        write(un_pp,*)"conf=",conf
+        do s=1,nseg
+            write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),&
+                (indexconfpair(s,conf)%elem(j),j=1,nneigh(s,conf))
+        enddo
             
         close(un_pp)
           
@@ -3790,12 +3869,67 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
 
 end subroutine add_chain_rot_and_chain_elem_rot
 
-! Finds phosphate pairs for given conformation number conf.
-! Assigns  nneigh(s,conf) and indexconfpair9s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+! Translate chain(s,k)  coordinate (component k) of segment s  
+! translation_vector(k)
 
-subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
+subroutine translate_chain(nseg,chain,translation_vector) 
 
-   !use mpivars, only : rank
+    integer, intent(in) :: nseg
+    real(dp), intent(inout) :: chain(:,:)
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, k
+
+    do s=1,nseg              ! loop over segment 
+        do k=1,3
+            chain(k,s) = chain(k,s)+translation_vector(k)
+        enddo     
+    enddo     
+
+end subroutine translate_chain
+
+
+! Translate chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j by 
+! translation_vector(k)
+
+subroutine translate_chain_elem_index(nseg,nelem,chain_elem_index,translation_vector) 
+
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(inout) ::chain_elem_index
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, j, k
+
+    do s=1,nseg              ! loop over segment
+        do j=1,nelem(s)      ! loop over number of chain elements for segment s 
+            do k=1,3
+                chain_elem_index(k,s)%elem(j)= chain_elem_index(k,s)%elem(j)+translation_vector(k)
+            enddo
+        enddo 
+    enddo     
+
+end subroutine translate_chain_elem_index
+
+
+! Finds phosphate pairs for given conformation number conf 
+! Conformation is stored in chain
+! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+! input integer :: nseg : number atoms/segment
+!       integer :: conf : conformation number
+!       integer :: tPphos : number associated with type of phosphates
+!       real(dp) :: sqrDphoscutoff : squared distance of cutoffdistance citeria for pair
+!       real(dp) :: chain(3,nseg) : hold coordiante of backbone confomation for all atom/segment
+!       real(dp) :: LX,Ly,Lz : dimension lattice/box in nm 
+! output assigment  
+!       integer :: nneight(nseg,conf) : number of 'neighbors' that a phosphate s has for conformation conf
+!                  if type of s in not a phospate then value zero
+!       type(var_iarray) ::  indexconfpair(s,conf)%elem(j) : layer number of neigbor j of conf alpha and segment number s
+
+subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
@@ -3808,7 +3942,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
     integer, intent(in) :: tPhos
     real(dp), intent(in) :: sqrDphoscutoff
     real(dp), intent(in) :: chain(3,nseg)
-    real(dp), intent(in) :: Lx,Ly
+    real(dp), intent(in) :: Lx,Ly,Lz
 
     integer, parameter :: maxnneigh = 10
 
@@ -3820,7 +3954,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
     character(len=100) :: fname
     integer :: un_pp
     character(len=10) ::istr
-
+    
     allocate(list_of_pairs(nseg,maxnneigh))
     allocate(index_of_pairs(nseg,maxnneigh))
 
@@ -3843,18 +3977,19 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
 
                             ! transforming form real- to lattice coordinates                 
                             
-                            if(pbc_chains) then 
-                                xi = int(pbc(chain(1,s),Lx)/delta)+1
-                                yi = int(pbc(chain(2,s),Ly)/delta)+1
-                                zi = int(chain(3,s)/delta)+1
+                            if(pbc_chains) then  
+                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                zi = int(pbc(chain(3,sprime),Lz)/delta)+1
                             else 
-                                xi = int(chain(1,s)/delta)+1
-                                yi = int(chain(2,s)/delta)+1
-                                zi = int(chain(3,s)/delta)+1
+                                xi = int(chain(1,sprime)/delta)+1
+                                yi = int(chain(2,sprime)/delta)+1
+                                zi = int(chain(3,sprime)/delta)+1
                             endif    
 
                             call linearIndexFromCoordinate(xi,yi,zi,idx)
-                            call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            !idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                            
                             index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
                         endif
                     endif    
@@ -3865,9 +4000,11 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
 
     ! print 
 
+
     if(.true.)then
-        write(istr,'(I4)')0
-        fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
+        
+        fname='phosphate_pairs.log'
+        fname=trim(adjustl(fname))
         !     .. opening file
         open(unit=newunit(un_pp),file=fname)
 
@@ -3892,12 +4029,64 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
         do j=1,nneigh(s,conf)
             indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
         enddo 
-    enddo  
+    enddo 
 
     deallocate(list_of_pairs)
     deallocate(index_of_pairs)
 
+
 end subroutine find_phosphate_pairs
+
+
+subroutine write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
+    
+    use chains, only :  type_of_monomer,indexconfpair, indexconf
+    use chains, only : nneigh, distphoscutoff
+    use parameters, only : tA 
+    use volume, only : delta, linearIndexFromCoordinate,coordinateFromLinearIndex
+    use myutils, only : newunit
+    
+    integer, intent(in) :: nseg
+    integer, intent(in) :: conf
+    integer, intent(in) :: tPhos
+    real(dp), intent(in) :: sqrDphoscutoff
+
+
+    integer :: s, sprime, i, j
+    integer :: xi, yi, zi , idx    
+    character(len=100) :: fname
+    integer :: un_pp
+    character(len=10) ::istr
+    
+    write(istr,'(I4)')conf
+    fname='phosphate_indexconfpair.'//trim(adjustl(istr))//'.log'
+    !     .. opening file
+    open(unit=newunit(un_pp),file=fname)
+
+    write(un_pp,*)"phosphate pairs"
+    write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+    write(un_pp,*)"distphoscutoff=",distphoscutoff
+    write(un_pp,*)"conf=",conf
+    
+    do s=1,nseg
+        write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),indexconf(s,conf)%elem(1),&
+        (indexconfpair(s,conf)%elem(j),j=1,nneigh(s,conf)) 
+    enddo
+    
+    write(un_pp,*)" "
+
+    do s=1,nseg
+        write(un_pp,'(I5,I5,I5,I8)',advance="no")s,type_of_monomer(s),nneigh(s,conf),indexconf(s,conf)%elem(1)
+        do j=1,nneigh(s,conf)
+            call coordinateFromLinearIndex(indexconfpair(s,conf)%elem(j),xi,yi,zi)
+            write(un_pp,'(A, 3I3, A)',advance="no")" ",xi,yi,zi," "
+        enddo 
+        write(un_pp,*)   
+    enddo
+
+    close(un_pp)    
+
+end subroutine write_indexconfpair
 
 ! Compute index_phos and len_phos:
 ! index_phos is a list representing all latice element that contain phosphates

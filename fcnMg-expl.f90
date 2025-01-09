@@ -37,6 +37,8 @@ contains
         i = position1 ! position in lattice numbers
         j = position2
 
+        print*,"i=",i,' j=',j
+
         xP(PhosH,1)  = xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      !  (PH)/P-    : f(PH)P(i,j)/fPP(i,j)
         xP(PhosH,2)  = xHplus(j)/(K0aAA(1)*(xsol(j)**deltavAA(1)))      !  (PH)/P-    : fP(PH)(i,j)/fPP(i,j)
       
@@ -260,6 +262,8 @@ contains
                         do jj=1,nneigh(s,c)           ! loop neighbors 
 
                             m = indexconfpair(s,c)%elem(jj)
+
+                            print*,'k=',k,' m=',m
 
                             call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
 

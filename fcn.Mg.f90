@@ -71,7 +71,7 @@ contains
         integer  :: count_scf
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
         real(dp) :: sum_rhoqphos,sum_xphos
-
+        real(dp) :: sumfdisPP
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
 
         ! .. executable statements 
@@ -163,7 +163,7 @@ contains
 
                         do kr=1,maxneigh     ! loop over neighbors
                          
-                            j=indexneighbor(i,kr)   ! j=index of neighbors number k of index i 
+                            j=indexneighbor(i,kr)   ! j=index of neighbors number kr of index i 
  
                             xP(Phos,1)   = 1.0_dp 
                             xP(Phos,2)   = 1.0_dp    
@@ -201,6 +201,8 @@ contains
                             fdisP2Mg(ind,kr) = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
                        
                             lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
+
+
                         
                         enddo
                 
@@ -214,7 +216,22 @@ contains
 
             endif   
         enddo   
-    
+
+        ! check 
+ 
+        do i=1,len_index_phos
+            do kr=1,maxneigh
+                sumfdisPP=0.0_dp    
+                do JJ=1,5
+                    do KK=1,5
+                        sumfdisPP=sumfdisPP+fdisPP(i,kr,JJ,KK) 
+                    enddo
+                enddo
+                sumfdisPP=sumfdisPP+fdisP2Mg(i,kr)
+                if(abs(sumfdisPP-1.0_dp)>1.0e-8_dp) print*,i,kr,sumfdisPP
+            enddo
+        enddo  
+              
         !  .. computation polymer density fraction      
  
         local_q = 0.0_dp    ! init q
@@ -323,40 +340,70 @@ contains
                         endif
                     else
                         ! pair density of phosphates 
-                        k = indexconf(s,c)%elem(1)
-                        k_ind = inverse_index_phos(k) 
+                        k = indexconf(s,c)%elem(1)    
+                        k_ind = inverse_index_phos(k) ! look-up table to get phosphate index 
 
                         do j=1,nneigh(s,c)
 
                             m = indexconfpair(s,c)%elem(j)
-                            m_ind= inverse_index_phos(m)  ! look-up table to get index 
-
-                            !mr = inverse_indexneighbor(k,m) ! mr neighbor label of index m relative to origin at index k
-                            !kr = inverse_indexneighbor(m,k) ! kr neighbor label of index k relative to origin at index m
+                            m_ind= inverse_index_phos(m)  ! look-up table to get phosphate index 
                              
                             mr = inverse_indexneighbor_phos(k_ind,m) ! mr neighbor label of index m relative to origin at index k
                             kr = inverse_indexneighbor_phos(m_ind,k) ! kr neighbor label of index k relative to origin at index m
+                           
+                            ! % first part integral
 
                             sum_rhoqphos=0.0_dp
                             sum_xphos=0.0_dp 
                         
+                            ! first integral: contributes to location k of rhoqpos and xphos   
+
                             do JJ=1,5
-                                do KK=1,5
+                                do KK=1,5   ! coordinate index k,m maps to  k_ind,mr (k,m) -> (k_ind,mr) 
                                     sum_rhoqphos = sum_rhoqphos+&
                                         (fdisPP(k_ind,mr,JJ,KK)*qPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*qPP(KK))/2.0_dp
+
                                     sum_xphos = sum_xphos   +&
                                         (fdisPP(k_ind,mr,JJ,KK)*vPP(JJ)+fdisPP(m_ind,kr,JJ,KK)*vPP(KK))/2.0_dp
+                               
+                                enddo
+                            enddo
+                            
+                            sum_xphos=sum_xphos+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*vPP(Phos2Mg)/4.0_dp
+
+                                ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                      
+                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            local_xpol(k,ta)  = local_xpol(k,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
+
+                            local_rhopol_charge(k,ta) = local_rhopol_charge(k,ta)+pro/(2.0_dp*nneigh(s,c))
+
+                            ! second integral contributes to location m of rhoqpos and xphol  xpol  
+                         
+                            sum_rhoqphos=0.0_dp
+                            sum_xphos=0.0_dp 
+                        
+                            ! contributes to location k of rhoqpos and xol
+                               
+                            do JJ=1,5
+                                do KK=1,5   
+                                    sum_rhoqphos = sum_rhoqphos+&
+                                        (fdisPP(m_ind,kr,JJ,KK)*qPP(JJ)+fdisPP(k_ind,mr,JJ,KK)*qPP(KK))/2.0_dp
+
+                                    sum_xphos = sum_xphos   +&
+                                        (fdisPP(m_ind,kr,JJ,KK)*vPP(JJ)+fdisPP(k_ind,mr,JJ,KK)*vPP(KK))/2.0_dp
                                 enddo
                             enddo
         
-                            sum_xphos=sum_xphos+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*vPP(Phos2Mg)/4.0_dp 
-                                ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
-                      
-                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
-                            local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
+                            sum_xphos=sum_xphos+(fdisP2Mg(m_ind,kr)+fdisP2Mg(k_ind,mr))*vPP(Phos2Mg)/4.0_dp
 
-                            local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
-                            
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                      
+                            local_rhoqphos(m) = local_rhoqphos(m) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            local_xpol(m,ta) = local_xpol(m,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
+
+                            local_rhopol_charge(m,ta)=local_rhopol_charge(m,ta)+pro/(2.0_dp*nneigh(s,c))
+
                         enddo 
          
                     endif
@@ -476,9 +523,9 @@ contains
             normvol = L2norm_f90(f(1:nsize))
             normPE  = L2norm_f90(f(nsize+1:2*nsize))
            
-            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE          
-        
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE 
 
+            
     end subroutine fcnnucl_Mg
 
 
@@ -627,13 +674,13 @@ contains
                             do JJ=1,5
                                 do KK=1,5
                                  local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
-                            !        (fdisPP(k,mr,JJ,KK)+fdisPP(m,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
-                                    fdisPP(k_ind,mr,JJ,KK)*pro/nneigh(s,c)
+                                    (fdisPP(k_ind,mr,JJ,KK)+fdisPP(m_ind,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
                             
                                 enddo
                             enddo
         
-                            !local_avfdisP2Mg=local_avfdisP2Mg+(fdisP2Mg(k,mr)+fdisP2Mg(mr,kr))*pro/(2.0_dp*nneigh(s,c)) 
+                            !local_avfdisP2Mg=local_avfdisP2Mg+(fdisP2Mg(k_ind,mr)+fdisP2Mg(m_ind,kr))*pro/(2.0_dp*nneigh(s,c))
+
                             local_avfdisP2Mg=local_avfdisP2Mg+fdisP2Mg(k_ind,mr)*pro/nneigh(s,c)
                     
                         enddo 

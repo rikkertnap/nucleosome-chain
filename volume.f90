@@ -383,7 +383,7 @@ contains
             
             idx = index_phos(n)  ! give the lattice number of list in unique phosphate 
 
-            ! use hash table to get coordiantes 
+            ! use hash table to get coordinates 
             ix=indextocoord(idx,1)
             iy=indextocoord(idx,2)
             iz=indextocoord(idx,3)
@@ -401,7 +401,7 @@ contains
                         jp=ipbc(j,ny)
                         kp=ipbc(k,nz)
                         neighbornumber=neighbornumber+1
-                        idxneigh=coordtoindex(ip,jp,kp) ! index of neighbour
+                        idxneigh=coordtoindex(ip,jp,kp) ! index of neighbor
                         indexneighbor(idx,neighbornumber) = idxneigh
                         inverse_indexneighbor_phos(n,idxneigh) = neighbornumber
 

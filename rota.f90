@@ -627,5 +627,48 @@ subroutine unit_test_rotation(info)
 end subroutine unit_test_rotation
 
 
+! Check if chain_index(k,s)%elem(1) == nseg(k,s) 
+! input :  integer :: nseg       
+!          integer :: nelem(nseg)
+!          type(var_darray):: chain_elem_index
+!          real(dp) :: chain(3,nseg)
+! output : logical ::isSame  : isSame =.true chain_index(k,s)%elem(1) == nseg(k,s) .false. otherwise
+
+subroutine check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isSame)
+     
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg       
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(in) ::chain_elem_index
+    real(dp),dimension(:,:), intent(in)    :: chain
+    logical, intent(inout) :: isSame
+
+    integer :: s, i
+    logical :: flag
+    real(dp) :: sqrdiff 
+    real(dp), parameter  :: epssqrdiff = 0.00000001_dp 
+
+    s=1              ! loop over segments
+    flag=.true.
+
+    do while(s<=nseg.and.flag)    
+       
+        sqrdiff=0.0_dp
+        do i=1,3
+            sqrdiff=sqrdiff+(chain_elem_index(i,s)%elem(1)-chain(i,s))**2
+        enddo
+        if(sqrdiff>=epssqrdiff) then 
+            flag=.false.
+            ! print*,"sqrdiff=",sqrdiff,"s= ",s
+        endif    
+        s=s+1    
+    enddo    
+
+    isSame=flag
+
+end subroutine check_chain_elem_index_and_chain
+
+
 end module chain_rotation
     
