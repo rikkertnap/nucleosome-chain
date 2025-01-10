@@ -21,7 +21,7 @@ LDFLAGS=-L/opt/local/sundials-2.5.0-openmpi/lib -lsundials_fkinsol -lsundials_ki
 
 LFFLAGS=$(LDFLAGS)
 
-FF= mpif90
+FF= gfortran
 
 
 else ifeq ($(shell hostname),alfajor)
@@ -34,7 +34,7 @@ LDFLAGS=  -O3 -lm /usr/lib/x86_64-linux-gnu/librt.so -L/opt/local/sundials-2.6.1
 LFFLAGS=$(LDFLAGS)
 
 
-FF= mpif90
+FF= gfortran
 
 
 
@@ -48,7 +48,7 @@ LDFLAGS=-L/opt/local/sundials-2.5.0-openmpi-2.0.2/lib -lsundials_fkinsol -lsundi
 LFFLAGS=$(LDFLAGS)
 
 
-FF= mpif90
+FF= gfortran
 
 
 else ifeq ($(shell hostname),ensalada)
@@ -61,7 +61,7 @@ LDFLAGS=  -lm /usr/lib/x86_64-linux-gnu/librt.so -L/opt/local/sundials-2.6.1-ope
 
 LFFLAGS=$(LDFLAGS)
 
-FF= mpif90
+FF= gfortran
 
 else ifeq ($(shell hostname),master)
 
@@ -84,7 +84,7 @@ LDFLAGS=  -lm /usr/lib/x86_64-linux-gnu/librt.so -L/opt/local/sundials-2.6.1-ope
 
 
 LFFLAGS=$(LDFLAGS)
-FF= mpif90
+FF= gfortran
 
 else ifeq ($(shell hostname),orange)
 
@@ -101,7 +101,7 @@ else ifeq ($(shell hostname),pear)
 FFLAGS= -O3 -cpp -DVERSION=\"$(GIT_VERSION)\"
 LDFLAGS=-L/opt/local/sundials-2.5.0-openmpi/lib -lsundials_fkinsol -lsundials_kinsol -lsundials_fnvecserial -lsundials_nvecserial -lm -L/usr/lib/gcc/x86_64-linux-gnu/4.6 -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../.. -lgfortran -lm -lgcc_s -lquadmath
 
-LFFLAGS=$(LDFLAGS)
+LFFLAGS=$(LD:FLAGS)
 FF= gfortran
 
 else ifeq ($(shell hostname),master.bw01.bme.northwestern.edu)
@@ -162,7 +162,7 @@ LDFLAGS= -lm /usr/lib64/librt.so -L/projects/p31445/sundials/sundials-2.6.1-open
 
 LFFLAGS=$(LDFLAGS)
 
-FF= mpif90
+FF= gfortran
 
 endif
 
