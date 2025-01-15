@@ -24,7 +24,7 @@ module chaingenerator
 
     private 
 
-    public :: make_chains, make_chains_mc,read_chains_XYZ
+    public :: make_chains, make_chains_mc,read_chains_xyz
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     public :: find_phosphate_location
@@ -729,8 +729,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
     use eigenvalues, only : asphericty_parameter
-    use parameters
-    use volume, only   :  nx, ny,nz, delta
+    use parameters      ! this leads to extra module imports !!!
+    use volume, only   :  nx, ny,nz, delta, position_graft
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
     use chain_rotation, only : orientation_coordinates, orientation_vector_ref, orientation_vector
     use chain_rotation, only : rotate_chain_elem, rotate_chain_elem_index_and_chain,check_chain_elem_index_and_chain
@@ -741,7 +741,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : error_handler
     use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
     use VdW_potential, only : make_com_nucl_rotation
-    use volume, only : position_graft
+    
     ! .. argument
 
     integer, intent(out) :: info
@@ -984,9 +984,9 @@ subroutine read_chains_xyz_nucl_volume(info)
         
         if(isReadGood) then ! read was succesfull  
 
-            chain_lammps(:,:,1)=xseg
 
             if(DEBUG)then
+                chain_lammps(:,:,1)=xseg
                 un_traj=open_chain_lammps_trj(info_traj)
                 call write_chain_lammps_trj(un_traj,chain_lammps,1)
                 close(un_traj)
@@ -1054,9 +1054,10 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             ! 6. tether conformation to z=0 plane 
             
-            chain=chain_rot ! this allign names chain_elem_index and chain : contain same backbone conformation
+            chain=chain_rot ! this alligns variables chain_elem_index and chain : contain same backbone conformation
 
             call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+
             if(.not.isCheck) then 
                 print*,"rank= ",rank,conf,"chain=chain_rot => chain_elem_index==chain",isCheck
             endif    
@@ -1065,7 +1066,6 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             call rotate_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain_elem_index_rot,chain,chain_rot)
             
-
             call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
             if(.not.isCheck) then 
                 print*,"rank= ",rank,conf," rotation => chain_elem_index==chain",isCheck
@@ -1096,15 +1096,15 @@ subroutine read_chains_xyz_nucl_volume(info)
         
             call translate_chain_elem_index(nseg,nelem,chain_elem_index_rot,rtranslate) 
             call translate_chain(nseg,chain_rot,rtranslate)
-
+            
             !call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
             !print*,"again :rzmin=",rzmin
 
-            !if(DEBUG)then
+            if(DEBUG)then
                  un_traj=open_chain_elem_index_lammps_trj(info_traj)
                  call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_rot)
                  close(un_traj)
-            !endif  
+            endif  
 
 
             ! 7. make indexconfig i.e. place conformation on lattice
@@ -1129,21 +1129,26 @@ subroutine read_chains_xyz_nucl_volume(info)
                     yi  = int(chain_pbc(2,s)/delta)+1
                     zi  = int(chain_pbc(3,s)/delta)+1
 
-                    call linearIndexFromCoordinate(xi,yi,zi,idx)
-                        
-                    indexconf(s,conf)%elem(1) = idx ! CA element
-
-                    if(idx<=0.or.idx>nsize) then   
-
-                        text="Conformation outside box:"
+                    if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
+                        print*,"Segment is outside of box"
                         call print_to_log(LogUnit,text)  
-                        print*,text    
-                        print*,"chain_pbc=",chain_pbc(:,s)                      
+                        print*,text   
                         print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
+                    endif    
 
-                    endif
+                    idx=coordtoindex(xi,yi,zi)
+
+                    !call linearIndexFromCoordinate(xi,yi,zi,idxtmp)
+
+                    !if(idx/=idxtmp) then 
+                    !    print*,"idx/=idxtmp"
+                    !   print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                    !endif    
+
+                    indexconf(s,conf)%elem(1) = idx ! CA element
+
 
                     ! apply elements 
                     do j=2,nelem(s) ! exclude j=1
@@ -1163,12 +1168,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                         yi = int(chain_pbc_tmp(2)/delta)+1
                         zi = int(chain_pbc_tmp(3)/delta)+1
                         
-                        call linearIndexFromCoordinate(xi,yi,zi,idx)
-                        
-                        indexconf(s,conf)%elem(j) = idx ! all element
-
-                        if(idx<=0.or.idx>nsize) then   
-
+                        if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
                             print*,text  
@@ -1179,17 +1179,27 @@ subroutine read_chains_xyz_nucl_volume(info)
                             return
                         endif
 
+                        ! call linearIndexFromCoordinate(xi,yi,zi,idx)
+
+                        idx=coordtoindex(xi,yi,zi)
+                        
+                        indexconf(s,conf)%elem(j) = idx ! all element
+
                     enddo   
                 
                 enddo ! end s loop
 
+        
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
-                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-                    ! use chain_pbc or chain_rot !!!!
+                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_rot,Lx,Ly)
+                    ! use chain_rot !!!!
                 endif    
             
-                ! for energy, overlap and rcom use chain conformation 
-                ! chain_rot that has NOT applied pbc not use chain_pbc!!
+                ! for energy, and rcom use chain conformation 
+                ! chain_rot that has NOT applied pbc 
+
+                ! Q1? for overlap maybe use chain_pbc combined with subroutine maximum_xnucl(conf,isVolfracLargerOne)
+                ! Q2> Check usage of isVdW ???
 
                 if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
 
@@ -1206,7 +1216,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                 gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
 
-      
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                     Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -1299,6 +1308,12 @@ subroutine read_chains_xyz_nucl_volume(info)
                     enddo 
                     
                 enddo
+
+                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
+                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_rot,Lx,ly)
+                    ! use chain_rot !!!!
+                endif    
+
 
                 if(isVdW)  energyLJ    = GBenergyeffective(chain_rot,nnucl,no_overlap)  
 
@@ -1982,6 +1997,28 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
 
 end subroutine make_type_of_charge_table
 
+! Checks if (xi,yi,zi) is inside lattice
+! 0<=xi<=nx  and 0<= yi <= ny and o
+! returns: logical = .true. if outside 
+
+function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
+ 
+    integer, intent(in) :: xi,yi,zi
+    integer, intent(in) :: nx,ny,nz
+
+    logical :: isOutside
+
+    integer :: intxi,intyi,intzi
+    logical :: isInside
+    
+    intxi=int(xi/nx)
+    intyi=int(yi/ny)
+    intzi=int(zi/nz)
+
+    isInside=(0<=intxi).and.(intxi<=1).and.(0<=intyi).and.(intyi<=1).and.(0<=intzi).and.(intzi<=1)
+    isOutside=.not.isInside
+    
+end function isOutsideLattice
 
 logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
  
@@ -3884,12 +3921,13 @@ end subroutine
 ! Finds phosphate pairs for given conformation number conf.
 ! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
 
-subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
+subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
 
     use mpivars, only : rank
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
-    use parameters, only : tA 
+    use parameters, only : tA
+    use parameters, only : pbc_chains
     use volume, only : delta, linearIndexFromCoordinate
     use myutils, only : newunit
     
@@ -3897,7 +3935,8 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     integer, intent(in) :: conf
     integer, intent(in) :: tPhos
     real(dp), intent(in) :: sqrDphoscutoff
-    real(dp), intent(in) :: chain_pbc(3,nseg)
+    real(dp), intent(in) :: chain(3,nseg)
+    real(dp), intent(in) :: Lx,Ly
 
     integer, parameter :: maxnneigh = 10
 
@@ -3922,7 +3961,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                        
                         sqrdist=0.0_dp
                         do i=1,3
-                            sqrdist=sqrdist+(chain_pbc(i,s)-chain_pbc(i,sprime))**2
+                            sqrdist=sqrdist+(chain(i,s)-chain(i,sprime))**2
                         enddo
     
                         if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
@@ -3931,9 +3970,17 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                             list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
                             ! transforming form real- to lattice coordinates                 
-                            xi = int(chain_pbc(1,s)/delta)+1
-                            yi = int(chain_pbc(2,s)/delta)+1
-                            zi = int(chain_pbc(3,s)/delta)+1
+                            
+                            if(pbc_chains) then 
+                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                zi = int(chain(3,sprime)/delta)+1
+                            else 
+                                xi = int(chain(1,sprime)/delta)+1
+                                yi = int(chain(2,sprime)/delta)+1
+                                zi = int(chain(3,sprime)/delta)+1
+                            endif    
+
                             call linearIndexFromCoordinate(xi,yi,zi,idx)
                             index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
                         endif

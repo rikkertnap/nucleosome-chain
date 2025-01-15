@@ -1711,12 +1711,12 @@ contains
                         lnpro = lnpro +lnexppi(k)*vnucl(j,t)
                     enddo    
                 enddo 
-                print*,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
+                !print*,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
             endif    
         enddo
 
         gg=int(rank/nset_per_graft)+1
-        print*,"rank=",rank,"gg=",gg,"lnpro=",lnpro
+        !print*,"rank=",rank,"gg=",gg,"lnpro=",lnpro
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
@@ -2962,6 +2962,66 @@ contains
     !    print*,'iter=', iter ,'norm=',norm
 
     end subroutine fcnbulk
+
+
+    ! Compute maximun volume fraction for conformation conf
+    ! returns logical isVolfracLargerOne : .true. if xnucl(i)>1 for an i , .false. otherwise
+    
+    subroutine maximum_xnucl(conf,isVolfracLargerOne)
+        
+        use precision_definition
+        use globals, only : nsize, nseg
+        use chains, only : indexconf, nelem, type_of_monomer
+        use parameters, only : vnucl
+        use volume, only : volcell
+
+        integer, intent(in) :: conf
+        logical, intent(inout) :: isVolfracLargerOne 
+
+        ! local arguments
+
+        real(dp) :: maxxnucl
+        integer  :: i, s, t, j, k
+        real(dp) :: xnucl(nsize)
+    
+        ! .. executable statements 
+
+        xnucl=0.0_dp
+        isVolfracLargerOne=.false.
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            do j=1,nelem(s)
+                k = indexconf(s,conf)%elem(j) 
+                xnucl(k)=xnucl(k)+vnucl(j,t) 
+            enddo
+        enddo    
+    
+        do i=1,nsize
+            xnucl(i)=xnucl(i)/volcell
+        enddo
+
+        ! find maximum 
+        maxxnucl=maxval(xnucl)
+
+        if(maxxnucl>=1.0_dp) then 
+
+            isVolfracLargerOne=.true.
+
+            print*,"max xnucl= ",maxxnucl
+
+            ! find all elements of xnucl larger 1.0
+            j=0
+            do i=1,nsize
+                if(xnucl(i) >= 1.0_dp) then 
+                    j=j+1
+                    print*,"i=",i,"xnucl=",xnucl(i)                
+                endif
+            enddo         
+            print*,"total number of lattice cell =",j
+        endif    
+    
+    end subroutine 
 
 
 

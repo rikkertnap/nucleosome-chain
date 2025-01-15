@@ -38,6 +38,8 @@ contains
         i = position1 ! position in lattice numbers
         j = position2
 
+        print*,"i=",i,' j=',j
+
         xP(PhosH,1)  = xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      !  (PH)/P-    : f(PH)P(i,j)/fPP(i,j)
         xP(PhosH,2)  = xHplus(j)/(K0aAA(1)*(xsol(j)**deltavAA(1)))      !  (PH)/P-    : fP(PH)(i,j)/fPP(i,j)
       
@@ -352,7 +354,9 @@ contains
                             m = indexconfpair(s,c)%elem(j)
                              
                             call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, k , m)
-                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,  m , k)    
+                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,  m , k) 
+
+                            ! first part integral   
 
                             sum_rhoqphos=0.0_dp
                             sum_xphos=0.0_dp 
@@ -369,11 +373,38 @@ contains
                             sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
                                 ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
                       
-                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(nneigh(s,c)) ! nneigh could be zero  hence with in loop 
-                            local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(nneigh(s,c))
+                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
 
-                            local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(nneigh(s,c))
+                            local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(2.0_dp*nneigh(s,c))
                             
+                            ! second integral contributes to location m of rhoqpos and xphol  xpol  
+                         
+                            sum_rhoqphos=0.0_dp
+                            sum_xphos=0.0_dp 
+                        
+                            ! contributes to location m of rhoqpos and xol
+                               
+                            do JJ=1,5
+                                do KK=1,5   
+                                    sum_rhoqphos = sum_rhoqphos+&
+                                        (fdisPP_loc_swap(JJ,KK)*qPP(JJ)+fdisPP_loc(JJ,KK)*qPP(KK))/2.0_dp
+
+                                    sum_xphos = sum_xphos   +&
+                                        (fdisPP_loc_swap(JJ,KK)*vPP(JJ)+fdisPP_loc(JJ,KK)*vPP(KK))/2.0_dp
+                                enddo
+                            enddo
+        
+                            sum_xphos=sum_xphos+(fdisP2Mg_loc_swap +fdisP2Mg_loc)*vPP(Phos2Mg)/4.0_dp
+
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                      
+                            local_rhoqphos(m) = local_rhoqphos(m) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            local_xpol(m,ta) = local_xpol(m,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
+
+                            local_rhopol_charge(m,ta)=local_rhopol_charge(m,ta)+pro/(2.0_dp*nneigh(s,c))
+
+
                         enddo 
          
                     endif
@@ -728,8 +759,10 @@ contains
 
                             do JJ=1,5
                                 do KK=1,5
-                                 local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
-                                    fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                                    !local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
+                                    !    fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
+                                    local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
+                                            (fdisPP_loc(JJ,KK)+fdisPP_loc_swap(JJ,KK))*pro/(2.0_dp*nneigh(s,c))
                             
                                 enddo
                             enddo
