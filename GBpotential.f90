@@ -1,7 +1,7 @@
 ! Module to compute Gay-Berne implementation following Persson, jcp, 136, 2012
 ! LJ interactiopn between unaxial liquid crystals or uniaxial anisotropic atoms or ellipsoid
 ! Contains two potentials 
-! (1) GBpotential: orginal GB pot( Jcp 74 1981) 
+! (1) GBpotential: orginal GB pot( JCP 74 1981) 
 ! (2) GBpotential_Persson : modification proposed by Persson
 
 module GB_potential     
@@ -102,7 +102,8 @@ contains
 
         epsilon0=sqrt(1.0-chi**2)
     
-    end function    
+    end function set_epsilon0
+
 
     ! Computes energy of Gay-Berne potential  
     ! input real(dp),  u1(3), u2(3) : orientation vector of interaction ellipsoids
@@ -266,11 +267,13 @@ contains
 
     end function GBpotential_general
 
+    ! Set initual values sigmaS, sigmaE and sigma0
+    ! value suggested Wedeman and Langowski BPJ, 82, 2847, 2002
+
     subroutine init_GB_const_defaults()
 
         epsilonS = 1.0_dp  
         epsilonE = 6.0_dp 
-
         sigmaS = 1.0_dp
         sigmaE = 0.5733672387811127_dp
         sigma0 = 10.289880194520919_dp
@@ -350,7 +353,7 @@ contains
 
     end subroutine
 
-    ! Inner product of vectors a and b with dimenstion 3
+    ! Inner product of vectors a and b with dimension 3
     ! similar to intrisic function dotproduct
 
     function dotproduct(a,b) result(dotprod)
