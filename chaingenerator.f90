@@ -696,7 +696,7 @@ subroutine read_chains_xyz_nucl(info)
         enddo
     endif           
     
-end subroutine read_chains_XYZ_nucl
+end subroutine read_chains_xyz_nucl
 
 
 ! Reads base conformations from a file called traj.<rank>.xyz.
@@ -732,7 +732,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use parameters
     use volume, only   :  nx, ny,nz, delta
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
-    use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
+    use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem, check_chain_elem_index_and_chain
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
@@ -757,10 +757,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
-    integer  :: xi,yi,zi, ri(3)
-    real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
-    real(dp) :: xpt,ypt              ! coordinates
-    real(dp) :: xc,yc,zc             ! coordinates            
+    integer  :: xi, yi, zi, ri(3)
+    real(dp) :: Lx, Ly, Lz, xcm, ycm, zcm, Lr(3), rcm(3) ! sizes box and center of mass box
+    real(dp) :: xpt, ypt               ! coordinates
+    real(dp) :: xc, yc, zc             ! coordinates            
     real(dp) :: energy, energyLJ, energyLJ_comb                                            
     character(len=25) :: fname
     character(lenText):: fname2
@@ -794,10 +794,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
     real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
-    ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
     integer :: s_local 
     logical :: no_overlap
+    logical :: isCheck
 
     ! .. executable statements   
 
@@ -1037,10 +1037,28 @@ subroutine read_chains_xyz_nucl_volume(info)
                 enddo
             endif      
 
-            ! 5. add chain+chain_elem_rot together
+            ! 5. add chain_rot and chain_elem_rot together into chain_elem_index
             
             call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
                 chain_rot,chain_elem_rot,chain_elem_index) 
+
+            ! 5.a This alligns variables chain_elem_index and chain : contain same backbone conformation
+            chain = chain_rot 
+
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then 
+                print*,"rank= ",rank,conf,"chain=chain_rot => chain_elem_index==chain",isCheck
+            endif    
+                
+            ! 6. translation vector of chain_elem_index adn chain such that the cm  of object is at (xcm,ycm,zcm)
+
+            call translate_chain_elem_index(nseg,nelem,chain_elem_index,rcm) 
+            call translate_chain(nseg,chain,rcm)
+
+            call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+            if(.not.isCheck) then
+                print*,"rank= ",rank,conf," translate => chain_elem_index_==chain",isCheck
+            endif
 
 
             if(DEBUG)then
@@ -1058,67 +1076,66 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                     ! transforming form real- to lattice coordinates  
                     if(pbc_chains) then 
-                        chain_pbc(1,s) = pbc(chain_rot(1,s)+xcm,Lx) ! periodic boundary conditions  
-                        chain_pbc(2,s) = pbc(chain_rot(2,s)+ycm,Ly) 
-                        chain_pbc(3,s) = pbc(chain_rot(3,s)+zcm,Lz) 
+                        chain_pbc(1,s) = pbc(chain(1,s),Lx) ! periodic boundary conditions  
+                        chain_pbc(2,s) = pbc(chain(2,s),Ly) 
+                        chain_pbc(3,s) = pbc(chain(3,s),Lz) 
                     else
-                        chain_pbc(1,s) = chain_rot(1,s)+xcm  
-                        chain_pbc(2,s) = chain_rot(2,s)+ycm
-                        chain_pbc(3,s) = chain_rot(3,s)+zcm
+                        chain_pbc(1,s) = chain(1,s)  
+                        chain_pbc(2,s) = chain(2,s)
+                        chain_pbc(3,s) = chain(3,s)
                     endif                    
 
                     xi  = int(chain_pbc(1,s)/delta)+1
                     yi  = int(chain_pbc(2,s)/delta)+1
                     zi  = int(chain_pbc(3,s)/delta)+1
 
-                    call linearIndexFromCoordinate(xi,yi,zi,idx)
-                        
-                    indexconf(s,conf)%elem(1) = idx ! CA element
-
-                    if(idx<=0.or.idx>nsize) then   
-
+                    if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
                         text="Conformation outside box:"
                         call print_to_log(LogUnit,text)  
                         print*,text    
                         print*,"chain_pbc=",chain_pbc(:,s)                      
-                        print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                        print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
-
                     endif
+
+                    !call linearIndexFromCoordinate(xi,yi,zi,idx)
+                    
+                    idx=coordtoindex(xi,yi,zi)    
+                    indexconf(s,conf)%elem(1) = idx ! CA element
 
                     ! apply elements other than CA
                     do j=2,nelem(s) 
 
                         if(pbc_chains) then 
-                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j)+xcm,Lx) ! periodic boundary conditions 
-                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j)+ycm,Ly)
-                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j)+zcm,Lz)  
+                            chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j),Lx) ! periodic boundary conditions 
+                            chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j),Ly)
+                            chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j),Lz)  
                         else
-                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm   
-                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
-                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm
+                            chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)  
+                            chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)
+                            chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)
                         endif 
 
                         xi = int(chain_pbc_tmp(1)/delta)+1
                         yi = int(chain_pbc_tmp(2)/delta)+1
                         zi = int(chain_pbc_tmp(3)/delta)+1
-                        
-                        call linearIndexFromCoordinate(xi,yi,zi,idx)
-                        
-                        indexconf(s,conf)%elem(j) = idx ! all other element
-
-                        if(idx<=0.or.idx>nsize) then   
-
+                    
+                        if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
                             print*,text  
                             print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
-                            print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
-                            print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                            print*,"chain_pbc_tmp= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
+                            print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                             info= myio_err_index
                             return
                         endif
+
+                        ! call linearIndexFromCoordinate(xi,yi,zi,idx)
+
+                        idx=coordtoindex(xi,yi,zi)
+                        indexconf(s,conf)%elem(j) = idx ! all other element
 
                     enddo   
                 
@@ -1129,7 +1146,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                     !call error_handler(1,"hello!!!!")
                 endif    
             
-                if(isVdW) energyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
+                if(isVdW) energyLJ = GBenergyeffective(chain,nnucl,no_overlap)
     
                 call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
 
@@ -1185,18 +1202,20 @@ subroutine read_chains_xyz_nucl_volume(info)
                     yi = int(chain_pbc(2,s)/delta)+1
                     zi = int(chain_pbc(3,s)/delta)+1
                         
-                    call linearIndexFromCoordinate(xi,yi,zi,idx)
                     
-                    indexconf(s,conf)%elem(1) = idx ! CA element    
-
-                    if(idx<=0.or.idx>nsize) then    
+                    if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then  
                         text="Conformation outside box:"
                         call print_to_log(LogUnit,text)  
                         print*,text                          
-                        print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                        print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
                     endif
+
+                    ! call linearIndexFromCoordinate(xi,yi,zi,idx)
+
+                    idx=coordtoindex(xi,yi,zi)
+                    indexconf(s,conf)%elem(1) = idx ! CA element  
 
                     ! apply elements other than CA
                     do j=2,nelem(s) 
@@ -1218,21 +1237,21 @@ subroutine read_chains_xyz_nucl_volume(info)
                         yi = int(chain_pbc_tmp(2)/delta)+1
                         zi = int(chain_pbc_tmp(3)/delta)+1
                         
-                        call linearIndexFromCoordinate(xi,yi,zi,idx)
-                        
-                        indexconf(s,conf)%elem(j) = idx ! all other element
-
-                        if(idx<=0.or.idx>nsize) then   
-
+                        if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then  
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
                             print*,text  
                             print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
                             print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
-                            print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                            print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                             info= myio_err_index
                             return
                         endif
+
+                        !call linearIndexFromCoordinate(xi,yi,zi,idx)
+                        
+                        idx=coordtoindex(xi,yi,zi)
+                        indexconf(s,conf)%elem(j) = idx ! all other element
 
                     enddo 
                     
@@ -1267,7 +1286,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
             case default
 
-                text="Error: in make_chains_XYZ_nucl geometry not cubic or prism: stopping program"
+                text="Error: in make_chains_xyz_nucl geometry not cubic or prism: stopping program"
                 call print_to_log(LogUnit,text)
                 info = myio_err_geometry
                 return 
@@ -1919,6 +1938,31 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
     enddo
 
 end subroutine make_type_of_charge_table
+
+
+! Checks if (xi,yi,zi) is inside lattice
+! 0<=xi<=nx  and 0<= yi <= ny and o
+! returns: logical = .true. if outside 
+
+function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
+ 
+    integer, intent(in) :: xi,yi,zi
+    integer, intent(in) :: nx,ny,nz
+
+    logical :: isOutside
+
+    integer :: intxi,intyi,intzi
+    logical :: isInside
+    
+    intxi=int(xi/nx)
+    intyi=int(yi/ny)
+    intzi=int(zi/nz)
+
+    isInside=(0<=intxi).and.(intxi<=1).and.(0<=intyi).and.(intyi<=1).and.(0<=intzi).and.(intzi<=1)
+    isOutside=.not.isInside
+    
+end function isOutsideLattice
+
 
 
 logical function is_polymer_neutral(ismonomer_chargeable, nsegtypes)
@@ -3426,7 +3470,8 @@ subroutine swap_int(a,b)
     a = b 
     b = tmp 
 
-end subroutine swap_int   
+end subroutine swap_int
+
 
 
 subroutine swap_real(a,b)
@@ -3438,7 +3483,8 @@ subroutine swap_real(a,b)
     a = b 
     b = tmp 
     
-end subroutine 
+end subroutine  swap_real
+
 
 subroutine swap_char3(a,b)
     
@@ -3739,6 +3785,51 @@ subroutine add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segn
     enddo           
 
 end subroutine add_chain_rot_and_chain_elem_rot
+
+! Translate chain(s,k)  coordinate (component k) of segment s  
+! translation_vector(k)
+
+subroutine translate_chain(nseg,chain,translation_vector) 
+
+    integer, intent(in) :: nseg
+    real(dp), intent(inout) :: chain(:,:)
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, k
+
+    do s=1,nseg              ! loop over segment 
+        do k=1,3
+            chain(k,s) = chain(k,s)+translation_vector(k)
+        enddo     
+    enddo     
+
+end subroutine translate_chain
+
+
+! Translate chain_index(k,s)%elem(j) coordinate (component k) of segment s and element j by 
+! translation_vector(k)
+
+subroutine translate_chain_elem_index(nseg,nelem,chain_elem_index,translation_vector) 
+
+    use chains, only : var_darray
+
+    integer, intent(in) :: nseg
+    integer, dimension(:), intent(in) :: nelem
+    type(var_darray), dimension(:,:), allocatable, intent(inout) ::chain_elem_index
+    real(dp), dimension(3), intent(in) :: translation_vector
+
+    integer :: s, j, k
+
+    do s=1,nseg              ! loop over segment
+        do j=1,nelem(s)      ! loop over number of chain elements for segment s 
+            do k=1,3
+                chain_elem_index(k,s)%elem(j)= chain_elem_index(k,s)%elem(j)+translation_vector(k)
+            enddo
+        enddo 
+    enddo     
+
+end subroutine translate_chain_elem_index
+
 
 ! Finds phosphate pairs for given conformation number conf.
 ! Assigns  nneigh(s,conf) and indexconfpair9s,conf)%elem(j) with 0<=j<=neigh(s,conf)
