@@ -440,7 +440,8 @@ subroutine read_inputfile(info)
 
     ! .. override certain input values
     if(systype=="brushdna".or.systype=="brushborn".or.systype=="brush_mul".or.&
-        systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg") then
+        systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
+        systype=="nucl_ionbin_MgA") then
         KionNa   = 0.0_dp
         KionK    = 0.0_dp
     endif

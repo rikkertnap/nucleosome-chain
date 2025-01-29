@@ -1142,13 +1142,12 @@ subroutine read_chains_xyz_nucl_volume(info)
                 enddo ! end s loop
 
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
-                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-                    !call error_handler(1,"hello!!!!")
+                    call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                 endif    
             
                 if(isVdW) energyLJ = GBenergyeffective(chain,nnucl,no_overlap)
     
-                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+                call make_com_nucl_rotation(chain,nnucl,unitvector_triplets,rcom)
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1163,12 +1162,12 @@ subroutine read_chains_xyz_nucl_volume(info)
 
       
                 if(COMOLD) then     
-                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Rgsqr(conf)            = radius_gyration_com(chain,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain,nnucl,segcm)
+                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain,nnucl,segcm)
                     Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
                 endif 
 
@@ -1178,9 +1177,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 do s=1,nseg
                     
-                    xp(s) = chain_rot(1,s)+xcm
-                    yp(s) = chain_rot(2,s)+ycm
-                    zp(s) = chain_rot(3,s)+zcm
+                    xp(s) = chain(1,s)
+                    yp(s) = chain(2,s)
+                    zp(s) = chain(3,s)
 
                     ! .. transformation to prism coordinates 
                     xpp(s) = ut(xp(s),yp(s))
@@ -1220,9 +1219,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                     ! apply elements other than CA
                     do j=2,nelem(s) 
 
-                        chain_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm  
-                        chain_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
-                        chain_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm  
+                        chain_tmp(1) = chain_elem_index(1,s)%elem(j)
+                        chain_tmp(2) = chain_elem_index(2,s)%elem(j)
+                        chain_tmp(3) = chain_elem_index(3,s)%elem(j)  
+
                         if(pbc_chains) then 
                             chain_pbc_tmp(1) = pbc(ut(chain_tmp(1),chain_tmp(2)),Lx) 
                             chain_pbc_tmp(2) = pbc(vt(chain_tmp(1),chain_tmp(2)),Ly)
@@ -1257,9 +1257,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                     
                 enddo
 
-                if(isVdW)  energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
+                if(isVdW)  energyLJ    = GBenergyeffective(chain,nnucl,no_overlap)  
 
-                call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+                call make_com_nucl_rotation(chain,nnucl,unitvector_triplets,rcom)
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1273,12 +1273,12 @@ subroutine read_chains_xyz_nucl_volume(info)
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
       
                 if(COMOLD) then 
-                    Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
-                    Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
-                    bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
-                    dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
-                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Rgsqr(conf)            = radius_gyration_com(chain,nnucl,segcm)
+                    Rendsqr(conf)          = end_to_end_distance_com(chain,nnucl,segcm)
+                    bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
+                    dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain,nnucl,segcm)
+                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain,nnucl,segcm)
                     Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
                 endif    
 
@@ -1939,10 +1939,11 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
 
 end subroutine make_type_of_charge_table
 
-
 ! Checks if (xi,yi,zi) is inside lattice
-! 0<=xi<=nx  and 0<= yi <= ny and o
-! returns: logical = .true. if outside 
+! 0<xi<=nx  and 0< yi <= ny and 0< zi <= nz and 
+! xi , yi, zi integer positions
+! returns: logical = .true. if outside .false. otherwise
+
 
 function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
  
@@ -1950,15 +1951,10 @@ function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
     integer, intent(in) :: nx,ny,nz
 
     logical :: isOutside
-
-    integer :: intxi,intyi,intzi
     logical :: isInside
     
-    intxi=int(xi/nx)
-    intyi=int(yi/ny)
-    intzi=int(zi/nz)
-
-    isInside=(0<=intxi).and.(intxi<=1).and.(0<=intyi).and.(intyi<=1).and.(0<=intzi).and.(intzi<=1)
+    isInside=(0<xi).and.(xi<=nx).and.(0<yi).and.(yi<=ny).and.(0<zi).and.(zi<=nz)
+   
     isOutside=.not.isInside
     
 end function isOutsideLattice
@@ -3830,26 +3826,38 @@ subroutine translate_chain_elem_index(nseg,nelem,chain_elem_index,translation_ve
 
 end subroutine translate_chain_elem_index
 
+ 
+! Finds phosphate pairs for given conformation number conf 
+! Conformation is stored in chain
+! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+! input integer :: nseg : number atoms/segment
+!       integer :: conf : conformation number
+!       integer :: tPphos : number associated with type of phosphates
+!       real(dp) :: sqrDphoscutoff : squared distance of cutoffdistance citeria for pair
+!       real(dp) :: chain(3,nseg) : hold coordiante of backbone confomation for all atom/segment
+!       real(dp) :: LX,Ly,Lz : dimension lattice/box in nm 
+! output assigment  
+!       integer :: nneight(nseg,conf) : number of 'neighbors' that a phosphate s has for conformation conf
+!                  if type of s in not a phospate then value zero
+!       type(var_iarray) ::  indexconfpair(s,conf)%elem(j) : layer number of neigbor j of conf alpha and segment number s
 
-! Finds phosphate pairs for given conformation number conf.
-! Assigns  nneigh(s,conf) and indexconfpair9s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
 
-subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
-
-    use mpivars, only : rank
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
+    use parameters, only : pbc_chains
     use volume, only : delta, linearIndexFromCoordinate
-    use myutils, only : newunit
+    use myutils, only : newunit, error_handler
     
     integer, intent(in) :: nseg
     integer, intent(in) :: conf
     integer, intent(in) :: tPhos
     real(dp), intent(in) :: sqrDphoscutoff
-    real(dp), intent(in) :: chain_pbc(3,nseg)
+    real(dp), intent(in) :: chain(3,nseg)
+    real(dp), intent(in) :: Lx,Ly,Lz
 
-    integer, parameter :: maxnneigh = 10
+    integer, parameter :: maxnneigh = 10   ! sized by auxilary array list_of_pairs and index_of_pairs
 
     integer :: s, sprime, i, j
     integer :: xi, yi, zi , idx
@@ -3859,7 +3867,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
     character(len=100) :: fname
     integer :: un_pp
     character(len=10) ::istr
-
+    
     allocate(list_of_pairs(nseg,maxnneigh))
     allocate(index_of_pairs(nseg,maxnneigh))
 
@@ -3872,19 +3880,33 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
                        
                         sqrdist=0.0_dp
                         do i=1,3
-                            sqrdist=sqrdist+(chain_pbc(i,s)-chain_pbc(i,sprime))**2
+                            sqrdist=sqrdist+(chain(i,s)-chain(i,sprime))**2
                         enddo
     
                         if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
                             ! accept s and sprime are a pair
                             nneigh(s,conf)=nneigh(s,conf)+1
+
+                            if(nneigh(s,conf)>maxnneigh) call error_handler(1,"Error in find_phosphate_pairs ") 
+
+
                             list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
                             ! transforming form real- to lattice coordinates                 
-                            xi = int(chain_pbc(1,sprime)/delta)+1
-                            yi = int(chain_pbc(2,sprime)/delta)+1
-                            zi = int(chain_pbc(3,sprime)/delta)+1
+                            
+                            if(pbc_chains) then  
+                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                zi = int(pbc(chain(3,sprime),Lz)/delta)+1
+                            else 
+                                xi = int(chain(1,sprime)/delta)+1
+                                yi = int(chain(2,sprime)/delta)+1
+                                zi = int(chain(3,sprime)/delta)+1
+                            endif    
+
                             call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            !idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                            
                             index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
                         endif
                     endif    
@@ -3893,11 +3915,14 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
         endif    
     enddo 
 
+    
     ! print 
 
     if(.true.)then
-        write(istr,'(I4)')rank
-        fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
+        
+
+        fname='phosphate_pairs.log'
+        fname=trim(adjustl(fname))
         !     .. opening file
         open(unit=newunit(un_pp),file=fname)
 
@@ -3922,12 +3947,14 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_pbc)
         do j=1,nneigh(s,conf)
             indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
         enddo 
-    enddo  
+    enddo 
 
     deallocate(list_of_pairs)
     deallocate(index_of_pairs)
 
+
 end subroutine find_phosphate_pairs
+
 
 ! Compute index_phos and len_phos:
 ! index_phos is a list representing all latice element that contain phosphates

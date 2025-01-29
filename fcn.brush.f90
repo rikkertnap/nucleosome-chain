@@ -3093,7 +3093,7 @@ contains
             fcnptr => fcnneutral
         case ("neutralnoVdW")           ! homopolymer neutral
             fcnptr => fcnneutralnoVdW
-        case ("bulk water")             ! determines compositon bulk electrolyte solution
+        case ("bulk water")             ! determines composition bulk electrolyte solution
              fcnptr => fcnbulk
         case default
             print*,"Error in call to set_fcn subroutine"    

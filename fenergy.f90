@@ -1809,8 +1809,8 @@ contains
             enddo
         enddo
 
-    end function calculate_sumvolnucl    
-
+    end function calculate_sumvolnucl
+        
     function check_volume_nucl()result(checksumxpoltot)
 
         use globals, only : systype
