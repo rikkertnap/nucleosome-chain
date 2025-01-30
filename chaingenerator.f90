@@ -3843,6 +3843,7 @@ end subroutine translate_chain_elem_index
 
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
 
+    use mpivars, only : rank
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
@@ -3887,7 +3888,13 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                             ! accept s and sprime are a pair
                             nneigh(s,conf)=nneigh(s,conf)+1
 
-                            if(nneigh(s,conf)>maxnneigh) call error_handler(1,"Error in find_phosphate_pairs ") 
+                            if(nneigh(s,conf)>maxnneigh) then 
+                                print*,"rank=",rank
+                                print*,"conformation=",conf
+                                print*,"segment s=",s, " neighbor sprime=",sprime 
+                                print*,"number of neighbors =",nneigh(s,conf)
+                                call error_handler(1,"Error in find_phosphate_pairs ") 
+                            endif    
 
 
                             list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
