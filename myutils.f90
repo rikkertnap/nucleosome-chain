@@ -103,7 +103,8 @@ contains
             text="Error in "//trim(adjustl(message))//" : info = "//istr//" : end program."
             call print_to_log(LogUnit,text)
             print*,text
-            call MPI_FINALIZE(ierr)
+            !call MPI_FINALIZE(ierr)
+            call MPI_Abort(MPI_COMM_WORLD,info,ierr) 
             stop
         endif
 

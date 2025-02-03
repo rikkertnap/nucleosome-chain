@@ -38,7 +38,7 @@ contains
         i = position1 ! position in lattice numbers
         j = position2
 
-        print*,"i=",i,' j=',j
+        !print*,"i=",i,' j=',j
 
         xP(PhosH,1)  = xHplus(i)/(K0aAA(1)*(xsol(i)**deltavAA(1)))      !  (PH)/P-    : f(PH)P(i,j)/fPP(i,j)
         xP(PhosH,2)  = xHplus(j)/(K0aAA(1)*(xsol(j)**deltavAA(1)))      !  (PH)/P-    : fP(PH)(i,j)/fPP(i,j)
@@ -476,7 +476,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)!/q 
+            rhopol0=(1.0_dp/volcell)
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 

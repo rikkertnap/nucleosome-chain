@@ -1037,27 +1037,30 @@ contains
         if (rank==0) then 
 
             q=0.0_dp 
-            q=local_q
+            g=1
+            q(g)=local_q
             
              do i=1, size-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
+                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
+                q(g)=q(g)+local_q
             enddo
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,n
-                    rhopol(i,t)=local_rhopol(i,t) ! polymer density 
+                    rhopol(i,t)=local_rhopol(i,t)/q(1) ! polymer density 
                 enddo
             enddo
            
             do i=1, size-1
                 source = i
+                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_rhopol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)! polymer density 
+                        rhopol(k,t)=rhopol(k,t)+local_rhopol(k,t)/q(g)! polymer density 
                     enddo
                 enddo
             enddo     
@@ -1067,7 +1070,7 @@ contains
 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell)
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1445,32 +1448,35 @@ contains
         if (rank==0) then 
 
             q=0.0_dp 
-            q=local_q
+            g=1  
+            q(g)=local_q
             
             do i=1, numproc-1
                 source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q=q+local_q
+                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)  
+                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
+                q(g)=q(g)+local_q           
             enddo
 
             ! first graft point 
             do t=1,nsegtypes
                 do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction density 
+                    xpol(i,t)=local_xpol(i,t)/q(1) ! polymer volume fraction density 
                 enddo
                 if(ismonomer_chargeable(t)) then
                     do i=1,nsize
-                        rhopol_charge(i,t)=local_rhopol_charge(i,t)   ! polymer density of charge center
+                        rhopol_charge(i,t)=local_rhopol_charge(i,t)/q(1)   ! polymer density of charge center
                     enddo    
                 endif   
             enddo
            
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer density 
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)/q(g)! polymer density 
                     enddo
                 enddo
                 
@@ -1479,7 +1485,7 @@ contains
                         call MPI_RECV(local_rhopol_charge(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,&
                                 MPI_COMM_WORLD,stat,ierr)
                         do k=1,nsize
-                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)! polymer density 
+                            rhopol_charge(k,t)=rhopol_charge(k,t)+local_rhopol_charge(k,t)/q(g)! polymer density 
                         enddo
                     endif    
                 enddo
@@ -1490,7 +1496,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
 
-            rhopol0=(1.0_dp/volcell)/q 
+            rhopol0=(1.0_dp/volcell) 
 
             do t=1, nsegtypes
                 if(ismonomer_chargeable(t)) then 
@@ -1619,8 +1625,6 @@ contains
             enddo
 
         endif
-
-
 
     end subroutine fcnnucl_ionbin_sv_general
 
@@ -1751,28 +1755,31 @@ contains
 
         if (rank==0) then 
 
-            q = 0.0_dp 
-            q = local_q
+            q = 0.0_dp
+            g=1 
+            q(g) = local_q
             
              do i=1, numproc-1
                 source = i
-                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                q = q + local_q
+                call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr) 
+                g =int(source/nset_per_graft)+1  ! nset_per_graft = int(size/ngr)
+                q(g)=q(g)+local_q            
             enddo
 
-            ! conformation on rank zero 
+            ! conformation on rank zero/first graft point 
             do t=1,nsegtypes
                 do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction 
+                    xpol(i,t)=local_xpol(i,t)/q(1) ! polymer volume fraction 
                 enddo
             enddo
            
             do i=1, numproc-1
                 source = i
+                g =int(source/nset_per_graft)+1 
                 do t=1,nsegtypes
                     call MPI_RECV(local_xpol(:,t), nsize, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat,ierr)
                     do k=1,nsize
-                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)! polymer volume fraction
+                        xpol(k,t)=xpol(k,t)+local_xpol(k,t)/q(g) ! polymer volume fraction
                     enddo
                 enddo
             enddo     
@@ -1780,7 +1787,7 @@ contains
             !  .. construction of fcn and volume fraction polymer 
             !  .. normalization volume polymer segment per volume cell
 
-            xpol0=(1.0_dp/volcell)/q 
+            xpol0=(1.0_dp/volcell) 
 
             do t=1, nsegtypes           ! volumer fraction of polymer of type t 
                 do i=1,nsize

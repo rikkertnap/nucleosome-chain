@@ -21,6 +21,8 @@ module chains
     type(var_iarray), allocatable               :: indexconfpair(:,:)       ! indexconfpair(s,alpha)%elem(j) = layer number of conf alpha and 
                                                                             ! segment number s and neighbor j used for distributed volume 
     integer, dimension(:,:), allocatable        :: nneigh                   ! number of neigbors or pairs of segment s in conf alpha used only phosphates  
+    integer, dimension(:,:), allocatable        :: max_nneigh_phos          ! maximum number of neigbors or pairs of phosphate segments in conf alpha and seggment s
+
 
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
@@ -79,8 +81,6 @@ module chains
 
     real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
     integer  :: maxneigh       ! maximum of neigbors 
-    
-    ! 
     integer  :: len_index_phos ! length of array index_phos
  
 contains 
@@ -185,6 +185,16 @@ contains
         allocate(nneigh(nseg,cuantas))
                   
     end subroutine allocate_nneighbor
+
+     ! Allocates addition maxneigh_phos
+
+    subroutine allocate_max_nneighbor_phos(cuantas)
+
+        integer, intent(in) :: cuantas
+
+        allocate(max_nneigh_phos(cuantas,2))
+
+    end subroutine allocate_max_nneighbor_phos
    
 
 end module chains

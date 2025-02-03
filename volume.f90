@@ -7,7 +7,7 @@ module volume
 
     implicit none
   
-    !     .. variables
+    !  .. variables
    
     real(dp) :: delta               ! delta  spacing of lattice site in x-, y- and z-direction  
     integer  :: nz                  ! nz number of lattice sites in z-direction 
@@ -23,7 +23,7 @@ module volume
     real(dp) :: sin_two_beta        ! sin(2beta)  
     character(len=11) :: geometry
 
-    ! variable for grafting position
+    ! .. variable for grafting position
     
     integer :: ngr                  ! total number of graft points    
     integer :: ngr_node             ! number of grafted areas assigned to an individual node
@@ -37,8 +37,8 @@ module volume
     integer :: nset_per_graft       ! number of confomation set to read in graft point
     real(dp), dimension(:,:), allocatable :: position_graft
    
-
-    ! hash table
+    !  .. hash table
+    
     integer, dimension(:,:,:), allocatable :: coordtoindex 
     integer, dimension(:,:),  allocatable  :: indextocoord
     integer, dimension(:,:), allocatable   :: indexneighbor
@@ -587,17 +587,15 @@ contains
         ! check ngr_freq compatible with nx and ny 
         
         if(.not.(mod(nx,ngr_freq).eq.0))then 
-             print*,"ngr test for x-direction failed: exiting"
-             print*,"nx= ",nx," ngr_freq = ",ngr_freq
-             info = 1
-             stop
+            print*,"ngr test for x-direction failed: exiting"
+            print*,"nx= ",nx," ngr_freq = ",ngr_freq
+            info = 1
         endif  
 
         if(.not.(mod(ny,ngr_freq).eq.0)) then 
-             print*,"ngr test for y-direction  failed: exiting"
-             print*,"ny= ",ny," ngr_freq = ",ngr_freq
-             info = 1
-             stop
+            print*,"ngr test for y-direction  failed: exiting"
+            print*,"ny= ",ny," ngr_freq = ",ngr_freq
+            info = 1
         endif      
         
         !  check if values of nset_per_graft and numproc are compatible
@@ -606,8 +604,9 @@ contains
             print*,"nset_per_graft test failed: exiting"
             print*,"nset_per_graft=",nset_per_graft,"ngr=",ngr,"numproc=",numproc
             info = 1
-            stop
         endif
+
+        if(info==1) return 
 
         allocate(position_graft(ngr,2)) ! only after ngr has been established position_graft can be allocated
 
@@ -616,14 +615,18 @@ contains
 
     subroutine make_graftpoints()
 
+        use myutils, only : error_handler
+         
         integer :: info
-
+        
         call set_var_graftpoints(info)
+        call error_handler(info,"set_var_graftpoints")
         call init_graftpoints()
         call write_graftpoints(info)
+        call error_handler(info,"write_graftpoints")
 
+        
     end subroutine make_graftpoints
-
 
 end module volume
   

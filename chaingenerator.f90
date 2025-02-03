@@ -18,19 +18,21 @@ module chaingenerator
 
     real(dp),          parameter :: eps_equilat=1.0e-8_dp
     character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
-    ! 
-
-    logical, parameter :: COMOLD =.FALSE.
+    logical,           parameter :: COMOLD =.FALSE.
+    integer,           parameter :: maxnneigh = 10   
+        ! size of auxilary array list_of_pairs and index_of_pairs in find_phosphate_pairs
+        ! value check in find_max_neigh_phos 
 
     private 
 
     public :: make_chains, make_chains_mc,read_chains_xyz
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
-    public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
-    public :: find_phosphate_location
+    public :: set_mapping_num_to_char, set_properties_chain
+    public :: write_chain_struct, write_chain_max_nneigh_phos
     public :: write_indexchain_histone, test_index_histone
-
-    private :: eps_equilat,fmt3xyz, COMOLD
+    public :: find_phosphate_location
+    
+    private :: eps_equilat,fmt3xyz, COMOLD, maxnneigh
 
 contains
 
@@ -696,7 +698,7 @@ subroutine read_chains_xyz_nucl(info)
         enddo
     endif           
     
-end subroutine read_chains_XYZ_nucl
+end subroutine read_chains_xyz_nucl
 
 
 ! Reads base conformations from a file called traj.<rank>.xyz.
@@ -720,7 +722,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     !     .. variable and constant declaractions  
     use mpivars, only : rank                                                                                   
-    use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
+    use globals, only : nsize, nseg, nsegsource, nsegtypes, s_begin, s_end, nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype, systype, DEBUG
     use chains, only : var_darray
     use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
@@ -734,6 +736,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
     use chain_rotation, only : orientation_coordinates, orientation_vector_ref, orientation_vector
     use chain_rotation, only : rotate_chain_elem, rotate_chain_elem_index_and_chain,check_chain_elem_index_and_chain
+    use chains, only   : allocate_max_nneighbor_phos
     use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
     use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
     use myutils, only  : print_to_log, LogUnit, lenText, newunit
@@ -793,7 +796,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   :: chain_elem  
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
-    type(var_darray), dimension(:,:), allocatable   ::  chain_elem_index_rot
+    type(var_darray), dimension(:,:), allocatable   :: chain_elem_index_rot
+
+    type(var_darray), dimension(:,:), allocatable   ::  chain_elem_index_pbc ! temporary
 
     real(dp) :: rcom(3,nnucl)
     
@@ -922,6 +927,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
    
     call make_nelem(nseg,nsegAA,nnucl,segnumAAstart,nelemAA,nelem)
+   
     call allocate_indexconf(cuantas,nseg,nelem)
     call allocate_nucl_chain_elements(nnucl,nsegAA,nelemAA,chain_elem_rot) 
     call allocate_chain_elements(nseg,nelem,chain_elem_index)
@@ -929,11 +935,13 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! EXTRA !!! tijdenlijk 
     call allocate_chain_elements(nseg,nelem,chain_elem_index_rot)
+    call allocate_chain_elements(nseg,nelem,chain_elem_index_pbc)
 
     ! pairs variable 
     if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA") then 
         call allocate_indexconfpair(cuantas,nseg)
         call allocate_nneighbor(cuantas,nseg)
+        call allocate_max_nneighbor_phos(cuantas)
         tPhos = find_type_phosphate()
     endif
    
@@ -1001,7 +1009,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain(2,s) = xseg(2,s)-xseg(2,nrotpts) 
                 chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
             enddo
-
 
             ! 0. rotate chain 
             
@@ -1076,7 +1083,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                 print*,"rank= ",rank,conf," rotation => chain_elem_index_rot==chain_rot",isCheck
             endif
 
-
             ! 6.b. locate minimal z coordinate 
 
             call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
@@ -1100,12 +1106,19 @@ subroutine read_chains_xyz_nucl_volume(info)
             !call find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index_rot,rzmin)
             !print*,"again :rzmin=",rzmin
 
-            if(DEBUG)then
-                 un_traj=open_chain_elem_index_lammps_trj(info_traj)
-                 call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_rot)
-                 close(un_traj)
-            endif  
+            do s=1,nseg
+                do j=1,nelem(s)
+                    chain_elem_index_pbc(1,s)%elem(j) = pbc(chain_elem_index_rot(1,s)%elem(j),Lx) 
+                    chain_elem_index_pbc(2,s)%elem(j) = pbc(chain_elem_index_rot(2,s)%elem(j),Ly) 
+                    chain_elem_index_pbc(3,s)%elem(j) = chain_elem_index_rot(3,s)%elem(j) 
+                enddo 
+            enddo        
 
+            if(DEBUG)then
+                un_traj=open_chain_elem_index_lammps_trj(info_traj)
+                call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index_pbc)
+                close(un_traj)
+            endif  
 
             ! 7. make indexconfig i.e. place conformation on lattice
 
@@ -1130,10 +1143,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                     zi  = int(chain_pbc(3,s)/delta)+1
 
                     if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
-                        print*,"Segment is outside of box"
+                        text="Conformation outside box:"
                         call print_to_log(LogUnit,text)  
                         print*,text   
-                        print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                        print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
                     endif    
@@ -1168,13 +1181,14 @@ subroutine read_chains_xyz_nucl_volume(info)
                         yi = int(chain_pbc_tmp(2)/delta)+1
                         zi = int(chain_pbc_tmp(3)/delta)+1
                         
+
                         if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
                             text="Conformation outside box:"
                             call print_to_log(LogUnit,text)  
                             print*,text  
                             print*,"chain_elem_index_rot= ",(chain_elem_index_rot(k,s)%elem(j),k=1,3)
                             print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
-                            print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                            print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                             info= myio_err_index
                             return
                         endif
@@ -1182,7 +1196,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                         ! call linearIndexFromCoordinate(xi,yi,zi,idx)
 
                         idx=coordtoindex(xi,yi,zi)
-                        
                         indexconf(s,conf)%elem(j) = idx ! all element
 
                     enddo   
@@ -1311,9 +1324,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_rot,Lx,ly)
-                    ! use chain_rot !!!!
                 endif    
-
 
                 if(isVdW)  energyLJ    = GBenergyeffective(chain_rot,nnucl,no_overlap)  
 
@@ -1378,13 +1389,15 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     if(.not.(isChainEnergyFile)) energychain=0.0_dp
 
-    close(un) 
-    if(isChainEnergyFile) close(un_ene)
+    close(un)                           ! closes traj file 
+    if(isChainEnergyFile) close(un_ene) ! closes energy file 
 
     cuantas_no_overlap = compute_cuantas_no_overlap(cuantas,no_overlapchain)
 
-    call normed_weightchains()     
+    call normed_weightchains()  
 
+    call find_max_nneighbor_phos(tphos,info)
+   
     deallocate(energychain) ! free unused variables 
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
@@ -1998,8 +2011,10 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
 end subroutine make_type_of_charge_table
 
 ! Checks if (xi,yi,zi) is inside lattice
-! 0<=xi<=nx  and 0<= yi <= ny and o
-! returns: logical = .true. if outside 
+! 0<xi<=nx  and 0< yi <= ny and 0< zi <= nz and 
+! xi , yi, zi integer positions
+! returns: logical = .true. if outside .false. otherwise
+
 
 function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
  
@@ -2007,15 +2022,10 @@ function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
     integer, intent(in) :: nx,ny,nz
 
     logical :: isOutside
-
-    integer :: intxi,intyi,intzi
     logical :: isInside
     
-    intxi=int(xi/nx)
-    intyi=int(yi/ny)
-    intzi=int(zi/nz)
-
-    isInside=(0<=intxi).and.(intxi<=1).and.(0<=intyi).and.(intyi<=1).and.(0<=intzi).and.(intzi<=1)
+    isInside=(0<xi).and.(xi<=nx).and.(0<yi).and.(yi<=ny).and.(0<zi).and.(zi<=nz)
+   
     isOutside=.not.isInside
     
 end function isOutsideLattice
@@ -3032,9 +3042,39 @@ subroutine write_chain_struct(write_struct,info)
         close(un_Asph)
       
     endif
-
         
 end subroutine write_chain_struct
+
+subroutine write_chain_max_nneigh_phos(write_struct,info)
+
+    use globals, only : cuantas
+    use myutils, only : lenText
+    use chains, only : max_nneigh_phos, no_overlapchain
+    implicit none 
+
+    logical, intent(in) :: write_struct
+    integer, intent(inout) :: info
+ 
+    ! .. local
+    character(len=lenText) :: filename
+    integer :: un_max, c
+
+    info=0
+
+    if(write_struct) then
+    
+        filename="max_nneigh_phos."
+        un_max=open_chain_struct_file(filename,info)
+    
+        do c=1,cuantas
+            write(un_max,*)no_overlapchain(c),max_nneigh_phos(c,1),max_nneigh_phos(c,2)
+        enddo 
+
+        close(un_max)
+      
+    endif
+ 
+end subroutine write_chain_max_nneigh_phos
 
 
 function open_chain_struct_file(filename,info)result(un)
@@ -3916,10 +3956,25 @@ subroutine find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index,rmin)
         enddo 
     enddo  
 
-end subroutine 
+end subroutine  find_zminimum_chain_elem_index
 
-! Finds phosphate pairs for given conformation number conf.
+
+
+
+! Finds phosphate pairs for given conformation number conf 
+! Conformation is stored in chain
 ! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
+! input integer :: nseg : number atoms/segment
+!       integer :: conf : conformation number
+!       integer :: tPphos : number associated with type of phosphates
+!       real(dp) :: sqrDphoscutoff : squared distance of cutoffdistance citeria for pair
+!       real(dp) :: chain(3,nseg) : hold coordiante of backbone confomation for all atom/segment
+!       real(dp) :: LX,Ly,Lz : dimension lattice/box in nm 
+! output assigment  
+!       integer :: nneight(nseg,conf) : number of 'neighbors' that a phosphate s has for conformation conf
+!                  if type of s in not a phospate then value zero
+!       type(var_iarray) ::  indexconfpair(s,conf)%elem(j) : layer number of neigbor j of conf alpha and segment number s
+
 
 subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
 
@@ -3929,7 +3984,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
     use parameters, only : tA
     use parameters, only : pbc_chains
     use volume, only : delta, linearIndexFromCoordinate
-    use myutils, only : newunit
+    use myutils, only : newunit, error_handler
     
     integer, intent(in) :: nseg
     integer, intent(in) :: conf
@@ -3938,7 +3993,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
     real(dp), intent(in) :: chain(3,nseg)
     real(dp), intent(in) :: Lx,Ly
 
-    integer, parameter :: maxnneigh = 10
+    !integer, parameter :: maxnneigh = 10
 
     integer :: s, sprime, i, j
     integer :: xi, yi, zi , idx
@@ -3967,6 +4022,15 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly)
                         if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
                             ! accept s and sprime are a pair
                             nneigh(s,conf)=nneigh(s,conf)+1
+
+                            if(nneigh(s,conf)>maxnneigh) then 
+                                print*,"rank=",rank
+                                print*,"conformation=",conf
+                                print*,"segment s=",s, " neighbor sprime=",sprime 
+                                print*,"number of neighbors =",nneigh(s,conf)
+                                call error_handler(1,"Error in find_phosphate_pairs ") 
+                            endif    
+
                             list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
                             ! transforming form real- to lattice coordinates                 
@@ -4141,6 +4205,47 @@ subroutine find_phosphate_location(index_phos,inverse_index_phos,len_index_phos)
        
 end subroutine find_phosphate_location
 
+! Find phosphate with maximum number phosphate neighbor 
+! for given conformation number conf and checks is max_neighbor parameter is not exceeded
+! input integer :: tPphos : number associated with type of phosphates
+!       integer :: info  
+! output assigment  
+!       integer :: max_nneigh(conf,2) 
+
+subroutine find_max_nneighbor_phos(tPhos,info)
+
+    use globals, only : nseg, cuantas
+    use chains, only : type_of_monomer, nneigh,max_nneigh_phos
+    use myio, only : myio_err_maxnneigh
+     
+    integer, intent(in) :: tPhos
+    integer, intent(out) :: info
+   
+    ! local arguments
+    integer :: conf, s 
+    integer :: max_neighbor, max_seg
+
+    info=0
+
+    do conf=1,cuantas
+        max_neighbor = 0
+        max_seg = 0
+        do s=1,nseg 
+            if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
+                if(max_neighbor<=nneigh(s,conf)) then 
+                    max_neighbor = nneigh(s,conf)
+                    max_seg = s
+                endif    
+            endif
+        enddo
+        ! assign 
+        max_nneigh_phos(conf,1) = max_neighbor
+        max_nneigh_phos(conf,2) = max_seg 
+        if(max_neighbor>maxnneigh) info=myio_err_maxnneigh
+    enddo 
+
+end subroutine  find_max_nneighbor_phos
+
 
 ! print index coordinates of conf between sbegin and send ( i..e histone ) 
 ! for conformations conf_begin through conf_end
@@ -4184,8 +4289,8 @@ subroutine write_indexchain_histone(sbegin,send,conf_begin,conf_end)
         close(un)
     enddo
 
+end subroutine write_indexchain_histone
 
-end subroutine 
 
 ! Check indexchain of histone ( CA of AA) atoms,  which are between sbegin and send, that 
 ! are  translated and rotate in the same position and orientation for all  conformantion
@@ -4212,11 +4317,10 @@ subroutine compare_indexchain_histone(sbegin,send,info)
            endif
         enddo
     enddo
+
     print*,"rank=",rank," info=",info
 
-
-end subroutine
-
+end subroutine compare_indexchain_histone
 
 
 ! Check indexconf of histone ( CA of AA) atoms,  which are between sbegin and send, that 
@@ -4249,8 +4353,8 @@ subroutine compare_indexconf_histone(sbegin,send,info)
 
     print*,"rank=",rank," info=",info
 
+end subroutine compare_indexconf_histone
 
-end subroutine
 
 subroutine test_nmer_indexchain_histone(s0,s1,info)
 
@@ -4271,7 +4375,8 @@ subroutine test_nmer_indexchain_histone(s0,s1,info)
        info=-1 ! Warning
     endif
 
-end subroutine
+end subroutine test_nmer_indexchain_histone
+
 
 subroutine test_index_histone(info) 
     
@@ -4300,8 +4405,7 @@ subroutine test_index_histone(info)
     endif
     if(flag) call test_nmer_indexchain_histone(s0,s1,info)
 
-end subroutine
-
+end subroutine test_index_histone
 
 function compute_cuantas_no_overlap(cuantas,no_overlapchain)result(num_no_overlap)
     

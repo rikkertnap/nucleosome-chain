@@ -101,7 +101,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
@@ -196,7 +196,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
             
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -283,7 +283,7 @@ contains
        ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(q , ngr , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -369,7 +369,7 @@ contains
             avAsphparam(1) = Asphparam_local
 
 
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local,  1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local,   1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -466,7 +466,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -568,7 +568,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
 
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -653,7 +653,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -754,7 +754,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
 
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -842,7 +842,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -931,7 +931,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
             
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -1030,7 +1030,7 @@ contains
         tcfdis(3)=6
         
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -1192,7 +1192,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local 
             
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -1277,7 +1277,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -1385,7 +1385,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
 
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
@@ -2010,7 +2010,7 @@ contains
         ! .. communicate xsol,psi and fdsiA(:,1) and fdisB(:,1) to other nodes 
 
         if(rank==0) then
-            do i = 1, size-1
+            do i = 1, numproc -1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
@@ -2109,7 +2109,7 @@ contains
             avgyr_tensor(:,:,1) = gyr_tensor_local
             avAsphparam(1) = Asphparam_local
 
-            do i=1, size-1
+            do i=1, numproc-1
                 source = i
                 call MPI_RECV(FEconf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)
                 call MPI_RECV(Econf_local, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)

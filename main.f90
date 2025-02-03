@@ -66,7 +66,6 @@ program main
     call MPI_INIT(ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numproc, ierr)
-    size=numproc ! needs to be removed !!!!!!!!!!
 
     ! .. logfile
     
@@ -150,8 +149,18 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info) 
+    if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then 
+        call write_chain_max_nneigh_phos(write_struct,info) 
+    endif  
 
-    if(write_struct) call error_handler(1,"stop after write_chains_struct")
+    if(write_struct) then 
+        text="stop after write_chains_struct"
+        call print_to_log(LogUnit,text) 
+        call MPI_FINALIZE(ierr)
+        stop
+    endif    
+
+
 
 
     ! call test_index_histone(info)  
@@ -260,8 +269,8 @@ program main
 
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-                !call solver(x, xguess, tol_conv, fnorm, isSolution)
-                isSolution=.true.
+                call solver(x, xguess, tol_conv, fnorm, isSolution)
+                !isSolution=.true.
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodes
                 do i = 1, numproc-1
