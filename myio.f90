@@ -33,6 +33,7 @@ module myio
     integer, parameter ::  myio_err_GBCOMtype = 26 
     integer, parameter ::  myio_err_GBinputfile = 27
     integer, parameter ::  myio_err_GBinputlabel = 28 
+    integer, parameter ::  myio_err_maxnneigh = 29 
 
     integer :: num_cNaCl   ! number of salt concentration considered
     integer :: num_cMgCl2
@@ -65,7 +66,7 @@ module myio
     public :: read_inputfile, output_individualcontr_fe, output, compute_vars_and_output, write_chain_config
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile, myio_err_equilat 
-    public :: myio_err_GBinputfile, myio_err_GBinputlabel
+    public :: myio_err_GBinputfile, myio_err_GBinputlabel, myio_err_maxnneigh
     public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
     public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
     public :: set_value_isVdW ! set_value_isVdW_on_values

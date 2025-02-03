@@ -1,5 +1,5 @@
 ! --------------------------------------------------------------|
-! fcnCa.f90:                                                    |
+! fcn.f90:                                                    |
 ! constructs the vector function  needed by the                 |
 ! routine solver, which solves the SCMFT eqs for weak poly-     |
 ! electrolytes onto a tethered planar surface                   |
