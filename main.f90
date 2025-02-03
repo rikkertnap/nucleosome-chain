@@ -125,12 +125,17 @@ program main
     call print_to_log(LogUnit,text) 
     if(rank==0) print*,text
  
+    text="make conformations"
+    if(rank==0) print*,text
+    call print_to_log(LogUnit,text) 
+    
     call make_chains(chainmethod,systype)   
+
 
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
         call find_phosphate_location(index_phos,inverse_index_phos,len_index_phos) 
         call allocate_index_neighbors_phos(maxneigh,len_index_phos)
-        phoscutoff=int(distphoscutoff/delta)+2
+        phoscutoff=int(distphoscutoff/delta)+2 
         call make_table_index_neighbors_phos(phoscutoff,len_index_phos,index_phos)
     endif
 

@@ -1318,6 +1318,7 @@ subroutine read_chains_xyz_nucl_volume(info)
         info = myio_err_conf        
     else
         text="Chains generated: subroutine make_chains_xyz_nucl_volume"
+        print*,text
         call print_to_log(LogUnit,text)
         readinchains=conffile
         info = 0
@@ -3935,27 +3936,27 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                                 print*,"conformation=",conf
                                 print*,"segment s=",s, " neighbor sprime=",sprime 
                                 print*,"number of neighbors =",nneigh(s,conf)
-                                call error_handler(1,"Error in find_phosphate_pairs ") 
+                            !    call error_handler(1,"Error in find_phosphate_pairs ") 
                             endif    
 
-                            list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
+                            ! list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
-                            ! transforming form real- to lattice coordinates                 
+                            ! ! transforming form real- to lattice coordinates                 
                             
-                            if(pbc_chains) then  
-                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
-                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
-                                zi = int(pbc(chain(3,sprime),Lz)/delta)+1
-                            else 
-                                xi = int(chain(1,sprime)/delta)+1
-                                yi = int(chain(2,sprime)/delta)+1
-                                zi = int(chain(3,sprime)/delta)+1
-                            endif    
+                            ! if(pbc_chains) then  
+                            !     xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                            !     yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                            !     zi = int(pbc(chain(3,sprime),Lz)/delta)+1
+                            ! else 
+                            !     xi = int(chain(1,sprime)/delta)+1
+                            !     yi = int(chain(2,sprime)/delta)+1
+                            !     zi = int(chain(3,sprime)/delta)+1
+                            ! endif    
 
-                            ! call linearIndexFromCoordinate(xi,yi,zi,idx)
-                            idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                            ! ! call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            ! idx = coordtoindex(xi,yi,zi) ! hash-table look up
                             
-                            index_of_pairs(s,nneigh(s,conf))=idx  ! temporaily storage of index of neighbor to (s, conf)
+                            ! index_of_pairs(s,nneigh(s,conf))=idx  ! temporaily storage of index of neighbor to (s, conf)
                             
                         endif
                     endif    
@@ -3967,35 +3968,35 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
     
     ! print 
 
-    if(.true.)then
+    ! if(.true.)then
         
-        write(istr,'(I4)')rank
-        fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
-        !     .. opening file
-        open(unit=newunit(un_pp),file=fname)
+    !     write(istr,'(I4)')rank
+    !     fname='phosphate_pairs.'//trim(adjustl(istr))//'.log'
+    !     !     .. opening file
+    !     open(unit=newunit(un_pp),file=fname)
 
-        write(un_pp,*)"phosphate pairs"
-        write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
-        write(un_pp,*)"distphoscutoff=",distphoscutoff
-        write(un_pp,*)"conf=",conf
-        do s=1,nseg
-             write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),(list_of_pairs(s,j),j=1,nneigh(s,conf))
-        enddo
-        close(un_pp)
+    !     write(un_pp,*)"phosphate pairs"
+    !     write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+    !     write(un_pp,*)"distphoscutoff=",distphoscutoff
+    !     write(un_pp,*)"conf=",conf
+    !     do s=1,nseg
+    !          write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),(list_of_pairs(s,j),j=1,nneigh(s,conf))
+    !     enddo
+    !     close(un_pp)
 
-    endif        
+    ! endif        
 
-    ! allocate indexconfpair
-    do s=1,nseg
-        allocate(indexconfpair(s,conf)%elem(nneigh(s,conf)))
-    enddo
+    ! ! allocate indexconfpair
+    ! do s=1,nseg
+    !     allocate(indexconfpair(s,conf)%elem(nneigh(s,conf)))
+    ! enddo
     
-    ! ..assign indexconfpair
-    do s=1,nseg
-        do j=1,nneigh(s,conf)
-            indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
-        enddo 
-    enddo 
+    ! ! ..assign indexconfpair
+    ! do s=1,nseg
+    !     do j=1,nneigh(s,conf)
+    !         indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
+    !     enddo 
+    ! enddo 
 
     deallocate(list_of_pairs)
     deallocate(index_of_pairs)
