@@ -19,7 +19,7 @@ module chaingenerator
     real(dp),          parameter :: eps_equilat=1.0e-8_dp
     character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
     logical,           parameter :: COMOLD =.FALSE.
-    integer,           parameter :: maxnneigh = 10   
+    integer,           parameter :: maxnneigh = 15   
         ! size of auxilary array list_of_pairs and index_of_pairs in find_phosphate_pairs
         ! value check in find_max_neigh_phos 
 
@@ -3890,7 +3890,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
     use chains, only : nneigh, indexconfpair, distphoscutoff
     use parameters, only : tA 
     use parameters, only : pbc_chains
-    use volume, only : delta, linearIndexFromCoordinate
+    use volume, only : delta, coordtoindex ! linearIndexFromCoordinate
     use myutils, only : newunit, error_handler
     
     integer, intent(in) :: nseg
@@ -3938,26 +3938,25 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                                 call error_handler(1,"Error in find_phosphate_pairs ") 
                             endif    
 
-                            ! list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
+                            list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
 
-                            ! ! transforming form real- to lattice coordinates                 
+                            ! transforming form real- to lattice coordinates                 
                             
-                            ! if(pbc_chains) then  
-                            !     xi = int(pbc(chain(1,sprime),Lx)/delta)+1
-                            !     yi = int(pbc(chain(2,sprime),Ly)/delta)+1
-                            !     zi = int(pbc(chain(3,sprime),Lz)/delta)+1
-                            ! else 
-                            !     xi = int(chain(1,sprime)/delta)+1
-                            !     yi = int(chain(2,sprime)/delta)+1
-                            !     zi = int(chain(3,sprime)/delta)+1
-                            ! endif    
+                            if(pbc_chains) then  
+                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                zi = int(pbc(chain(3,sprime),Lz)/delta)+1
+                            else 
+                                xi = int(chain(1,sprime)/delta)+1
+                                yi = int(chain(2,sprime)/delta)+1
+                                zi = int(chain(3,sprime)/delta)+1
+                            endif    
 
-                            ! ! call linearIndexFromCoordinate(xi,yi,zi,idx)
-                            ! idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                            ! call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            idx = coordtoindex(xi,yi,zi) ! hash-table look up
                             
-                            ! index_of_pairs(s,nneigh(s,conf))=idx  ! temporaily storage of index of neighbor to (s, conf)
+                            index_of_pairs(s,nneigh(s,conf))=idx  ! temporaily storage of index of neighbor to (s, conf)
                             
-
                         endif
                     endif    
                 endif

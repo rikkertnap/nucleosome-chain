@@ -153,8 +153,14 @@ program main
         call write_chain_max_nneigh_phos(write_struct,info) 
     endif    
 
-    if(write_struct) call error_handler(1,"stop after write_chains_struct")
-
+    if(write_struct) then 
+        text="stop after write_chains_struct"
+        print*,text
+        call print_to_log(LogUnit,text) 
+        call close_logfile(LogUnit)
+        call MPI_FINALIZE(ierr)
+        stop
+    endif    
 
     ! call test_index_histone(info)  
 
@@ -216,8 +222,6 @@ program main
 
     endif
 
-    ! call error_handler(1,"stop")
-
     isfirstguess = .true.
     use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
     iter = 0                    ! iteration counter
@@ -237,7 +241,6 @@ program main
     nlist_step = 0
     maxlist_step = 99
 
-   
     do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
 
         iter = 0                        ! iteration counter 
@@ -390,16 +393,14 @@ program main
     deallocate(x)
     deallocate(xguess)
     deallocate(fvec)
-
-    call MPI_FINALIZE(ierr)
-
     deallocate(xstored)
-      
     call deallocate_field()
 
     text="program end"
 
     call print_to_log(LogUnit,text)
     call close_logfile(LogUnit)
+
+    call MPI_FINALIZE(ierr)
 
 end program main
