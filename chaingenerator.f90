@@ -19,7 +19,7 @@ module chaingenerator
     real(dp),          parameter :: eps_equilat=1.0e-8_dp
     character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
     logical,           parameter :: COMOLD =.FALSE.
-    integer,           parameter :: maxnneigh = 10   
+    integer,           parameter :: maxnneigh = 15   
         ! size of auxilary array list_of_pairs and index_of_pairs in find_phosphate_pairs
         ! value check in find_max_neigh_phos 
 
