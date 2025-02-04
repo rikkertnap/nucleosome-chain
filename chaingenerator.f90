@@ -1338,7 +1338,7 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     call normed_weightchains()     
 
-    call find_max_nneighbor_phos(tphos,info)
+    if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") call find_max_nneighbor_phos(tphos,info)
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
 
@@ -4129,7 +4129,7 @@ end subroutine find_phosphate_location
 subroutine find_max_nneighbor_phos(tPhos,info)
 
     use globals, only : nseg, cuantas
-    use chains, only : type_of_monomer, nneigh,max_nneigh_phos
+    use chains, only : type_of_monomer, nneigh, max_nneigh_phos
     use myio, only : myio_err_maxnneigh
      
     integer, intent(in) :: tPhos
