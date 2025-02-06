@@ -19,7 +19,7 @@ module chaingenerator
     real(dp),          parameter :: eps_equilat=1.0e-8_dp
     character(len=80), parameter :: fmt3xyz = "(3ES15.5E2)"
     logical,           parameter :: COMOLD =.FALSE.
-    integer,           parameter :: maxnneigh = 15   
+    integer,           parameter :: maxnneigh = 12   
         ! size of auxilary array list_of_pairs and index_of_pairs in find_phosphate_pairs
         ! value check in find_max_neigh_phos 
 
@@ -1396,8 +1396,8 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     call normed_weightchains()  
 
-    call find_max_nneighbor_phos(tphos,info)
-   
+    if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") call find_max_nneighbor_phos(tphos,info)
+    
     deallocate(energychain) ! free unused variables 
 
     if(DEBUG) call write_indexconf_lammps_trj(info_traj)
