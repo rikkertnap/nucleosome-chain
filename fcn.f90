@@ -1716,12 +1716,12 @@ contains
                         lnpro = lnpro +lnexppi(k)*vnucl(j,t)
                     enddo    
                 enddo 
-                !print*,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
+                !print*,"rank=",rank,"c=",c," lnpro= ",lnpro, "logweight=",logweightchain(c),"energy=",energychainLJ(c)
             endif    
         enddo
 
-        gg=int(rank/nset_per_graft)+1
-        !print*,"rank=",rank,"gg=",gg,"lnpro=",lnpro
+        !gg=int(rank/nset_per_graft)+1
+        !print*,"rank=",rank,"gg=",gg,"lnpro=",lnpro," cuantas_no_overlap=",cuantas_no_overlap
 
         locallnproshift(1)=lnpro/cuantas_no_overlap
         locallnproshift(2)=rank  
@@ -1731,7 +1731,7 @@ contains
        
         lnproshift=globallnproshift(1)
 
-        
+        !print*,"rank=",rank,"lnproshift=",lnproshift
         do c=1,cuantas                        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)
@@ -1744,6 +1744,7 @@ contains
                 enddo     
 
                 pro = exp(lnpro-lnproshift)   
+                !print*,"rank=",rank,"pro",pro
                 local_q = local_q+pro
                 
                 do s=1,nseg
@@ -1767,7 +1768,7 @@ contains
             do i=1, numproc-1
                 source = i
                 call MPI_RECV(local_q, 1, MPI_DOUBLE_PRECISION,source,tag,MPI_COMM_WORLD,stat, ierr)             
-                g =int(source/nset_per_graft)+1
+                g = int(source/nset_per_graft)+1
                 q(g) = q(g) + local_q
             enddo
 
@@ -3171,7 +3172,7 @@ contains
             fcnptr => fcnneutral
         case ("neutralnoVdW")           ! homopolymer neutral
             fcnptr => fcnneutralnoVdW
-        case ("bulk water")             ! determines compositon bulk electrolyte solution
+        case ("bulk water")             ! determines composition bulk electrolyte solution
              fcnptr => fcnbulk
         case default
             print*,"Error in call to set_fcn subroutine"    

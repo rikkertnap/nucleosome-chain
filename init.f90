@@ -189,7 +189,6 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
 
     do i=1,nsize
         x(i)=xbulk%sol
-        x(i)=0.9_dp
     enddo
 
     if (infile.eq.1) then   ! infile is read in from file/stdio  
@@ -215,7 +214,6 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
     enddo
     
 end subroutine init_guess_nucl_neutral_sv
-
 
 
 subroutine init_guess_neutral(x, xguess)
@@ -398,7 +396,6 @@ subroutine init_guess_multi(x, xguess)
             enddo 
         else
 
-
             do i=1,nsize
                 read(un_file(1),*)xsol(i)    ! solvent
                 read(un_file(2),*)psi(i)     ! potential
@@ -409,8 +406,7 @@ subroutine init_guess_multi(x, xguess)
             enddo 
 
         endif  
-
-    
+  
         count_scf=0                     ! placing density in vector x
         do t=1,nsegtypes
             if(isrhoselfconsistent(t)) then
@@ -638,8 +634,6 @@ subroutine init_guess_multi_born(x, xguess)
     do i=1,neqint
         xguess(i)=x(i)
     enddo
-
-    
 
 end subroutine init_guess_multi_born
 

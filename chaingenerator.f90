@@ -933,7 +933,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     call allocate_chain_elements(nseg,nelem,chain_elem_index)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
 
-    ! EXTRA !!! tijdenlijk 
+    ! EXTRA temporaly 
     call allocate_chain_elements(nseg,nelem,chain_elem_index_rot)
     call allocate_chain_elements(nseg,nelem,chain_elem_index_pbc)
 
@@ -977,10 +977,10 @@ subroutine read_chains_xyz_nucl_volume(info)
                           
             if(s_begin<=s.and.s<=s_end) then ! filter 
 
-                 s_local=s_local+1
-                 xseg(1,s_local) = xc*scalefactor 
-                 xseg(2,s_local) = yc*scalefactor  
-                 xseg(3,s_local) = zc*scalefactor 
+                s_local=s_local+1
+                xseg(1,s_local) = xc*scalefactor 
+                xseg(2,s_local) = yc*scalefactor  
+                xseg(3,s_local) = zc*scalefactor 
 
             endif
         enddo
@@ -991,7 +991,6 @@ subroutine read_chains_xyz_nucl_volume(info)
         !if(isVdW)  energyLJ    = GBenergyeffective(xseg,nnucl,segcm,segunitvector) 
         
         if(isReadGood) then ! read was succesfull  
-
 
             if(DEBUG)then
                 chain_lammps(:,:,1)=xseg
@@ -1040,7 +1039,6 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
             call rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem,chain_elem_rot,&
                 orientation_triplets,triangle_orient_vectors,segnumAAstart)
-
 
             if(DEBUG)then
                 print*,"Module : chaingenerator : read_chains_xyz_nucl_volume "

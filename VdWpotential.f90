@@ -410,6 +410,7 @@ contains
  
     end subroutine init_GBenergyeffective
 
+
     
     ! pre : chain conformation and segcm and segunitvector
     ! post: effective VGB energy conformation using location COM of nucleosome
@@ -992,8 +993,8 @@ contains
             call parameter_com(vec,s_ref,t_ref,vec_origin)
             rcom(:,n) = vec_origin
            
-            ! print*,""
-            ! print*,"rcom(:,n)=",rcom(:,n)
+        !    print*,""
+        !    print*,"rcom(:,n)=",rcom(:,n)
         enddo
 
   
