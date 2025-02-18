@@ -21,7 +21,7 @@ module chains
     type(var_iarray), allocatable               :: indexconfpair(:,:)       ! indexconfpair(s,alpha)%elem(j) = layer number of conf alpha and 
                                                                             ! segment number s and neighbor j used for distributed volume 
     integer, dimension(:,:), allocatable        :: nneigh                   ! number of neigbors or pairs of segment s in conf alpha used only phosphates  
-    integer, dimension(:,:), allocatable        :: max_nneigh_phos          ! maximum number of neigbors or pairs of phosphate segments in conf alpha and seggment s
+    integer, dimension(:), allocatable          :: max_nneigh_phos          ! maximum number of neigbors or pairs of phosphate segments in conf alpha and seggment s
 
 
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
@@ -73,10 +73,8 @@ module chains
     real(dp), dimension(:,:), allocatable       :: avnucl_spacing           ! average spacing or distance between Nuclesome
     real(dp), dimension(:), allocatable         :: avRgsqr                  ! radius of gyration 
     real(dp), dimension(:), allocatable         :: avRendsqr                ! end-to-end distance
-    real(dp), dimension(:,:,:), allocatable     :: avgyr_tensor             ! average asphericity matrix /gyration tensor for each graft point
     real(dp), dimension(:), allocatable         :: avAsphparam              ! asphericity parameter for each graft point
-    real(dp), dimension(:,:), allocatable       :: eigen_avgyr_tensor       ! Eigenvalues of Avgyr_tensor, Principal componts of radius of gyration squared 
-
+   
     ! .. pairing parameters 
 
     real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
@@ -124,10 +122,8 @@ contains
         allocate(avbond_angle(nnucl-2,ngr))
         allocate(avdihedral_angle(nnucl-3,ngr))
         allocate(avnucl_spacing(nnucl-1,ngr)) 
-        allocate(avgyr_tensor(3,3,ngr)) 
         allocate(avAsphparam(ngr)) 
-        allocate(eigen_avgyr_tensor(3,ngr)) 
-
+       
         ! rotational and orientational segments 
         allocate(orientation_triplets(nnucl,3))
         allocate(nelem(nseg))
@@ -192,7 +188,7 @@ contains
 
         integer, intent(in) :: cuantas
 
-        allocate(max_nneigh_phos(cuantas,2))
+        allocate(max_nneigh_phos(cuantas))
 
     end subroutine allocate_max_nneighbor_phos
    

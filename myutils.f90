@@ -86,8 +86,9 @@ contains
     end subroutine close_logfile
         
 
-    ! If info /= 0 program stops after writting text message to screen and in log file.
-    ! input iinteger info
+    ! If info > 0 program stops after writting text message to screen and in log file.
+    ! input integer info
+
     
     subroutine error_handler(info,message)
         

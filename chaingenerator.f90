@@ -28,7 +28,7 @@ module chaingenerator
     public :: make_chains, make_chains_mc,read_chains_xyz
     public :: make_charge_table, make_segcom, make_sequence_chain, make_type_of_charge_table
     public :: set_mapping_num_to_char, set_properties_chain
-    public :: write_chain_struct, write_chain_max_nneigh_phos
+    public :: write_chain_struct, write_chain_max_nneigh_phos, make_histogram_max_nneigh_phos
     public :: write_indexchain_histone, test_index_histone
     public :: find_phosphate_location
     
@@ -49,8 +49,8 @@ subroutine make_chains(chainmethod,systype)
     character(len=15), intent(in) :: chainmethod
     character(len=15), intent(in) :: systype 
 
-    integer :: i, info
-    character(len=lenText) :: text, istr
+    integer :: info
+    character(len=lenText) :: text
 
     info=0
 
@@ -80,7 +80,7 @@ subroutine make_chains_mc()
     use globals
     use chains
     use random
-    use parameters, only : geometry, lseg, write_mc_chains, isVdW, isVdWintEne
+    use parameters, only : geometry, lseg, write_mc_chains
     use parameters, only : maxnchainsrotations, maxnchainsrotationsxy
     use volume, only : nx, ny, nz, delta
     use volume, only : coordinateFromLinearIndex, linearIndexFromCoordinate
@@ -91,26 +91,20 @@ subroutine make_chains_mc()
 
     !     .. variable and constant declaractions      
 
-    integer :: i,j,k,s,g,gn      ! dummy indices
+    integer :: j,s             ! dummy indices
     integer :: idx               ! index label
-    integer :: ix,iy,idxtmp,ntheta
     integer :: nchains           ! number of rotations
     integer :: maxnchains        ! number of rotations
     integer :: maxntheta         ! maximum number of rotation in xy-plane
     integer :: conf              ! counts number of conformations
-    integer :: allowedconf
     real(dp) :: chain(3,nseg,200) ! chain(x,i,l)= coordinate x of segement i ,x=2 y=3,z=1
     real(dp) :: chain_rot(3,nseg)
     real(dp) :: x(nseg), y(nseg), z(nseg) ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates
-    real(dp) :: xpp(nseg), ypp(nseg), zpp(nseg)  
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm         ! sizes box
-    real(dp) :: xpt,ypt          ! coordinates
-    real(dp) :: theta, theta_angle
     character(len=lenText) :: text, istr
-    integer  :: xi,yi,zi ,un_trj, un_ene, segcenter
+    integer  :: xi,yi,zi ,un_trj, un_ene !, segcenter
     real(dp) :: energy   
-    logical :: saw 
     integer :: info    
    
     !  .. executable statements
@@ -242,9 +236,8 @@ subroutine make_chains_mc()
     !  .. end chains generation 
       
     write(istr,'(I4)')rank
-    text='AB Chains generated on node '//istr
+    text='AB Chains generated on node '//trim(adjustl(istr))
     call print_to_log(LogUnit,text)
-
   
     if(isHomopolymer.eqv..FALSE.) deallocate(lsegseq)
 
@@ -307,7 +300,7 @@ subroutine read_chains_xyz_nucl(info)
     use mpivars, only : rank !,size                                                                                   
     use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
-    use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
+    use chains, only : indexchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
     use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
     use chains, only :  Asphparam
@@ -328,28 +321,28 @@ subroutine read_chains_xyz_nucl(info)
 
     ! .. local variables
 
-    integer :: i,j,s,rot,g,gn      ! dummy indices
+    integer :: i,j,s,g,gn      ! dummy indices
     integer :: idx                 ! index label
-    integer :: ix,iy,iz,idxtmp,ntheta
+    integer :: ix,iy,iz,idxtmp
     integer :: nchains              ! number of rotations
-    integer :: maxnchains           ! number of rotations
+!    integer :: maxnchains           ! number of rotations
     integer :: maxntheta            ! maximum number of rotation in xy-plane
     integer :: conf,conffile        ! counts number of conformations  
     integer :: nsegfile             ! nseg in chain file      
     integer :: cuantasfile          ! cuantas in chain file                                              
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg)  ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
-    real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
+   ! real(dp) :: x(nseg), y(nseg) , z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
-    real(dp) :: xpt,ypt              ! coordinates
+ !   real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc               
     real(dp) :: energy, energyLJ                                            
     character(len=25) :: fname
     integer :: ios, rankfile, iosene
-    character(len=30) :: str
+   ! character(len=30) :: str
     real(dp) :: scalefactor
     integer :: un,unw,un_ene ! unit number
     logical :: exist
@@ -1203,7 +1196,6 @@ subroutine read_chains_xyz_nucl_volume(info)
         
                 if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain_rot,Lx,Ly)
-                    ! use chain_rot !!!!
                 endif    
             
                 ! for energy, and rcom use chain conformation 
@@ -2987,7 +2979,8 @@ subroutine write_chain_struct(write_struct,info)
     use globals, only : cuantas,nnucl
     use myutils, only : lenText
     use chains, only : Rgsqr,Rendsqr,bond_angle,dihedral_angle,nucl_spacing,energychainLJ
-    use chains, only : no_overlapchain, Asphparam
+    use chains, only : no_overlapchain, Asphparam 
+
     implicit none 
 
     logical, intent(in) :: write_struct
@@ -3047,7 +3040,9 @@ subroutine write_chain_max_nneigh_phos(write_struct,info)
 
     use globals, only : cuantas
     use myutils, only : lenText
-    use chains, only : max_nneigh_phos, no_overlapchain
+    use chains, only : type_of_monomer, max_nneigh_phos, no_overlapchain
+
+
     implicit none 
 
     logical, intent(in) :: write_struct
@@ -3065,7 +3060,7 @@ subroutine write_chain_max_nneigh_phos(write_struct,info)
         un_max=open_chain_struct_file(filename,info)
     
         do c=1,cuantas
-            write(un_max,*)no_overlapchain(c),max_nneigh_phos(c,1),max_nneigh_phos(c,2)
+            write(un_max,*)no_overlapchain(c),max_nneigh_phos(c)
         enddo 
 
         close(un_max)
@@ -3073,6 +3068,50 @@ subroutine write_chain_max_nneigh_phos(write_struct,info)
     endif
  
 end subroutine write_chain_max_nneigh_phos
+
+subroutine make_histogram_max_nneigh_phos(info)
+
+    use globals, only : cuantas, nseg
+    use myutils, only : lenText
+    use chains, only : nneigh, max_nneigh_phos
+    use chains, only : type_of_monomer, no_overlapchain
+
+    implicit none 
+
+    integer, intent(inout) :: info
+ 
+    ! .. local
+    character(len=lenText) :: filename
+    integer :: un_hist
+    integer :: k, i, conf, s, tPhos
+    integer :: hist(maxnneigh), avhist(maxnneigh)
+
+    info=0
+    tPhos = find_type_phosphate()
+    
+    filename="histogram_nneigh_phos."
+    un_hist=open_chain_struct_file(filename,info)
+
+    avhist=0
+    do conf=1,cuantas
+        hist=0
+        do s=1,nseg ! loop segments
+            if(type_of_monomer(s)==tPhos) then
+                k=nneigh(s,conf)
+                hist(k)=hist(k)+1
+               ! print*,"s=",s," k=",k," hist(k)=",hist(k),nneigh(s,conf)
+            endif       
+        enddo
+        avhist=avhist+hist
+        ! output
+        write(un_hist,*)no_overlapchain(conf),(hist(i),i=1,max_nneigh_phos(conf))
+    enddo
+    avhist=avhist/cuantas
+    write(un_hist,*)"average histogram : ",(avhist(i),i=1,maxnneigh)
+   
+    close(un_hist)
+
+end subroutine make_histogram_max_nneigh_phos
 
 
 function open_chain_struct_file(filename,info)result(un)
@@ -3088,7 +3127,7 @@ function open_chain_struct_file(filename,info)result(un)
 
     ! local
     character(len=lenText) :: istr
-    character(len=25) :: fname
+    character(len=lenText) :: fname
     integer :: ios
     logical :: exist
     
@@ -3113,6 +3152,7 @@ function open_chain_struct_file(filename,info)result(un)
             return
         endif
     endif    
+
 end function open_chain_struct_file
 
 
@@ -3957,8 +3997,6 @@ subroutine find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index,rmin)
 end subroutine  find_zminimum_chain_elem_index
 
 
-
-
 ! Finds phosphate pairs for given conformation number conf 
 ! Conformation is stored in chain
 ! Assigns  nneigh(s,conf) and indexconfpair(s,conf)%elem(j) with 0<=j<=neigh(s,conf)
@@ -4227,20 +4265,20 @@ subroutine find_max_nneighbor_phos(tPhos,info)
 
     do conf=1,cuantas
         max_neighbor = 0
-        max_seg = 0
         do s=1,nseg 
             if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
-                if(max_neighbor<=nneigh(s,conf)) then 
-                    max_neighbor = nneigh(s,conf)
-                    max_seg = s
-                endif    
+                if(max_neighbor<=nneigh(s,conf)) max_neighbor = nneigh(s,conf)
             endif
         enddo
+        
         ! assign 
-        max_nneigh_phos(conf,1) = max_neighbor
-        max_nneigh_phos(conf,2) = max_seg 
-        if(max_neighbor>maxnneigh) info=myio_err_maxnneigh
+        max_nneigh_phos(conf) = max_neighbor
+        if(max_neighbor>maxnneigh) then 
+            info=myio_err_maxnneigh
+            return
+        endif    
     enddo 
+
 
 end subroutine  find_max_nneighbor_phos
 
@@ -4319,6 +4357,7 @@ subroutine compare_indexchain_histone(sbegin,send,info)
     print*,"rank=",rank," info=",info
 
 end subroutine compare_indexchain_histone
+
 
 
 ! Check indexconf of histone ( CA of AA) atoms,  which are between sbegin and send, that 
@@ -4425,3 +4464,4 @@ end function compute_cuantas_no_overlap
 
 
 end module chaingenerator
+

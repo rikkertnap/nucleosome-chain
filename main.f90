@@ -151,11 +151,13 @@ program main
     call write_chain_struct(write_struct,info) 
     if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then 
         call write_chain_max_nneigh_phos(write_struct,info) 
+        call make_histogram_max_nneigh_phos(info)
     endif  
 
     if(write_struct) then 
         text="stop after write_chains_struct"
         call print_to_log(LogUnit,text) 
+        call close_logfile(LogUnit)
         call MPI_FINALIZE(ierr)
         stop
     endif    

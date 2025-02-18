@@ -47,9 +47,9 @@ module myio
     integer :: maxlist_step
 
     ! unit number
-    integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
-    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
+    integer :: un_sys,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
+    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_fe
+    integer :: un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
     integer :: un_chargepol
 
     ! format specifiers
@@ -87,7 +87,7 @@ subroutine read_inputfile(info)
 
     ! .. local arguments
 
-    integer :: info_sys, info_bc, info_run, info_geo, info_meth, info_chaintype, info_combi, info_VdWeps
+    integer :: info_sys, info_bc, info_run, info_geo, info_meth, info_chaintype, info_VdWeps
     integer :: info_chainmethod, info_dielect, info_GB, info_GBCOM
     character(len=8) :: fname
     integer :: ios,un_input  ! un = unit number
@@ -944,7 +944,6 @@ subroutine check_value_method(method,info)
     integer, intent(out),optional :: info
 
     character(len=8) :: methodstr
-    integer :: i
     logical :: flag
 
     ! permissible values of runtype
@@ -1090,9 +1089,6 @@ subroutine set_value_isVdWintEne(systype, isVdWintEne)
 
     character(len=15), intent(in) :: systype
     logical, intent(inout)  :: isVdWintEne
-
-    character(len=15) :: systypestr(2)
-    integer :: i
 
     ! all systype that involve internal VdW chain energy
 
@@ -1346,20 +1342,22 @@ subroutine output_nucl_ionbin_Mg
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor, eigen_avgyr_tensor
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
     use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype  
    
     !     .. local arguments
 
-    integer :: t
+    integer :: i,j,k,g,t          ! dummy indexes
+    real(dp) :: denspol
+    character(len=100) :: fnamelabel
+    
 
     !     .. output file names
 
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
     character(len=90) :: xCafilename
@@ -1378,12 +1376,6 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
-    character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-
-    logical :: isopen
-    integer :: i,j,k,g          ! dummy indexes
-    real(dp) :: denspol
 
     ! .. executable statements
 
@@ -1631,20 +1623,11 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'FEbind      = ',FEbind
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
-    write(un_sys,*)'q           = ',q
-    write(un_sys,*)'avRgsqr     = ',avRgsqr 
-    write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
-    write(un_sys,*)'avAs        = ',avAsphparam
-    do g=1,ngr
-        do i=1,3
-            do j=1,3
-                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
-            enddo       
-        enddo
-    enddo            
+    write(un_sys,*)'q           = ',(q(g),g=1,ngr)
+    write(un_sys,*)'avRgsqr     = ',(avRgsqr(g),g=1,ngr) 
+    write(un_sys,*)'avRendsqr   = ',(avRendsqr(g),g=1,ngr)
+    write(un_sys,*)'avAs        = ',(avAsphparam(g),g=1,ngr)
+   
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -1765,20 +1748,21 @@ subroutine output_nucl_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor, eigen_avgyr_tensor
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
     use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
     
     !     .. local arguments
 
-    integer :: t
+    integer :: i,k,g,t          ! dummy indexes
+    real(dp) :: denspol
+    character(len=100) :: fnamelabel
 
     !     .. output file names
 
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
     character(len=90) :: xCafilename
@@ -1797,13 +1781,7 @@ subroutine output_nucl_mul
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
-    character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-
-    logical :: isopen
-    integer :: i,j,k,g          ! dummy indexes
-    real(dp) :: denspol
-
+    
 
     ! .. executable statements
 
@@ -2074,20 +2052,10 @@ subroutine output_nucl_mul
     write(un_sys,*)'FEbind      = ',FEbind
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
-    write(un_sys,*)'q           = ',q
-    write(un_sys,*)'avRgsqr     = ',avRgsqr 
-    write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
-    write(un_sys,*)'avAs        = ',avAsphparam 
-    do g=1,ngr
-        do i=1,3
-            do j=1,3
-                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
-            enddo       
-        enddo
-    enddo            
+    write(un_sys,*)'q           = ',(q(g),g=1,ngr)
+    write(un_sys,*)'avRgsqr     = ',(avRgsqr(g) ,g=1,ngr)
+    write(un_sys,*)'avRendsqr   = ',(avRendsqr(g),g=1,ngr)
+    write(un_sys,*)'avAs        = ',(avAsphparam(g),g=1,ngr)      
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -2222,10 +2190,13 @@ subroutine output_elect
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor, avAsphparam
+    use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. local arguments
+    integer :: i,k,t,g          ! dummy indexes
+    real(dp) :: denspol
+    character(len=100) :: fnamelabel
 
     !     .. output file names
 
@@ -2249,11 +2220,7 @@ subroutine output_elect
     character(len=90) :: densfracionpairfilename
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
-    character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-    logical :: isopen
-    integer :: i,j,k,t,g          ! dummy indexes
-    real(dp) :: denspol
+
 
     ! .. executable statements
 
@@ -2485,18 +2452,11 @@ subroutine output_elect
     write(un_sys,*)'FEbind      = ',FEbind
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'FEalt       = ',FEalt
-    write(un_sys,*)'q           = ',q
-    write(un_sys,*)'avRgsqr     = ',avRgsqr 
-    write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
-    write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
-        enddo       
-    enddo       
+    write(un_sys,*)'q           = ',(q(g),g=1,ngr)
+    write(un_sys,*)'avRgsqr     = ',(avRgsqr(g) ,g=1,ngr)
+    write(un_sys,*)'avRendsqr   = ',(avRendsqr(g),g=1,ngr)
+    write(un_sys,*)'avAs        = ',(avAsphparam(g),g=1,ngr)
+   
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -2602,7 +2562,7 @@ subroutine output_neutral
     use energy
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor,avAsphparam
+    use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. output file names
@@ -2615,10 +2575,9 @@ subroutine output_neutral
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
-    integer :: i, j, t, g
+    integer :: i, t, g
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr,istr
-    logical :: isopen
+    character(len=20) :: istr
     real(dp) :: denspol
 
     !     .. executable statements
@@ -2740,22 +2699,11 @@ subroutine output_neutral
     write(un_sys,*)'FErho       = ',FErho
     write(un_sys,*)'FEVdW       = ',FEVdW
     write(un_sys,*)'Eshift      = ',Eshift
-    write(un_sys,*)'q           = ',q
-    write(un_sys,*)'mu          = ',-log(q)
-    write(un_sys,*)'avRgsqr     = ',avRgsqr 
-    write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',(eigen_avgyr_tensor(1,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_2   = ',(eigen_avgyr_tensor(2,g),g=1,ngr)
-    write(un_sys,*)'avRgsqr_3   = ',(eigen_avgyr_tensor(3,g),g=1,ngr)
-    write(un_sys,*)'avAs        = ',avAsphparam
-
-    do g=1,ngr
-        do i=1,3
-            do j=1,3
-                write(un_sys,*)'avgyr_tensor(',i,j,':',g,')=',avgyr_tensor(i,j,g)
-            enddo       
-        enddo
-    enddo 
+    write(un_sys,*)'q           = ',(q(g),g=1,ngr)
+    write(un_sys,*)'mu          = ',(-log(q),g=1,ngr)
+    write(un_sys,*)'avRgsqr     = ',(avRgsqr(g),g=1,ngr)
+    write(un_sys,*)'avRendsqr   = ',(avRendsqr(g) ,g=1,ngr)
+    write(un_sys,*)'avAs        = ',(avAsphparam(g),g=1,ngr)
 
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val = ',VdWscale%val
@@ -2784,10 +2732,9 @@ end subroutine output_neutral
 
 subroutine output_individualcontr_fe
 
-    use globals, only : LEFT,RIGHT, systype
+    use globals, only : LEFT,RIGHT
     use energy
     use myutils, only : newunit
-    use volume, only : delta,nz
     use parameters, only : isEnergyShift
     use chains, only : energychain_min
 
@@ -2795,8 +2742,6 @@ subroutine output_individualcontr_fe
 
     character(len=100) :: fenergyfilename
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-
    
     !     .. make label filename
     call make_filename_label(fnamelabel)
@@ -2872,13 +2817,12 @@ end subroutine output_individualcontr_fe
 subroutine make_filename_label(fnamelabel)
 
     use globals, only : LEFT,RIGHT, systype, runtype
-    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,init_denspol,VdWscale,pKd,dielectscale
 
     character(len=*), intent(inout) :: fnamelabel
 
     character(len=20) :: rstr
     real(dp) :: denspol
-
 
     denspol=init_denspol()
 
@@ -3085,15 +3029,10 @@ end subroutine copy_solution
 
 subroutine compute_vars_and_output()
 
-    use globals, only : systype, DEBUG
+    use globals, only : systype
     use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
-    use field, only : distribution_charge_nucl_ionbin_sv, max_potential
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor, avAsphparam
-    use eigenvalues, only : eigenvalue_of_avgyr_tensor
-    use volume, only : ngr
-
-    integer :: g
+    use field, only : max_potential
 
     select case (systype)
     case ("elect")
@@ -3104,17 +3043,11 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
         call output()
 
     case ("neutral","neutralnoVdW")
 
         call fcnenergy()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
         call output()           
 
     case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
@@ -3125,9 +3058,6 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
         call output()        
 
     case ("nucl_ionbin")
@@ -3138,12 +3068,8 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential() 
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
         call output()  
-           
-
+        
     case ("nucl_ionbin_sv")
 
         call fcnenergy()
@@ -3151,10 +3077,7 @@ subroutine compute_vars_and_output()
         call average_charge_polymer()
         call make_ion_excess()
         call make_beta(sumphi)
-        call max_potential()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
+        call max_potential() 
         call output()           
     
     case ("nucl_ionbin_Mg")
@@ -3164,10 +3087,7 @@ subroutine compute_vars_and_output()
         call fcnenergy() ! need avfdis in check_volumefraction routine
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
-        call max_potential()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
+        call max_potential()  
         call output()           
 
       case ("nucl_ionbin_MgA")
@@ -3178,17 +3098,11 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential() 
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo  
         call output()       
 
      case ("nucl_neutral_sv")
 
         call fcnenergy()
-        do g=1,ngr
-            eigen_avgyr_tensor(:,g)=eigenvalue_of_avgyr_tensor(avgyr_tensor(:,:,g))
-        enddo    
         call output()           
 
     case default
@@ -3198,6 +3112,7 @@ subroutine compute_vars_and_output()
         stop
 
     end select
+
 
 end subroutine compute_vars_and_output
 
