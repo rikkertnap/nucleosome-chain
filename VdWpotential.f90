@@ -1145,12 +1145,11 @@ contains
         write(fname,'(A10)')'GBinput.in'
 
         inquire(file=fname,exist=file_exist)
-        print*,"file_exist=",file_exist
 
         if(file_exist) then
             open(unit=newunit(un_input),file=fname,iostat=ios,status='old')
         else
-            print*,'GBinput file does not exit: use default value for GB potential'
+            print*,'Warning: GBinput file does not exit: use default value for GB potential'
             info = 0
             return
         endif

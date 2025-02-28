@@ -525,15 +525,16 @@ contains
 
     subroutine fcnenergy_ionbin_sv()
 
-        use globals ! , only : systype, nsize,nsegtypes
-        use volume
-        use parameters
-        use field
-        use VdW
-        use surface
+        use globals, only : systype, nsize, nseg, nsegtypes, DEBUG
+        use volume, only : volcell 
+        use parameters, only : xbulk, tA, isVdW
+        use parameters, only : vsol, vNa, vCl, vCa, vMg, vCl, vK, vNaCl, vKCl
+        use field, only : xsol, xNa, xCl, xHplus, xOHMin, xCa, xMg, xCl, xK, xNaCl, xKCl
+        use field, only : rhoq, psi, rhopol, rhopol_charge, fdisA, q, lnproshift  
+        use VdW, only : VdW_energy
         use dielectric_const, only : born
         use Poisson, only :  grad_pot_sqr_eps_cubic
-        use chains, only : ismonomer_chargeable,type_of_monomer,type_of_charge
+        use chains, only : ismonomer_chargeable, type_of_monomer, type_of_charge
 
         !  .. local arguments 
     
@@ -541,7 +542,7 @@ contains
         real(dp) :: volumelat          ! volume lattice 
         real(dp) :: FEchemSurftmp
         integer  :: ier
-        logical  :: alloc_fail
+        logical  :: alloc_fail, isApresent
         real(dp) :: sqrgradpsi(nsize)
         real(dp) :: Etotself,lbr
         real(dp) :: vnucltot
@@ -556,6 +557,8 @@ contains
             allocate(sumrhocharge(nsegtypes),stat=ier)
             if( ier/=0 ) alloc_fail=.true.
         endif
+
+        isApresent=(tA/=0)  ! check if phosphate acid monomer is defined 
 
         !  .. computation of free energy
 
@@ -621,7 +624,7 @@ contains
 
         !  .. calcium and magnesium binding contribution to minimized free energy  
 
-        if(systype/="brush_mul".and.systype/="brush_mulnoVdW") then 
+        if(systype/="brush_mul".and.systype/="brush_mulnoVdW".and.isApresent) then 
             do i=1,nsize
                 FEbind = FEbind + (fdisA(i,5)+fdisA(i,7))*rhopol(i,tA)
             enddo                
@@ -1994,6 +1997,7 @@ contains
         real(dp) :: sumvolnucl,sumxpoltot, sumrhophos
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
+        logical :: isApresent
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -2056,7 +2060,12 @@ contains
 
         sumvolnucl=calculate_sumvolnucl()
         checksumxpoltot=sum(sumxpol)*volcell -sum(deltaxpol)*volcell - sumvolnucl
-        sumrhophos=sum(rhopol_charge(:,ta))*volcell
+
+        sumrhophos=0.0_dp
+        isApresent=(tA/=0) ! check if phosphate acid monomer is defined in list of typesfname
+        if(isApresent) sumrhophos=sum(rhopol_charge(:,ta))*volcell
+        
+
 
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
 

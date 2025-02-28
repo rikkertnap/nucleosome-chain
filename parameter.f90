@@ -474,8 +474,8 @@ contains
     ! Init variables specific for DNA used in systype=brush, brushborn etc 
     ! variable are  constants, deltaG and K for sytype=brush,bruhborn etc.
     ! pre : nsegtype, vsol,vpol, vNa etc and ismonomer_chargable need to be set 
-    ! post : equlibrium constant and volume set for charge state of 
-    !        carboxylic group of systype ==brushborn are initliazed 
+    ! post : equilibrium constant and volume set for charge state of 
+    !        carboxylic group of systype ==brushborn are initialed 
 
     subroutine init_dna  
 
@@ -500,8 +500,7 @@ contains
 
         if(.not.isApresent) then
             print*,"Warning in init_dna:"
-            print*,"A momomer is not defined in typesfname"
-            print*,"tA= ",tA
+            print*,"No phosphate momomer 'P' defined, tA = ",tA
         endif    
 
         call read_pKds(pKaAA,info)
@@ -527,14 +526,22 @@ contains
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
 
-        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA") then
+        ! units of Mg binding of 2:1 monomer bindign and Mgh bindign pairs is  different 
+
+        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA") then 
             K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
             K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
         endif 
 
         ! set volumes 
-         
-        vA=vpol(tA) 
+
+        if(isApresent) then 
+            vA=vpol(tA)
+        else 
+            vA=0.0_dp 
+            print*,"Warning tA=0: vA=0.0" 
+        endif     
+
         vpolAA(1) = vA              ! vA-
         vpolAA(2) = vA              ! vAH
         vpolAA(3) = vA+vNa          ! vANa
@@ -1508,8 +1515,7 @@ contains
 
 
 
-         
-
+        
         ! Mg/Ca self consistent equation
 
         ! determine segment type number of P = phosphate dsDNA or ssDNA  

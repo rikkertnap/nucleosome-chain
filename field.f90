@@ -1144,7 +1144,10 @@ contains
         type(moleclist) :: ion_excess_tot ,ion_excess_ads
         real(dp) :: qnucl
         integer :: t
+        logical ::  isPhospresent
 
+        isPhospresent=(index_phos/=0)
+       
         ! calculate ion_excess_tot
         
         ! init 
@@ -1160,10 +1163,12 @@ contains
             ion_excess_ads%Cl = ion_excess_ads%Cl  + (avgdisB(t,3) * numberelem(t)) 
         enddo
   
-        ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
-        ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
-        ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos)
-        
+        if(isPhospresent) then 
+            ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
+            ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
+            ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos)
+        endif
+
         ! calculate ion_excess_tot = sum of free adsorped ion excess
         
         ion_excess_tot%Na = ion_excess%Na  + ion_excess_ads%Na   
