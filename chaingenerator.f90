@@ -810,7 +810,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! .. open file   
 
     rankfile=mod(rank,nset_per_graft)   
-    print*,"rank=",rank," rankfile=",rankfile                                                                                  
+!    print*,"rank=",rank," rankfile=",rankfile                                                                                  
     
     write(istr,'(I4)')rankfile
     fname='traj.'//trim(adjustl(istr))//'.xyz'
