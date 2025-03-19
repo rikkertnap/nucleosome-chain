@@ -1,3 +1,4 @@
+
 module field
   
     !     .. variables
@@ -56,7 +57,8 @@ contains
         integer :: N
         integer :: ier(26), i
 
-        N=Nx*Ny*Nz
+        ier = 0  
+        N = Nx*Ny*Nz
 
         allocate(xpol(N),stat=ier(1))
         allocate(xpol_t(N,nsegtypes),stat=ier(25))
@@ -172,27 +174,37 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP,len_index_phos
 
         integer :: N, Nindex
-        integer :: ier(26), i
+        integer :: ier(3), i
+
+        ier=0
 
 
         if(systype=="nucl_ionbin_Mg") then 
 
             N=Nx*Ny*Nz
             Nindex=len_index_phos
-            allocate(rhoqphos(N))    
-            allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
-            allocate(fdisP2Mg(Nindex,maxneigh)) 
+            allocate(rhoqphos(N),stat=ier(1))    
+            allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP),stat=ier(2)) 
+            allocate(fdisP2Mg(Nindex,maxneigh),stat=ier(3)) 
 
         endif
  
         if(systype=="nucl_ionbin_MgA") then
 
             N=Nx*Ny*Nz
-            allocate(rhoqphos(N))
-            allocate(fdisPP_loc(maxfdisPP,maxfdisPP))
-            allocate(fdisPP_loc_swap(maxfdisPP,maxfdisPP))
+            allocate(rhoqphos(N),stat=ier(1))
+            allocate(fdisPP_loc(maxfdisPP,maxfdisPP),stat=ier(2))
+            allocate(fdisPP_loc_swap(maxfdisPP,maxfdisPP),stat=ier(3))
         
         endif
+        
+        do i=1,3
+            if( ier(i)/=0 ) then
+                print*,'Allocation error : stat =', ier(i),' for i= ',i
+                stop
+            endif
+        enddo  
+
 
     end subroutine allocate_field_pairs
 
@@ -222,8 +234,8 @@ contains
 
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
-        use volume, only : volcell
-        use globals, only : nsize, systype, nseg, nsegtypes
+        use volume, only : volcell, ngr
+        use globals, only : nsize, nseg, nsegtypes
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
         integer :: t,i
@@ -235,9 +247,9 @@ contains
                 sumrhopol=sumrhopol+rhopol(i,t)
             enddo  
         enddo      
-        sumrhopol=sumrhopol*volcell
+        sumrhopol = sumrhopol*volcell
 
-        intrhopol=nseg
+        intrhopol = nseg*ngr
 
         checkintegral=sumrhopol-intrhopol
 
@@ -245,8 +257,8 @@ contains
 
     subroutine check_integral_rholpolAB(sumrhopol, checkintegral)
 
-        use volume, only : volcell
-        use globals, only : nsize, systype, nseg
+        use volume, only : volcell, ngr
+        use globals, only : nsize, nseg
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
         integer :: i
@@ -258,7 +270,7 @@ contains
         enddo    
         sumrhopol=sumrhopol*volcell
 
-        intrhopol=nseg  
+        intrhopol=nseg*ngr  
 
         checkintegral=sumrhopol-intrhopol
 
@@ -338,7 +350,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge 
 
         integer :: i, t
@@ -375,7 +387,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
@@ -422,7 +434,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
@@ -546,10 +558,10 @@ contains
 
     subroutine average_charge_polymer_dna()
 
-        use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell
+        use globals, only : nseg, nsize, nsegtypes
+        use volume, only : volcell, ngr
         use parameters, only : zpol, avfdis, avfdisA, tA
-        use chains, only: type_of_monomer,ismonomer_chargeable
+        use chains, only: type_of_monomer, ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
         integer :: i,s,t,k
@@ -564,6 +576,10 @@ contains
             npol(t)=npol(t)+1
         enddo   
             
+        do t=1,nsegtypes
+           npol(t)=npol(t)*ngr
+        enddo 
+
         do t=1,nsegtypes
             avfdis(t)=0.0_dp
             if(ismonomer_chargeable(t)) then 
@@ -596,7 +612,7 @@ contains
     subroutine average_charge_nucl_ionbin()
 
         use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell
+        use volume, only : volcell, ngr
         use parameters, only : zpol, avfdis, avfdisA, tA, avgdisA, avgdisB
         use chains, only: type_of_monomer,ismonomer_chargeable
 
@@ -612,7 +628,11 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
-            
+
+        do t=1,nsegtypes
+            npol(t)= npol(t) * ngr
+        enddo            
+
         do t=1,nsegtypes
             ! init 
             avfdis(t)=0.0_dp ! A^-
@@ -669,15 +689,14 @@ contains
     subroutine average_charge_nucl_ionbin_Mg()
 
         use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell
+        use volume, only : volcell, ngr
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
-        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, avfdisPP, avfdisP2Mg
+        use parameters, only : Phos, PhosH, PhosK, PhosNa, PhosMg, avfdisPP, avfdisP2Mg
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
         integer :: i,s,t,k,JJ, KK
         real(dp) :: sumrhopolt ! average density of polymer of type t 
-        real(dp) :: sumavfdisPP
 
         allocate(npol(nsegtypes))
         
@@ -687,7 +706,11 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
-            
+           
+        do t=1,nsegtypes
+           npol(t) = npol(t) * ngr
+        enddo
+ 
         do t=1,nsegtypes
             ! init 
             avfdis(t)=0.0_dp ! A^-
@@ -800,13 +823,13 @@ contains
 
     subroutine average_charge_nucl_ionbin_sv()
 
-        use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell
+        use globals, only : nseg, nsize, nsegtypes
+        use volume, only : volcell, ngr
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
-        integer :: i,s,t,k
+        integer :: i, s, t, k
         real(dp) :: sumrhopolt ! average density of polymer of type t 
 
         allocate(npol(nsegtypes))
@@ -817,6 +840,10 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
+
+        do t=1,nsegtypes
+            npol(t)=npol(t)*ngr
+        enddo
             
         do t=1,nsegtypes
             ! init 
@@ -874,12 +901,11 @@ contains
 
     subroutine distribution_charge_nucl_ionbin_sv(qpol_local)
 
-        use globals, only : nseg,nsize,nsegtypes
+        use globals, only : nsize, nsegtypes
         use parameters, only : zpol, tA
         use chains, only: ismonomer_chargeable
 
         real(dp), dimension(:), allocatable, intent(inout)  :: qpol_local
-
        
         integer :: i,t
       
@@ -912,7 +938,7 @@ contains
     subroutine average_charge_polymer_multi()
 
         use globals, only : nseg,nsize,nsegtypes
-        use volume, only : volcell
+        use volume, only : volcell, ngr
         use parameters, only : zpol, avfdis
         use chains, only: type_of_monomer,ismonomer_chargeable
 
@@ -927,6 +953,11 @@ contains
             t=type_of_monomer(s)
             npol(t)=npol(t)+1
         enddo   
+
+        do t=1,nsegtypes
+            npol(t)=npol(t)*ngr
+        enddo
+
 
         do t=1,nsegtypes
             avfdis(t)=0.0_dp
@@ -952,7 +983,7 @@ contains
     subroutine average_charge_polymer_binary()
         
         use globals, only : nseg,nsize
-        use volume, only : volcell
+        use volume, only : volcell, ngr
         use parameters
         use chains, only : isAmonomer
 
@@ -960,16 +991,19 @@ contains
         integer   :: npolA,npolB
         integer, parameter :: A=1, B=2
         real(dp) :: sumrhopolA, sumrhopolB ! average density of polymer of type A and B
-        ! .. number of A and B monomors 
+      
+       ! .. number of A and B monomors 
         npolA=0
         do s=1,nseg
            if(isAmonomer(s).eqv..true.) then
               npolA=npolA+1
            endif
         enddo
-        npolB=nseg-npolA
-        sumrhopolA=npolA/volcell
-        sumrhopolB=npolB/volcell
+     
+        npolA = npolA * ngr
+        npolB = nseg-npolA
+        sumrhopolA = npolA/volcell
+        sumrhopolB = npolB/volcell
           
 
         if(npolA/=0) then
@@ -1133,7 +1167,7 @@ contains
         use parameters, only : index_Phos=>ta ! index of phosphate 
         use globals, only : nsegtypes
         use molecules, only : moleclist, init_zero_moleclist
-        use chains, only : mapping_num_to_char
+        ! use chains, only : mapping_num_to_char
 
         ! argument list
 

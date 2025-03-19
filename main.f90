@@ -1,4 +1,3 @@
-
 ! ---------------------------------------------------------------|
 ! Solves the SCMFT eqs for nucleosomes chains and                |
 ! weak  polyelectrolytes polymers                                |
@@ -40,21 +39,20 @@ program main
     real(dp),  dimension(:), allocatable :: xstored   ! stored iteration vector
     real(dp),  dimension(:), allocatable :: fvec
 
-    integer :: i,c,num
+    integer :: i,num
     logical :: use_xstored
     logical :: isfirstguess
     logical :: issolution
     integer :: info
-    character(len=lenText) :: text, istr, rstr
-    character(len=20) :: fname, conffilename
-    integer :: iend , un_conf
+    character(len=lenText) :: text, istr
+    character(len=20) :: fname
     type (looplist), pointer :: loop
     real(dp) :: loopbegin,  loopstepsizebegin
     real(dp), parameter :: loopeps = 1.0e-10_dp 
     real(dp), parameter :: listeps = 1.0e-7_dp   
     real(dp), dimension(:),  pointer :: list
     real(dp), pointer :: list_val
-    real(dp) :: list_first, list_step
+    real(dp) :: list_step
     integer  :: nlist_elem, maxlist_elem, nlist_step
 
     integer :: phoscutoff
