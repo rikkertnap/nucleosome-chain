@@ -640,9 +640,6 @@ contains
         ! .. Shift in palpha  i.e q 
         Eshift=lnproshift *ngr  
     
-     
-        ! .. Shift in palpha  i.e q 
-        Eshift=lnproshift 
        
         ! .. total free energy per area of surface 
 
