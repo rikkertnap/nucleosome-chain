@@ -309,7 +309,7 @@ subroutine read_chains_xyz_nucl(info)
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
     use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing
     use chains, only :  Asphparam
     use eigenvalues, only : asphericty_parameter
     use parameters
@@ -363,6 +363,7 @@ subroutine read_chains_xyz_nucl(info)
     integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     logical :: no_overlap
     real(dp) :: rcom(3,nnucl)       ! hold mean or com of nucleosome coordinate
+    real(dp) :: gyr_tensor(3,3)
 
     ! .. executable statements   
 
@@ -555,8 +556,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
          
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -564,8 +565,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
@@ -625,8 +626,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 
                 if(COMOLD) then 
@@ -635,8 +636,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 endif    
                     
@@ -734,7 +735,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
     use chains, only : logweightchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor, Asphparam
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
     use chains, only : allocate_max_nneighbor_phos
     use eigenvalues, only : asphericty_parameter
@@ -799,7 +800,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
     type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
     real(dp) :: rcom(3,nnucl)
-    
+    real(dp) :: gyr_tensor(3,3)
+
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
     real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
@@ -1154,9 +1156,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                 endif    
             
-                if(isVdW) energyLJ = GBenergyeffective(chain,nnucl,no_overlap)
+                !if(isVdW) energyLJ = GBenergyeffective(chain,nnucl,no_overlap)
     
-                call make_com_nucl_rotation(chain,nnucl,unitvector_triplets,rcom)
+                !call make_com_nucl_rotation(chain,nnucl,unitvector_triplets,rcom)
 
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
@@ -1166,8 +1168,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
 
       
                 if(COMOLD) then     
@@ -1176,8 +1178,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif 
 
                 conf=conf+1   
@@ -1278,8 +1280,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain,nnucl,segcm)
@@ -1287,8 +1289,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
