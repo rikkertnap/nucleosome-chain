@@ -756,6 +756,7 @@ contains
                             m = indexconfpair(s,c)%elem(j)
 
                             call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc, k ,m)
+                            call compute_fdisPP(fdisPP_loc_swap,fdisP2Mg_loc_swap, k ,m)
 
                             do JJ=1,5
                                 do KK=1,5
