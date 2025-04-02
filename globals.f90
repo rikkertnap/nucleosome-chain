@@ -10,7 +10,8 @@ module globals
   
     !     .. variables
 
-    integer  :: nsize         ! size lattice, numer of layers
+    integer  :: nsize         ! size lattice, number of layers
+    integer  :: nsizepsi      ! size lattice, number of layers for potential
     integer  :: nnucl         ! number of nucleosome
     integer  :: nseg          ! number of segment 
     integer  :: nsegAA        ! number of AA segments

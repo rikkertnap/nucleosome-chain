@@ -64,7 +64,7 @@ contains
 
     subroutine init_lattice
 
-        use globals, only : nsize, systype
+        use globals, only : nsize, nsizepsi, systype
         use mathconst
         use chains, only : distphoscutoff ,maxneigh
 
@@ -86,6 +86,7 @@ contains
         ! cubic lattice  or prism surface in x-y direction at z=0 and z=nz  
         ! nz=nzmax
         nsize = nx*ny*nz                       ! total number of cells or layers
+        nsizepsi = nsize +2*nx*ny              ! total number of cells for potential
         volcell = delta*delta*delta*1.0_dp     ! volume of one latice volume 
         areacell = delta*delta
         nsurf = nx*ny  

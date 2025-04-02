@@ -417,7 +417,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, nsizepsi, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
@@ -456,7 +456,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
                     call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -466,7 +466,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             do t=1,nsegtypes
                 call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
@@ -596,7 +596,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl, nsegtypes, nsize, nsizepsi, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
@@ -636,7 +636,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
                     call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -646,7 +646,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             do t=1,nsegtypes
                 call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
@@ -775,7 +775,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsize, cuantas
+        use globals, only : nseg, nnucl, nsize, nsizepsi, cuantas
         use chains, only : indexchain, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
@@ -798,7 +798,7 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3)
+       ! real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -817,7 +817,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(fdisA(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(fdisB(:,1),nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(q , ngr , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -825,7 +825,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             call MPI_RECV(fdisA(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)    
             call MPI_RECV(fdisB(:,1), nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)
             call MPI_RECV(q , ngr, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
@@ -844,7 +844,7 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local= 0.0_dp
-        gyr_tensor_local = 0.0_dp
+    !    gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -884,7 +884,7 @@ contains
         bond_angle_local = bond_angle_local/q(g)
         dihedral_angle_local = dihedral_angle_local/q(g)
         nucl_spacing_local = nucl_spacing_local/q(g)
-        gyr_tensor_local = gyr_tensor_local/q(g)
+    !    gyr_tensor_local = gyr_tensor_local/q(g)
         Asphparam_local = Asphparam_local/q(g) 
 
         ! communicate FEconf
@@ -948,7 +948,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi, cuantas
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
@@ -979,7 +979,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
-        real(dp) :: gyr_tensor_local(3,3) 
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -1000,7 +999,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(epsfcn, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 call MPI_SEND(Depsfcn, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,3
@@ -1015,7 +1014,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
             call MPI_RECV(epsfcn, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             call MPI_RECV(Depsfcn, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
             do t=1,3
@@ -1102,7 +1101,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
          
         nbonds=nnucl-1
@@ -1139,7 +1137,6 @@ contains
         bond_angle_local = bond_angle_local/q(g)
         dihedral_angle_local = dihedral_angle_local/q(g)
         nucl_spacing_local = nucl_spacing_local/q(g)
-        gyr_tensor_local = gyr_tensor_local/q(g)
         Asphparam_local = Asphparam_local/q(g)
 
         ! communicate 
@@ -1201,7 +1198,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi, cuantas
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
@@ -1242,7 +1239,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
                     call MPI_SEND(fdis(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                     call MPI_SEND(rhopol(:,t) , nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
@@ -1252,7 +1249,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             do t=1,nsegtypes
                 call MPI_RECV(fdis(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr) 
                 call MPI_RECV(rhopol(:,t) , nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
@@ -1401,7 +1398,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi cuantas
         use parameters, only : ta, Phos
         use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
@@ -1446,7 +1443,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
                     if(ismonomer_chargeable(t)) then
                         if(t/=ta) then
@@ -1468,7 +1465,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             do t=1,nsegtypes 
                 if(ismonomer_chargeable(t)) then
                     if(t/=ta) then
@@ -1663,7 +1660,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi, cuantas
         use parameters, only : ta, Phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh
@@ -1706,7 +1703,7 @@ contains
             do i = 1, numproc-1
                 dest = i
                 call MPI_SEND(xsol, nsize , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
-                call MPI_SEND(psi , nsize+1 , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
+                call MPI_SEND(psi , nsizepsi , MPI_DOUBLE_PRECISION, dest, tag,MPI_COMM_WORLD,ierr)
                 do t=1,nsegtypes
                     if(ismonomer_chargeable(t)) then
                         if(t/=ta) then
@@ -1723,7 +1720,7 @@ contains
         else
             source = 0 
             call MPI_RECV(xsol, nsize, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)  
-            call MPI_RECV(psi , nsize+1, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
+            call MPI_RECV(psi , nsizepsi, MPI_DOUBLE_PRECISION, source,tag, MPI_COMM_WORLD,stat, ierr)   
             do t=1,nsegtypes 
                 if(ismonomer_chargeable(t)) then
                     if(t/=ta) then
