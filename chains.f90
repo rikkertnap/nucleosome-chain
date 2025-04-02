@@ -65,7 +65,6 @@ module chains
     real(dp), dimension(:,:), allocatable       :: bond_angle               ! bond angle
     real(dp), dimension(:,:), allocatable       :: dihedral_angle           ! dihedralangle
     real(dp), dimension(:,:), allocatable       :: nucl_spacing             ! spacing or distance between Nuclesome 
-    real(dp), dimension(:,:,:), allocatable     :: gyr_tensor               ! asphericity matrix/gyration tensor 
     real(dp), dimension(:), allocatable         :: Asphparam                ! asphericity parameter invariant of gyration tensor 
 
     real(dp), dimension(:,:), allocatable       :: avbond_angle             ! average bond angle
@@ -113,7 +112,6 @@ contains
         allocate(bond_angle(nnucl-2,maxcuantas))
         allocate(dihedral_angle(nnucl-3,maxcuantas))
         allocate(nucl_spacing(nnucl-1,maxcuantas)) 
-        allocate(gyr_tensor(3,3,maxcuantas)) 
         allocate(Asphparam(maxcuantas)) 
 
         ! average chain stuctural quantities per graft point

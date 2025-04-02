@@ -302,8 +302,8 @@ subroutine read_chains_xyz_nucl(info)
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype
     use chains, only : indexchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
-    use chains, only :  Asphparam
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing
+    use chains, only : Asphparam
     use eigenvalues, only : asphericty_parameter
     use parameters
     use volume, only :  nx, ny,nz, delta
@@ -321,41 +321,31 @@ subroutine read_chains_xyz_nucl(info)
 
     ! .. local variables
 
-    integer :: i,j,s,g,gn      ! dummy indices
-    integer :: idx                 ! index label
-    integer :: ix,iy,iz,idxtmp
-    integer :: nchains              ! number of rotations
-!    integer :: maxnchains           ! number of rotations
-    integer :: maxntheta            ! maximum number of rotation in xy-plane
+    integer :: i,s                ! dummy indices
+    integer :: idx                  ! index label
     integer :: conf,conffile        ! counts number of conformations  
-    integer :: nsegfile             ! nseg in chain file      
-    integer :: cuantasfile          ! cuantas in chain file                                              
+    integer :: nsegfile             ! nseg in chain file                                                  
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg)  ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
-   ! real(dp) :: x(nseg), y(nseg) , z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
- !   real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc               
     real(dp) :: energy, energyLJ                                            
     character(len=25) :: fname
-    integer :: ios, rankfile, iosene
-   ! character(len=30) :: str
+    integer :: ios, rankfile
     real(dp) :: scalefactor
-    integer :: un,unw,un_ene ! unit number
+    integer :: un,un_ene ! unit number
     logical :: exist
     character(len=lenText) :: text,istr
-    real(dp) :: d_type_num, d_atom_num
-    integer :: i_type_num, i_atom_num
     logical :: isReadGood
     real(dp) :: equilat, equilat_rot
-    integer :: ii
     integer :: s_local
     integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     logical :: no_overlap
     real(dp) :: rcom(3,nnucl)       ! hold mean or com of nucleosome coordinate
+    real(dp) :: gyr_tensor(3,3)
 
     ! .. executable statements   
 
@@ -548,8 +538,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
          
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -557,8 +547,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
@@ -618,8 +608,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 
                 if(COMOLD) then 
@@ -628,8 +618,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 endif    
                     
@@ -719,9 +709,10 @@ subroutine read_chains_xyz_nucl_volume(info)
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, runtype, systype, DEBUG
     use chains, only : var_darray
     use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
-    use chains, only : logweightchain, no_overlapchain, segcm, sgraftpts
+    use chains, only : no_overlapchain, segcm, sgraftpts
+    !use chains, only : logweightchain,
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor, Asphparam
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
     use eigenvalues, only : asphericty_parameter
     use parameters      ! this leads to extra module imports !!!
@@ -744,38 +735,30 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. local variables
 
-    integer :: i,j,s,sprime,rot,g,gn,k,sAA,tPhos,gpt ,kk,kl ! dummy indices
+    integer :: i,j,s,k,sAA,tPhos,gpt ! dummy indices
     integer :: idx                  ! index label
-    integer :: ix,iy,iz,idxtmp 
     integer :: conf,conffile        ! counts number of conformations  
-    integer :: nsegfile             ! nseg in chain file      
-    integer :: cuantasfile          ! cuantas in chain file                                              
+    integer :: nsegfile             ! nseg in chain file                                                  
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg),chain_pbc_tmp(3),chain_tmp(3)    ! chains(x,i)= coordinate x of segement i
-    real(dp) :: chainABC(3,nseg)
     real(dp) :: xseg(3,nseg)
-    real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
+    !real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
-    integer  :: xi,yi,zi, ri(3)
+    integer  :: xi,yi,zi
     real(dp) :: rzmin(3),rtranslate(3)
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
-    real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc             ! coordinates            
-    real(dp) :: energy, energyLJ, energyLJ_comb                                            
+    real(dp) :: energy, energyLJ                                           
     character(len=25) :: fname
-    character(lenText):: fname2
-    integer :: ios, rankfile, iosene
-    character(len=30) :: str
+    integer :: ios, rankfile
+   ! character(len=30) :: str
     real(dp) :: scalefactor
-    integer :: un,unw,un_ene ! unit number
+    integer :: un,un_ene ! unit number
     logical :: exist
     character(len=lenText) :: text,istr
-    real(dp) :: d_type_num, d_atom_num
-    integer :: i_type_num, i_atom_num
     logical :: isReadGood
     integer :: nrotpts
     real(dp) :: equilat,equilat_rot
-    integer :: nelem2(3),nsegAA2 
     integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     integer  :: orient_triplet_ref(3)
     real(dp) :: orient_vector_ref(3)
@@ -794,10 +777,11 @@ subroutine read_chains_xyz_nucl_volume(info)
     type(var_darray), dimension(:,:), allocatable   ::  chain_elem_index_pbc ! temporary
 
     real(dp) :: rcom(3,nnucl)
-    
+    real(dp) :: gyr_tensor(3,3)
+
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
-    real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
+    real(dp) :: sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
     integer :: max_range_nneigh 
     integer :: s_local 
     logical :: no_overlap
@@ -1216,8 +1200,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
 
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1225,8 +1209,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif 
 
                 conf=conf+1   
@@ -1328,8 +1312,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1337,8 +1321,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
@@ -1677,7 +1661,7 @@ subroutine global_minimum_chainenergy()
 
     use  mpivars
     use  globals, only : cuantas
-    use  chains, only : energychain, energychain_min
+    use  chains, only : energychain_min
     use  parameters, only: isEnergyShift
 
     real(dp) :: localmin(2), globalmin(2)
@@ -2057,11 +2041,11 @@ subroutine write_indexchain_lammps_trj(info)
 
     integer, optional, intent(inout) :: info
 
-    character(len=lenText) :: text, istr
+    character(len=lenText) :: istr
     character(len=25) :: fname
     integer :: ios, un_trj 
     real(dp):: x, y, z
-    integer :: ix, iy, iz, ic(3), idx
+    integer :: ic(3), idx
     real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, moltype, conf
 
@@ -2128,11 +2112,11 @@ subroutine write_indexconf_lammps_trj(info)
 
     integer, optional, intent(inout) :: info
 
-    character(len=lenText) :: text, istr
+    character(len=lenText) :: istr
     character(len=25) :: fname
     integer :: ios, un_trj 
     real(dp):: x, y, z
-    integer :: ix, iy, iz, i, j, k, idx, s, em
+    integer :: i, j, k, idx, s, em
     real(dp) :: xbox0,xbox1(3)
     integer :: idatom, item, conf
     character(len=3) :: moltype
@@ -2307,9 +2291,8 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
     integer, intent(in) :: nchains
     integer , intent(in) :: un_trj
     
-    character(len=lenText) :: istr
     real(dp) :: x, y, z
-    integer ::  i, j, k
+    integer ::  i, j
     real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, moltype !, conf_write
 
@@ -2821,14 +2804,12 @@ function dihedral_angles_com_rotation(rcom,nmer) result(dihedral)
     real(dp) :: dihedral(nmer-3)
     
     ! .. local variables
-    integer  :: i,j,k 
+    integer  :: i,k 
     real(dp) :: u1(3),u2(3),u3(3),n123(3),n234(3)
     real(dp) :: absn123, absn234, absu2
     integer  :: isegcm,ipls1segcm,ipls2segcm,ipls3segcm
-    real(dp) :: theta(nmer-3), costheta, x, y, sintheta, sintheta2 ,theta2,sintheta3, sintheta4
+    real(dp) :: theta(nmer-3), costheta, x, y, sintheta
     
-
-
     if(nmer>=4) then  ! need at least 4 unit/nucleosomes
 
         isegcm    =1
@@ -2941,7 +2922,7 @@ subroutine make_segcom(segcom,nnucl,filename)
     !      .. local variables
     integer :: ios, un  ! un = unit number
     integer :: s
-    character(80) :: istr,str,letter
+    character(80) :: istr,str
 
     !     .. reading in of variables from file
     open(unit=newunit(un),file=filename,iostat=ios,status='old')
@@ -3040,8 +3021,7 @@ subroutine write_chain_max_nneigh_phos(write_struct,info)
 
     use globals, only : cuantas
     use myutils, only : lenText
-    use chains, only : type_of_monomer, max_nneigh_phos, no_overlapchain
-
+    use chains, only :  max_nneigh_phos, no_overlapchain
 
     implicit none 
 
@@ -3258,8 +3238,8 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
 
     ! local variables
 
-    integer          :: ios, un, s, sAA, j, k, ttype ,t
-    character(len=3) :: elem_type(nsegtypesAA), voltype
+    integer          :: ios, un, s, sAA, j, k ,t
+    character(len=3) :: elem_type(nsegtypesAA)
     real(dp)         :: x(3)
     logical          :: isReadGood
     integer          :: num_elem_CA
@@ -3508,7 +3488,7 @@ function find_vol_elem(elem_type)result(vol_elem)
 
     real(dp):: vol_elem
 
-    integer :: elem, j , nelem_types
+    integer :: j , nelem_types
     logical :: IsNotFound
 
     nelem_types=size(vnucl_type)
@@ -3643,7 +3623,7 @@ subroutine read_nucl_orient_triplets(fname,nnucl,nuc_orient_triplet,info)
 
     ! local arguments
 
-    integer  :: ios, un, s,  i
+    integer  :: ios, un, i
     integer :: ix(3)
     logical :: isReadGood
 
@@ -3685,7 +3665,7 @@ subroutine allocate_chain_elements(nsegAA,nelemAA,chain_elem)
 
     ! local arguments
 
-    integer   :: s, k, j
+    integer   :: s, k
     
     allocate(chain_elem(3,nsegAA))
 
@@ -3764,7 +3744,7 @@ subroutine compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
 
     character(len=3) :: list_type_char_DNA(6)  ! list of DNA elements in char
     integer          :: list_type_int_DNA(6)   ! list of DNA elements in integer 
-    integer          :: i, s, t, k, nnucl_counter, type_int
+    integer          :: s, t, k, nnucl_counter, type_int
     character(len=3) :: type_char  
     logical          :: isMonomerDNA, isPreviousMonomerDNA
 
@@ -3973,7 +3953,7 @@ subroutine find_zminimum_chain_elem_index(nseg,nelem,chain_elem_index,rmin)
     type(var_darray), dimension(:,:), allocatable, intent(in) :: chain_elem_index
     real(dp), dimension(3), intent(inout) :: rmin
 
-    integer :: n, s, j, k
+    integer :: s, j, k
     real(dp) :: zmin,ztemp
 
     do k=1,3
@@ -4139,7 +4119,6 @@ subroutine find_phosphate_loc(index_phos,len_index_phos)
     integer, intent(inout) :: len_index_Phos
 
     integer :: location_list(nsize) ! location_list(i) if > 0 then there is a or multiple phosphate located at latiice element i
-    integer :: num_phos ! number of phophates
     integer :: cell_num, conf, s, i, k, tPhos
     integer :: index_phos_tmp(nsize)
     
@@ -4259,7 +4238,7 @@ subroutine find_max_nneighbor_phos(tPhos,info)
    
     ! local arguments
     integer :: conf, s 
-    integer :: max_neighbor, max_seg
+    integer :: max_neighbor
 
     info=0
 
@@ -4395,7 +4374,7 @@ end subroutine compare_indexconf_histone
 
 subroutine test_nmer_indexchain_histone(s0,s1,info)
 
-    use globals, only : systype, nnucl
+    use globals, only : systype
 
     integer, intent(inout) :: info     
     integer, intent(in) :: s0,s1
@@ -4417,7 +4396,7 @@ end subroutine test_nmer_indexchain_histone
 
 subroutine test_index_histone(info) 
     
-    use globals, only : systype, nnucl 
+    use globals, only :  nnucl 
  
     integer, intent(inout) :: info
 
