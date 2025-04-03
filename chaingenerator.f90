@@ -514,16 +514,15 @@ subroutine read_chains_xyz_nucl(info)
                         
                     indexchain(s,conf) = idx
 
-                    if(idx<=0.or.idx>nsize) then   
-
+                     if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
                         text="Conformation outside box:"
                         call print_to_log(LogUnit,text)  
-                        print*,text                          
-                        print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                        print*,text   
+                        print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
                         info= myio_err_index
                         return
-                    endif
-                
+                    endif    
+                    
                 enddo
                
                 if(isVdW) EnergyLJ = GBenergyeffective(chain_pbc,nnucl,no_overlap)
@@ -716,7 +715,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
     use eigenvalues, only : asphericty_parameter
     use parameters      ! this leads to extra module imports !!!
-    use volume, only   :  nx, ny,nz, delta, position_graft
+    use volume, only   :  nx, ny,nz, delta, position_graft, random_translation_graftpoint, init_seed_random_translatian_graftpoint
     use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test
     use chain_rotation, only : orientation_coordinates, orientation_vector_ref, orientation_vector
     use chain_rotation, only : rotate_chain_elem, rotate_chain_elem_index_and_chain,check_chain_elem_index_and_chain
@@ -786,6 +785,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: s_local 
     logical :: no_overlap
     logical :: isCheck
+    real(dp) :: extra_graft(2)
 
     ! .. executable statements   
 
@@ -794,7 +794,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     ! .. open file   
 
     rankfile=mod(rank,nset_per_graft)   
-!    print*,"rank=",rank," rankfile=",rankfile                                                                                  
+    print*,"rank=",rank," rankfile=",rankfile                                                                                  
     
     write(istr,'(I4)')rankfile
     fname='traj.'//trim(adjustl(istr))//'.xyz'
@@ -864,6 +864,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     nrotpts=sgraftpts(1)  ! nucleosome id /segment number around which to rotate whole conformation
     !nrotpts=rotation_triplets(1)
     
+    call init_seed_random_translatian_graftpoint()
+
+
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
                         
     call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
@@ -1070,10 +1073,12 @@ subroutine read_chains_xyz_nucl_volume(info)
             ! one graft point can be distributed over mutiple node nset_per_graft = int(size/ngr)
 
             gpt =int(rank/nset_per_graft)+1 
+
+            extra_graft = random_translation_graftpoint(1.5_dp) ! max_ran_step=1.5
            
             rtranslate(3) =  - rzmin(3)
-            rtranslate(1) =  - rzmin(1) + position_graft(gpt,1)
-            rtranslate(2) =  - rzmin(2) + position_graft(gpt,2)
+            rtranslate(1) =  - rzmin(1) + position_graft(gpt,1) + extra_graft(1)
+            rtranslate(2) =  - rzmin(2) + position_graft(gpt,2) + extra_graft(2)
         
             call translate_chain_elem_index(nseg,nelem,chain_elem_index_rot,rtranslate) 
             call translate_chain(nseg,chain_rot,rtranslate)
@@ -1128,12 +1133,23 @@ subroutine read_chains_xyz_nucl_volume(info)
 
                     idx=coordtoindex(xi,yi,zi)
 
+                    if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then 
+                        text="Conformation outside box:"
+                        call print_to_log(LogUnit,text)  
+                        print*,text  
+                        print*,"chain_elem_index_rot= ",(chain_elem_index_rot(k,s)%elem(j),k=1,3)
+                        print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
+                        print*,"xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                        info= myio_err_index
+                        return                        
+                    endif
+                    
                     !call linearIndexFromCoordinate(xi,yi,zi,idxtmp)
 
-                    !if(idx/=idxtmp) then 
-                    !    print*,"idx/=idxtmp"
-                    !   print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
-                    !endif    
+                   ! if(idx/=idxtmp) then 
+                   !    print*,"idx/=idxtmp"
+                   !    print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                   ! endif    
 
                     indexconf(s,conf)%elem(1) = idx ! CA element
 

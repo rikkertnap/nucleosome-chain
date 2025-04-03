@@ -57,7 +57,7 @@ module volume
     public :: make_geometry
     public :: allocate_index_neighbors_phos, make_table_index_neighbors_phos
     public :: position_graft, isRandom_pos_graft , ngr, ngr_freq, nset_per_graft, seed_graft
-    public :: scale_ran_step
+    public :: scale_ran_step, random_translation_graftpoint, init_seed_random_translatian_graftpoint
 
     
 contains
@@ -528,6 +528,34 @@ contains
 
     end subroutine init_graftpoints
 
+    subroutine init_seed_random_translatian_graftpoint()
+
+        use random 
+
+        seed = seed_graft*(rank+1)
+        
+    end subroutine init_seed_random_translatian_graftpoint
+
+    function random_translation_graftpoint(max_ran_step)result(ran_graft)
+
+        use random 
+
+        real(dp), intent(in) :: max_ran_step
+        real(dp) :: ran_graft(2)
+
+        real(dp) :: rnd
+
+        ran_graft = 0.0_dp
+        
+        !  randomize          
+        rnd = (rands(seed)-0.5_dp)
+        ran_graft(1) = rnd * delta *max_ran_step
+        rnd = (rands(seed)-0.5_dp)
+        ran_graft(2) =  rnd * delta *max_ran_step
+        
+    end function random_translation_graftpoint
+
+
     ! Writes position_graft(ngr,2) to a file only if DEBUG==.true. or rank ==
 
     subroutine write_graftpoints(info)
@@ -541,7 +569,6 @@ contains
         integer :: ios, un_pgpt
         character(len=100) :: io_msg
         integer :: ig 
-        
         
         !if(DEBUG.or.rank==0) then
         if(.true.) then

@@ -1398,7 +1398,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi cuantas
+        use globals, only : nseg, nnucl,nsegtypes, nsize, nsizepsi, cuantas
         use parameters, only : ta, Phos
         use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
