@@ -16,7 +16,7 @@ module field
     real(dp), dimension(:), allocatable :: psi      ! electrostatic potential 
     real(dp), dimension(:), allocatable :: xNa      ! volume fraction of positive Na+ ion
     real(dp), dimension(:), allocatable :: xK       ! volume fraction of positive K+ ion
-    real(dp), dimension(:), allocatable :: xRb      ! volume fraction of positive Rb+ ion
+    real(dp), dimension(:), allocatable :: xFe2     ! volume fraction of positive Fe2+ ion
     real(dp), dimension(:), allocatable :: xCa      ! volume fraction of positive Ca2+ ion
     real(dp), dimension(:), allocatable :: xMg      ! volume fraction of positive Mg2+ ion    
     real(dp), dimension(:), allocatable :: xNaCl    ! volume fraction of NaCl ion pair
@@ -68,7 +68,7 @@ contains
         allocate(psi(N+2*Nx*Ny),stat=ier(6))    !allocate(psi(N),stat=ier(6))
         allocate(xNa(N),stat=ier(7))
         allocate(xK(N),stat=ier(8))
-        allocate(xRb(N),stat=ier(9))
+        allocate(xFe2(N),stat=ier(9))
         allocate(xCa(N),stat=ier(10))
         allocate(xMg(N),stat=ier(11))
         allocate(xNaCl(N),stat=ier(12)) 
@@ -106,7 +106,7 @@ contains
         deallocate(psi)
         deallocate(xNa)
         deallocate(xK)
-        deallocate(xRb)
+        deallocate(xFe2)
         deallocate(xCa)
         deallocate(xMg)
         deallocate(xNaCl) 
@@ -148,7 +148,7 @@ contains
         xsol=0.0_dp
         xNa=0.0_dp
         xK=0.0_dp
-        xRb=0.0_dp
+        xFe2=0.0_dp
         xCa=0.0_dp
         xMg=0.0_dp
         xNaCl=0.0_dp 

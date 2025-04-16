@@ -670,10 +670,10 @@ contains
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
-        use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xRb
+        use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xFe2
         use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
-        use parameters, only : vpolAA, vsol, vNa, vCl, vRb, vMg, vCa ,vpol
-        use parameters, only : zNa, zCl, zRb, zMg, zCa, zpolAA        
+        use parameters, only : vpolAA, vsol, vNa, vCl, vFe2, vMg, vCa ,vpol
+        use parameters, only : zNa, zCl, zFe2, zMg, zCa, zpolAA        
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
         use dielectric_const, only : dielectfcn, born
         use myutils, only : lenText, newunit
@@ -744,7 +744,7 @@ contains
                 born(lbr,bornrad%polMg,zpolAA(6))*rhopolAMg(i) + & ! rhopolAMg(i)= fdisA(i,6)*rhopolin(i,tA)
                 born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
                 born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
-                born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)     + & 
+                born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol)     + & 
                 born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
                 born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + &
                 born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &

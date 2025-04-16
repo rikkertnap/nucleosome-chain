@@ -38,10 +38,11 @@
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
-    real(dp) :: vRb                ! volume Rb+ ion in units of vsol
+    !real(dp) :: vRb               ! volume Rb+ ion in units of vsol
     real(dp) :: vCl                ! volume Cl_ion in units of vsol   
     real(dp) :: vCa                ! volume positive Ca2+ ion in units of vsol
     real(dp) :: vMg                ! volume positive Mg2+ ion in units of vsol
+    real(dp) :: vFe2               ! volume positive Fe2+ ion in units of vsol
     real(dp) :: vNaCl
     real(dp) :: vKCl
   
@@ -49,10 +50,11 @@
   
     real(dp) :: RNa
     real(dp) :: RK
-    real(dp) :: RRb
+    !real(dp) :: RRb
     real(dp) :: RCl
     real(dp) :: RCa
     real(dp) :: RMg
+    real(dp) :: RFe2
 
     ! .. charges 
 
@@ -64,10 +66,11 @@
 
     integer :: zNa               ! valence charge Na+ ion 
     integer :: zK                ! valence charge K+ ion 
-    integer :: zRb               ! valence charge Rb+ ion 
+    !integer :: zRb               ! valence charge Rb+ ion 
     integer :: zCa               ! valence charge Ca++ ion 
     integer :: zMg               ! valence charge Mg++ ion 
     integer :: zCl               ! valence charge Cl- ion 
+    integer :: zFe2               ! valence charge Mg++ ion 
   
     !  .. VdW variables
 
@@ -193,8 +196,9 @@
     real(dp) :: cOHmin             ! concentration of OH- in bulk in mol/liter
     real(dp),target :: cNaCl       ! concentration of salt in bulk in mol/liter
     real(dp),target :: cKCl        ! concentration of salt in bulk in mol/liter
-    real(dp) :: cRbCl              ! concentration of RbCl in bulk in mol/liter
     real(dp) :: cCaCl2             ! concentration of CaCl2 in bulk in mol/liter
+    real(dp) :: cFeCl2             ! concentration of FeCl2 in bulk in mol/liter 
+                                   ! FEeCl2 does not exit, used here to get number of counter ion ccorrect 
     real(dp),target :: cMgCl2      ! concentration of MgCl2 in bulk in mol/liter
     type (looplist), target :: pH
     real(dp) :: pHbulk             ! pH of bulk pH = -log([H+])
@@ -312,10 +316,11 @@ contains
         !  .. charges  
         zNa   = 1                 ! valence positive charged ion
         zK    = 1                 ! valence positive charged ion
-        zRb   = 1                 ! valence positive charged ion
+        !zRb   = 1                 ! valence positive charged ion
         zCa   = 2                 ! valence divalent positive charged ion
         zMg   = 2                 ! valence divalent positive charged ion
         zCl   =-1                 ! valence negative charged ion
+        zFe2  = 2                ! valence divalent positive charged ion
 
         zpolA(1)=-1 ! A-
         zpolA(2)= 0 ! AH
@@ -347,8 +352,10 @@ contains
         RK  = 0.138_dp             ! radius of K+ in nm
         RCl = 0.181_dp             ! radius of Cl- in nm
         RCa = 0.106_dp             ! radius of Ca2+ in nm
-        RRb = 0.152_dp             ! radius of Rb+ in nm 
+       ! RRb = 0.152_dp             ! radius of Rb+ in nm 
         RMg = 0.072_dp             ! radius of Mg2+ in nm 
+        RFe2= 0.078_dp             ! radius of Fe2+ in nm 
+        !RFe3= 0.064_dp             ! radius of Fe3+ in nm
         
         ! .. volume
         
@@ -356,10 +363,10 @@ contains
 
         vNa  = ((4.0_dp/3.0_dp)*pi*(RNa)**3)/vsol 
         vK   = ((4.0_dp/3.0_dp)*pi*(RK)**3)/vsol 
-        vRb  = ((4.0_dp/3.0_dp)*pi*(RRb)**3)/vsol 
         vCl  = ((4.0_dp/3.0_dp)*pi*(RCl)**3)/vsol 
         vCa  = ((4.0_dp/3.0_dp)*pi*(RCa)**3)/vsol 
         vMg  = ((4.0_dp/3.0_dp)*pi*(RMg)**3)/vsol 
+        vFe2 = ((4.0_dp/3.0_dp)*pi*(RFe2)**3)/vsol 
 
         vNaCl= (vNa+vCl)          ! contact ion pair
         vKCl = (vK+vCl)           ! contact ion pair
@@ -439,7 +446,7 @@ contains
             bornrad%Mg  = RMg
             bornrad%Hplus = radiussphere(vsol)
             bornrad%OHmin = radiussphere(vsol)
-            bornrad%Rb = RRb
+            bornrad%Fe2 = RFe2
             
         endif    
 
@@ -697,7 +704,7 @@ contains
         real(dp) :: xKClsalt           ! volume fraction of KCl salt in bulk
         real(dp) :: xCaCl2salt         ! volume fraction of CaCl2 salt in bulk
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
-        real(dp) :: xRbClsalt          ! volume fraction of RbCl salt in bulk
+        real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk
 
         real(dp) :: KaAA6
 
@@ -730,30 +737,31 @@ contains
         xbulk%K = xKClsalt*vK/(vK+vCl)  
         xbulk%Cl = xbulk%Cl+xKClsalt*vCl/(vK+vCl) 
 
-        xRbClsalt = (cRbCl*Na/(1.0e24_dp))*((vRb+vCl)*vsol) ! volume fraction RbCl salt
-        xbulk%Rb = xRbClsalt*vRb/(vRb+vCl)  
-        xbulk%Cl = xbulk%Cl+xRbClsalt*vCl/(vRb+vCl)   
+        xFeCl2salt = (cFeCl2 * Na/(1.0e24_dp))*((vFe2+2.0_dp*vCl)*vsol) ! volume fraction CaCl2 
+        xbulk%Fe2 = xFeCl2salt * vFe2/(vFe2+2.0_dp*vCl)
+        xbulk%Cl = xbulk%Cl+ xFeCl2salt*2.0_dp*vCl/(vFe2+2.0_dp*vCl)
+
         
         xCaCl2salt = (cCaCl2*Na/(1.0e24_dp))*((vCa+2.0_dp*vCl)*vsol) ! volume fraction CaCl2 
-        xbulk%Ca=xCaCl2salt*vCa/(vCa+2.0_dp*vCl)
-        xbulk%Cl=xbulk%Cl+ xCaCl2salt*2.0_dp*vCl/(vCa+2.0_dp*vCl)
+        xbulk%Ca = xCaCl2salt*vCa/(vCa+2.0_dp*vCl)
+        xbulk%Cl = xbulk%Cl+ xCaCl2salt*2.0_dp*vCl/(vCa+2.0_dp*vCl)
         
         xMgCl2salt = (cMgCl2*Na/(1.0e24_dp))*((vMg+2.0_dp*vCl)*vsol) ! volume fraction MgCl2
-        xbulk%Mg=xMgCl2salt*vMg/(vMg+2.0_dp*vCl)
-        xbulk%Cl=xbulk%Cl+ xMgCl2salt*2.0_dp*vCl/(vMg+2.0_dp*vCl)
+        xbulk%Mg = xMgCl2salt*vMg/(vMg+2.0_dp*vCl)
+        xbulk%Cl = xbulk%Cl+ xMgCl2salt*2.0_dp*vCl/(vMg+2.0_dp*vCl)
 
-        xbulk%NaCl=0.0_dp    ! no in pairing
-        xbulk%KCl=0.0_dp     ! no ion pairing
+        xbulk%NaCl = 0.0_dp    ! no in pairing
+        xbulk%KCl = 0.0_dp     ! no ion pairing
         
         xbulk%sol=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
-                -xbulk%Ca -xbulk%Rb -xbulk%Mg 
+                -xbulk%Ca -xbulk%Fe2 -xbulk%Mg 
 
 
         if(xbulk%sol<0) then
             text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
             call print_to_log(LogUnit,text)
             print*,text
-        !    call MPI_FINALIZE(ierr)
+            !call MPI_FINALIZE(ierr)
             stop
         endif   
         
@@ -798,6 +806,15 @@ contains
             !call set_fcn()              ! set fcnptr to correct fcn        
             
             xbulk%sol=1.0_dp-xbulk%Hplus-xbulk%OHmin - xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl-xbulk%Ca 
+
+
+            if(xbulk%sol<0) then
+                text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
+                call print_to_log(LogUnit,text)
+                print*,text
+                !call MPI_FINALIZE(ierr)
+                stop
+            endif   
             
         endif
          
@@ -836,7 +853,7 @@ contains
             bornbulk%Ca    = born(lb,bornrad%Ca,zCa)
             bornbulk%Mg    = born(lb,bornrad%Mg,zMg)
             bornbulk%Cl    = born(lb,bornrad%Cl,zCl)
-            bornbulk%Rb    = born(lb,bornrad%Rb,zRb)
+            bornbulk%Fe2   = born(lb,bornrad%Fe2,zFe2)
             bornbulk%OHmin = born(lb,bornrad%OHmin,-1)
 
             expmu%Na    = (xbulk%Na   /(xbulk%sol**vNa))*exp(bornbulk%Na) 
@@ -844,7 +861,7 @@ contains
             expmu%K     = (xbulk%K    /(xbulk%sol**vK) )*exp(bornbulk%K) 
             expmu%Ca    = (xbulk%Ca   /(xbulk%sol**vCa))*exp(bornbulk%Ca) 
             expmu%Mg    = (xbulk%Mg   /(xbulk%sol**vMg))*exp(bornbulk%Mg) 
-            expmu%Rb    = (xbulk%Rb   /(xbulk%sol**vRb))*exp(bornbulk%Rb) 
+            expmu%Fe2   = (xbulk%Fe2  /(xbulk%sol**vFe2))*exp(bornbulk%Fe2) 
             expmu%Hplus = (xbulk%Hplus/xbulk%sol) *      exp(bornbulk%Hplus)  
             expmu%OHmin = (xbulk%OHmin/xbulk%sol) *      exp(bornbulk%OHmin)  
 
@@ -853,7 +870,7 @@ contains
             ! exp(beta mu_i) = (rhobulk_i v_i) / exp(- beta pibulk v_i) 
             expmu%Na    = xbulk%Na   /(xbulk%sol**vNa) 
             expmu%K     = xbulk%K    /(xbulk%sol**vK)
-            expmu%Rb    = xbulk%Rb   /(xbulk%sol**vRb)
+            expmu%Fe2   = xbulk%Fe2  /(xbulk%sol**vFe2)
             expmu%Ca    = xbulk%Ca   /(xbulk%sol**vCa) 
             expmu%Mg    = xbulk%Mg   /(xbulk%sol**vMg) 
             expmu%Cl    = xbulk%Cl   /(xbulk%sol**vCl)
@@ -871,7 +888,9 @@ contains
 
             KaAA6=10.0_dp**(-pKaAA(6))  
             K0aAA(6) = KaAA6*(vsol*Na/1.0e24_dp)
-            K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
+            if(systype/="nucl_ionbin_Mg".and.systype/="nucl_ionbin_sv_Mg") then  
+                K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
+            endif    
         endif     
               
         !     .. end init electrostatic part 

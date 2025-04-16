@@ -135,7 +135,7 @@ subroutine read_inputfile(info)
     cKCl=0.0_dp
     cCaCl2=0.0_dp
     cMgCl2=0.0_dp
-    cRbCl=0.0_dp
+    cFeCl2=0.0_dp
     
     ! init surface charge 
     sigmaSurfL = 0.0_dp
@@ -201,8 +201,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
                 read(buffer,*,iostat=ios) cKCl
-            case ('cRbCl')
-                read(buffer,*,iostat=ios) cRbCl
+            case ('cFeCl2')
+                read(buffer,*,iostat=ios) cFeCl2
             case ('cCaCl2')
                 read(buffer,*,iostat=ios) cCaCl2
             case ('cMgCl2')
@@ -1531,7 +1531,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'xNabulk     = ',xbulk%Na
     write(un_sys,*)'xClbulk     = ',xbulk%Cl
     write(un_sys,*)'xKbulk      = ',xbulk%K
-    write(un_sys,*)'xRbbulk     = ',xbulk%Rb
+    write(un_sys,*)'xFe2bulk    = ',xbulk%Fe2
     write(un_sys,*)'xNaClbulk   = ',xbulk%NaCl
     write(un_sys,*)'xKClbulk    = ',xbulk%KCl
     write(un_sys,*)'xCabulk     = ',xbulk%Ca
@@ -1984,7 +1984,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'xNabulk     = ',xbulk%Na
     write(un_sys,*)'xClbulk     = ',xbulk%Cl
     write(un_sys,*)'xKbulk      = ',xbulk%K
-    write(un_sys,*)'xRbbulk     = ',xbulk%Rb
+    write(un_sys,*)'xFe2bulk    = ',xbulk%Fe2
     write(un_sys,*)'xNaClbulk   = ',xbulk%NaCl
     write(un_sys,*)'xKClbulk    = ',xbulk%KCl
     write(un_sys,*)'xCabulk     = ',xbulk%Ca
@@ -2849,6 +2849,7 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEtrans%Ca      = ",FEtrans%Ca
     write(un_fe,*)"FEtrans%Mg      = ",FEtrans%Mg
     write(un_fe,*)"FEtrans%K       = ",FEtrans%K
+    write(un_fe,*)"FEtrans%Fe2     = ",FEtrans%Fe2
     write(un_fe,*)"FEtrans%KCl     = ",FEtrans%KCl
     write(un_fe,*)"FEtrans%NaCl    = ",FEtrans%NaCl
     write(un_fe,*)"FEtrans%Hplus   = ",FEtrans%Hplus
@@ -2859,6 +2860,7 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEchempot%Ca    = ",FEchempot%Ca
     write(un_fe,*)"FEchempot%Mg    = ",FEchempot%Mg
     write(un_fe,*)"FEchempot%K     = ",FEchempot%K
+    write(un_fe,*)"FEchempot%Fe2    = ",FEchempot%Fe2
     write(un_fe,*)"FEchempot%KCl   = ",FEchempot%KCl
     write(un_fe,*)"FEchempot%NaCl  = ",FEchempot%NaCl
     write(un_fe,*)"FEchempot%Hplus = ",FEchempot%Hplus
@@ -2880,9 +2882,10 @@ end subroutine output_individualcontr_fe
 
 subroutine make_filename_label(fnamelabel)
 
-    use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf
-    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
-
+    use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf, nnucl
+    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2
+    use parameters, only : pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+    
     character(len=*), intent(inout) :: fnamelabel
 
     character(len=20) :: rstr
@@ -2890,10 +2893,13 @@ subroutine make_filename_label(fnamelabel)
 
     character(len=40) :: sublabel
 
-
     denspol=init_denspol()
-
-    call make_sublabel(set_confor,local_conf,sublabel)
+    
+    if(nnucl==1) then
+        sublabel="" 
+    else
+        call make_sublabel(set_confor,local_conf,sublabel)
+    endif    
 
     !     .. make label filename
 
@@ -3001,6 +3007,23 @@ subroutine make_filename_label(fnamelabel)
 
             fnamelabel=trim(fnamelabel)//"cMgCl2"//trim(adjustl(rstr))
         endif
+
+        if(cFeCl2/=0.0_dp) then
+            if(cFeCl2>=0.001) then
+                if(cFeCl2>=0.01) then
+                    write(rstr,'(F5.3)')cFeCl2
+                else
+                    write(rstr,'(F6.4)')cFECl2
+                endif  
+            elseif(cFeCl2>0.0) then
+                write(rstr,'(ES9.2E2)')cFeCl2
+            else
+                write(rstr,'(F3.1)')cFeCl2
+            endif
+            fnamelabel=trim(fnamelabel)//"cFeCl2"//trim(adjustl(rstr))
+        endif
+
+
 
         write(rstr,'(F7.3)')pHbulk
         fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))

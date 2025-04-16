@@ -152,7 +152,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xCl(i)/vCl+xK(i)/vK +&
-                xNaCl(i)/vNaCl +xKCl(i)/vKCl)                 ! sum over  rho_i 
+                xNaCl(i)/vNaCl +xKCl(i)/vKCl  + xFe2(i)/vFe2)                  ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)/2.0_dp      
             FEbindA = FEbindA + fdisA(i,5)*rhopol(i,A)
             FEbindB = FEbindB + fdisB(i,5)*rhopol(i,B)
@@ -231,6 +231,7 @@ contains
         FEtrans%Cl    = FEtrans_entropy(xCl,xbulk%Cl,vCl)
         FEtrans%Ca    = FEtrans_entropy(xCa,xbulk%Ca,vCa)
         FEtrans%Mg    = FEtrans_entropy(xMg,xbulk%Mg,vMg)
+        FEtrans%Fe2   = FEtrans_entropy(xFe2,xbulk%Fe2,vFe2)
         FEtrans%K     = FEtrans_entropy(xK,xbulk%K,vK)
         FEtrans%KCl   = FEtrans_entropy(xKCl,xbulk%KCl,vKCl)
         FEtrans%NaCl  = FEtrans_entropy(xNaCl,xbulk%NaCl,vNaCl)
@@ -244,6 +245,7 @@ contains
         FEchempot%Cl    = FEchem_pot(xCl,expmu%Cl,vCl)
         FEchempot%Ca    = FEchem_pot(xCa,expmu%Ca,vCa)
         FEchempot%Mg    = FEchem_pot(xMg,expmu%Mg,vMg)
+        FEchempot%Fe2   = FEchem_pot(xFe2,expmu%Fe2,vFe2)
         FEchempot%K     = FEchem_pot(xK,expmu%K,vK) 
         FEchempot%KCl   = FEchem_pot(xKCl,expmu%KCl,vKCl)
         FEchempot%NaCl  = FEchem_pot(xNaCl,expmu%NaCl,vNaCl)
@@ -256,9 +258,9 @@ contains
         ! .. summing all contrubutions
         
         FEalt = FEtrans%sol +FEtrans%Na+ FEtrans%Cl +FEtrans%NaCl+FEtrans%Ca +FEtrans%Mg
-        FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl 
+        FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl + FEtrans%Fe2
         FEalt = FEalt+FEchempot%sol +FEchempot%Na+ FEchempot%Cl +FEchempot%NaCl+FEchempot%Ca +FEchempot%Mg
-        FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl
+        FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl+FEchempot%Fe2
       
 
         ! be vary carefull FE = -1/2 \int dz rho_q(z) psi(z)
@@ -290,6 +292,7 @@ contains
         FEtransbulk%Cl    = FEtrans_entropy_bulk(xbulk%Cl,vCl)
         FEtransbulk%Ca    = FEtrans_entropy_bulk(xbulk%Ca,vCa)
         FEtransbulk%Mg    = FEtrans_entropy_bulk(xbulk%Mg,vMg)
+        FEtransbulk%Fe2   = FEtrans_entropy_bulk(xbulk%Fe2,vFe2)
         FEtransbulk%K     = FEtrans_entropy_bulk(xbulk%K,vK)
         FEtransbulk%KCl   = FEtrans_entropy_bulk(xbulk%KCl,vKCl)
         FEtransbulk%NaCl  = FEtrans_entropy_bulk(xbulk%NaCl,vNaCl)
@@ -303,6 +306,7 @@ contains
         FEchempotbulk%Cl    = FEchem_pot_bulk(xbulk%Cl,expmu%Cl,vCl)
         FEchempotbulk%Ca    = FEchem_pot_bulk(xbulk%Ca,expmu%Ca,vCa)
         FEchempotbulk%Mg    = FEchem_pot_bulk(xbulk%Mg,expmu%Mg,vMg)
+        FEchempotbulk%Fe2   = FEchem_pot_bulk(xbulk%Fe2,expmu%Fe2,vFe2)
         FEchempotbulk%K     = FEchem_pot_bulk(xbulk%K,expmu%K,vK) 
         FEchempotbulk%KCl   = FEchem_pot_bulk(xbulk%KCl,expmu%KCl,vKCl)
         FEchempotbulk%NaCl  = FEchem_pot_bulk(xbulk%NaCl,expmu%NaCl,vNaCl)
@@ -313,14 +317,14 @@ contains
 
         volumelat = volcell*nsize   ! volume lattice 
         FEbulkalt = FEtransbulk%sol +FEtransbulk%Na+ FEtransbulk%Cl +FEtransbulk%NaCl+FEtransbulk%Ca +FEtransbulk%Mg 
-        FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl 
+        FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl +FEtransbulk%Fe2
         FEbulkalt = FEbulkalt+FEchempotbulk%sol +FEchempotbulk%Na+FEchempotbulk%Cl +FEchempotbulk%NaCl+FEchempotbulk%Ca 
-        FEbulkalt = FEbulkalt+FEchempotbulk%Mg +FEchempotbulk%OHmin +FEchempotbulk%Hplus +FEchempotbulk%K +FEchempotbulk%KCl
-       
+        FEbulkalt = FEbulkalt+FEchempotbulk%Mg  + FEchempotbulk%OHmin + FEchempotbulk%Hplus +FEchempotbulk%K 
+        FEbulkalt = FEbulkalt+FEchempotbulk%KCl + FEchempotbulk%Fe2
 
         FEBornbulk = (  bornbulk%Na*xbulk%Na/vNa    + bornbulk%Cl*xbulk%Cl/vCl + &
                         bornbulk%Ca*xbulk%Ca/vCa    + bornbulk%Mg*xbulk%Mg/vMg + &
-                        bornbulk%Rb*xbulk%Rb/vRb    + bornbulk%K*xbulk%K/vK    + &
+                        bornbulk%Fe2*xbulk%fe2/vFe2 + bornbulk%K*xbulk%K/vK    + &
                         bornbulk%Hplus*xbulk%Hplus  + bornbulk%OHmin*xbulk%OHmin )/vsol  
         
         FEbulkalt = FEbulkalt+FEBornbulk
@@ -336,6 +340,7 @@ contains
         deltaFEtrans%Cl    = FEtrans%Cl   - FEtransbulk%Cl * volumelat
         deltaFEtrans%Ca    = FEtrans%Ca   - FEtransbulk%Ca * volumelat
         deltaFEtrans%Mg    = FEtrans%Mg   - FEtransbulk%Mg * volumelat   
+        deltaFEtrans%Fe2   = FEtrans%Fe2   - FEtransbulk%Fe2 * volumelat 
         deltaFEtrans%K     = FEtrans%K    - FEtransbulk%K * volumelat
         deltaFEtrans%KCl   = FEtrans%KCl  - FEtransbulk%KCl * volumelat
         deltaFEtrans%NaCl  = FEtrans%NaCl - FEtransbulk%NaCl * volumelat
@@ -347,6 +352,7 @@ contains
         deltaFEchempot%Cl    = FEchempot%Cl   - FEchempotbulk%Cl * volumelat
         deltaFEchempot%Ca    = FEchempot%Ca   - FEchempotbulk%Ca * volumelat
         deltaFEchempot%Mg    = FEchempot%Mg   - FEchempotbulk%Mg * volumelat
+        deltaFEchempot%Fe2    = FEchempot%Fe2   - FEchempotbulk%Fe2 * volumelat
         deltaFEchempot%K     = FEchempot%K    - FEchempotbulk%K * volumelat
         deltaFEchempot%KCl   = FEchempot%KCl  - FEchempotbulk%KCl * volumelat
         deltaFEchempot%NaCl  = FEchempot%NaCl - FEchempotbulk%NaCl * volumelat
@@ -412,7 +418,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
-                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl )                 ! sum over  rho_i 
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl  +xFe2(i)/vFe2 )                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)
             qres = qres + rhoq(i)
         enddo
@@ -485,7 +491,7 @@ contains
                     born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
                     born(lbr,bornrad%K,zK)*xK(i)/(vK*vsol)     + & 
                     born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
-                    born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)     + & 
+                    born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol)     + & 
                     born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
                     born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + & 
                     born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &
@@ -573,7 +579,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
-                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl )                 ! sum over  rho_i 
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl  +xFe2(i)/vFe2 )                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)
             qres = qres + rhoq(i)
         enddo
@@ -643,7 +649,8 @@ contains
         volumelat= volcell*nsize   ! volume lattice
 
         FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
-            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl )
+            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +&
+            xbulk%Fe2/vFe2  )
         
         FEbulk = volumelat*FEbulk/vsol
 
@@ -1126,12 +1133,13 @@ contains
 
         use globals, only : systype,nsize,nsegtypes
         use field, only : xsol,psi,rhopol,fdis,fdisA,gdisA,gdisB,epsfcn,Depsfcn
-        use field, only : xNa,xK,xCl,xHplus,xOHmin,xCa,xMg,xRb,rhopol_charge
+        use field, only : xNa,xK,xCl,xHplus,xOHmin,xCa,xMg,xFe2,rhopol_charge
         use chains,only : elem_charge 
         use volume, only : volcell
-        use parameters, only : vsol, vpol,vpolAA, zpol, zpolAA, lb, bornrad 
-        use parameters, only : vNa,vCl,vRb,vCa, vK,vMg,zNa,zK,zCl,zRb,zCa,zMg, tA
-        use parameters, only : vnucl
+        use parameters, only : vsol, vnucl 
+        use parameters, only : vNa,vCl,vFe2,vCa,vK,vMg,vpol,vpolAA 
+        use parameters, only : zNa,zCl,zFe2,zCa,zK,zMg,zpol, zpolAA
+        use parameters, only : ta, lb, bornrad 
         ! use parameters, only : deltavnucl
         use chains, only : ismonomer_chargeable,type_of_charge
         use dielectric_const, only : born
@@ -1524,7 +1532,7 @@ contains
                             born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
                             born(lbr,bornrad%K,zK)*xK(i)/(vK*vsol)         + & 
                             born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
-                            born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)     + & 
+                            born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol)     + & 
                             born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
                             born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + & 
                             born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &
@@ -1725,9 +1733,9 @@ contains
     function FE_selfenergy_brush()result(FEborn)
 
         use globals, only : systype, nsize
-        use field, only : fdisA,rhopol,xNa,xK,xCl,xCa,xMg,xRb,xHplus,xOHmin,epsfcn
+        use field, only : fdisA,rhopol,xNa,xK,xCl,xCa,xMg,xFe2,xHplus,xOHmin,epsfcn
         use volume, only : volcell
-        use parameters, only : vsol, vNa,vK, vCl,vCa,vMg,vRb, zNa,zK,zCl,zCa,zMg,zRb,zpolAA 
+        use parameters, only : vsol, vNa,vK, vCl,vCa,vMg,vFe2,zNa,zK,zCl,zCa,zMg,zFe2,zpolAA 
         use parameters, only : bornrad, lb, tA
         use dielectric_const, only : born
 
@@ -1750,7 +1758,7 @@ contains
                     born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)       + & 
                     born(lbr,bornrad%K,zK)*xK(i)/(vK*vsol)           + & 
                     born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)       + &
-                    born(lbr,bornrad%Rb,zRb)*xRb(i)/(vRb*vsol)       + & 
+                    born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol)       + & 
                     born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)       + &
                     born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)       + &
                     born(lbr,bornrad%Hplus,1)*xHplus(i)/vsol         + &
