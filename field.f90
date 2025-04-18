@@ -16,7 +16,8 @@ module field
     real(dp), dimension(:), allocatable :: psi      ! electrostatic potential 
     real(dp), dimension(:), allocatable :: xNa      ! volume fraction of positive Na+ ion
     real(dp), dimension(:), allocatable :: xK       ! volume fraction of positive K+ ion
-    real(dp), dimension(:), allocatable :: xFe2     ! volume fraction of positive Fe2+ ion
+    real(dp), dimension(:), allocatable :: xFe2     ! volume fraction of positive Fe2+ ion 
+    real(dp), dimension(:), allocatable :: xFe3     ! volume fraction of positive Fe3+ ion
     real(dp), dimension(:), allocatable :: xCa      ! volume fraction of positive Ca2+ ion
     real(dp), dimension(:), allocatable :: xMg      ! volume fraction of positive Mg2+ ion    
     real(dp), dimension(:), allocatable :: xNaCl    ! volume fraction of NaCl ion pair
@@ -56,7 +57,7 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,nsegtypes
         
         integer :: N
-        integer :: ier(26), i
+        integer :: ier(27), i
 
         N=Nx*Ny*Nz
 
@@ -70,7 +71,8 @@ contains
         allocate(psi(N+2*Nx*Ny),stat=ier(6))    !allocate(psi(N),stat=ier(6))
         allocate(xNa(N),stat=ier(7))
         allocate(xK(N),stat=ier(8))
-        allocate(xFe2(N),stat=ier(9))
+        allocate(xFe2(N),stat=ier(9)) 
+        allocate(xFe3(N),stat=ier(27))
         allocate(xCa(N),stat=ier(10))
         allocate(xMg(N),stat=ier(11))
         allocate(xNaCl(N),stat=ier(12)) 
@@ -109,6 +111,7 @@ contains
         deallocate(xNa)
         deallocate(xK)
         deallocate(xFe2)
+        deallocate(xFe3)
         deallocate(xCa)
         deallocate(xMg)
         deallocate(xNaCl) 
@@ -151,6 +154,7 @@ contains
         xNa=0.0_dp
         xK=0.0_dp
         xFe2=0.0_dp
+        xFe3=0.0_dp
         xCa=0.0_dp
         xMg=0.0_dp
         xNaCl=0.0_dp 
@@ -189,7 +193,7 @@ contains
         endif
  
         if(systype=="nucl_ionbin_MgA") then
-        
+
             N=Nx*Ny*Nz
             allocate(rhoqphos(N))
             allocate(fdisPP_loc(maxfdisPP,maxfdisPP))
@@ -1178,25 +1182,28 @@ contains
   
         ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
         ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
-        ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos)
+        ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos) ! Mg-phosphate
+        ion_excess_ads%Fe2 =      (avfdisA(9)+avfdisA(10)) *numberelem(index_Phos) ! Mg-phosphate
+    
         
         ! calculate ion_excess_tot = sum of free adsorped ion excess
         
-        ion_excess_tot%Na = ion_excess%Na  + ion_excess_ads%Na   
-        ion_excess_tot%K  = ion_excess%K   + ion_excess_ads%K   
-        ion_excess_tot%Cl = ion_excess%Cl  + ion_excess_ads%Cl   
-        ion_excess_tot%Mg = ion_excess%Mg  + ion_excess_ads%Mg
+        ion_excess_tot%Na  = ion_excess%Na  + ion_excess_ads%Na   
+        ion_excess_tot%K   = ion_excess%K   + ion_excess_ads%K   
+        ion_excess_tot%Cl  = ion_excess%Cl  + ion_excess_ads%Cl   
+        ion_excess_tot%Mg  = ion_excess%Mg  + ion_excess_ads%Mg
+        ion_excess_tot%Fe2 = ion_excess%Fe2 + ion_excess_ads%Fe2
         
         ! Calculate qnucl 
         qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl + 2.0_dp*ion_excess_tot%Mg)
     
         ! Calculate individual betas
 
-        beta_ion_excess%Na =  ion_excess_tot%Na / qnucl
-        beta_ion_excess%K  =  ion_excess_tot%K  / qnucl
-        beta_ion_excess%Cl = -ion_excess_tot%Cl / qnucl
-        beta_ion_excess%Mg = 2.0_dp*ion_excess_tot%Mg / qnucl
-        
+        beta_ion_excess%Na  =  ion_excess_tot%Na / qnucl
+        beta_ion_excess%K   =  ion_excess_tot%K  / qnucl
+        beta_ion_excess%Cl  = -ion_excess_tot%Cl / qnucl
+        beta_ion_excess%Mg  = 2.0_dp*ion_excess_tot%Mg / qnucl
+        beta_ion_excess%Fe2 = 2.0_dp*ion_excess_tot%Fe2 / qnucl
             
     end subroutine make_beta
 
@@ -1204,7 +1211,7 @@ contains
 
     subroutine make_ion_excess
 
-        use parameters, only : vNa,vK,vMg,vCl,vCa,vFe2
+        use parameters, only : vNa,vK,vMg,vCl,vCa,vFe2,vFe3
         use parameters, only : xbulk,ion_excess,sum_ion_excess
 
         ion_excess%Na=fcn_ion_excess(xNa,xbulk%Na,vNa)
@@ -1212,14 +1219,15 @@ contains
         ion_excess%K =fcn_ion_excess(xK,xbulk%K,vK)
         ion_excess%Mg=fcn_ion_excess(xMg,xbulk%Mg,vMg)
         ion_excess%Ca=fcn_ion_excess(xCa,xbulk%Ca,vCa)
-        ion_excess%Fe2=fcn_ion_excess(xFe2,xbulk%Fe2,vfe2)
+        ion_excess%Fe2=fcn_ion_excess(xFe2,xbulk%Fe2,vFe2)
+        ion_excess%Fe3=fcn_ion_excess(xFe3,xbulk%Fe3,vFe3)
         ion_excess%Hplus=fcn_ion_excess(xHplus,xbulk%Hplus,1.0_dp)
         ion_excess%OHmin=fcn_ion_excess(xOHmin,xbulk%OHmin,1.0_dp)
        
         ! sum of ion_excess weighted with valence of ion
        
         sum_ion_excess =ion_excess%Na -ion_excess%Cl+ion_excess%K +2.0_dp*ion_excess%Ca+2.0_dp*ion_excess%Mg +&
-         ion_excess%Hplus -ion_excess%OHmin + 2.0_dp*ion_excess%Fe2
+         ion_excess%Hplus -ion_excess%OHmin + 2.0_dp*ion_excess%Fe2 +3.0_dp*ion_excess%Fe3
         
     end subroutine make_ion_excess
 
@@ -1232,7 +1240,7 @@ contains
   
     subroutine make_beta_old(numberelem)
 
-        use parameters, only : ion_excess, beta_ion_excess, avgdisA,avgdisB,avfdisA
+        use parameters, only : ion_excess, beta_ion_excess, avgdisA, avgdisB, avfdisA
         use parameters, only : index_Phos=>ta ! index of phosphate 
         use globals, only : nsegtypes
         use molecules, only : moleclist

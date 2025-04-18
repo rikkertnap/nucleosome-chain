@@ -151,8 +151,8 @@ contains
 
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
-            FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xCl(i)/vCl+xK(i)/vK +&
-                xNaCl(i)/vNaCl +xKCl(i)/vKCl  + xFe2(i)/vFe2)                  ! sum over  rho_i 
+            FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa +xCl(i)/vCl+ &
+                xK(i)/vK + xNaCl(i)/vNaCl +xKCl(i)/vKCl  )                  ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)/2.0_dp      
             FEbindA = FEbindA + fdisA(i,5)*rhopol(i,A)
             FEbindB = FEbindB + fdisB(i,5)*rhopol(i,B)
@@ -220,9 +220,9 @@ contains
         integer :: i,j,s               ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
         integer :: nzadius
-      
+    
 
-        ! .. computation ofalternative computation free energy
+        ! .. computation of alternative computation free energy
 
         ! .. translational entropy 
 
@@ -232,6 +232,7 @@ contains
         FEtrans%Ca    = FEtrans_entropy(xCa,xbulk%Ca,vCa)
         FEtrans%Mg    = FEtrans_entropy(xMg,xbulk%Mg,vMg)
         FEtrans%Fe2   = FEtrans_entropy(xFe2,xbulk%Fe2,vFe2)
+        FEtrans%Fe3   = FEtrans_entropy(xFe3,xbulk%Fe3,vFe3)
         FEtrans%K     = FEtrans_entropy(xK,xbulk%K,vK)
         FEtrans%KCl   = FEtrans_entropy(xKCl,xbulk%KCl,vKCl)
         FEtrans%NaCl  = FEtrans_entropy(xNaCl,xbulk%NaCl,vNaCl)
@@ -246,6 +247,7 @@ contains
         FEchempot%Ca    = FEchem_pot(xCa,expmu%Ca,vCa)
         FEchempot%Mg    = FEchem_pot(xMg,expmu%Mg,vMg)
         FEchempot%Fe2   = FEchem_pot(xFe2,expmu%Fe2,vFe2)
+        FEchempot%Fe3   = FEchem_pot(xFe3,expmu%Fe3,vFe3)
         FEchempot%K     = FEchem_pot(xK,expmu%K,vK) 
         FEchempot%KCl   = FEchem_pot(xKCl,expmu%KCl,vKCl)
         FEchempot%NaCl  = FEchem_pot(xNaCl,expmu%NaCl,vNaCl)
@@ -253,14 +255,19 @@ contains
         FEchempot%OHmin = FEchem_pot(xOHmin,expmu%OHmin,vsol,"w")
 
         ! .. surface chemical contribution
- 
 
-        ! .. summing all contrubutions
-        
+        ! .. summing all contributions
+
+        ! .. translational/mixing entropy
+
         FEalt = FEtrans%sol +FEtrans%Na+ FEtrans%Cl +FEtrans%NaCl+FEtrans%Ca +FEtrans%Mg
         FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl + FEtrans%Fe2
+        FEalt = FEalt+FEtrans%Fe3
+
+        ! .. chemical potential 
+
         FEalt = FEalt+FEchempot%sol +FEchempot%Na+ FEchempot%Cl +FEchempot%NaCl+FEchempot%Ca +FEchempot%Mg
-        FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl+FEchempot%Fe2
+        FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl+FEchempot%Fe2+FEchempot%Fe3
       
 
         ! be vary carefull FE = -1/2 \int dz rho_q(z) psi(z)
@@ -293,6 +300,7 @@ contains
         FEtransbulk%Ca    = FEtrans_entropy_bulk(xbulk%Ca,vCa)
         FEtransbulk%Mg    = FEtrans_entropy_bulk(xbulk%Mg,vMg)
         FEtransbulk%Fe2   = FEtrans_entropy_bulk(xbulk%Fe2,vFe2)
+        FEtransbulk%Fe3   = FEtrans_entropy_bulk(xbulk%Fe3,vFe3)
         FEtransbulk%K     = FEtrans_entropy_bulk(xbulk%K,vK)
         FEtransbulk%KCl   = FEtrans_entropy_bulk(xbulk%KCl,vKCl)
         FEtransbulk%NaCl  = FEtrans_entropy_bulk(xbulk%NaCl,vNaCl)
@@ -307,6 +315,7 @@ contains
         FEchempotbulk%Ca    = FEchem_pot_bulk(xbulk%Ca,expmu%Ca,vCa)
         FEchempotbulk%Mg    = FEchem_pot_bulk(xbulk%Mg,expmu%Mg,vMg)
         FEchempotbulk%Fe2   = FEchem_pot_bulk(xbulk%Fe2,expmu%Fe2,vFe2)
+        FEchempotbulk%Fe3   = FEchem_pot_bulk(xbulk%Fe3,expmu%Fe3,vFe3)
         FEchempotbulk%K     = FEchem_pot_bulk(xbulk%K,expmu%K,vK) 
         FEchempotbulk%KCl   = FEchem_pot_bulk(xbulk%KCl,expmu%KCl,vKCl)
         FEchempotbulk%NaCl  = FEchem_pot_bulk(xbulk%NaCl,expmu%NaCl,vNaCl)
@@ -318,14 +327,15 @@ contains
         volumelat = volcell*nsize   ! volume lattice 
         FEbulkalt = FEtransbulk%sol +FEtransbulk%Na+ FEtransbulk%Cl +FEtransbulk%NaCl+FEtransbulk%Ca +FEtransbulk%Mg 
         FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl +FEtransbulk%Fe2
+        FEbulkalt = FEbulkalt+FEtransbulk%Fe3
         FEbulkalt = FEbulkalt+FEchempotbulk%sol +FEchempotbulk%Na+FEchempotbulk%Cl +FEchempotbulk%NaCl+FEchempotbulk%Ca 
         FEbulkalt = FEbulkalt+FEchempotbulk%Mg  + FEchempotbulk%OHmin + FEchempotbulk%Hplus +FEchempotbulk%K 
-        FEbulkalt = FEbulkalt+FEchempotbulk%KCl + FEchempotbulk%Fe2
+        FEbulkalt = FEbulkalt+FEchempotbulk%KCl + FEchempotbulk%Fe2  + FEchempotbulk%Fe3
 
-        FEBornbulk = (  bornbulk%Na*xbulk%Na/vNa    + bornbulk%Cl*xbulk%Cl/vCl + &
-                        bornbulk%Ca*xbulk%Ca/vCa    + bornbulk%Mg*xbulk%Mg/vMg + &
-                        bornbulk%Fe2*xbulk%fe2/vFe2 + bornbulk%K*xbulk%K/vK    + &
-                        bornbulk%Hplus*xbulk%Hplus  + bornbulk%OHmin*xbulk%OHmin )/vsol  
+        FEBornbulk = (  bornbulk%Na * xbulk%Na/vNa    + bornbulk%Cl * xbulk%Cl/vCl + &
+                        bornbulk%Ca * xbulk%Ca/vCa    + bornbulk%Mg * xbulk%Mg/vMg + &
+                        bornbulk%Fe2 * xbulk%Fe2/vFe2 + bornbulk%Fe3 * xbulk%Fe3/vFe3 + bornbulk%K * xbulk%K/vK   + &
+                        bornbulk%Hplus * xbulk%Hplus  + bornbulk%OHmin * xbulk%OHmin )/vsol  
         
         FEbulkalt = FEbulkalt+FEBornbulk
 
@@ -341,6 +351,7 @@ contains
         deltaFEtrans%Ca    = FEtrans%Ca   - FEtransbulk%Ca * volumelat
         deltaFEtrans%Mg    = FEtrans%Mg   - FEtransbulk%Mg * volumelat   
         deltaFEtrans%Fe2   = FEtrans%Fe2   - FEtransbulk%Fe2 * volumelat 
+        deltaFEtrans%Fe3   = FEtrans%Fe3   - FEtransbulk%Fe3 * volumelat 
         deltaFEtrans%K     = FEtrans%K    - FEtransbulk%K * volumelat
         deltaFEtrans%KCl   = FEtrans%KCl  - FEtransbulk%KCl * volumelat
         deltaFEtrans%NaCl  = FEtrans%NaCl - FEtransbulk%NaCl * volumelat
@@ -352,7 +363,8 @@ contains
         deltaFEchempot%Cl    = FEchempot%Cl   - FEchempotbulk%Cl * volumelat
         deltaFEchempot%Ca    = FEchempot%Ca   - FEchempotbulk%Ca * volumelat
         deltaFEchempot%Mg    = FEchempot%Mg   - FEchempotbulk%Mg * volumelat
-        deltaFEchempot%Fe2    = FEchempot%Fe2   - FEchempotbulk%Fe2 * volumelat
+        deltaFEchempot%Fe2   = FEchempot%Fe2  - FEchempotbulk%Fe2 * volumelat
+        deltaFEchempot%Fe3   = FEchempot%Fe3  - FEchempotbulk%Fe3 * volumelat
         deltaFEchempot%K     = FEchempot%K    - FEchempotbulk%K * volumelat
         deltaFEchempot%KCl   = FEchempot%KCl  - FEchempotbulk%KCl * volumelat
         deltaFEchempot%NaCl  = FEchempot%NaCl - FEchempotbulk%NaCl * volumelat
@@ -418,7 +430,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
-                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl  +xFe2(i)/vFe2 )                 ! sum over  rho_i 
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl +xFe2(i)/vFe2 +xFe3(i)/vFe3)                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)
             qres = qres + rhoq(i)
         enddo
@@ -518,7 +530,8 @@ contains
         volumelat= volcell*nsize   ! volume lattice
 
         FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
-            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl )
+            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +&
+            xbulk%Fe2/vFe2 + xbulk%Fe3/vFe3 )
         
         FEbulk = volumelat*FEbulk/vsol
 
@@ -579,7 +592,7 @@ contains
         do i=1,nsize
             FEpi = FEpi  + log(xsol(i))
             FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
-                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl  +xFe2(i)/vFe2 )                 ! sum over  rho_i 
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl + xFe2(i)/vFe2 + xFe3(i)/vFe3)                 ! sum over  rho_i 
             FEel  = FEel  - rhoq(i) * psi(i)
             qres = qres + rhoq(i)
         enddo
@@ -650,7 +663,7 @@ contains
 
         FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
             xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +&
-            xbulk%Fe2/vFe2  )
+            xbulk%Fe2/vFe2  + xbulk%Fe3/vFe3 )
         
         FEbulk = volumelat*FEbulk/vsol
 

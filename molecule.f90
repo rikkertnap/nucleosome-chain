@@ -9,6 +9,7 @@ module molecules
         real(dp) :: Cl
         real(dp) :: K
         real(dp) :: Fe2
+        real(dp) :: Fe3
         real(dp) :: Ca
         real(dp) :: Mg
         real(dp) :: NaCl
@@ -26,6 +27,7 @@ module molecules
         real(dp) :: Cl
         real(dp) :: K
         real(dp) :: Fe2 
+        real(dp) :: Fe3
         real(dp) :: Ca
         real(dp) :: Mg
         real(dp) :: Hplus
@@ -43,6 +45,7 @@ contains
         moleclist_record%Cl = 0.0_dp
         moleclist_record%K = 0.0_dp
         moleclist_record%Fe2 = 0.0_dp
+        moleclist_record%Fe3 = 0.0_dp
         moleclist_record%Ca = 0.0_dp
         moleclist_record%Mg= 0.0_dp
         moleclist_record%NaCl = 0.0_dp

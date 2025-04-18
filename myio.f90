@@ -138,6 +138,7 @@ subroutine read_inputfile(info)
     cCaCl2=0.0_dp
     cMgCl2=0.0_dp
     cFeCl2=0.0_dp
+    cFeCl3=0.0_dp
     
     ! init surface charge 
     sigmaSurfL = 0.0_dp
@@ -205,6 +206,8 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) cKCl
             case ('cFeCl2')
                 read(buffer,*,iostat=ios) cFeCl2
+            case ('cFeCl3')
+                read(buffer,*,iostat=ios) cFeCl3
             case ('cCaCl2')
                 read(buffer,*,iostat=ios) cCaCl2
             case ('cMgCl2')
@@ -1581,11 +1584,13 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'cCaCl2      = ',cCaCl2
     write(un_sys,*)'cMgCl2      = ',cMgCl2
     write(un_sys,*)'cFeCl2      = ',cFeCl2
+    write(un_sys,*)'cFeCl3      = ',cFeCl3
     write(un_sys,*)'xsolbulk    = ',xbulk%sol
     write(un_sys,*)'xNabulk     = ',xbulk%Na
     write(un_sys,*)'xClbulk     = ',xbulk%Cl
     write(un_sys,*)'xKbulk      = ',xbulk%K
     write(un_sys,*)'xFe2bulk    = ',xbulk%Fe2
+    write(un_sys,*)'xFe3bulk    = ',xbulk%Fe3
     write(un_sys,*)'xNaClbulk   = ',xbulk%NaCl
     write(un_sys,*)'xKClbulk    = ',xbulk%KCl
     write(un_sys,*)'xCabulk     = ',xbulk%Ca
@@ -1622,6 +1627,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'zCa         = ',zCa
     write(un_sys,*)'zMg         = ',zMg 
     write(un_sys,*)'zFe2        = ',zFe2
+    write(un_sys,*)'zFe3        = ',zFe3
     write(un_sys,*)'zK          = ',zK
     write(un_sys,*)'zCl         = ',zCl
     
@@ -1636,6 +1642,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'vCa         = ',vCa*vsol
     write(un_sys,*)'vMg         = ',vMg*vsol  
     write(un_sys,*)'vFe2        = ',vFe2*vsol
+    write(un_sys,*)'vFe3        = ',vFe3*vsol
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
@@ -1719,6 +1726,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
     write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
+    write(un_sys,*)'gamma%Fe3       = ',ion_excess%Fe3
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
@@ -1729,6 +1737,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'beta%Ca         = ',beta_ion_excess%Ca
     write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg 
     write(un_sys,*)'beta%Fe2        = ',beta_ion_excess%Fe2
+    write(un_sys,*)'beta%Fe3        = ',beta_ion_excess%Fe3
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
@@ -2033,11 +2042,14 @@ subroutine output_nucl_mul
     write(un_sys,*)'cKCl        = ',cKCl
     write(un_sys,*)'cCaCl2      = ',cCaCl2
     write(un_sys,*)'cMgCl2      = ',cMgCl2
+    write(un_sys,*)'cFeCl2      = ',cFeCl2
+    write(un_sys,*)'cFeCl3      = ',cFeCl3
     write(un_sys,*)'xsolbulk    = ',xbulk%sol
     write(un_sys,*)'xNabulk     = ',xbulk%Na
     write(un_sys,*)'xClbulk     = ',xbulk%Cl
     write(un_sys,*)'xKbulk      = ',xbulk%K
     write(un_sys,*)'xFe2bulk    = ',xbulk%Fe2
+    write(un_sys,*)'xFe3bulk    = ',xbulk%Fe3
     write(un_sys,*)'xNaClbulk   = ',xbulk%NaCl
     write(un_sys,*)'xKClbulk    = ',xbulk%KCl
     write(un_sys,*)'xCabulk     = ',xbulk%Ca
@@ -2078,6 +2090,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'zMg         = ',zMg
     write(un_sys,*)'zK          = ',zK
     write(un_sys,*)'zCl         = ',zCl
+    write(un_sys,*)'zFe2        = ',zFe2
+    write(un_sys,*)'zFe3        = ',zFe3
     
     ! volume
     do t=1,nsegtypes
@@ -2092,6 +2106,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
+    write(un_sys,*)'vFe2        = ',vFe2*vsol
+    write(un_sys,*)'vFe3        = ',vFe3*vsol
 
     do t=1,nsegtypes
         write(un_sys,*)'lseg(',t,')     = ',lsegAA(t)
@@ -2187,6 +2203,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
     write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
+    write(un_sys,*)'gamma%Fe3       = ',ion_excess%Fe3
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
@@ -2196,6 +2213,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'beta%Ca         = ',beta_ion_excess%Ca
     write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg
     write(un_sys,*)'beta%Fe2        = ',beta_ion_excess%Fe2
+    write(un_sys,*)'beta%Fe3        = ',beta_ion_excess%Fe3
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
@@ -2586,6 +2604,7 @@ subroutine output_elect
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg 
     write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
+    write(un_sys,*)'gamma%Fe3       = ',ion_excess%Fe3
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
 
@@ -2884,6 +2903,7 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEtrans%Mg      = ",FEtrans%Mg
     write(un_fe,*)"FEtrans%K       = ",FEtrans%K
     write(un_fe,*)"FEtrans%Fe2     = ",FEtrans%Fe2
+    write(un_fe,*)"FEtrans%Fe3     = ",FEtrans%Fe3
     write(un_fe,*)"FEtrans%KCl     = ",FEtrans%KCl
     write(un_fe,*)"FEtrans%NaCl    = ",FEtrans%NaCl
     write(un_fe,*)"FEtrans%Hplus   = ",FEtrans%Hplus
@@ -2895,6 +2915,7 @@ subroutine output_individualcontr_fe
     write(un_fe,*)"FEchempot%Mg    = ",FEchempot%Mg
     write(un_fe,*)"FEchempot%K     = ",FEchempot%K
     write(un_fe,*)"FEchempot%Fe2    = ",FEchempot%Fe2
+    write(un_fe,*)"FEchempot%Fe3    = ",FEchempot%Fe3
     write(un_fe,*)"FEchempot%KCl   = ",FEchempot%KCl
     write(un_fe,*)"FEchempot%NaCl  = ",FEchempot%NaCl
     write(un_fe,*)"FEchempot%Hplus = ",FEchempot%Hplus
@@ -2917,7 +2938,7 @@ end subroutine output_individualcontr_fe
 subroutine make_filename_label(fnamelabel)
 
     use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf, nnucl
-    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2
+    use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2,cFeCl3
     use parameters, only : pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
     
     character(len=*), intent(inout) :: fnamelabel
@@ -3057,7 +3078,20 @@ subroutine make_filename_label(fnamelabel)
             fnamelabel=trim(fnamelabel)//"cFeCl2"//trim(adjustl(rstr))
         endif
 
-
+        if(cFeCl3/=0.0_dp) then
+            if(cFeCl3>=0.001) then
+                if(cFeCl3>=0.01) then
+                    write(rstr,'(F5.3)')cFeCl3
+                else
+                    write(rstr,'(F6.4)')cFECl3
+                endif  
+            elseif(cFeCl3>0.0) then
+                write(rstr,'(ES9.2E2)')cFeCl3
+            else
+                write(rstr,'(F3.1)')cFeCl3
+            endif
+            fnamelabel=trim(fnamelabel)//"cFeCl3"//trim(adjustl(rstr))
+        endif
 
         write(rstr,'(F7.3)')pHbulk
         fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))

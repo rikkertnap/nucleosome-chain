@@ -25,8 +25,8 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
-        use parameters, only : zpol,zNa,zK,zCl,zFe2,zCa,zMg,qPP,K0aAA,K0a,K0aion
+        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
+        use parameters, only : zpol,zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, PhosFe2, Phos2Fe2
         use volume, only     : volcell, indexneighbor, inverse_indexneighbor_phos
@@ -34,7 +34,7 @@ contains
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : index_phos, inverse_index_phos, len_index_phos
         use chains, only     : energychainLJ, no_overlapchain
-        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge, fdisPP, fdisP2Mg, fdisP2Fe2, rhoqphos
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm,L2norm_sub,L2norm_f90
@@ -111,6 +111,7 @@ contains
             xHplus(i)   = expmu%Hplus*(xsol(i))  *exp(-psi(i))     ! H+  volume fraction
             xOHmin(i)   = expmu%OHmin*(xsol(i))  *exp(+psi(i))     ! OH- volume fraction
             xFe2(i)     = expmu%Fe2*(xsol(i)**vFe2)*exp(-psi(i)*zFe2) ! Fe2++ volume fraction
+            xFe3(i)     = expmu%Fe3*(xsol(i)**vFe3)*exp(-psi(i)*zFe3) ! Fe3++ volume fraction
             xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
 
@@ -510,9 +511,9 @@ contains
 
         do i=1,n
 
-            f(i) = xpol_tot(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xFe2(i)+xCa(i)+xMg(i)+xK(i)-1.0_dp
+            f(i) = xpol_tot(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xFe2(i)+xCa(i)+xMg(i)+xK(i)+xFe3(i)-1.0_dp
             rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
-                zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zFe2*xFe2(i)/vFe2 +zK*xK(i)/vK ! total charge density in units of vsol  
+                zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zFe2*xFe2(i)/vFe2 +zFe3*xFe3(i)/vFe3+zK*xK(i)/vK ! total charge density in units of vsol  
 
         enddo
         

@@ -1406,7 +1406,8 @@ contains
     subroutine make_filename_label(fnamelabel)
 
         use globals, only : systype, runtype, set_confor, local_conf, nnucl
-        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2, pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2, cFeCl3, pHbulk,VdWepsBB
+        use parameters, only : init_denspol,VdWscale,pKd,dielectscale
 
         character(len=*), intent(inout) :: fnamelabel
 
@@ -1541,6 +1542,21 @@ contains
                     write(rstr,'(F3.1)')cFeCl2
                 endif
                 fnamelabel=trim(fnamelabel)//"cFeCl2"//trim(adjustl(rstr))
+            endif
+
+            if(cFeCl3/=0.0_dp) then
+                if(cFeCl3>=0.001) then
+                    if(cFeCl3>=0.01) then
+                        write(rstr,'(F5.3)')cFeCl3
+                    else
+                        write(rstr,'(F6.4)')cFECl3
+                    endif  
+                elseif(cFeCl3>0.0) then
+                    write(rstr,'(ES9.2E2)')cFeCl3
+                else
+                    write(rstr,'(F3.1)')cFeCl3
+                endif
+                fnamelabel=trim(fnamelabel)//"cFeCl3"//trim(adjustl(rstr))
             endif
 
             write(rstr,'(F7.3)')pHbulk
