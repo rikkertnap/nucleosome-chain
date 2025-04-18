@@ -364,7 +364,7 @@ subroutine read_inputfile(info)
     endif
 
     call check_value_runtype(runtype,info_run)
-    if (info_sys == myio_err_runtype) then
+    if (info_run == myio_err_runtype) then
         if (present(info)) info = info_run
         return
     endif
@@ -504,7 +504,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(6)
+    character(len=15) :: runtypestr(7)
     integer :: i
     logical :: flag
 
@@ -516,10 +516,11 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(4)="rangepKd"
     runtypestr(5)="rangeVdWeps"
     runtypestr(6)="rangedielect"
+    runtypestr(7)="inputFe2pH"
 
     flag=.FALSE.
 
-    do i=1,6
+    do i=1,7
         if(runtype==runtypestr(i)) flag=.TRUE.
     enddo
 

@@ -75,7 +75,6 @@ program main
     print*,text
 
     ! .. init
-
     call read_inputfile(info)
     call error_handler(info,"read_inputfile")
 

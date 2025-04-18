@@ -1242,9 +1242,7 @@ contains
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
-                print*,"Asphparam_local=",Asphparam_local
-                print*,"Asphparam(s)=",Asphparam(c)
-
+            
                 if(write_Palpha) write(un,*)pro/q
             endif    
         enddo

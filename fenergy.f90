@@ -2090,8 +2090,8 @@ contains
         use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
         use volume, only : volcell 
         use parameters, only : tPhos=>ta
-        use parameters, only : vsol,vNa,vK,vCl,vMg,vpol,vPP
-        use parameters, only : avfdisA, Phos2Mg
+        use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2
+        use parameters, only : avfdisA, Phos2Mg, Phos2Fe2
         use chains, only     : ismonomer_chargeable, type_of_charge
         
         real(dp),intent(inout) :: checksumxpoltot
@@ -2101,6 +2101,7 @@ contains
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
         real(dp) :: deltavpolstatePNa, deltavpolstatePK, deltavpolstatePMg,deltavpolstateP2Mg
+        real(dp) :: deltavpolstatePFe2,deltavpolstateP2Fe2
         
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -2158,14 +2159,17 @@ contains
                     deltavpolstatePNa=vNa*vsol
                     deltavpolstatePK=vK*vsol
                     deltavpolstatePMg=vMg*vsol
+                    deltavpolstatePFe2=vFe2*vsol
 
                     ! deltavpolstateP2Mg=(vpol(ta)+vMg)*vsol  
                     deltavpolstateP2Mg=(vPP(Phos2Mg)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
-                    
+                    deltavpolstateP2Fe2=(vPP(Phos2Fe2)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
+
                     sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates divide by volcell
                     deltaxpol(tPhos)=sumrhophos*(&
                             avfdisA(3)*deltavpolstatePNa+avfdisA(8)*deltavpolstatePK+&
-                            avfdisA(6)*deltavpolstatePMg+avfdisA(7)*deltavpolstateP2Mg) 
+                            avfdisA(6)*deltavpolstatePMg+avfdisA(7)*deltavpolstateP2Mg+&
+                            avfdisA(9)*deltavpolstatePFe2+avfdisA(10)*deltavpolstateP2Fe2) 
            
                 endif    
             endif
