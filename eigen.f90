@@ -60,7 +60,7 @@ function Asphericty_parameter(Rgsqr,gyr_tensor)result(Ap)
     diffRg2=abs(sumeigen-Rgsqr)
 
     if(diffRg2>eps_eigen) then
-        print*,"Difference trace gryation tensor and Rg squared larger tolerance:"
+        print*,"Difference trace gyration tensor and Rg squared larger tolerance:"
         print*,"eigenvalues = ",eigenvalues
         print*,"sum eigenvalues = ",sumeigen," Rg2 = ",Rgsqr, " diff=",diffRg2
     endif 

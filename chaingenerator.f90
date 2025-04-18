@@ -307,7 +307,7 @@ subroutine read_chains_xyz_nucl(info)
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor , runtype
     use chains, only : indexchain, logweightchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing
     use chains, only :  Asphparam
     use eigenvalues, only : asphericty_parameter
     use parameters, only : VdWscale, isChainEnergyFile, isVdW , isvdwintene 
@@ -362,6 +362,7 @@ subroutine read_chains_xyz_nucl(info)
     integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     logical :: no_overlap
     real(dp) :: rcom(3,nnucl)       ! hold mean or com of nucleosome coordinate
+    real(dp) :: gyr_tensor(3,3) 
 
     ! .. executable statements   
 
@@ -554,8 +555,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
          
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -563,8 +564,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
@@ -624,8 +625,8 @@ subroutine read_chains_xyz_nucl(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 
                 if(COMOLD) then 
@@ -634,8 +635,8 @@ subroutine read_chains_xyz_nucl(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
       
                 endif    
                     
@@ -729,7 +730,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
     use chains, only : logweightchain, no_overlapchain, segcm, sgraftpts
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
-    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, gyr_tensor, Asphparam
+    use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
     use eigenvalues, only : asphericty_parameter
     use parameters, only : VdWscale, isChainEnergyFile, isVdW, isvdwintene, mtpdbfname, orientfname
@@ -806,7 +807,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: max_range_nneigh 
     integer :: s_local 
     logical :: no_overlap, isCheck
-
+    real(dp) :: gyr_tensor(3,3)
     ! .. executable statements   
 
     info=0
@@ -1190,8 +1191,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
 
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1199,8 +1200,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif 
 
                 conf=conf+1   
@@ -1308,9 +1309,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
-                gyr_tensor(:,:,conf)   = gyr_tensor_com_rotation(rcom,nnucl)
-                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
-      
+                gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
+          
 
                 if(COMOLD) then 
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
@@ -1318,8 +1319,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                     bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
                     dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
                     nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
-                    gyr_tensor(:,:,conf)   = gyr_tensor_com(chain_pbc,nnucl,segcm)
-                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor(:,:,conf))
+                    gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif    
 
                 conf=conf+1   
@@ -2637,7 +2638,8 @@ function gyr_tensor_com_rotation(rcom,nmer) result(mat)
             mat(m,n)=mat(m,n)/(2.0_dp*nmer*nmer)
             !mat(n,m)=mat(m,n) ! symmetric 
         enddo    
-    enddo      
+    enddo     
+   
 
 end function gyr_tensor_com_rotation
 

@@ -123,7 +123,7 @@ program main
     endif
 
     call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos) ! internal systype switch !
+    call allocate_field_pairs(nx,ny,nz,maxneigh,6,len_index_phos) ! internal systype switch !
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(info)
@@ -154,7 +154,8 @@ program main
 
     ! .. loop over pH, or pKd etc  values
 
-    if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH") then 
+    if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH"&
+        .or.runtype=="inputFe2pH") then 
         loop => pH
     else if (runtype=="rangepKd") then
         loop => pKd   
@@ -177,6 +178,14 @@ program main
         num = num_cMgCl2
         list => cMgCl2_array
         list_val => cMgCl2
+
+    else if(runtype=="inputFe2pH") then
+        call set_value_FeCl2(runtype,info)
+        call error_handler(info,"set_value_FeCl2")
+
+        num = num_cFeCl2
+        list => cFeCl2_array
+        list_val => cFeCl2
 
     else if(runtype=="inputcsKClpH") then
         call set_value_KCl(runtype,info)
@@ -206,7 +215,7 @@ program main
         
         call maximum_xnucl(local_conf,isVolfracLargerOne)
         print*,"local_conf=",local_conf,"isVolfracLargerOne=",isVolfracLargerOne
-     
+
         if(no_overlapchain(c)) then 
 
             isfirstguess = .true.
@@ -256,12 +265,12 @@ program main
                     call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
                     
                     if(systype=="nucl_ionbin_Mg") then  
-                        call compute_average_charge_PP(avfdisP2Mg,avfdisPP)
+                        call compute_average_charge_PP(avfdisP2Mg,avfdisp2fe2,avfdisPP)
                         call compute_FEchem_react_PP(FEchempair)
                     endif 
                    
                     if(systype=="nucl_ionbin_MgA") then
-                        call compute_average_charge_PP_expl(avfdisP2Mg,avfdisPP)
+                        call compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisPP)
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
 

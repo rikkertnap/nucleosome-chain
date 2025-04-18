@@ -37,10 +37,12 @@ module myio
     integer :: num_cNaCl   ! number of salt concentration considered
     integer :: num_cMgCl2
     integer :: num_cKCl
+    integer :: num_cFeCl2
 
     real(dp), dimension(:), allocatable, target :: cNaCl_array ! salt concentrations
     real(dp), dimension(:), allocatable, target :: cMgCl2_array
-    real(dp), dimension(:), allocatable, target :: cKCl_array
+    real(dp), dimension(:), allocatable, target :: cKCl_array 
+    real(dp), dimension(:), allocatable, target :: cFeCl2_array
 
     ! varialble for allow steps in between given salt concentrations
     integer :: maxlist_step
@@ -66,8 +68,8 @@ module myio
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile, myio_err_equilat 
     public :: myio_err_GBinputfile, myio_err_GBinputlabel
-    public :: num_cNaCl, num_cMgCl2, num_cKCl, cNaCl_array,  cMgCl2_array, cKCl_array
-    public :: set_value_NaCl, set_value_MgCl2, set_value_KCl
+    public :: num_cNaCl, num_cMgCl2, num_cKCl, num_cFeCl2, cNaCl_array, cMgCl2_array, cKCl_array, cFeCl2_array
+    public :: set_value_NaCl, set_value_MgCl2, set_value_KCl, set_value_FeCl2
     public :: set_value_isVdW ! set_value_isVdW_on_values
     public :: maxlist_step
 
@@ -817,6 +819,56 @@ subroutine set_value_MgCl2(runtype,info)
 
 end subroutine  set_value_MgCl2
 
+subroutine set_value_FeCl2(runtype,info)
+
+    use myutils, only : newunit
+
+    character(len=12), intent(in) :: runtype
+    integer, intent(out) :: info
+
+    ! local variables
+    character(len=9) :: fname
+    integer :: ios, i, un_cs
+    logical :: exist
+
+    info=0
+
+    if(runtype=="inputFe2pH") then ! .or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+
+        !     .. read salt concentrations from file
+        write(fname,'(A9)')'saltFe.in'
+        inquire(file=fname,exist=exist)
+
+        if(exist) then
+            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        else
+            print*,' File :',fname,' does not exit'
+            info = myio_err_file_exist
+            return
+        endif
+
+        if(ios > 0 ) then
+            print*, 'Error opening file saltFe.in : iostat =', ios
+            info = myio_err_inputfile
+            return
+        endif
+
+        read(un_cs,*)num_cFeCl2 ! read number of salt concentration form file
+        allocate(cFeCl2_array(num_cFeCl2))
+
+        do i=1,num_cFeCl2     ! read value salt concentration
+            read(un_cs,*)cFeCl2_array(i)
+        enddo
+        close(un_cs)
+
+    else
+        
+        print*,'Error wrong runtype in set_value_FeCl2'
+        info = myio_err_inputfile
+    
+    endif
+
+end subroutine  set_value_FeCl2
 
 subroutine check_value_geometry(geometry,info)
 
@@ -1322,7 +1374,7 @@ subroutine output_nucl_ionbin_Mg
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor, eigen_avgyr_tensor
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
     use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype  
    
@@ -1527,6 +1579,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'cKCl        = ',cKCl
     write(un_sys,*)'cCaCl2      = ',cCaCl2
     write(un_sys,*)'cMgCl2      = ',cMgCl2
+    write(un_sys,*)'cFeCl2      = ',cFeCl2
     write(un_sys,*)'xsolbulk    = ',xbulk%sol
     write(un_sys,*)'xNabulk     = ',xbulk%Na
     write(un_sys,*)'xClbulk     = ',xbulk%Cl
@@ -1545,7 +1598,7 @@ subroutine output_nucl_ionbin_Mg
         write(un_sys,*)'pKa(',t,')  = ',pKa(t)
     enddo    
     ! pKaA of phophate
-    do k=1,7
+    do k=1,9
         write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k),K0aAA(k)
     enddo
 
@@ -1566,7 +1619,8 @@ subroutine output_nucl_ionbin_Mg
     enddo
     write(un_sys,*)'zNa         = ',zNa
     write(un_sys,*)'zCa         = ',zCa
-    write(un_sys,*)'zMg         = ',zMg
+    write(un_sys,*)'zMg         = ',zMg 
+    write(un_sys,*)'zFe2        = ',zFe2
     write(un_sys,*)'zK          = ',zK
     write(un_sys,*)'zCl         = ',zCl
     
@@ -1579,7 +1633,8 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'vNa         = ',vNa*vsol
     write(un_sys,*)'vCl         = ',vCl*vsol
     write(un_sys,*)'vCa         = ',vCa*vsol
-    write(un_sys,*)'vMg         = ',vMg*vsol
+    write(un_sys,*)'vMg         = ',vMg*vsol  
+    write(un_sys,*)'vFe2        = ',vFe2*vsol
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
@@ -1613,15 +1668,8 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
     write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo        
+    
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -1644,14 +1692,15 @@ subroutine output_nucl_ionbin_Mg
         enddo
     enddo    
     ! matrix of average pairs in chemical state (JJ)(KK)
-    do j=1,5
-        do k=1,5
+    do j=1,6
+        do k=1,6
             write(un_sys,'(A9,I5,A,I5,A5,ES25.16)')'avfdisPP(',j,',',k,')= ',avfdisPP(j,k)
         enddo
     enddo
 
     write(un_sys,*)'avfdisP2Mg  = ',avfdisP2Mg
-    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg
+    write(un_sys,*)'avfdisP2Fe2 = ',avfdisP2Fe2
+    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg+avfdisP2Fe2
 
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'cuantas     = ',cuantas
@@ -1668,14 +1717,17 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'gamma%K         = ',ion_excess%K
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
+    write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
+    
     write(un_sys,*)'beta%Na         = ',beta_ion_excess%Na
     write(un_sys,*)'beta%Cl         = ',beta_ion_excess%Cl
     write(un_sys,*)'beta%K          = ',beta_ion_excess%K
     write(un_sys,*)'beta%Ca         = ',beta_ion_excess%Ca
-    write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg
+    write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg 
+    write(un_sys,*)'beta%Fe2        = ',beta_ion_excess%Fe2
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
@@ -1747,7 +1799,7 @@ subroutine output_nucl_mul
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts, avgyr_tensor, eigen_avgyr_tensor
+    use chains, only : type_of_charge, mapping_num_to_char, sgraftpts
     use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
     
@@ -2069,15 +2121,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
     write(un_sys,*)'avAs        = ',avAsphparam 
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo        
+   
     do t=1,nsegtypes
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
@@ -2133,13 +2178,14 @@ subroutine output_nucl_mul
     write(un_sys,*)'pH%val      = ',pH%val
     write(un_sys,*)'VdWscale%val= ',VdWscale%val
 
-    ! output ion_excces
+    ! output ion_excess
 
     write(un_sys,*)'gamma%Na        = ',ion_excess%Na
     write(un_sys,*)'gamma%Cl        = ',ion_excess%Cl
     write(un_sys,*)'gamma%K         = ',ion_excess%K
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
     write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
+    write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
     write(un_sys,*)'sumgamma        = ',sum_ion_excess
@@ -2148,6 +2194,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'beta%K          = ',beta_ion_excess%K
     write(un_sys,*)'beta%Ca         = ',beta_ion_excess%Ca
     write(un_sys,*)'beta%Mg         = ',beta_ion_excess%Mg
+    write(un_sys,*)'beta%Fe2        = ',beta_ion_excess%Fe2
     write(un_sys,*)'beta%Hplus      = ',beta_ion_excess%Hplus
     write(un_sys,*)'beta%OHmin      = ',beta_ion_excess%OHmin
 
@@ -2217,7 +2264,7 @@ subroutine output_elect
     use surface
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr,avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor, avAsphparam
+    use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. local arguments
@@ -2490,15 +2537,7 @@ subroutine output_elect
     write(un_sys,*)'q           = ',q
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
     write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo       
     write(un_sys,*)'qpolA       = ',qpolA
     write(un_sys,*)'qpolB       = ',qpolB
     write(un_sys,*)'qpoltot     = ',qpol_tot
@@ -2544,7 +2583,8 @@ subroutine output_elect
     write(un_sys,*)'gamma%Cl        = ',ion_excess%Cl
     write(un_sys,*)'gamma%K         = ',ion_excess%K
     write(un_sys,*)'gamma%Ca        = ',ion_excess%Ca
-    write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg
+    write(un_sys,*)'gamma%Mg        = ',ion_excess%Mg 
+    write(un_sys,*)'gamma%Fe2       = ',ion_excess%Fe2
     write(un_sys,*)'gamma%Hplus     = ',ion_excess%Hplus
     write(un_sys,*)'gamma%OHmin     = ',ion_excess%OHmin
 
@@ -2608,7 +2648,7 @@ subroutine output_neutral
     use energy
     use myutils, only : newunit
     use chains, only : isHomopolymer, avRgsqr, avRendsqr, avbond_angle,avdihedral_angle,avnucl_spacing 
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor,avAsphparam
+    use chains, only : avAsphparam
     use GB_potential, only : sigma0,sigmaE,sigmaS, epsilonE, epsilonS, GBtype, GBCOMtype
 
     !     .. output file names
@@ -2755,15 +2795,8 @@ subroutine output_neutral
     write(un_sys,*)'mu          = ',-log(q)
     write(un_sys,*)'avRgsqr     = ',avRgsqr 
     write(un_sys,*)'avRendsqr   = ',avRendsqr 
-    write(un_sys,*)'avRgsqr_1   = ',eigen_avgyr_tensor(1)
-    write(un_sys,*)'avRgsqr_2   = ',eigen_avgyr_tensor(2)
-    write(un_sys,*)'avRgsqr_3   = ',eigen_avgyr_tensor(3)
     write(un_sys,*)'avAs        = ',avAsphparam
-    do i=1,3
-        do j=1,3
-            write(un_sys,*)'avgyr_tensor(',i,j,')=',avgyr_tensor(i,j)
-        enddo       
-    enddo       
+      
     write(un_sys,*)'iterations  = ',iter
     write(un_sys,*)'VdWscale%val = ',VdWscale%val
 
@@ -3145,9 +3178,8 @@ subroutine compute_vars_and_output()
     use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
     use field, only : distribution_charge_nucl_ionbin_sv, max_potential
-    use chains, only : avgyr_tensor, eigen_avgyr_tensor, avAsphparam
-    use eigenvalues, only : eigenvalue_of_avgyr_tensor
-
+    use chains, only : avAsphparam
+    
     select case (systype)
     case ("elect")
 
@@ -3157,14 +3189,11 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
-
         call output()
 
     case ("neutral","neutralnoVdW")
 
         call fcnenergy()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()           
 
     case ("brush_mul","brush_mulnoVdW","brushdna","brushborn")
@@ -3175,7 +3204,6 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()        
 
     case ("nucl_ionbin")
@@ -3186,7 +3214,6 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential() 
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()  
            
 
@@ -3198,7 +3225,6 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi)
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()           
     
     case ("nucl_ionbin_Mg")
@@ -3209,7 +3235,6 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()           
 
       case ("nucl_ionbin_MgA")
@@ -3220,14 +3245,11 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential() 
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()       
 
-    
      case ("nucl_neutral_sv")
 
         call fcnenergy()
-        eigen_avgyr_tensor=eigenvalue_of_avgyr_tensor(avgyr_tensor)
         call output()           
 
     case default

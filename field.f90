@@ -43,9 +43,11 @@ module field
     real(dp), dimension(:), allocatable       :: rhoqphos       ! charged density of phosphate needed systype="nucl_ionbin_Mg"
     real(dp), dimension(:,:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,J,K)  
     real(dp), dimension(:,:), allocatable       :: fdisP2Mg     ! fraction  fdisP2Mg(i,k)  
-    
+    real(dp), dimension(:,:), allocatable       :: fdisP2Fe2    ! fraction  fdisP2Fe2(i,k)  
+
     real(dp), dimension(:,:), allocatable   :: fdisPP_loc, fdisPP_loc_swap     ! fdisPP(J,K) local equivalent of fraction of fdisPP(i,k,J,K)  
     real(dp)                                :: fdisP2Mg_loc, fdisP2Mg_loc_swap ! fdisP2Mg    local equivalent of fraction of fdisP2Mg(i,k)     
+    real(dp)                                :: fdisP2Fe2_loc, fdisP2Fe2_loc_swap ! fdisP2Fe2    local equivalent of fraction of fdisP2Fe2(i,k)     
 
 contains
 
@@ -182,11 +184,12 @@ contains
             allocate(rhoqphos(N))    
             allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
             allocate(fdisP2Mg(Nindex,maxneigh)) 
+            allocate(fdisP2Fe2(Nindex,maxneigh)) 
 
         endif
  
         if(systype=="nucl_ionbin_MgA") then
-
+        
             N=Nx*Ny*Nz
             allocate(rhoqphos(N))
             allocate(fdisPP_loc(maxfdisPP,maxfdisPP))
@@ -206,6 +209,7 @@ contains
         if(systype=="nucl_ionbin_Mg") then
             fdisPP=0.0_dp
             fdisP2Mg=0.0_dp
+            fdisP2Fe2=0.0_dp
         endif
 
         if(systype=="nucl_ionbin_MgA") then
@@ -671,7 +675,8 @@ contains
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
-        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, avfdisPP, avfdisP2Mg
+        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2
+        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
@@ -735,56 +740,67 @@ contains
 
                       !  print*,"sumavfdisPP=",sumavfdisPP
  
-                        do k=1,8
+                        do k=1,10
                             avfdisA(k)=0.0_dp
                         enddo   
                             
                         ! charged phosphates
-                        do JJ=1,5
+                        do JJ=1,6
                             KK=Phos
-                            avfdisA(1)=avfdisA(1) +avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                            avfdisA(1)=avfdisA(1) + avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
  
                         ! protonated phosphates
-                        do JJ=1,5
+                        do JJ=1,6
                             KK=PhosH    
                             avfdisA(2) = avfdisA(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
  
                         ! Na bound  phosphates
-                        do JJ=1,5
+                        do JJ=1,6
                             KK=PhosNa
                             avfdisA(3) = avfdisA(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
     
-                        ! K bound  phosphates
-                        do JJ=1,5
-                            KK=PhosK
-                            avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-
-                        ! Mg bound phosphates
-                        do JJ=1,5
-                            KK=PhosMg
-                            avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-                            
                         ! Ca bound phosphates             
                         avfdisA(4) = 0.0_dp
 
                         ! P2Ca bound phosphates
                         avfdisA(5) = 0.0_dp
 
+                        ! K bound  phosphates
+                        do JJ=1,6
+                            KK=PhosK
+                            avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
 
+                        ! Mg bound phosphates
+                        do JJ=1,6
+                            KK=PhosMg
+                            avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                         ! Fe2 bound phosphates
+                        do JJ=1,6
+                            KK=PhosFe2
+                            avfdisA(9) = avfdisA(9)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+                        
                         ! P2Mg bound phophates 
                         avfdisA(7)=2.0_dp*avfdisP2Mg
+                        
+                        ! P2Fe2 bound phophates 
+                        avfdisA(10)=2.0_dp*avfdisP2Fe2
 
-                        do k=1,8
+                        do k=1,10
                             avfdisA(k)=avfdisA(k)/2.0_dp
                         enddo  
                         ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
                          
-                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6) ! signed charged fraction   
+                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6)  ! signed charged fraction   
+                        
+                        print*,"warning check avfdis in average_charge_nucl_ionbin_Mg"
+
 
                     endif               
                 endif
@@ -1188,7 +1204,7 @@ contains
 
     subroutine make_ion_excess
 
-        use parameters, only : vNa,vK,vMg,vCl,vCa
+        use parameters, only : vNa,vK,vMg,vCl,vCa,vFe2
         use parameters, only : xbulk,ion_excess,sum_ion_excess
 
         ion_excess%Na=fcn_ion_excess(xNa,xbulk%Na,vNa)
@@ -1196,13 +1212,14 @@ contains
         ion_excess%K =fcn_ion_excess(xK,xbulk%K,vK)
         ion_excess%Mg=fcn_ion_excess(xMg,xbulk%Mg,vMg)
         ion_excess%Ca=fcn_ion_excess(xCa,xbulk%Ca,vCa)
+        ion_excess%Fe2=fcn_ion_excess(xFe2,xbulk%Fe2,vfe2)
         ion_excess%Hplus=fcn_ion_excess(xHplus,xbulk%Hplus,1.0_dp)
         ion_excess%OHmin=fcn_ion_excess(xOHmin,xbulk%OHmin,1.0_dp)
        
         ! sum of ion_excess weighted with valence of ion
        
         sum_ion_excess =ion_excess%Na -ion_excess%Cl+ion_excess%K +2.0_dp*ion_excess%Ca+2.0_dp*ion_excess%Mg +&
-         ion_excess%Hplus -ion_excess%OHmin
+         ion_excess%Hplus -ion_excess%OHmin + 2.0_dp*ion_excess%Fe2
         
     end subroutine make_ion_excess
 

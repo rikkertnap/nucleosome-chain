@@ -71,10 +71,8 @@ module chains
     real(dp), dimension(:), allocatable         :: avnucl_spacing           ! average spacing or distance between Nuclesome
     real(dp)                                    :: avRgsqr                  ! radius of gyration 
     real(dp)                                    :: avRendsqr                ! end-to-end distance
-    real(dp), dimension(:,:), allocatable       :: avgyr_tensor             ! average asphericity matrix /gyration tensor (for each graft point)
     real(dp)                                    :: avAsphparam              ! asphericity parameter
-    real(dp)                                    :: eigen_avgyr_tensor(3)    ! Eigenvalues of Avgyr_tensor, Principal componts of radius of gyration squared 
-
+  
     ! .. pairing parameters 
 
     real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
@@ -121,7 +119,7 @@ contains
         allocate(avnucl_spacing(nnucl-1)) 
         allocate(avbond_angle(nnucl-2))
         allocate(avdihedral_angle(nnucl-3)) 
-        allocate(avgyr_tensor(3,3)) 
+       ! allocate(avgyr_tensor(3,3)) 
 
         ! rotational and orientational segments 
         allocate(orientation_triplets(nnucl,3))

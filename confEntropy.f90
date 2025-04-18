@@ -65,7 +65,7 @@ contains
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, logweightchain 
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
@@ -84,7 +84,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -115,7 +114,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -140,7 +138,6 @@ contains
                 bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro         
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
                 
                 if(write_Palpha) write(un,*)pro/q
@@ -153,8 +150,7 @@ contains
         Rendsqr_local = Rendsqr_local/q
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
-        nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local/q
+        nucl_spacing_local = nucl_spacing_local/q
         Asphparam_local = Asphparam_local/q
 
 
@@ -167,7 +163,6 @@ contains
         avbond_angle = bond_angle_local
         avdihedral_angle = dihedral_angle_local 
         avnucl_spacing = nucl_spacing_local 
-        avgyr_tensor = gyr_tensor_local
         avAsphparam = Asphparam_local
         
     
@@ -187,7 +182,7 @@ contains
         use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
         use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
@@ -205,7 +200,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3) 
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -236,7 +230,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -260,7 +253,6 @@ contains
                 bond_angle_local = bond_angle_local + bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro 
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                if(write_Palpha) write(un,*)pro/q
@@ -273,24 +265,18 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q
-        gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q 
 
-        ! communicate FEconf
+        ! communicate 
 
-       
-           
-            FEconf=FEconf_local
-            Econf=Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local 
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local 
-            avAsphparam = Asphparam_local
-
-            
+        FEconf=FEconf_local
+        Econf=Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local 
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local
        
 
         if(write_Palpha) close(un)
@@ -305,7 +291,7 @@ contains
         use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
         use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
@@ -383,7 +369,6 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
            
                 if(write_Palpha) write(un,*)pro/q
@@ -402,17 +387,16 @@ contains
 
         ! communicate 
 
-            ! normalize
+        ! normalize
 
-            FEconf=FEconf_local
-            Econf =Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
+        FEconf=FEconf_local
+        Econf =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local
 
            
         if(write_Palpha) close(un)
@@ -427,7 +411,7 @@ contains
         use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
         use parameters, only : vpol, zpol, write_Palpha
@@ -507,7 +491,6 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+ nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
            
                 if(write_Palpha) write(un,*)pro/q
@@ -525,15 +508,14 @@ contains
 
         
            
-            FEconf =FEconf_local
-            Econf  =Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
+        FEconf =FEconf_local
+        Econf  =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local
 
            
         if(write_Palpha) close(un)
@@ -548,7 +530,7 @@ contains
         use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
         use parameters
@@ -621,7 +603,6 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro  
                 nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c) * pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                 if(write_Palpha) write(un,*) pro/q   
@@ -640,16 +621,15 @@ contains
         ! communicate FEconf
 
             
-            FEconf=FEconf_local
-            Econf=Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing =  nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
-            
+        FEconf=FEconf_local
+        Econf=Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing =  nucl_spacing_local
+        avAsphparam = Asphparam_local
+        
            
 
         Econf=0.0_dp
@@ -667,7 +647,7 @@ contains
         use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xFe2
@@ -744,7 +724,7 @@ contains
                 born(lbr,bornrad%polMg,zpolAA(6))*rhopolAMg(i) + & ! rhopolAMg(i)= fdisA(i,6)*rhopolin(i,tA)
                 born(lbr,bornrad%Na,zNa)*xNa(i)/(vNa*vsol)     + & 
                 born(lbr,bornrad%Cl,zCl)*xCl(i)/(vCl*vsol)     + &
-                born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol)     + & 
+                born(lbr,bornrad%Fe2,zFe2)*xFe2(i)/(vFe2*vsol) + & 
                 born(lbr,bornrad%Ca,zCa)*xCa(i)/(vCa*vsol)     + &
                 born(lbr,bornrad%Mg,zMg)*xMg(i)/(vMg*vsol)     + &
                 born(lbr,bornrad%Hplus,1 )*xHplus(i)/vsol      + &
@@ -810,7 +790,6 @@ contains
                 bond_angle_local = bond_angle_local+bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local + dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local + nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
 
                 if(write_Palpha) write(un,*)pro/q
@@ -828,18 +807,17 @@ contains
 
         
 
-            ! normalize
-             
-            FEconf=FEconf_local
-            Econf =Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local 
+        ! normalize
             
+        FEconf=FEconf_local
+        Econf =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local 
+        
            
         if(write_Palpha) close(un)
 
@@ -852,7 +830,7 @@ contains
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing, gyr_tensor, avgyr_tensor
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, fdis,rhopol,q, lnproshift
@@ -872,7 +850,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
-        real(dp) :: gyr_tensor_local(3,3) 
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -905,7 +882,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -937,7 +913,6 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro 
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
                 
                 if(write_Palpha) write(un,*)pro/q
@@ -950,7 +925,6 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
         
         ! communicate 
@@ -964,7 +938,6 @@ contains
         avbond_angle = bond_angle_local
         avdihedral_angle = dihedral_angle_local
         avnucl_spacing = nucl_spacing_local
-        avgyr_tensor = gyr_tensor_local
         avAsphparam = Asphparam_local     
          
         if(write_Palpha) close(un)
@@ -983,7 +956,7 @@ contains
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only : index_phos, inverse_index_phos, len_index_phos
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor 
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
@@ -1004,7 +977,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -1057,7 +1029,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -1106,7 +1077,6 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
                 
                 if(write_Palpha) write(un,*)pro/q
@@ -1119,7 +1089,6 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
 
         ! communicate 
@@ -1135,10 +1104,7 @@ contains
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local
             avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
-
-
             
         if(write_Palpha) close(un)
 
@@ -1154,10 +1120,10 @@ contains
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
-        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, gyr_tensor, avgyr_tensor
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
-        use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc
+        use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
         use modfcnMgexpl, only : compute_fdisPP
@@ -1175,7 +1141,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1) 
-        real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -1229,7 +1194,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -1259,7 +1223,8 @@ contains
                         do jj=1,nneigh(s,c)           ! loop neighbors 
      
                             m = indexconfpair(s,c)%elem(jj)
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,k ,m)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc,k ,m)
+                            !call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,k ,m)
 
                             lnpro =lnpro +(lnexppi(k,ta)+lnexppi(m,ta)+ (lnexppivw(k) +lnexppivw(m))*vnucl(1,ta) &
                                     -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
@@ -1276,8 +1241,9 @@ contains
                 bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c) *pro
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro
+                print*,"Asphparam_local=",Asphparam_local
+                print*,"Asphparam(s)=",Asphparam(c)
 
                 if(write_Palpha) write(un,*)pro/q
             endif    
@@ -1289,22 +1255,18 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
-        ! communicate 
-
        
-            ! normalize
+        ! normalize
 
-            FEconf=FEconf_local
-            Econf =Econf_local
-            avRgsqr=Rgsqr_local
-            avRendsqr=Rendsqr_local
-            avbond_angle = bond_angle_local
-            avdihedral_angle = dihedral_angle_local
-            avnucl_spacing = nucl_spacing_local
-            avgyr_tensor = gyr_tensor_local
-            avAsphparam = Asphparam_local
+        FEconf=FEconf_local
+        Econf =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local
 
             
         if(write_Palpha) close(un)
@@ -1317,7 +1279,7 @@ contains
 
         use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
-        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, gyr_tensor, avgyr_tensor
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol, rhopol, q, lnproshift
@@ -1336,7 +1298,6 @@ contains
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
         real(dp) :: nucl_spacing_local(nnucl-1)
-        real(dp) :: gyr_tensor_local(3,3)
         real(dp) :: Asphparam_local 
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
@@ -1363,7 +1324,6 @@ contains
         bond_angle_local = 0.0_dp
         dihedral_angle_local = 0.0_dp
         nucl_spacing_local = 0.0_dp
-        gyr_tensor_local = 0.0_dp
         Asphparam_local = 0.0_dp
 
         nbonds=nnucl-1
@@ -1390,7 +1350,6 @@ contains
                 bond_angle_local= bond_angle_local +bond_angle(:,c)*pro  
                 dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
                 nucl_spacing_local = nucl_spacing_local +nucl_spacing(:,c)*pro   
-                gyr_tensor_local = gyr_tensor_local + gyr_tensor(:,:,c)*pro    
                 Asphparam_local = Asphparam_local + Asphparam(c) * pro   
                 
                 if(write_Palpha) write(un,*)pro/q 
@@ -1403,14 +1362,11 @@ contains
         bond_angle_local = bond_angle_local/q
         dihedral_angle_local = dihedral_angle_local/q 
         nucl_spacing_local = nucl_spacing_local/q 
-        gyr_tensor_local = gyr_tensor_local/q
         Asphparam_local = Asphparam_local/q
 
         ! communicate local quantities
 
-        
-
-            ! normalize
+        ! normalize
             
             FEconf = FEconf_local
             Econf = Econf_local
@@ -1419,11 +1375,9 @@ contains
             avbond_angle = bond_angle_local
             avdihedral_angle = dihedral_angle_local 
             avnucl_spacing = nucl_spacing_local 
-            avgyr_tensor = gyr_tensor_local
             avAsphparam = Asphparam_local
             
             
-
         if(write_Palpha) close(un)
 
     end subroutine FEconf_nucl_neutral_sv
@@ -1439,11 +1393,11 @@ contains
 
         character(len=lenText) :: fnamelabel !, istr
 
-        !write(istr,'(I4)')rank
         call make_filename_label(fnamelabel)
-        !fname='Palpha.'//trim(fnamelabel)//'rank'//trim(adjustl(istr))//'.dat'
         fname='Palpha.'//trim(fnamelabel)//'.dat'
+
     end subroutine make_filename_Palpha
+
 
 
     ! Subroutine similar to subroutine  make_filename_label in module module myio in myio.f90
@@ -1453,18 +1407,26 @@ contains
 
     subroutine make_filename_label(fnamelabel)
 
-        use globals, only : systype, runtype
-        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+        use globals, only : systype, runtype, set_confor, local_conf, nnucl
+        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2, pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
 
         character(len=*), intent(inout) :: fnamelabel
 
         character(len=20) :: rstr
         real(dp) :: denspol
-
+        character(len=40) :: sublabel
 
         denspol=init_denspol()
 
         !     .. make label filename
+
+        if(nnucl==1) then
+            sublabel="" 
+        else
+            call make_sublabel_Palpha(set_confor,local_conf,sublabel)
+        endif   
+
+        fnamelabel=trim(sublabel)
 
         select case(systype)
 
@@ -1496,6 +1458,8 @@ contains
             fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))
 
         case("neutral","neutralnoVdW","nucl_neutral_sv")
+
+
 
             if(denspol>=0.001) then
                 write(rstr,'(F5.3)')denspol
@@ -1566,6 +1530,21 @@ contains
                 fnamelabel=trim(fnamelabel)//"cMgCl2"//trim(adjustl(rstr))
             endif
 
+            if(cFeCl2/=0.0_dp) then
+                if(cFeCl2>=0.001) then
+                    if(cFeCl2>=0.01) then
+                        write(rstr,'(F5.3)')cFeCl2
+                    else
+                        write(rstr,'(F6.4)')cFECl2
+                    endif  
+                elseif(cFeCl2>0.0) then
+                    write(rstr,'(ES9.2E2)')cFeCl2
+                else
+                    write(rstr,'(F3.1)')cFeCl2
+                endif
+                fnamelabel=trim(fnamelabel)//"cFeCl2"//trim(adjustl(rstr))
+            endif
+
             write(rstr,'(F7.3)')pHbulk
             fnamelabel=trim(fnamelabel)//"pH"//trim(adjustl(rstr))
 
@@ -1594,5 +1573,19 @@ contains
         endselect
 
     end subroutine make_filename_label
+
+    subroutine  make_sublabel_Palpha(set_confor,num_conf,sublabel)
+
+        integer, intent(in) :: set_confor, num_conf
+        character(len=*), intent(inout) :: sublabel
+
+        character(len=20) :: istr
+
+        write(istr,'(I4)')set_confor
+        sublabel="nset"//trim(adjustl(istr))
+        write(istr,'(I6)')num_conf
+        sublabel=trim(sublabel)//"conf"//trim(adjustl(istr))
+
+    end subroutine  make_sublabel_Palpha
 
 end module conform_entropy

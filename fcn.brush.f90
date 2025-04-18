@@ -1678,7 +1678,7 @@ contains
             xCl(i)     = expmu%Cl*(xsol(i)**vCl)*exp(-born(lbr,bornrad%Cl,zCl)-psi(i)*zCl) ! Cl- volume fraction
             xHplus(i)  = expmu%Hplus*(xsol(i))  *exp(-born(lbr,bornrad%Hplus,1)-psi(i))    ! H+  volume fraction
             xOHmin(i)  = expmu%OHmin*(xsol(i))  *exp(-born(lbr,bornrad%OHmin,-1)+psi(i))   ! OH- volume fraction
-            xFe2(i)    = expmu%Fe2*(xsol(i)**vFe2)*exp(-born(lbr,bornrad%Fe2,zFE2)-psi(i)*zFe2) ! Rb+ volume fraction
+            xFe2(i)    = expmu%Fe2*(xsol(i)**vFe2)*exp(-born(lbr,bornrad%Fe2,zFE2)-psi(i)*zFe2) ! Fe++ volume fraction
             xCa(i)     = expmu%Ca*(xsol(i)**vCa)*exp(-born(lbr,bornrad%Ca,zCa)-psi(i)*zCa) ! Ca++ volume fraction 
             xMg(i)     = expmu%Mg*(xsol(i)**vMg)*exp(-born(lbr,bornrad%Mg,zMg)-psi(i)*zMg) ! Mg++ volume fraction 
 
