@@ -570,7 +570,7 @@ contains
         deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7) ! 2vA- + vMg2+ -vA2Mg
         deltavAA(7) = vpolAA(1)+vK-vpolAA(8)    ! vA- + vK+ - vAK
         deltavAA(8) = vpolAA(1)+vFe2-vpolAA(9)    ! vA- + vK+ - vAK
-        deltavAA(9) = 2.0_dp*vpolAA(1)+vMg-vpolAA(10) ! 2vA- + vFe2+ -vA2Fe2
+        deltavAA(9) = 2.0_dp*vpolAA(1)+vFe2-vpolAA(10) ! 2vA- + vFe2+ -vA2Fe2
 
         if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA") then
             call init_vPP(info)
