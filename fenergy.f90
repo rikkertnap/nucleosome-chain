@@ -2103,8 +2103,8 @@ contains
         use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
         use volume, only : volcell 
         use parameters, only : tPhos=>ta
-        use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2
-        use parameters, only : avfdisA, Phos2Mg, Phos2Fe2
+        use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2, vFe3
+        use parameters, only : avfdisA, Phos2Mg, Phos2Fe2, Phos2Fe3
         use chains, only     : ismonomer_chargeable, type_of_charge
         
         real(dp),intent(inout) :: checksumxpoltot
@@ -2114,7 +2114,7 @@ contains
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
         real(dp) :: deltavpolstatePNa, deltavpolstatePK, deltavpolstatePMg,deltavpolstateP2Mg
-        real(dp) :: deltavpolstatePFe2,deltavpolstateP2Fe2
+        real(dp) :: deltavpolstatePFe2, deltavpolstateP2Fe2, deltavpolstatePFe3, deltavpolstateP2Fe3
         
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -2173,16 +2173,19 @@ contains
                     deltavpolstatePK=vK*vsol
                     deltavpolstatePMg=vMg*vsol
                     deltavpolstatePFe2=vFe2*vsol
+                    deltavpolstatePFe3=vFe3*vsol
 
                     ! deltavpolstateP2Mg=(vpol(ta)+vMg)*vsol  
                     deltavpolstateP2Mg=(vPP(Phos2Mg)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
                     deltavpolstateP2Fe2=(vPP(Phos2Fe2)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
+                    deltavpolstateP2Fe3=(vPP(Phos2Fe3)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp 
 
                     sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates divide by volcell
                     deltaxpol(tPhos)=sumrhophos*(&
-                            avfdisA(3)*deltavpolstatePNa+avfdisA(8)*deltavpolstatePK+&
-                            avfdisA(6)*deltavpolstatePMg+avfdisA(7)*deltavpolstateP2Mg+&
-                            avfdisA(9)*deltavpolstatePFe2+avfdisA(10)*deltavpolstateP2Fe2) 
+                            avfdisA(3)*deltavpolstatePNa  + avfdisA(8)*deltavpolstatePK+&
+                            avfdisA(6)*deltavpolstatePMg  + avfdisA(7)*deltavpolstateP2Mg+&
+                            avfdisA(9)*deltavpolstatePFe2  + avfdisA(10)*deltavpolstateP2Fe2+&
+                            avfdisA(11)*deltavpolstatePFe3 + avfdisA(12)*deltavpolstateP2Fe3) 
            
                 endif    
             endif

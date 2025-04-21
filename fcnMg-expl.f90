@@ -14,18 +14,18 @@ module modfcnMgexpl
 
 contains
    
-     subroutine compute_fdisPP(fdisPP,fdisP2Mg,fdisP2Fe2,position1,position2)
+     subroutine compute_fdisPP(fdisPP,fdisP2Mg,fdisP2Fe2,fdisP2Fe3,position1,position2)
 
-        use field, only : xHplus, xOHmin, xNa, xK, xMg, xFe2, xsol, psi
-        use parameters, only : vsol,vNa,vK,vCl,vMg,vFe2,deltavAA
+        use field, only : xHplus, xOHmin, xNa, xK, xMg, xFe2, xFe3, xsol, psi
+        use parameters, only : vsol,vNa,vK,vCl,vMg,vFe2,vFe3, deltavAA
         use parameters, only : K0aAA,K0a,K0aion
-        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, PhosFe2
+        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, PhosFe2, PhosFe3
 
         real(dp), intent(inout), dimension(:,:) :: fdisPP
-        real(dp), intent(inout) :: fdisP2Mg, fdisP2Fe2
+        real(dp), intent(inout) :: fdisP2Mg, fdisP2Fe2, fdisP2Fe3
         integer , intent(in) :: position1, position2
 
-        real(dp) :: xP(6,2), xP2Mg, fPP, sumxP ,xP2Fe2        ! disociation variables  
+        real(dp) :: xP(7,2), xP2Mg, fPP, sumxP, xP2Fe2, xP2Fe3       ! disociation variables  
         integer :: i, j     
         integer  :: JJ, KK
 
@@ -51,26 +51,33 @@ contains
         xP(PhosMg,1) = (xMg(i)/vMg)/(K0aAA(5)*(xsol(i)**deltavAA(5)))   ! PMgP+/PP2-
         xP(PhosMg,2) = (xMg(j)/vMg)/(K0aAA(5)*(xsol(j)**deltavAA(5)))   ! PPAMg+/PP2-
 
-        xP(PhosFe2,1) = (xFe2(i)/vFe2)/(K0aAA(8)*(xsol(i)**deltavAA(8)))   ! PFe+P+/PP2-
-        xP(PhosFe2,2) = (xFe2(j)/vFe2)/(K0aAA(8)*(xsol(j)**deltavAA(8)))   ! PFe+/PP2-
+        xP(PhosFe2,1) = (xFe2(i)/vFe2)/(K0aAA(8)*(xsol(i)**deltavAA(8)))   ! PFe(2)+/PP2-
+        xP(PhosFe2,2) = (xFe2(j)/vFe2)/(K0aAA(8)*(xsol(j)**deltavAA(8)))   ! PFe(2)+/PP2-
+
+        xP(PhosFe3,1) = (xFe3(i)/vFe3)/(K0aAA(10)*(xsol(i)**deltavAA(10)))   ! PFe(3)2+/PP2-
+        xP(PhosFe3,2) = (xFe3(j)/vFe3)/(K0aAA(10)*(xsol(j)**deltavAA(10)))   ! PFe(3)2+/PP2-
+
 
         xP2Mg  = sqrt( (xMg(i)/vMg)*(xMg(j)/vMg)/ ((K0aAA(6)**2) *(xsol(i)**deltavAA(6))*(xsol(j)**deltavAA(6)))) ! P2Mg/PP2- 
        
-        xP2Fe2 = sqrt( (xFe2(i)/vFe2)*(xFe2(j)/vFe2)/ ((K0aAA(9)**2) *(xsol(i)**deltavAA(9))*(xsol(j)**deltavAA(9)))) ! P2Fe2/PP2-
+        xP2Fe2 = sqrt( (xFe2(i)/vFe2)*(xFe2(j)/vFe2)/ ((K0aAA(9)**2)  *(xsol(i)**deltavAA(9))*(xsol(j)**deltavAA(9)))) ! P2Fe2/PP2-
+ 
+        xP2Fe3 = sqrt( (xFe3(i)/vFe3)*(xFe3(j)/vFe3)/ ((K0aAA(11)**2) *&
+                (xsol(i)**deltavAA(11))*(xsol(j)**deltavAA(11)))) ! P2Fe3/PP2-
 
         
         sumxP = 0.0_dp
-        do JJ=1,6
-            do KK=1,6
+        do JJ=1,7
+            do KK=1,7
                 sumxP = sumxP + xP(JJ,1) * xP(KK,2)
             enddo
         enddo
-        sumxP=sumxP+xP2Mg+xP2Fe2
+        sumxP=sumxP+xP2Mg+xP2Fe2+xP2Fe3
 
         fPP = 1.0_dp/sumxP    ! fraction of phophate pairs that are both charged
           
-        do JJ=1,6             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
-             do KK=1,6
+        do JJ=1,7             ! fraction of phophate pairs that form a bind with H^+,Na^+,K^+
+             do KK=1,7
                  fdisPP(JJ,KK) = fPP * xP(JJ,1) * xP(KK,2)
              enddo
         enddo
@@ -78,6 +85,8 @@ contains
         fdisP2Mg = fPP * xP2Mg  ! fraction of phophate pairs that form a Mg-bridge
      
         fdisP2Fe2 = fPP * xP2Fe2 ! fraction of phosphate pairs that form a Fe2-bridge
+
+        fdisP2Fe3 = fPP * xP2Fe3 ! fraction of phosphate pairs that form a Fe3-bridge
    
        ! print*,"fdisP2Fe2=", fdisP2Fe2 
                 
@@ -97,7 +106,7 @@ contains
         use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
         use parameters, only : zpol,zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
-        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2
+        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
         use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
@@ -105,7 +114,7 @@ contains
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
-        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap
+        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
         use Poisson, only    : Poisson_Equation
@@ -274,7 +283,7 @@ contains
 
                             m = indexconfpair(s,c)%elem(jj)
 
-                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,fdisP2Fe2_loc, k , m)
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
 
                             lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                           -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
@@ -319,7 +328,7 @@ contains
 
                             m = indexconfpair(s,c)%elem(jj)
 
-                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,fdisP2Fe2_loc,  k , m)
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,fdisP2Fe2_loc, fdisP2Fe3_loc,  k , m)
 
                             lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                           -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
@@ -353,16 +362,17 @@ contains
 
                             m = indexconfpair(s,c)%elem(j)
 
-                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, k , m)
-                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap, fdisP2Fe2_loc_swap,  m , k)    
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
+                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,& 
+                                        fdisP2Fe2_loc_swap, fdisP2Fe3_loc_swap, m , k)    
 
                             ! % first part integral
 
                             sum_rhoqphos=0.0_dp
                             sum_xphos=0.0_dp 
                         
-                            do JJ=1,6
-                                do KK=1,6
+                            do JJ=1,7
+                                do KK=1,7
                                     sum_rhoqphos = sum_rhoqphos+&
                                         (fdisPP_loc(JJ,KK)*qPP(JJ)+fdisPP_loc_swap(JJ,KK)*qPP(KK))/2.0_dp
                                     sum_xphos = sum_xphos   +&
@@ -371,15 +381,20 @@ contains
                             enddo
         
                             sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
-                                ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
-                            
                             sum_xphos=sum_xphos+(fdisP2Fe2_loc+fdisP2Fe2_loc_swap)*vPP(Phos2Fe2)/4.0_dp 
+                            sum_xphos=sum_xphos+(fdisP2Fe3_loc+fdisP2Fe3_loc_swap)*vPP(Phos2Fe3)/4.0_dp 
+
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+
+                            sum_rhoqphos = sum_rhoqphos+((fdisP2Fe3_loc+fdisP2Fe3_loc_swap)*qPP(Phos2Fe3))/4.0_dp
+                           
+                            ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge
 
                             local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                             local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
 
                             local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(2.0_dp*nneigh(s,c))
-                            
+                    
                             ! second integral contributes to location m of rhoqpos and xphol  xpol  
                          
                             sum_rhoqphos=0.0_dp
@@ -387,8 +402,8 @@ contains
                         
                             ! contributes to location k of rhoqpos and xol
                                
-                            do JJ=1,6
-                                do KK=1,6   
+                            do JJ=1,7
+                                do KK=1,7   
                                     sum_rhoqphos = sum_rhoqphos+&
                                         (fdisPP_loc_swap(JJ,KK)*qPP(JJ)+fdisPP_loc(JJ,KK)*qPP(KK))/2.0_dp
 
@@ -399,8 +414,14 @@ contains
         
                             sum_xphos=sum_xphos+(fdisP2Mg_loc_swap +fdisP2Mg_loc)*vPP(Phos2Mg)/4.0_dp
                             sum_xphos=sum_xphos+(fdisP2Fe2_loc_swap +fdisP2Fe2_loc)*vPP(Phos2Fe2)/4.0_dp
+                            sum_xphos=sum_xphos+(fdisP2Fe3_loc_swap +fdisP2Fe3_loc)*vPP(Phos2Fe3)/4.0_dp
+
                             ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
-                      
+                            
+                            sum_rhoqphos = sum_rhoqphos+((fdisP2Fe3_loc_swap+fdisP2Fe3_loc)*qPP(Phos2Fe3))/4.0_dp
+
+                            ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge                    
+
                             local_rhoqphos(m) = local_rhoqphos(m) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                             local_xpol(m,ta) = local_xpol(m,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
 
@@ -540,7 +561,7 @@ contains
 
     ! compute the average fraction of charged state of the phosphate pairs 
 
-    subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisPP)
+    subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
 
        
         use precision_definition
@@ -555,11 +576,12 @@ contains
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol, psi, fdis, rhopol_charge, fdisPP_loc, fdisPP_loc_swap 
         use field, only      : fdisP2Mg_loc, fdisP2Mg_loc_swap, fdisP2Fe2_loc, fdisP2Fe2_loc_swap
+        use field, only      : fdisP2Fe3_loc, fdisP2Fe3_loc_swap
         use field, only      : q, lnproshift
         use myutils, only    : error_handler
 
-        real(dp), intent(inout) :: avfdisP2Mg, avfdisP2Fe2
-        real(dp), intent(inout) :: avfdisPP(6,6)
+        real(dp), intent(inout) :: avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
+        real(dp), intent(inout) :: avfdisPP(7,7)
 
         !     .. local variables
         
@@ -569,7 +591,7 @@ contains
         integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
         integer  :: k_ind, m_ind
         integer  :: JJ, KK
-        real(dp) :: local_avfdisP2Mg,local_avfdisPP(6,6),local_avfdisP2Fe2
+        real(dp) :: local_avfdisP2Mg,local_avfdisPP(7,7),local_avfdisP2Fe2,local_avfdisP2Fe3
         real(dp) :: sumrhopairs
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
         integer  :: nsizepsi
@@ -581,9 +603,11 @@ contains
         nsizepsi=nsize+2*Nx*Ny
 
 
-        local_avfdisPP =0.0_dp
-        local_avfdisP2Mg =0.0_dp    
-
+        local_avfdisPP = 0.0_dp
+        local_avfdisP2Mg = 0.0_dp    
+        local_avfdisP2Fe2 = 0.0_dp 
+        local_avfdisP2Fe3 = 0.0_dp 
+        
         n=nsize
 
         do i=1,nsize
@@ -647,7 +671,7 @@ contains
                         do jj=1,nneigh(s,c) ! loop neighbors 
                             m = indexconfpair(s,c)%elem(jj)
 
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, k ,m)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc,fdisP2Fe3_loc, k ,m)
      
                             lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                     -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
@@ -670,11 +694,12 @@ contains
 
                             m = indexconfpair(s,c)%elem(j)
 
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, k ,m)
-                            call compute_fdisPP(fdisPP_loc_swap,fdisP2Mg_loc_swap,fdisP2Fe2_loc_swap,  m, k )
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc,fdisP2Fe3_loc, k ,m)
+                            call compute_fdisPP(fdisPP_loc_swap,fdisP2Mg_loc_swap,&
+                                        fdisP2Fe2_loc_swap, fdisP2Fe3_loc_swap,  m, k )
 
-                            do JJ=1,6
-                                do KK=1,6
+                            do JJ=1,7
+                                do KK=1,7
                                     !local_avfdisPP(JJ,KK) = local_avfdisPP(JJ,KK)+&
                                     !    (fdisPP(k_ind,mr,JJ,KK)+fdisPP(m_ind,kr,JJ,KK))*pro/(2.0_dp*nneigh(s,c))
 
@@ -686,6 +711,7 @@ contains
                             
                             local_avfdisP2Mg  = local_avfdisP2Mg  + fdisP2Mg_loc*pro/nneigh(s,c)
                             local_avfdisP2Fe2 = local_avfdisP2Fe2 + fdisP2Fe2_loc*pro/nneigh(s,c)
+                            local_avfdisP2Fe3 = local_avfdisP2Fe3 + fdisP2Fe3_loc*pro/nneigh(s,c)
                     
                         enddo 
                     endif
@@ -695,6 +721,7 @@ contains
    
         avfdisP2Mg = local_avfdisP2Mg
         avfdisP2Fe2 = local_avfdisP2Fe2
+        avfdisP2Fe3 = local_avfdisP2Fe3
         avfdisPP = local_avfdisPP
 
         ! .. construction of avfdisP2Mg and avfdisPP 
@@ -706,6 +733,7 @@ contains
         avfdisPP=avfdisPP/(sumrhopairs*q) ! also norm with q
         avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
         avfdisP2Fe2=avfdisP2Fe2/(sumrhopairs*q)
+        avfdisP2Fe3=avfdisP2Fe3/(sumrhopairs*q)
             
     end subroutine compute_average_charge_PP_expl
 
@@ -717,7 +745,7 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
-        use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg,Phos2Fe2, ta 
+        use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg,Phos2Fe2,Phos2Fe3, ta 
         use volume, only     : nx, ny, nz
         use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
@@ -725,7 +753,7 @@ contains
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,psi,fdis, rhopol_charge 
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
-        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap
+        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
         use field, only      : q, lnproshift
         use myutils, only    : error_handler
 
@@ -815,7 +843,7 @@ contains
                         do jj=1,nneigh(s,c) ! loop neighbors 
                             m = indexconfpair(s,c)%elem(jj)
 
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, k, m)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, fdisP2Fe3_loc, k, m)
 
                             lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                     -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
@@ -846,7 +874,7 @@ contains
                             betapi_m= -log(xsol(m))/vsol
                             psi_m = psi(m)
                         
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, k, m)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc, fdisP2Fe3_loc, k, m)
 
                              ! Lagrange multiplier lambd(r,r') 
 
@@ -858,8 +886,8 @@ contains
                             sum_pi  = 0.0_dp
                             sum_psi = 0.0_dp
 
-                            do JJ=1,6
-                                do KK=1,6
+                            do JJ=1,7
+                                do KK=1,7
                                     sum_pi=sum_pi-(vPP(JJ)*betapi_k+vPP(KK)*betapi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
                                     sum_psi=sum_psi-(qPP(JJ)*psi_k+qPP(KK)*psi_m)*fdisPP_loc(JJ,KK)*pro/nneigh(s,c)
                                 enddo
@@ -867,9 +895,13 @@ contains
         
                             sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
                             sum_pi=sum_pi-(vPP(Phos2Fe2)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Fe2_loc*pro/nneigh(s,c)
+                            sum_pi=sum_pi-(vPP(Phos2Fe3)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Fe3_loc*pro/nneigh(s,c)
 
-                                ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
-                            
+                            ! division 2.0_dp  because  vPP(Phos2Mg)/2 is volume change per phosphate 
+
+                            sum_psi=sum_psi-((((psi_k+psi_m)*qPP(Phos2Fe3))/(2.0_dp))*fdisP2Fe3_loc)*pro/nneigh(s,c)
+                        ! division 2.0_dp  because  qPP(Phos2Fe3)/2 is charge  per phosphate 
+
                             local_FEchempair = local_FEchempair+(-lambda +sum_pi+sum_psi)/2.0_dp             
                         enddo 
                     endif

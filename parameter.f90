@@ -22,8 +22,10 @@
     integer, parameter :: PhosNa=4
     integer, parameter :: PhosMg=5
     integer, parameter :: PhosFe2=6
-    integer, parameter :: Phos2Mg=7   ! warning renumbered this from 6 to 7 !!!
-    integer, parameter :: Phos2Fe2=8
+    integer, parameter :: PhosFe3=7
+    integer, parameter :: Phos2Mg=8   ! warning renumbered this from 6 to 7 to 8  !!!
+    integer, parameter :: Phos2Fe2=9
+    integer, parameter :: Phos2Fe3=10
 
 
     !  .. volume 
@@ -31,13 +33,13 @@
     real(dp) :: vsol                 ! volume of solvent  in nm^3       
     real(dp) :: vpolA(5),deltavA(4)  ! volume of one polymer segment, vpol  in units of vsol
     real(dp) :: vpolB(5),deltavB(4)
-    real(dp) :: vpolAA(10),deltavAA(9)        
+    real(dp) :: vpolAA(12),deltavAA(11)        
     real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:), allocatable       :: vnucl  ! volume of segment type t element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
     logical , dimension(:),   allocatable       :: vnucl_type_isChargeable
-    real(dp), dimension(8) :: vPP    ! volume of different chemical states of phosphate 
+    real(dp), dimension(10) :: vPP  ! volume of different chemical states of phosphate 
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -65,7 +67,7 @@
     integer :: zpolAA(8)
     integer :: zpolA(5)          ! valence charge polymer
     integer :: zpolB(5)          ! valence charge polymer
-    integer, dimension(8) :: qPP ! charge of different phosphate chemical state
+    integer, dimension(10) :: qPP ! charge of different phosphate chemical state
 
     integer :: zNa               ! valence charge Na+ ion 
     integer :: zK                ! valence charge K+ ion 
@@ -98,7 +100,7 @@
   
     real(dp) :: Tref             ! temperature in K
     real(dp) :: dielectW         ! dielectric constant of water
-    real(dp) :: dielectP            ! dielectric constant of hydrocarbons/PA
+    real(dp) :: dielectP         ! dielectric constant of hydrocarbons/PA
     character(len=15) :: dielect_env ! selects dielectric fun 
     real(dp) :: lb,lb0           ! Bjerrum lengtin water and vacuum   
     real(dp) :: constqW          ! constant in Poisson eq dielectric constant of water  
@@ -160,9 +162,9 @@
     real(dp), dimension(:), allocatable :: avfdis              ! average degree of dissociation of monomer of type t
     real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average fraction of Acidic and Basic AA in state A,AH,ANa etc 
     
-    real(dp) :: avfdisP2Mg, avfdisP2Fe2, avfdisPP(6,6) ! average fraction monomer of phopsphate pairs in chemical state PP,PPH, , etc  
-    real(dp) :: avfdisA(10)        ! average fraction of monomer ta=phosphate in state 
-                                   ! A, AH, ANa, ACa, A2Ca, AMg, A2Mg, AK, AFe2 and A2Fe2 
+    real(dp) :: avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3, avfdisPP(7,7)   ! average fraction monomer of phopsphate pairs in chemical state PP,PPH, , etc  
+    real(dp) :: avfdisA(12)        ! average fraction of monomer ta=phosphate in state 
+                                   ! A, AH, ANa, ACa, A2Ca, AMg, A2Mg, AK, AFe2, A2Fe2, AFe3, A2Fe3 
     real(dp) :: avfdisB(5)         ! average fraction of monomer state
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
     real(dp) :: max_psi(6)         ! maximum electrostatic potential on each face of lattice 
@@ -177,9 +179,9 @@
     real(dp), dimension(:,:), allocatable :: Kaion           ! experimemtal equilibruim constant 
     real(dp), dimension(:,:), allocatable :: pKaion          ! experimental equilibruim constant pKaion= -log[Kaion]
 
-    real(dp) :: KaA(4),K0aA(4),pKaA(4)     !  .. constant for  acid 
+    real(dp) :: KaA(4),K0aA(4),pKaA(4)     ! constant for  acid 
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
-    real(dp) :: KaAA(9),K0aAA(9), pKaAA(9) 
+    real(dp) :: KaAA(11),K0aAA(11), pKaAA(11) 
     type (looplist), target :: pKd         ! binding constants 
     type (looplist), target :: deltaGd 
       
@@ -349,7 +351,6 @@ contains
         zpolAA(7)= 0 ! A2Mg
         zpolAA(8)= 0 ! AK
 
-
         !  .. radii
         !  .. ionic radii
         !  .. https://www.chemguide.co.uk/atoms/properties/atradius.html and http://abulafia.mt.ic.ac.uk/shannon/ptable.php
@@ -372,7 +373,7 @@ contains
         vCa  = ((4.0_dp/3.0_dp)*pi*(RCa)**3)/vsol 
         vMg  = ((4.0_dp/3.0_dp)*pi*(RMg)**3)/vsol 
         vFe2 = ((4.0_dp/3.0_dp)*pi*(RFe2)**3)/vsol 
-        vFe3 = ((4.0_dp/3.0_dp)*pi*(RFe2)**3)/vsol 
+        vFe3 = ((4.0_dp/3.0_dp)*pi*(RFe3)**3)/vsol 
 
         vNaCl= (vNa+vCl)          ! contact ion pair
         vKCl = (vK+vCl)           ! contact ion pair
@@ -453,6 +454,7 @@ contains
             bornrad%Hplus = radiussphere(vsol)
             bornrad%OHmin = radiussphere(vsol)
             bornrad%Fe2 = RFe2
+            bornrad%Fe3 = RFe3
             
         endif    
 
@@ -522,15 +524,18 @@ contains
         if(info/=0) then 
             if(info==err_pKdfile_noexist) then 
                 ! set equilibrium constants for acrylic acid 
-                pKaAA(1)=5.0_dp
-                pKaAA(2)=-0.4_dp
-                pKaAA(3)=1.0_dp
-                pKaAA(4)=4.0_dp
-                pKaAA(5)=1.0_dp
-                pKaAA(6)=4.0_dp
-                pKaAA(7)=-0.4_dp
-                pKaAA(8)=-0.4_dp  ! pK fro bindign of Fe++ not determined for acrylic acid 
-                pKaAA(9)=4.0_dp   
+                pKaAA(1)=  5.0_dp   ! AH    <=> A^- +H^+
+                pKaAA(2)= -0.4_dp   ! ANa   <=> A^- +Na^+
+                pKaAA(3)=  1.0_dp   ! ACa+  <=> A^- +Ca^++
+                pKaAA(4)=  4.0_dp   ! A_2Ca <=> 2A^- + Ca^++
+                pKaAA(5)=  1.0_dp   ! AMg^+ <=> A^- + Mg^++
+                pKaAA(6)=  4.0_dp   ! A_2Mg <=> 2A^- + Mg^++
+                pKaAA(7)= -0.4_dp   ! AK    <=> A^- + K^+
+                pKaAA(8)= -0.4_dp   ! AFe^+  <=> A^- + Fe^++ pK for binding of Fe++ not determined for acrylic acid 
+                pKaAA(9)=  4.0_dp   ! A2Fe   <=> 2A^- + Fe^++  
+                pKaAA(10)= -0.4_dp  ! AFe^2+ <=> A^-  + Fe^+++  
+                pKaAA(11)= 4.0_dp   ! A2Fe^+ <=> 2A^- + Fe^+++  
+
             else ! errro
                 print*,"Error in init_dna:"
                 print*,"Failure to init pKaAA: info=",info
@@ -538,7 +543,7 @@ contains
             endif    
         endif
         
-        do i=1,9
+        do i=1,11
             KaAA(i) = 10.0_dp**(-pKaAA(i))  
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
@@ -561,6 +566,8 @@ contains
         vpolAA(8) = vA+vK           ! vAK 
         vpolAA(9) = vA+vFe2         ! vAFe2
         vpolAA(10) = 2.0_dp*vA+vFe2 ! vA2Fe2 
+        vpolAA(11) = vA+vFe3        ! vAFe3
+        vpolAA(12) = 2.0_dp*vA+vFe3 ! vA2Fe3 
         
         deltavAA(1) = vpolAA(1)+1.0_dp-vpolAA(2) ! vA- + vH+ - vAH
         deltavAA(2) = vpolAA(1)+vNa-vpolAA(3)    ! vA- + vNa+ - vANa
@@ -569,8 +576,10 @@ contains
         deltavAA(5) = vpolAA(1)+vMg-vpolAA(6)    ! vA- + vMg2+ - vAMg+
         deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7) ! 2vA- + vMg2+ -vA2Mg
         deltavAA(7) = vpolAA(1)+vK-vpolAA(8)    ! vA- + vK+ - vAK
-        deltavAA(8) = vpolAA(1)+vFe2-vpolAA(9)    ! vA- + vK+ - vAK
+        deltavAA(8) = vpolAA(1)+vFe2-vpolAA(9)    ! vA- + vFe2+ - vAFe2
         deltavAA(9) = 2.0_dp*vpolAA(1)+vFe2-vpolAA(10) ! 2vA- + vFe2+ -vA2Fe2
+        deltavAA(10) = vpolAA(1)+vFe3-vpolAA(11) ! vA- + vFe3+ - vAFe3(2+)
+        deltavAA(11) = 2.0_dp*vpolAA(1)+vFe3-vpolAA(12) ! 2vA- + vFe3+ -vA2Fe3
 
         if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA") then
             call init_vPP(info)
@@ -755,7 +764,7 @@ contains
 
         xFeCl3salt = (cFeCl3 * Na/(1.0e24_dp))*((vFe3+3.0_dp*vCl)*vsol) ! volume fraction FeCl3 
         xbulk%Fe3 = xFeCl3salt * vFe3/(vFe3+3.0_dp*vCl)
-        xbulk%Cl = xbulk%Cl+ xFeCl3salt*3.0_dp*vCl/(vFe2+3.0_dp*vCl)
+        xbulk%Cl = xbulk%Cl+ xFeCl3salt*3.0_dp*vCl/(vFe3+3.0_dp*vCl)
         
         xCaCl2salt = (cCaCl2*Na/(1.0e24_dp))*((vCa+2.0_dp*vCl)*vsol) ! volume fraction CaCl2 
         xbulk%Ca = xCaCl2salt*vCa/(vCa+2.0_dp*vCl)
@@ -1140,6 +1149,8 @@ contains
         vPP(Phos2Mg) = (2.0_dp*vpol(tPhos)+vMg ) * vsol
         vPP(PhosFe2) = (vpol(tPhos)+vFe2 ) * vsol
         vPP(Phos2Fe2) = (2.0_dp*vpol(tPhos)+vFe2 ) * vsol
+        vPP(PhosFe3) = (vpol(tPhos)+vFe3 ) * vsol
+        vPP(Phos2Fe3) = (2.0_dp*vpol(tPhos)+vFe3 ) * vsol
  
     end subroutine   init_vPP 
 
@@ -1153,6 +1164,8 @@ contains
         qPP(Phos2Mg) = 0
         qPP(PhosFe2) = 1
         qPP(Phos2Fe2) = 0
+        qPP(PhosFe3) = 2
+        qPP(Phos2Fe2) = 1
 
     end subroutine   init_qPP
 
@@ -1376,7 +1389,7 @@ contains
         
         line=0
         ios=0
-        maxline=9  !size(pKd)
+        maxline=11  !size(pKd)
         
         do while (line<maxline.and.ios==0)
             line=line+1

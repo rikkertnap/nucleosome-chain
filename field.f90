@@ -45,10 +45,12 @@ module field
     real(dp), dimension(:,:,:,:), allocatable   :: fdisPP       ! fraction  fdisPP(i,k,J,K)  
     real(dp), dimension(:,:), allocatable       :: fdisP2Mg     ! fraction  fdisP2Mg(i,k)  
     real(dp), dimension(:,:), allocatable       :: fdisP2Fe2    ! fraction  fdisP2Fe2(i,k)  
+    real(dp), dimension(:,:), allocatable       :: fdisP2Fe3    ! fraction  fdisP2Fe3(i,k)  
 
     real(dp), dimension(:,:), allocatable   :: fdisPP_loc, fdisPP_loc_swap     ! fdisPP(J,K) local equivalent of fraction of fdisPP(i,k,J,K)  
     real(dp)                                :: fdisP2Mg_loc, fdisP2Mg_loc_swap ! fdisP2Mg    local equivalent of fraction of fdisP2Mg(i,k)     
     real(dp)                                :: fdisP2Fe2_loc, fdisP2Fe2_loc_swap ! fdisP2Fe2    local equivalent of fraction of fdisP2Fe2(i,k)     
+    real(dp)                                :: fdisP2Fe3_loc, fdisP2Fe3_loc_swap ! fdisP2Fe2 
 
 contains
 
@@ -189,6 +191,7 @@ contains
             allocate(fdisPP(Nindex,maxneigh,maxfdisPP,maxfdisPP)) 
             allocate(fdisP2Mg(Nindex,maxneigh)) 
             allocate(fdisP2Fe2(Nindex,maxneigh)) 
+            allocate(fdisP2Fe3(Nindex,maxneigh))
 
         endif
  
@@ -198,7 +201,7 @@ contains
             allocate(rhoqphos(N))
             allocate(fdisPP_loc(maxfdisPP,maxfdisPP))
             allocate(fdisPP_loc_swap(maxfdisPP,maxfdisPP))
-        
+
         endif
 
     end subroutine allocate_field_pairs
@@ -214,6 +217,7 @@ contains
             fdisPP=0.0_dp
             fdisP2Mg=0.0_dp
             fdisP2Fe2=0.0_dp
+            fdisP2Fe3=0.0_dp
         endif
 
         if(systype=="nucl_ionbin_MgA") then
@@ -679,8 +683,8 @@ contains
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
-        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2
-        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2
+        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
+        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
@@ -732,36 +736,25 @@ contains
                         endif            
                     else
                         ! t=tA phophates
-
-                      !  do JJ=1,5
-                      !      do KK=1,5
-                      !          print*,"avfdisPP(",JJ,KK,")= ",avfdisPP(JJ,KK)
-                      !      enddo
-                      !  enddo
-                      !  print*,"avfdisP2Mg=",avfdisP2Mg
-                          
-                      !  sumavfdisPP=sum(avfdisPP)
-
-                      !  print*,"sumavfdisPP=",sumavfdisPP
  
-                        do k=1,10
+                        do k=1,12
                             avfdisA(k)=0.0_dp
                         enddo   
                             
                         ! charged phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=Phos
                             avfdisA(1)=avfdisA(1) + avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
  
                         ! protonated phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=PhosH    
                             avfdisA(2) = avfdisA(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
  
                         ! Na bound  phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=PhosNa
                             avfdisA(3) = avfdisA(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
@@ -773,37 +766,46 @@ contains
                         avfdisA(5) = 0.0_dp
 
                         ! K bound  phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=PhosK
                             avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
 
                         ! Mg bound phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=PhosMg
                             avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
 
                          ! Fe2 bound phosphates
-                        do JJ=1,6
+                        do JJ=1,7
                             KK=PhosFe2
                             avfdisA(9) = avfdisA(9)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
                         enddo
-                        
+
+                        ! Fe3 bound phosphates
+                        do JJ=1,7
+                            KK=PhosFe3
+                            avfdisA(11) = avfdisA(11)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
                         ! P2Mg bound phophates 
                         avfdisA(7)=2.0_dp*avfdisP2Mg
                         
                         ! P2Fe2 bound phophates 
                         avfdisA(10)=2.0_dp*avfdisP2Fe2
 
-                        do k=1,10
+                        ! P2Fe3 bound phophates 
+                        avfdisA(12)=2.0_dp*avfdisP2Fe3
+
+                        do k=1,12
                             avfdisA(k)=avfdisA(k)/2.0_dp
                         enddo  
                         ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
                          
                         avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6)  ! signed charged fraction   
                         
-                        print*,"warning check avfdis in average_charge_nucl_ionbin_Mg"
+                        print*,"warning: check avfdis(ta) in average_charge_nucl_ionbin_Mg"
 
 
                     endif               
@@ -1183,7 +1185,8 @@ contains
         ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
         ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
         ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos) ! Mg-phosphate
-        ion_excess_ads%Fe2 =      (avfdisA(9)+avfdisA(10)) *numberelem(index_Phos) ! Mg-phosphate
+        ion_excess_ads%Fe2 =      (avfdisA(9)+avfdisA(10)) *numberelem(index_Phos) ! Fe2-phosphate
+        ion_excess_ads%Fe3 =      (avfdisA(11)+avfdisA(12)) *numberelem(index_Phos) ! Fe3-phosphate
     
         
         ! calculate ion_excess_tot = sum of free adsorped ion excess
@@ -1193,10 +1196,11 @@ contains
         ion_excess_tot%Cl  = ion_excess%Cl  + ion_excess_ads%Cl   
         ion_excess_tot%Mg  = ion_excess%Mg  + ion_excess_ads%Mg
         ion_excess_tot%Fe2 = ion_excess%Fe2 + ion_excess_ads%Fe2
+        ion_excess_tot%Fe3 = ion_excess%Fe3 + ion_excess_ads%Fe3
         
         ! Calculate qnucl 
-        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl + 2.0_dp*ion_excess_tot%Mg)
-    
+        qnucl = abs(ion_excess_tot%Na + ion_excess_tot%K - ion_excess_tot%Cl + 2.0_dp*ion_excess_tot%Mg +& 
+                2.0_dp*ion_excess_tot%Fe2+ 3.0_dp*ion_excess_tot%Fe3 )
         ! Calculate individual betas
 
         beta_ion_excess%Na  =  ion_excess_tot%Na / qnucl
@@ -1204,6 +1208,7 @@ contains
         beta_ion_excess%Cl  = -ion_excess_tot%Cl / qnucl
         beta_ion_excess%Mg  = 2.0_dp*ion_excess_tot%Mg / qnucl
         beta_ion_excess%Fe2 = 2.0_dp*ion_excess_tot%Fe2 / qnucl
+        beta_ion_excess%Fe3 = 3.0_dp*ion_excess_tot%Fe3 / qnucl
             
     end subroutine make_beta
 

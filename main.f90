@@ -122,7 +122,7 @@ program main
     endif
 
     call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_field_pairs(nx,ny,nz,maxneigh,6,len_index_phos) ! internal systype switch !
+    call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(info)
@@ -154,7 +154,7 @@ program main
     ! .. loop over pH, or pKd etc  values
 
     if(runtype=="inputcspH".or.runtype=="inputMgpH".or.runtype=="inputcsKClpH"&
-        .or.runtype=="inputFe2pH") then 
+        .or.runtype=="inputFe2pH".or.runtype=="inputFe3pH") then 
         loop => pH
     else if (runtype=="rangepKd") then
         loop => pKd   
@@ -186,6 +186,14 @@ program main
         list => cFeCl2_array
         list_val => cFeCl2
 
+    else if(runtype=="inputFe3pH") then
+        call set_value_FeCl3(runtype,info)
+        call error_handler(info,"set_value_FeCl3")
+
+        num = num_cFeCl3
+        list => cFeCl3_array
+        list_val => cFeCl3
+
     else if(runtype=="inputcsKClpH") then
         call set_value_KCl(runtype,info)
         call error_handler(info,"set_value_KCl")
@@ -214,9 +222,9 @@ program main
         
         call maximum_xnucl(local_conf,isVolfracLargerOne)
         print*,"local_conf=",local_conf,"isVolfracLargerOne=",isVolfracLargerOne
-
+        
         if(no_overlapchain(c)) then 
-
+          
             isfirstguess = .true.
             use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
             iter = 0                    ! iteration counter
@@ -226,7 +234,7 @@ program main
             else
                 loop%val = loop%max
             endif
-
+            
             call set_fcn()
              
             loopstepsizebegin = loop%stepsize
@@ -235,7 +243,6 @@ program main
             maxlist_elem = num
             nlist_step = 0
             maxlist_step = 99
-
 
             do while (nlist_elem<=maxlist_elem .and. nlist_step<=maxlist_step )   ! loop over list items
 
@@ -252,10 +259,10 @@ program main
 
                 do while (loop%min<=loop%val.and.loop%val<=loop%max.and.&
                         (abs(loop%stepsize)>=loop%delta))
-                    
+
                     isfirstguess=(loop%val==loopbegin) 
 
-                    call init_vars_input()  ! sets chem potentials
+                    call init_vars_input()  ! sets chem potential
                       
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
@@ -269,13 +276,12 @@ program main
                     endif 
                    
                     if(systype=="nucl_ionbin_MgA") then
-                        call compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisPP)
+                        call compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
 
                 
                     if(isSolution) then
-
                         call compute_vars_and_output()
                         if(isfirstguess) then
                            do i=1,neqint

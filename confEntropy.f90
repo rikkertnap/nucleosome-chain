@@ -1123,7 +1123,7 @@ contains
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
-        use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc
+        use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc,  fdisP2Fe3_loc
         use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
         use myutils, only : lenText, newunit
         use modfcnMgexpl, only : compute_fdisPP
@@ -1223,7 +1223,7 @@ contains
                         do jj=1,nneigh(s,c)           ! loop neighbors 
      
                             m = indexconfpair(s,c)%elem(jj)
-                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc,k ,m)
+                            call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,fdisP2Fe2_loc,fdisP2Fe3_loc, k ,m)
                             !call compute_fdisPP(fdisPP_loc,fdisP2Mg_loc,k ,m)
 
                             lnpro =lnpro +(lnexppi(k,ta)+lnexppi(m,ta)+ (lnexppivw(k) +lnexppivw(m))*vnucl(1,ta) &

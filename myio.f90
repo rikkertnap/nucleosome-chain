@@ -38,11 +38,13 @@ module myio
     integer :: num_cMgCl2
     integer :: num_cKCl
     integer :: num_cFeCl2
+    integer :: num_cFeCl3
 
     real(dp), dimension(:), allocatable, target :: cNaCl_array ! salt concentrations
     real(dp), dimension(:), allocatable, target :: cMgCl2_array
     real(dp), dimension(:), allocatable, target :: cKCl_array 
     real(dp), dimension(:), allocatable, target :: cFeCl2_array
+    real(dp), dimension(:), allocatable, target :: cFeCl3_array
 
     ! varialble for allow steps in between given salt concentrations
     integer :: maxlist_step
@@ -68,8 +70,9 @@ module myio
     public :: myio_err_chainsfile, myio_err_energyfile, myio_err_chainmethod, myio_err_geometry
     public :: myio_err_graft, myio_err_index, myio_err_conf, myio_err_nseg, myio_err_readfile, myio_err_equilat 
     public :: myio_err_GBinputfile, myio_err_GBinputlabel
-    public :: num_cNaCl, num_cMgCl2, num_cKCl, num_cFeCl2, cNaCl_array, cMgCl2_array, cKCl_array, cFeCl2_array
-    public :: set_value_NaCl, set_value_MgCl2, set_value_KCl, set_value_FeCl2
+    public :: num_cNaCl, num_cMgCl2, num_cKCl, num_cFeCl2, num_cFeCl3 
+    public :: cNaCl_array, cMgCl2_array, cKCl_array, cFeCl2_array, cFeCl3_array
+    public :: set_value_NaCl, set_value_MgCl2, set_value_KCl, set_value_FeCl2, set_value_FeCl3
     public :: set_value_isVdW ! set_value_isVdW_on_values
     public :: maxlist_step
 
@@ -507,7 +510,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(7)
+    character(len=15) :: runtypestr(8)
     integer :: i
     logical :: flag
 
@@ -520,10 +523,11 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(5)="rangeVdWeps"
     runtypestr(6)="rangedielect"
     runtypestr(7)="inputFe2pH"
+    runtypestr(8)="inputFe3pH"
 
     flag=.FALSE.
 
-    do i=1,7
+    do i=1,8
         if(runtype==runtypestr(i)) flag=.TRUE.
     enddo
 
@@ -873,6 +877,57 @@ subroutine set_value_FeCl2(runtype,info)
     endif
 
 end subroutine  set_value_FeCl2
+
+subroutine set_value_FeCl3(runtype,info)
+
+    use myutils, only : newunit
+
+    character(len=12), intent(in) :: runtype
+    integer, intent(out) :: info
+
+    ! local variables
+    character(len=9) :: fname
+    integer :: ios, i, un_cs
+    logical :: exist
+
+    info=0
+
+    if(runtype=="inputFe3pH") then ! .or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+
+        !     .. read salt concentrations from file
+        write(fname,'(A9)')'saltFe.in'
+        inquire(file=fname,exist=exist)
+
+        if(exist) then
+            open(unit=newunit(un_cs),file=fname,iostat=ios,status='old')
+        else
+            print*,' File :',fname,' does not exit'
+            info = myio_err_file_exist
+            return
+        endif
+
+        if(ios > 0 ) then
+            print*, 'Error opening file saltFe.in : iostat =', ios
+            info = myio_err_inputfile
+            return
+        endif
+
+        read(un_cs,*)num_cFeCl3 ! read number of salt concentration form file
+        allocate(cFeCl3_array(num_cFeCl3))
+
+        do i=1,num_cFeCl3     ! read value salt concentration
+            read(un_cs,*)cFeCl3_array(i)
+        enddo
+        close(un_cs)
+
+    else
+        
+        print*,'Error wrong runtype in set_value_FeCl3'
+        info = myio_err_inputfile
+    
+    endif
+
+end subroutine  set_value_FeCl3
 
 subroutine check_value_geometry(geometry,info)
 
@@ -1604,7 +1659,7 @@ subroutine output_nucl_ionbin_Mg
         write(un_sys,*)'pKa(',t,')  = ',pKa(t)
     enddo    
     ! pKaA of phophate
-    do k=1,9
+    do k=1,11
         write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k),K0aAA(k)
     enddo
 
@@ -1683,7 +1738,7 @@ subroutine output_nucl_ionbin_Mg
     enddo
     write(un_sys,*)'qpoltot     = ',qpol_tot
 
-    do k=1,8
+    do k=1,12
         write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k)
     enddo
     do t=1,nsegtypes
@@ -1700,15 +1755,16 @@ subroutine output_nucl_ionbin_Mg
         enddo
     enddo    
     ! matrix of average pairs in chemical state (JJ)(KK)
-    do j=1,6
-        do k=1,6
+    do j=1,7
+        do k=1,7
             write(un_sys,'(A9,I5,A,I5,A5,ES25.16)')'avfdisPP(',j,',',k,')= ',avfdisPP(j,k)
         enddo
     enddo
 
     write(un_sys,*)'avfdisP2Mg  = ',avfdisP2Mg
     write(un_sys,*)'avfdisP2Fe2 = ',avfdisP2Fe2
-    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg+avfdisP2Fe2
+    write(un_sys,*)'avfdisP2Fe3 = ',avfdisP2Fe3
+    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg+avfdisP2Fe2+avfdisP2Fe3
 
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'cuantas     = ',cuantas
