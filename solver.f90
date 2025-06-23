@@ -22,7 +22,7 @@ subroutine solver(x, xguess, accuracy, residual, issolution)
 
     if(method.eq."kinsol") then
 
-    !    call kinsol_gmres_solver(x, xguess, accuracy, residual, issolution)
+        call kinsol_gmres_solver(x, xguess, accuracy, residual, issolution)
 
     else if(method.eq."anderson") then
 
