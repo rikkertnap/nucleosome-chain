@@ -48,8 +48,9 @@
     real(dp) :: vMg                ! volume positive Mg2+ ion in units of vsol
     real(dp) :: vFe2               ! volume positive Fe2+ ion in units of vsol  
     real(dp) :: vFe3               ! volume positive Fe3+ ion in units of vsol
-    real(dp) :: vNaCl
-    real(dp) :: vKCl
+    real(dp) :: vNaCl              ! volume NaCl ionpair in units of vsol 
+    real(dp) :: vKCl               ! volume KCl ionpair in units of vsol 
+    real(dp) :: vO2                ! volume dissolved O2 in units of vsol
   
     !  .. radii
   
@@ -60,6 +61,7 @@
     real(dp) :: RMg
     real(dp) :: RFe2 
     real(dp) :: RFe3
+    real(dp) :: RO2
 
     ! .. charges 
 
@@ -128,6 +130,7 @@
     logical :: write_frac            ! if .true. densityfrac, densityfracP and densityfacion also outputted
     logical :: write_Palpha          ! if .true. Palpha is outputted
     logical :: write_sys_only        ! if .true. only systemfile and energy file outputted
+    logical :: write_oxygen          ! if .true. xO2 is outputted
     
     ! .. chain variables 
     real(dp) :: lseg              ! segment length of A polymer in nm
@@ -212,6 +215,12 @@
     real(dp), target :: cFeCl3     ! concentration of FeCl2 in bulk in mol/liter 
                                    ! FEeCl3 does not truely exit, used here to get number of counter ion correct
 
+    real(dp) :: pO2                ! partial pressure oxygen in Pa
+    real(dp) :: Hcp_s              ! Henry constant of oxygen Hcp_s = ca /p unit : mol/(m^3 Pa)
+    real(dp) :: Hxp_s              ! Henry constant of oxygen Hxp_s = x /p  unit : 1/Pa
+    real(dp) :: rhoidO2            ! ideal number desnity of oxygen 
+    logical :: isO2present         ! logical switch to determine if O2 is consider or not            
+
     !  return error of subroutine read_pKds 
     integer, parameter ::  err_pKdfile_noexist = 1
     integer, parameter ::  err_pKdfile         = 2 
@@ -274,8 +283,10 @@ contains
                 neq = (1+numeq) * nsize
             case ("neutralnoVdW") 
                 neq = nsize  
-            case ("bulk water") 
+            case ("bulk_water") 
                 neq = 5 
+            case ("bulk_water_ox") 
+                neq = 1
             case default
                 print*,"Wrong value systype:  ",systype
                 call error_handler(1,"set_size_neq")
@@ -362,6 +373,9 @@ contains
         RMg = 0.072_dp             ! radius of Mg2+ in nm 
         RFe2= 0.078_dp             ! radius of Fe2+ in nm 
         RFe3= 0.064_dp             ! radius of Fe3+ in nm
+        RO2 = 0.3_dp               ! radius of  O2 in nm
+
+        print*,"Warning: init_contant:  value of volume radius of O2 ~ 0.3 nm!!"        
         
         ! .. volume
         
@@ -374,6 +388,7 @@ contains
         vMg  = ((4.0_dp/3.0_dp)*pi*(RMg)**3)/vsol 
         vFe2 = ((4.0_dp/3.0_dp)*pi*(RFe2)**3)/vsol 
         vFe3 = ((4.0_dp/3.0_dp)*pi*(RFe3)**3)/vsol 
+        vO2  = ((4.0_dp/3.0_dp)*pi*(RO2)**3)/vsol 
 
         vNaCl= (vNa+vCl)          ! contact ion pair
         vKCl = (vK+vCl)           ! contact ion pair
@@ -629,6 +644,164 @@ contains
 
     end function
 
+    subroutine solubility_oxygen_water(Temp, Hcp_s, Hxp_s)
+       
+        use physconst, only : Na
+
+        real(dp), intent(in) :: Temp ! temperature in Kelvin
+        real(dp), intent(inout) :: Hcp_s, Hxp_s
+
+        real(dp) :: Tc, Tstd, B , Hcps_std
+
+        Tstd = 298.15_dp      ! standard temperature
+        Tc = Temp 
+        Hcps_std = 1.3e-5_dp  ! unit mol/(m^3 Pa) at standard temperature
+        B = 1500.0_dp         ! unit Kelvin  B = d ln(H_s)/d(1/T)
+        ! source Sander Atmos. Phys. 23 10901 , 2023
+
+        Hcp_s = Hcps_std * exp( B *(1.0_dp/Tc -1.0/Tstd)) ! mol/(m^3 Pa) 
+        
+        Hxp_s = Hcp_s * (Na/1.0e27_dp) * vO2 * vsol         ! 1/ Pa
+
+        print*,"Hcp_s = ",Hcp_s," Hxp_s= ",Hxp_s
+
+    end subroutine  solubility_oxygen_water
+
+
+
+    subroutine solve_xbulk_with_oxygen(xbulk)
+
+        use globals, only : neq, systype
+        use physconst, only : Na
+        use myutils, only : lenText, print_to_log, LogUnit
+
+        type(moleclist), intent(inout) :: xbulk
+
+        ! local variables
+        real(dp) ::  xbulkidO2, xbulksalt, conc, tolerance
+        real(dp),  dimension(:), allocatable ::  x, xguess
+        character(len=15) :: systype_old
+        logical :: issolution
+        character(len=lenText) :: text
+
+        
+        call solubility_oxygen_water(Tref, Hcp_s, Hxp_s) 
+
+        ! convert mol/(m^3 Pa)
+        conc= pO2 * (Hcp_s/1000.0_dp)
+        print*,"concentration in Mol/l=", conc, " pressure in Pa = " ,pO2  
+        rhoidO2 = pO2 * (Hcp_s * Na / 1.0e27_dp ) ! density in 1/nm^3 :concentration of ideal solution in M=mol/l
+      
+        xbulkidO2 = rhoidO2 * vO2 * vsol ! xbulk = rho * Hcp_s also !!
+        print*,"x volume fraction =", xbulkidO2, " pressure again=", Hxp_s* xbulkidO2 
+
+        tolerance = 1.0e-10_dp
+        systype_old = systype 
+        systype = "bulk_water_ox"        ! set solver to fcnbulk
+        call set_size_neq()              ! number of nonlinear equations
+      
+       !  call set_fcn()                 ! set fcnptr to correct fcn   
+        allocate(x(neq))
+        allocate(xguess(neq))
+         
+        ! guess
+        xbulksalt=xbulk%Hplus +xbulk%OHmin +xbulk%Cl +xbulk%Na +xbulk%K+xbulk%NaCl+xbulk%KCl & 
+            +xbulk%Ca +xbulk%Fe2 +xbulk%Fe3 +xbulk%Mg 
+        x(1)= 2.0 ! 1.0_dp -(xbulksalt +xbulkidO2)           
+        xguess(1)=x(1)
+        
+        call solver(x, xguess, tolerance, fnorm, issolution) 
+            
+        !  .. return solution
+            
+        xbulk%sol = x(1)
+        xbulk%O2 = rhoidO2 * (vO2 * vsol) * ( xbulk%sol ** vO2 )
+
+
+         if(xbulk%sol<0) then
+            text="xsol%bulk negative : stop program."
+            call print_to_log(LogUnit,text) 
+            print*,text
+            stop
+        endif   
+
+        ! reset systype
+        systype = systype_old  
+        call set_size_neq()         ! number of nonlinear equations
+        ! call set_fcn() 
+
+        deallocate(x)
+        deallocate(xguess)
+        
+    end subroutine solve_xbulk_with_oxygen
+
+
+    subroutine solve_xbulk_with_ionbinding(xbulk)
+
+        use globals, only : neq, systype
+        use physconst, only : Na
+        use myutils, only : lenText, print_to_log, LogUnit
+
+        type(moleclist), intent(inout) :: xbulk
+
+        real(dp),  dimension(:), allocatable ::  x, xguess
+        character(len=15) :: systype_old
+        logical :: issolution
+        character(len=lenText) :: text
+
+        systype_old=systype 
+        systype="bulk_water"        ! set solver to fcnbulk
+        call set_size_neq()         ! number of nonlinear equations
+        allocate(x(neq))
+        allocate(xguess(neq))
+        
+        x(1)=xbulk%Na
+        x(2)=xbulk%Cl
+        x(3)=xbulk%NaCl
+        x(4)=xbulk%K
+        x(5)=xbulk%KCl
+        
+        xguess(1)=x(1)
+        xguess(2)=x(2)
+        xguess(3)=x(3)
+        xguess(4)=x(4)
+        xguess(5)=x(5)
+        
+        call solver(x, xguess, tol_conv, fnorm, issolution) 
+        
+        !     .. return solution
+        
+        xbulk%Na  =x(1)
+        xbulk%Cl  =x(2)
+        xbulk%NaCl=x(3)
+        xbulk%K   =x(4)
+        xbulk%KCl =x(5)
+
+        ! .. reset of flags
+        iter=0
+        systype=systype_old         ! switch solver back
+        call set_size_neq()         ! set number of non-linear equation  
+        
+        xbulk%sol=1.0_dp-xbulk%Hplus-xbulk%OHmin - xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl-xbulk%Ca 
+
+        if(xbulk%sol<0) then
+            text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
+            call print_to_log(LogUnit,text) 
+            print*,text
+            !call MPI_FINALIZE(ierr)
+            stop
+        endif   
+
+        ! reset systype
+        systype = systype_old  
+        call set_size_neq()         ! number of nonlinear equations
+        ! call set_fcn() 
+
+        deallocate(x)
+        deallocate(xguess)
+
+    end subroutine solve_xbulk_with_ionbinding
+
     subroutine init_elect_constants(Temp)
         
         use globals
@@ -709,15 +882,10 @@ contains
         use physconst, only : Na
         use dielectric_const
         use myutils, only : print_to_log,LogUnit,lenText
-    !    use mpivars
         
-        !     .. local variable
+        !   .. local variable
         
-        real(dp),  dimension(:), allocatable :: x         ! volume fraction solvent iteration vector 
-        real(dp),  dimension(:), allocatable :: xguess  
         integer :: i
-        character(len=15) :: systype_old
-        logical :: issolution
         character(len=lenText) :: text
         
         real(dp) :: xNaClsalt          ! volume fraction of NaCl salt in bulk
@@ -726,11 +894,10 @@ contains
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
+        real(dp) :: xO2salt            ! volume fraction of O2 disolved gas in bulk solution   
+        real(dp) :: xtmp
 
-        real(dp) :: KaAA6
-
-        allocate(x(5))
-        allocate(xguess(5))
+        real(dp) :: KaAA6              ! auxilary varialbe
         
         !     .. initializations of input dependent variables, electrostatic part 
         
@@ -774,64 +941,23 @@ contains
         xbulk%Mg = xMgCl2salt*vMg/(vMg+2.0_dp*vCl)
         xbulk%Cl = xbulk%Cl+ xMgCl2salt*2.0_dp*vCl/(vMg+2.0_dp*vCl)
 
-        xbulk%NaCl = 0.0_dp    ! no in pairing
+        xbulk%NaCl = 0.0_dp    ! no ion pairing
         xbulk%KCl = 0.0_dp     ! no ion pairing
-        
-        xbulk%sol=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
-                -xbulk%Ca -xbulk%Fe2 -xbulk%Fe3 -xbulk%Mg 
 
-
-        if(xbulk%sol<0) then
-            text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
-            call print_to_log(LogUnit,text)
-            print*,text
-            !call MPI_FINALIZE(ierr)
-            stop
-        endif   
-        
-
-        !     .. if Kion == 0 ion pairing !
-        !     .. intrinstic equilibruim constant acid        
-        !     Kion  = 0.246_dp ! unit 1/M= liter per mol !!!
-        K0ionK  = KionK /(vsol*Na/1.0e24_dp) ! intrinstic equilibruim constant 
-        K0ionNa = KionNa/(vsol*Na/1.0e24_dp) ! intrinstic equilibruim constant 
-        
-        if((KionNa/=0.0_dp).or.(KionK/=0.0_dp)) then  
-            systype_old=systype 
-            systype="bulk water"        ! set solver to fcnbulk
-            call set_size_neq()         ! number of nonlinear equations
+        ! established if xO2 in solution  
+        if(pO2>0.0_dp) then 
             
-            x(1)=xbulk%Na
-            x(2)=xbulk%Cl
-            x(3)=xbulk%NaCl
-            x(4)=xbulk%K
-            x(5)=xbulk%KCl
-            
-            xguess(1)=x(1)
-            xguess(2)=x(2)
-            xguess(3)=x(3)
-            xguess(4)=x(4)
-            xguess(5)=x(5)
-           
-            call solver(x, xguess, tol_conv, fnorm, issolution) 
-            
-            !     .. return solution
-            
-            xbulk%Na  =x(1)
-            xbulk%Cl  =x(2)
-            xbulk%NaCl=x(3)
-            xbulk%K   =x(4)
-            xbulk%KCl =x(5)
+            call solve_xbulk_with_oxygen(xbulk)
 
-            ! reset of flags
-            iter=0
-            systype=systype_old         ! switch solver back
-            call set_size_neq()         ! set number of non-linear equation  
-            !call set_fcn()              ! set fcnptr to correct fcn        
+            xtmp=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
+                -xbulk%Ca -xbulk%Fe2 -xbulk%Fe3 -xbulk%Mg -xbulk%O2 -xbulk%sol
+            print*,"xtmp=",xtmp
+        else 
+          
+            xbulk%O2 = 0.0_dp        
+            xbulk%sol=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
+                -xbulk%Ca -xbulk%Fe2 -xbulk%Fe3 -xbulk%Mg -xbulk%O2
             
-            xbulk%sol=1.0_dp-xbulk%Hplus-xbulk%OHmin - xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl-xbulk%Ca 
-
-
             if(xbulk%sol<0) then
                 text="xsol%bulk negative : wrong pH and or salt concentration,stop program."
                 call print_to_log(LogUnit,text)
@@ -839,10 +965,19 @@ contains
                 !call MPI_FINALIZE(ierr)
                 stop
             endif   
-            
+        endif    
+
+        !  .. if Kion == 0 ion pairing !
+        !  .. intrinstic equilibruim constant acid        
+        !  Kion  = 0.246_dp ! unit 1/M= liter per mol !!!
+        K0ionK  = KionK /(vsol*Na/1.0e24_dp) ! intrinstic equilibruim constant 
+        K0ionNa = KionNa/(vsol*Na/1.0e24_dp) ! intrinstic equilibruim constant 
+        
+        if((KionNa/=0.0_dp).or.(KionK/=0.0_dp)) then 
+            call solve_xbulk_with_ionbinding(xbulk)
         endif
          
-        !     .. intrinstic equilibruim constants      
+        !  .. intrinstic equilibruim constants      
         do i=1,4
              KaA(i)  = 10.0_dp**(-pKaA(i)) ! experimental equilibruim constant acid 
              KaB(i)  = 10.0_dp**(-pKaB(i)) ! experimental equilibruim constant acid
@@ -890,10 +1025,12 @@ contains
             expmu%Fe3   = (xbulk%Fe3  /(xbulk%sol**vFe3))*exp(bornbulk%Fe3) 
             expmu%Hplus = (xbulk%Hplus/xbulk%sol) *      exp(bornbulk%Hplus)  
             expmu%OHmin = (xbulk%OHmin/xbulk%sol) *      exp(bornbulk%OHmin)  
+            expmu%O2    = 0.0_dp ! no oxygen 
 
         else
 
             ! exp(beta mu_i) = (rhobulk_i v_i) / exp(- beta pibulk v_i) 
+
             expmu%Na    = xbulk%Na   /(xbulk%sol**vNa) 
             expmu%K     = xbulk%K    /(xbulk%sol**vK)
             expmu%Fe2   = xbulk%Fe2  /(xbulk%sol**vFe2)
@@ -905,7 +1042,7 @@ contains
             expmu%KCl   = xbulk%KCl  /(xbulk%sol**vKCl)
             expmu%Hplus = xbulk%Hplus/xbulk%sol ! vsol = vHplus 
             expmu%OHmin = xbulk%OHmin/xbulk%sol ! vsol = vOHmin 
-           
+            expmu%O2    = xbulk%O2   /(xbulk%sol**vO2)      
 
         endif    
               
@@ -918,12 +1055,14 @@ contains
             if(systype/="nucl_ionbin_Mg".and.systype/="nucl_ionbin_sv_Mg") then  
                 K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
             endif    
-        endif     
+        endif   
               
-        !     .. end init electrostatic part 
 
-        deallocate(x)
-        deallocate(xguess)
+         print*,"xbulk:"
+         print*,"xbulk%O2=",xbulk%O2
+         print*,"xbulk=",xbulk
+
+        !     .. end init electrostatic part 
         
     end subroutine init_expmu_elect
 

@@ -2536,6 +2536,47 @@ contains
 
     end subroutine fcnbulk
 
+
+
+    !  .. function solves for bulk volume fraction containing oxygeb
+
+    subroutine fcnbulkO2(x,f,nn)   
+
+        !     .. variables and constant declaractions 
+        use precision_definition
+
+        use globals, only : neq 
+        use parameters, only : xbulk, vO2, vsol, rhoidO2, iter
+
+        !     .. scalar arguments
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out):: f(neq)
+
+        !     .. local variables
+        real(dp) :: A, B, C, norm
+      
+
+        !     .. executable statements 
+
+        A = xbulk%Hplus +xbulk%OHmin +xbulk%Cl +xbulk%Na +xbulk%K+xbulk%NaCl+xbulk%KCl & 
+            +xbulk%Ca +xbulk%Fe2 +xbulk%Fe3 +xbulk%Mg 
+        !  sum over all bulk salt volume fractions 
+        B  = rhoidO2 *  vO2 * vsol
+        C  = vO2 ! exponent
+        
+     
+        f(1) = A + B * (x(1)**C) + x(1) - 1.0_dp 
+
+        norm=sqrt(f(1)**2)
+        iter=iter+1
+     
+       ! print*,'iter=', iter ,'norm=',norm
+
+    end subroutine fcnbulkO2
+
    ! Compute maximun volume fraction for conformation conf
    ! returns logical isVolfracLargerOne : .true. if xnucl(i)>1 for an i , .false. otherwise
 
@@ -2729,8 +2770,10 @@ contains
             fcnptr => fcnneutral
         case ("neutralnoVdW")           ! homopolymer neutral
             fcnptr => fcnneutralnoVdW
-        case ("bulk water")             ! determines compositon bulk electrolyte solution
+        case ("bulk_water")             ! determines compositon bulk electrolyte solution
              fcnptr => fcnbulk
+        case ("bulk_water_ox")             ! determines compositon bulk electrolyte solution
+             fcnptr => fcnbulkO2     
         case default
             print*,"Error in call to set_fcn subroutine"    
             print*,"Wrong value systype : ", systype

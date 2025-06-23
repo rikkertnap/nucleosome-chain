@@ -1170,6 +1170,9 @@ subroutine read_chains_xyz_nucl_volume(info)
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                     call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
                     call write_phosphate_pairs(.true.,conf,info)
+
+                    call find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
+
                 endif    
             
                 ! if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
@@ -4089,6 +4092,85 @@ subroutine write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
     close(un_pp)    
 
 end subroutine write_indexconfpair
+
+! Finds triplets of phosphate pairs for given conformation number conf 
+! Conformation is stored in chain
+! input integer :: nseg : number atoms/segment
+!       integer :: conf : conformation number
+!       integer :: tPphos : number associated with type of phosphates
+!       real(dp) :: sqrDphoscutoff : squared distance of cutoffdistance citeria for pair
+!       real(dp) :: chain(3,nseg) : hold coordiante of backbone confomation for all atom/segment
+!       real(dp) :: LX,Ly,Lz : dimension lattice/box in nm 
+
+
+subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
+
+    use chains, only :  type_of_monomer,indexconfpair
+    use chains, only : nneigh, indexconfpair, distphoscutoff
+    use parameters, only : tA 
+    use parameters, only : pbc_chains
+    use volume, only : delta, linearIndexFromCoordinate
+    use myutils, only : newunit
+    
+    integer, intent(in) :: nseg
+    integer, intent(in) :: conf
+    integer, intent(in) :: tPhos
+    real(dp), intent(in) :: sqrDphoscutoff
+    real(dp), intent(in) :: chain(3,nseg)
+
+    integer :: s, sprime, sdblprime, i, j
+    real(dp) :: sqrdist, sqrdists, sqrdistsprime
+    integer :: num_triplets 
+    
+    num_triplets = 0
+
+    do s=1,nseg 
+        nneigh(s,conf)=0
+        if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
+            do sprime=1,nseg
+                if(type_of_monomer(sprime)==tPhos ) then
+                    if(s/=sprime) then ! prevent s=sprime being counted as a pair
+                       
+                        sqrdist=0.0_dp
+                        do i=1,3
+                            sqrdist=sqrdist+(chain(i,s)-chain(i,sprime))**2
+                        enddo
+    
+                        if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
+                            ! accept s and sprime are a pair
+
+                            do sdblprime=1,nseg
+                                if(type_of_monomer(sdblprime)==tPhos ) then
+                                    if((s/=sdblprime).and.(sprime/=sdblprime )) then ! prevent sdblprime =s or s=sprime to count counted as a pair
+                                        sqrdists=0.0_dp
+                                        sqrdistsprime=0.0_dp
+                                        do i=1,3
+                                            sqrdists=sqrdists+(chain(i,sdblprime)-chain(i,s))**2
+                                            sqrdistsprime=sqrdistsprime+(chain(i,sdblprime)-chain(i,sprime))**2
+                                        enddo
+                                        if((sqrdists<=sqrDphoscutoff) .and. (sqrdistsprime<=sqrDphoscutoff) ) then 
+                                            ! accept sdlbprime as a pair with s and sprime 
+                                            print*,"triplet =",s," ",sprime,", ",sdblprime
+                                            num_triplets = num_triplets +1
+                                        endif
+                                    endif
+                                endif
+                            enddo
+
+                        endif
+
+                    endif
+                endif                        
+            enddo
+        endif
+    enddo 
+
+    print*,""
+    print*,"number of triplets = ", num_triplets
+
+    
+end subroutine find_phosphate_triplets_pairs
+
 
 ! Compute index_phos and len_phos:
 ! index_phos is a list representing all latice element that contain phosphates

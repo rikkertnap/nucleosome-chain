@@ -25,6 +25,7 @@ module field
     real(dp), dimension(:), allocatable :: xCl      ! volume fraction of negative ion
     real(dp), dimension(:), allocatable :: xHplus   ! volume fraction of Hplus
     real(dp), dimension(:), allocatable :: xOHmin   ! volume fraction of OHmin 
+    real(dp), dimension(:), allocatable :: xO2      ! volume fraction of O2 
 
     real(dp), dimension(:), allocatable :: rhoq     ! total free charge density in units of vsol  
     real(dp), dimension(:), allocatable :: epsfcn   ! relative dielectric constant 
@@ -59,39 +60,40 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,nsegtypes
         
         integer :: N
-        integer :: ier(27), i
+        integer :: ier(28), i
 
         N=Nx*Ny*Nz
 
         allocate(xpol(N),stat=ier(1))
-        allocate(xpol_t(N,nsegtypes),stat=ier(25))
-        allocate(rhopol(N,nsegtypes),stat=ier(2)) 
-        allocate(rhopolin(N,nsegtypes),stat=ier(3)) 
-        allocate(rhopol_charge(N,nsegtypes),stat=ier(26)) 
-        allocate(rhoqpol(N),stat=ier(4)) 
-        allocate(xsol(N),stat=ier(5))
-        allocate(psi(N+2*Nx*Ny),stat=ier(6))    !allocate(psi(N),stat=ier(6))
-        allocate(xNa(N),stat=ier(7))
-        allocate(xK(N),stat=ier(8))
-        allocate(xFe2(N),stat=ier(9)) 
-        allocate(xFe3(N),stat=ier(27))
-        allocate(xCa(N),stat=ier(10))
-        allocate(xMg(N),stat=ier(11))
-        allocate(xNaCl(N),stat=ier(12)) 
-        allocate(xKCl(N),stat=ier(13)) 
-        allocate(xCl(N),stat=ier(14)) 
-        allocate(xHplus(N),stat=ier(15))
-        allocate(xOHmin(N),stat=ier(16))
-        allocate(rhoq(N),stat=ier(17))
-        allocate(epsfcn(N),stat=ier(18))    
-        allocate(Depsfcn(N),stat=ier(19))  
-        allocate(fdis(N,nsegtypes),stat=ier(20))
-        allocate(fdisA(N,8),stat=ier(21))
-        allocate(fdisB(N,5),stat=ier(22))
-        allocate(gdisA(N,4,nsegtypes),stat=ier(23))
-        allocate(gdisB(N,3,nsegtypes),stat=ier(24))
-       
-        do i=1,26
+        allocate(xpol_t(N,nsegtypes),stat=ier(2))
+        allocate(rhopol(N,nsegtypes),stat=ier(3)) 
+        allocate(rhopolin(N,nsegtypes),stat=ier(4)) 
+        allocate(rhopol_charge(N,nsegtypes),stat=ier(5)) 
+        allocate(rhoqpol(N),stat=ier(6)) 
+        allocate(xsol(N),stat=ier(7))
+        allocate(psi(N+2*Nx*Ny),stat=ier(8))    !allocate(psi(N),stat=ier(6))
+        allocate(xNa(N),stat=ier(9))
+        allocate(xK(N),stat=ier(10))
+        allocate(xFe2(N),stat=ier(11)) 
+        allocate(xFe3(N),stat=ier(12))
+        allocate(xCa(N),stat=ier(13))
+        allocate(xMg(N),stat=ier(14))
+        allocate(xNaCl(N),stat=ier(15)) 
+        allocate(xKCl(N),stat=ier(16)) 
+        allocate(xCl(N),stat=ier(17)) 
+        allocate(xHplus(N),stat=ier(18))
+        allocate(xOHmin(N),stat=ier(19))
+        allocate(xO2(N),stat=ier(20))
+        allocate(rhoq(N),stat=ier(21))
+        allocate(epsfcn(N),stat=ier(22))    
+        allocate(Depsfcn(N),stat=ier(23))  
+        allocate(fdis(N,nsegtypes),stat=ier(24))
+        allocate(fdisA(N,8),stat=ier(25))
+        allocate(fdisB(N,5),stat=ier(26))
+        allocate(gdisA(N,4,nsegtypes),stat=ier(27))
+        allocate(gdisB(N,3,nsegtypes),stat=ier(28))
+        
+        do i=1,28
             if( ier(i)/=0 ) then
                 print*, 'Allocation error : stat =', ier(i),' for i= ',i
                 stop
@@ -121,6 +123,7 @@ contains
         deallocate(xCl) 
         deallocate(xHplus)
         deallocate(xOHmin)
+        deallocate(xO2)
         deallocate(rhoq)
         deallocate(epsfcn)
         deallocate(Depsfcn)
@@ -129,7 +132,6 @@ contains
         deallocate(fdisB)
         deallocate(gdisA)
         deallocate(gdisB)
-      
         
     end subroutine deallocate_field
 
@@ -164,6 +166,7 @@ contains
         xCl=0.0_dp
         xHplus=0.0_dp
         xOHmin=0.0_dp
+        xO2=0.0_dp
         rhoq=0.0_dp
         psi=0.0_dp
         fdis=0.0_dp

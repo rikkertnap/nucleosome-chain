@@ -50,7 +50,7 @@ module myio
     integer :: maxlist_step
 
     ! unit number
-    integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl
+    integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl, un_xO2
     integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
     integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
     integer :: un_chargepol
@@ -101,6 +101,7 @@ subroutine read_inputfile(info)
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
     logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
+    logical :: isSet_pO2
 
     if (present(info)) info = 0
 
@@ -126,6 +127,7 @@ subroutine read_inputfile(info)
     isSet_pbc_chains   =.false.
     isSet_GBtype       =.false.
     isSet_GBCOMtype    =.false.
+    isSet_pO2          =.false.
 
     write_mc_chains    =.false.
     write_struct       =.false.
@@ -135,6 +137,7 @@ subroutine read_inputfile(info)
     write_frac         =.false.
     write_Palpha       =.false.
     write_sys_only     =.false.
+    write_oxygen       =.true.
 
     ! default concentrations
     cKCl=0.0_dp
@@ -215,6 +218,9 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) cCaCl2
             case ('cMgCl2')
                 read(buffer,*,iostat=ios) cMgCl2
+            case ('pO2')
+                read(buffer,*,iostat=ios) pO2
+                isSet_pO2=.true.
             case ('nsize')
                 read(buffer,*,iostat=ios) nsize
             case ('nnucl')
@@ -430,6 +436,7 @@ subroutine read_inputfile(info)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
+    call set_value_double_var(pO2,isSet_pO2,0.0_dp)
 
     ! check value after set value
 
@@ -466,7 +473,7 @@ subroutine check_value_systype(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=15) :: systypestr(13)
+    character(len=15) :: systypestr(14)
     integer :: i
     logical :: flag
 
@@ -478,18 +485,20 @@ subroutine check_value_systype(systype,info)
     systypestr(4)="brush_mulnoVdW"
     systypestr(5)="brushdna"
     systypestr(6)="brushborn"
-    systypestr(7)="bulk water"
-    systypestr(8)="neutralnoVdW"
-    systypestr(9)="nucl_ionbin"
-    systypestr(10)="nucl_ionbin_sv"
-    systypestr(11)="nucl_neutral_sv"
-    systypestr(12)="nucl_ionbin_Mg"
-    systypestr(13)="nucl_ionbin_MgA"
+    systypestr(7)="neutralnoVdW"
+    systypestr(8)="nucl_ionbin"
+    systypestr(9)="nucl_ionbin_sv"
+    systypestr(10)="nucl_neutral_sv"
+    systypestr(11)="nucl_ionbin_Mg"
+    systypestr(12)="nucl_ionbin_MgA"
+    ! only need to check input systypes
+    systypestr(13)="bulk_water"
+    systypestr(14)="bulk_water_ox"
 
 
     flag=.FALSE.
 
-    do i=1,13
+    do i=1,12 
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -1033,17 +1042,21 @@ subroutine check_value_method(method,info)
     character(len=8), intent(in) :: method
     integer, intent(out),optional :: info
 
-    character(len=8) :: methodstr
+    character(len=8) :: methodstr(3)
     integer :: i
     logical :: flag
 
     ! permissible values of runtype
 
-    methodstr="kinsol"
+    methodstr(1)="kinsol"
+    methodstr(2)="anderson"
+    methodstr(3)="simple"
 
     flag=.FALSE.
-
-    if (method==methodstr) flag=.TRUE.
+    
+    do i=1,3   
+        if (method==methodstr(i)) flag=.TRUE.
+    enddo    
 
     if (present(info)) info = 0
 
@@ -1454,6 +1467,7 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: xNaClfilename
     character(len=90) :: xKClfilename
     character(len=90) :: xClfilename
+    character(len=90) :: xO2filename 
     character(len=90) :: potentialfilename
     character(len=90) :: chargefilename
     character(len=90) :: chargepolfilename
@@ -1490,6 +1504,7 @@ subroutine output_nucl_ionbin_Mg
     xNaClfilename  = 'xNaClionpair.'//trim(fnamelabel)
     xKClfilename   = 'xKClionpair.'//trim(fnamelabel)
     xClfilename    = 'xClions.'//trim(fnamelabel)
+    xO2filename    = 'xO2.'//trim(fnamelabel)
     potentialfilename = 'potential.'//trim(fnamelabel)
     chargefilename = 'charge.'//trim(fnamelabel)
     chargepolfilename = 'chargepol.'//trim(fnamelabel)
@@ -1538,6 +1553,9 @@ subroutine output_nucl_ionbin_Mg
         open(unit=newunit(un_xHplus),file=xHplusfilename)
         open(unit=newunit(un_xOHmin),file=xOHminfilename)
     endif
+
+    if(write_oxygen)   open(unit=newunit(un_xO2),file=xO2filename)
+       
 
     if(.not.write_sys_only) then 
 
@@ -1605,6 +1623,13 @@ subroutine output_nucl_ionbin_Mg
         enddo
     endif
 
+
+    if(write_oxygen) then 
+        do i=1,nsize
+            write(un_xO2,*)xO2(i),xO2(i)/Hxp_s
+        enddo
+    endif
+
     ! .. writing system information
 
     write(un_sys,*)'system      = nucleosome chain'
@@ -1650,9 +1675,11 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'xKClbulk    = ',xbulk%KCl
     write(un_sys,*)'xCabulk     = ',xbulk%Ca
     write(un_sys,*)'xMgbulk     = ',xbulk%Mg
+    write(un_sys,*)'xO2bulk     = ',xbulk%O2
     write(un_sys,*)'xHplusbulk  = ',xbulk%Hplus
     write(un_sys,*)'xOHminbulk  = ',xbulk%OHmin
     write(un_sys,*)'pHbulk      = ',pHbulk
+
 
     ! dissociation constants
     do t=1,nsegtypes
@@ -1662,7 +1689,8 @@ subroutine output_nucl_ionbin_Mg
     do k=1,11
         write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k),K0aAA(k)
     enddo
-
+    write(un_sys,*)'Hcp_s       = ',Hcp_s
+    write(un_sys,*)'Hxp_s       = ',Hxp_s
     write(un_sys,*)'KionNa      = ',KionNa
     write(un_sys,*)'KionK       = ',KionK
     write(un_sys,*)'K0ionNa     = ',K0ionNa
@@ -1701,6 +1729,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'vK          = ',vK*vsol
     write(un_sys,*)'vNaCl       = ',vNaCl*vsol
     write(un_sys,*)'vKCl        = ',vKCl*vsol
+    write(un_sys,*)'vO2         = ',vO2*vsol
 
     do t=1,nsegtypes
         write(un_sys,*)'lseg(',t,')     = ',lsegAA(t)
@@ -1850,6 +1879,10 @@ subroutine output_nucl_ionbin_Mg
         close(un_xHplus)
         close(un_xOHmin)
     endif
+
+    if(write_oxygen) close(un_xO2)
+
+
 
 end subroutine output_nucl_ionbin_Mg
 

@@ -16,6 +16,7 @@ module molecules
         real(dp) :: KCl
         real(dp) :: Hplus
         real(dp) :: OHmin
+        real(dp) :: O2
     end type moleclist
 
 
@@ -52,7 +53,7 @@ contains
         moleclist_record%KCl = 0.0_dp
         moleclist_record%Hplus = 0.0_dp
         moleclist_record%OHmin = 0.0_dp
-
+        moleclist_record%O2 = 0.0_dp
 
     end subroutine init_zero_moleclist
 

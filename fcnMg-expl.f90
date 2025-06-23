@@ -103,7 +103,7 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP
+        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP,vO2
         use parameters, only : zpol,zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
@@ -111,7 +111,7 @@ contains
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : energychainLJ, no_overlapchain
-        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,rhopol,rhopolin,rhoqpol,rhoq
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhopolin,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
@@ -191,6 +191,7 @@ contains
             xFe3(i)     = expmu%Fe3*(xsol(i)**vFe3)*exp(-psi(i)*zFe3) ! Fe+++ volume fraction
             xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
+            xO2(i)      = expmu%O2*(xsol(i)**vO2)                  ! O2 volume fraction
 
             lnexppivw(i) = log(xsol(i))/vsol                       ! auxilary variable  divide by vsol  !!
             local_rhoqphos(i) = 0.0_dp 
@@ -529,7 +530,7 @@ contains
             do i=1,n
 
                 f(i) = xpol_tot(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xFe2(i)+xCa(i)+xMg(i)+&
-                    xK(i)+xFe3(i)-1.0_dp
+                    xK(i)+xFe3(i)+xO2(i)-1.0_dp
                 rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
                     zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zFe2*xFe2(i)/vFe2 +zFe3*xFe3(i)/vFe3+zK*xK(i)/vK ! total charge density in units of vsol  
 
