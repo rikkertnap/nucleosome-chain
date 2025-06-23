@@ -101,7 +101,7 @@ subroutine read_inputfile(info)
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
     logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
-    logical :: isSet_pO2
+    logical :: isSet_pO2, isSet_write_oxygen
 
     if (present(info)) info = 0
 
@@ -121,6 +121,7 @@ subroutine read_inputfile(info)
     isSet_maxnchainsxy =.false.
     isSet_precondition =.false.
     isSet_write_Palpha =.false.
+    isSet_write_oxygen =.false.
     isSet_EnergyShift  =.false.
     isSet_maxfkfunevals =.false.
     isSet_maxniter     =.false. 
@@ -137,7 +138,7 @@ subroutine read_inputfile(info)
     write_frac         =.false.
     write_Palpha       =.false.
     write_sys_only     =.false.
-    write_oxygen       =.true.
+    write_oxygen       =.false.
 
     ! default concentrations
     cKCl=0.0_dp
@@ -327,6 +328,9 @@ subroutine read_inputfile(info)
             case ('write_Palpha')
                 read(buffer,*,iostat=ios) write_Palpha
                 isSet_write_Palpha=.true.
+            case ('write_oxygen')
+                read(buffer,*,iostat=ios) write_oxygen
+                isSet_write_oxygen=.true.
             case ('dielectscale%val')
                 read(buffer,*,iostat=ios) dielectscale%val
             case ('dielectscale%min')
@@ -433,6 +437,7 @@ subroutine read_inputfile(info)
     call set_value_int_var(maxfkfunevals,isSet_maxfkfunevals,1000)
     call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
+     call set_value_logical_var(write_oxygen,isSet_write_oxygen,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
