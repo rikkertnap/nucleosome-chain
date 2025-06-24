@@ -4125,7 +4125,6 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
     num_triplets = 0
 
     do s=1,nseg 
-        nneigh(s,conf)=0
         if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
             do sprime=1,nseg
                 if(type_of_monomer(sprime)==tPhos ) then
@@ -4150,7 +4149,7 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
                                         enddo
                                         if((sqrdists<=sqrDphoscutoff) .and. (sqrdistsprime<=sqrDphoscutoff) ) then 
                                             ! accept sdlbprime as a pair with s and sprime 
-                                            print*,"triplet =",s," ",sprime,", ",sdblprime
+                                            print*,"triplet =",s," ",sprime," ",sdblprime
                                             num_triplets = num_triplets +1
                                         endif
                                     endif

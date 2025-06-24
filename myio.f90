@@ -1684,6 +1684,7 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'xHplusbulk  = ',xbulk%Hplus
     write(un_sys,*)'xOHminbulk  = ',xbulk%OHmin
     write(un_sys,*)'pHbulk      = ',pHbulk
+    write(un_sys,*)'IS          = ',IS
 
 
     ! dissociation constants
@@ -2151,6 +2152,7 @@ subroutine output_nucl_mul
     write(un_sys,*)'xHplusbulk  = ',xbulk%Hplus
     write(un_sys,*)'xOHminbulk  = ',xbulk%OHmin
     write(un_sys,*)'pHbulk      = ',pHbulk
+    write(un_sys,*)'IS          = ',IS
 
     ! disociation constants
     do t=1,nsegtypes
@@ -2566,6 +2568,8 @@ subroutine output_elect
     write(un_sys,*)'xHplusbulk  = ',xbulk%Hplus
     write(un_sys,*)'xOHminbulk  = ',xbulk%OHmin
     write(un_sys,*)'pHbulk      = ',pHbulk
+    write(un_sys,*)'IS          = ',IS
+
     ! disociation constants
     write(un_sys,*)'pKa         = ',pKaA(1)
     write(un_sys,*)'pKaNa       = ',pKaA(2)

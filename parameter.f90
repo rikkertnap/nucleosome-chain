@@ -214,7 +214,9 @@
                                    ! FEeCl2 does not truely exit, used here to get number of counter ion correct
     real(dp), target :: cFeCl3     ! concentration of FeCl2 in bulk in mol/liter 
                                    ! FEeCl3 does not truely exit, used here to get number of counter ion correct
+    real(dp) :: IS                 ! ion strength solution in mol/liter  
 
+    ! .. bulk variable for oxygen     
     real(dp) :: pO2                ! partial pressure oxygen in Pa
     real(dp) :: Hcp_s              ! Henry constant of oxygen Hcp_s = ca /p unit : mol/(m^3 Pa)
     real(dp) :: Hxp_s              ! Henry constant of oxygen Hxp_s = x /p  unit : 1/Pa
@@ -871,7 +873,45 @@ contains
  
     end function
 
-         
+
+    ! computes ion strenth solution 
+    ! input type(moleclist) :: xbulk
+    ! return read(dp) :: IS 
+
+    function ion_strength(xbulk)result(IS)
+
+        use globals, only : neq, systype
+        use physconst, only : Na
+        use myutils, only : lenText, print_to_log, LogUnit
+
+        type(moleclist), intent(in) :: xbulk
+        real(dp) :: IS
+
+        type(moleclist) :: conc  ! concentratio ions 
+
+        IS = 0.0_dp
+
+        call init_zero_moleclist(conc)
+        
+        ! concentration in mol/l
+        conc%Na = xbulk%Na * (1.0e24_dp/Na)/(vNa*vsol) 
+        conc%K  = xbulk%K * (1.0e24_dp/Na)/(vK*vsol)
+        conc%Mg = xbulk%Mg * (1.0e24_dp/Na)/(vMg*vsol)
+        conc%Ca = xbulk%Ca * (1.0e24_dp/Na)/(vCa*vsol)
+        conc%Fe2 = xbulk%Fe2 * (1.0e24_dp/Na)/(vFe2*vsol) 
+        conc%Fe3 = xbulk%Fe3 * (1.0e24_dp/Na)/(vFe3*vsol)
+        conc%Cl = xbulk%Cl * (1.0e24_dp/Na)/(vCl*vsol) 
+        conc%Hplus = xbulk%Hplus * (1.0e24_dp/Na)/(vsol)
+        conc%OHmin = xbulk%OHmin * (1.0e24_dp/Na)/(vsol)
+
+        ! ion strength 
+        IS = IS + conc%Na + conc%K + conc%Cl+  conc%Hplus +conc%OHmin  ! monovalent ions
+        IS = IS + 4.0_dp * ( conc%Ca + conc%Mg + conc%Fe2)             ! divalent ions
+        IS = IS + 9.0_dp *  conc%Fe3                                   ! trivalent ions
+        IS = IS/ 2.0_dp 
+        
+    end function ion_strength
+
    
     !     purpose: initialize expmu needed by fcn 
     !     pre: first read_inputfile has to be called
@@ -1057,10 +1097,9 @@ contains
             endif    
         endif   
               
+        ! ionic strength 
+        IS= ion_strength(xbulk)
 
-         print*,"xbulk:"
-         print*,"xbulk%O2=",xbulk%O2
-         print*,"xbulk=",xbulk
 
         !     .. end init electrostatic part 
         
