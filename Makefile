@@ -116,6 +116,26 @@ LFFLAGS=$(LDFLAGS)
 FF= gfortran
 
 
+else ifeq ($(shell hostname),quser44)
+
+        is_quest = yes
+
+else ifeq ($(shell hostname),quser43)
+
+	is_quest = yes
+
+else ifeq ($(shell hostname),quser42)
+
+        is_quest = yes
+
+else ifeq ($(shell hostname),quser41)
+
+	is_quest = yes
+
+else ifeq ($(shell hostname),quser40)
+
+	is_quest = yes
+
 else ifeq ($(shell hostname),quser34)
 
         is_quest = yes
