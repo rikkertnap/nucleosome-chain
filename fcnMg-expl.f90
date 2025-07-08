@@ -819,7 +819,14 @@ contains
     end subroutine compute_average_charge_PP_expl
 
 
-    ! compute the average fraction of charged state of the phosphate pairs 
+
+    !  Compute FEchem contribution in case of binding of Mg tio pairs of phosphate   
+    !
+    ! Note FEchem implicity involve volcell= delta^3 since the  volume integration is done 
+    ! though evaluatinf  delta functions 
+    ! becuase \int \int dV dv" <\rho(r,r')> f_IJ(r,r') lne  = \sum_a,s,t Pro(a) delta (r-r(a,s)) delta(r'-r(a,t)) 
+    ! Compare density instead pair density contribution \int dV \rho(x) f(x) ln(f(x) + ..) 
+    ! this involve a explicet sum of the volume \int dV f(v) = delta^3 \sum(i,j,k) f(i,j,k)
 
     subroutine compute_FEchem_react_PP_expl(FEchemPP)
 

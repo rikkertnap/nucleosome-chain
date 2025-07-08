@@ -807,7 +807,7 @@ contains
                         enddo  
                         ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
                          
-                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6) ! signed charged fraction   
+                        avfdis(ta)= - avfdisA(1)+avfdisA(4)+avfdisA(6) ! signed charged fraction   
 
                     endif               
                 endif

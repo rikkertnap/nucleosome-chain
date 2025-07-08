@@ -556,7 +556,7 @@ contains
         if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA") then
             call init_vPP(info)
             call error_handler(info,"init_vPP")
-            call init_qpp()
+            call init_qPP()
         endif
             
         ! determine if there is only one seg type is chargeable

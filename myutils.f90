@@ -87,8 +87,8 @@ contains
         
 
     ! If info > 0 program stops after writting text message to screen and in log file.
-    ! input integer info
-
+    ! input integer :: info
+    !       character(*) :: message
     
     subroutine error_handler(info,message)
         
@@ -116,10 +116,7 @@ contains
             call print_to_log(LogUnit,text)
             print*,text
         endif
-
-
-
-
+        
     end subroutine error_handler
 
     ! in fortran 2008 newunit is provided 

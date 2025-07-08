@@ -140,6 +140,9 @@ program main
     call allocate_field(nx,ny,nz,nsegtypes)
     call allocate_field_pairs(nx,ny,nz,maxneigh,5,len_index_phos) ! internal systype switch !
     call init_field()
+    
+    ! call init_field_pairs() ! not necessary see compute_fdisPP
+    
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(info)
     call set_size_neq()             ! number of non-linear equation neq
@@ -192,7 +195,7 @@ program main
     else if(runtype=="rangedielect") then 
         loop => dielectscale   
     else
-        if(associated(loop)) nullify(loop) ! make explicit that no association is made
+        loop => null() ! make explicit that no association is made
     endif  
 
     ! .. select variable with which list_array to associate
@@ -270,7 +273,7 @@ program main
             if(rank==0) then     ! node rank=0
                 call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
                 call solver(x, xguess, tol_conv, fnorm, isSolution)
-                !isSolution=.true.
+                isSolution=.true.
                 call fcnptr(x, fvec, neq)
                 flag_solver = 0   ! stop nodes
                 do i = 1, numproc-1

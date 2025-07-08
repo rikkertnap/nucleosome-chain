@@ -943,16 +943,22 @@ subroutine check_value_method(method,info)
     character(len=8), intent(in) :: method
     integer, intent(out),optional :: info
 
-    character(len=8) :: methodstr
+    character(len=8) :: methodstr(3)
     logical :: flag
+    integer :: i
 
-    ! permissible values of runtype
+    ! permissible values of method
 
-    methodstr="kinsol"
+    methodstr(1)="kinsol"
+    methodstr(2)="anderson"
+    methodstr(3)="simple"
 
     flag=.FALSE.
 
-    if (method==methodstr) flag=.TRUE.
+    do i=1,3
+        if (method==methodstr(i)) flag=.TRUE.
+    enddo
+
 
     if (present(info)) info = 0
 
