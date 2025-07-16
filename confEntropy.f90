@@ -46,6 +46,9 @@ contains
             call FEconf_nucl_ionbin_Mg(FEconf,Econf)
         case ("nucl_ionbin_MgA")
             call FEconf_nucl_ionbin_MgA(FEconf,Econf)
+        case ("nucl_ionbin_Fe")
+            text="FEconf_entropy: systype: "//systype//" not yet implemented"
+            print*,text
         case ("nucl_neutral_sv")
             call FEconf_nucl_neutral_sv(FEconf,Econf)
         case default

@@ -860,7 +860,7 @@ contains
 
         do n=1,nmer 
             do k=1,3 ! get vector spanning plane
-                print*,'n=',n,'k=',k,'unitvector_triplets(n,k)=',unitvector_triplets(n,k)
+                ! print*,'n=',n,'k=',k,'unitvector_triplets(n,k)=',unitvector_triplets(n,k)
                 vec(:,k)=chain(:,unitvector_triplets(n,k))
             enddo
 

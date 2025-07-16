@@ -553,7 +553,6 @@ contains
            ! print*,"vPP(Phos)=",vPP(phos)
         
 
-
     end subroutine fcnnucl_Mg_expl
 
 
@@ -733,6 +732,8 @@ contains
         avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
         avfdisP2Fe2=avfdisP2Fe2/(sumrhopairs*q)
         avfdisP2Fe3=avfdisP2Fe3/(sumrhopairs*q)
+
+        print*,"sumphos=",sumrhopairs
             
     end subroutine compute_average_charge_PP_expl
 

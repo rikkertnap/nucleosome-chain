@@ -87,7 +87,7 @@ contains
 
         ! this should go somewhere else
  
-        if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
+        if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then
             rangecutoff=int(distphoscutoff/delta)+2 
             maxneigh = (2*rangecutoff+1)**3
             !call allocate_index_neighbors(maxneigh)

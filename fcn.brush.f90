@@ -2420,8 +2420,6 @@ contains
 
             call locate_xpol_lager_one(xpol)
 
-      
-
     end subroutine fcnneutralnoVdW
 
 
@@ -2463,6 +2461,24 @@ contains
 
     end subroutine fcnnucl_ionbin_sv_Mg_A
 
+    subroutine fcnnucl_ionbin_sv_Fe(x,f,nn)
+
+        use precision_definition
+        use globals , only : neq
+        use modfcnFeexpl
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Fe_expl(x,f,nn)
+
+    end subroutine fcnnucl_ionbin_sv_Fe
 
 
 
@@ -2686,7 +2702,8 @@ contains
         neqint=int(neq,kind(neqint))     ! explict conversion from integer(8) to integer
     
         select case (systype)
-            case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")      ! multi copolymer:
+            case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA",&
+                "nucl_ionbin_Fe")      ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo
@@ -2758,8 +2775,10 @@ contains
             fcnptr => fcnnucl_ionbin_sv_general
         case ("nucl_ionbin_Mg")
             fcnptr => fcnnucl_ionbin_sv_Mg
-       case ("nucl_ionbin_MgA")
+        case ("nucl_ionbin_MgA")
             fcnptr => fcnnucl_ionbin_sv_Mg_A
+        case ("nucl_ionbin_Fe")
+            fcnptr => fcnnucl_ionbin_sv_Fe
         case ("nucl_neutral_sv")
             fcnptr => fcnnucl_neutral_sv    
         case ("brushborn")

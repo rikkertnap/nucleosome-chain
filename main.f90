@@ -32,6 +32,7 @@ program main
     use dielectric_const
     use modfcnMg
     use modfcnMgexpl
+    use modfcnFeexpl
 
     implicit none
 
@@ -45,16 +46,15 @@ program main
     logical :: isfirstguess
     logical :: issolution
     integer :: info
-    character(len=lenText) :: text, istr, rstr
-    character(len=20) :: fname, conffilename
-    integer :: iend , un_conf
+    character(len=lenText) :: text, istr
+    character(len=20) :: fname
     type (looplist), pointer :: loop
     real(dp) :: loopbegin,  loopstepsizebegin
     real(dp), parameter :: loopeps = 1.0e-10_dp 
     real(dp), parameter :: listeps = 1.0e-7_dp   
     real(dp), dimension(:),  pointer :: list
     real(dp), pointer :: list_val
-    real(dp) :: list_first, list_step
+    real(dp) :: list_step
     integer  :: nlist_elem, maxlist_elem, nlist_step
     integer :: phoscutoff
     logical :: isVolfracLargerOne
@@ -70,14 +70,13 @@ program main
     text='program begins'
     call print_to_log(LogUnit,text)
     write(istr,'(A40)')VERSION
-    text='program version     = '//istr
-    call print_to_log(LogUnit,'program version     = '//istr)
+    text='program version     = '//trim(adjustl(istr))
+    call print_to_log(LogUnit,text)
     print*,text
 
     ! .. init
     call read_inputfile(info)
     call error_handler(info,"read_inputfile")
-
     call init_constants()
     call make_geometry()                        ! generate volume elements lattice
     call allocate_chain_parameters()            !  
@@ -90,39 +89,49 @@ program main
     call make_segcom(segcm,nnucl,segcmfname)
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
-       
+  
     ! init distributed volume  
     if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
-        systype=="nucl_ionbin_MgA") then 
+        systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then 
         call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
         call error_handler(info,"init_vnucl_type")
     endif 
-        
+
+
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
     ! call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
     call set_value_isVdW(systype,isVdW)
  
     write(istr,'(L2)')isVdW
-    text='VdW interaction: isVdW = '//istr
+    text='VdW interaction: isVdW = '//trim(adjustl(istr))
     call print_to_log(LogUnit,text) 
     print*,text
  
     call make_chains(chainmethod,systype)   
-
+    call allocate_field(nx,ny,nz,nsegtypes)
+    
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
         call find_phosphate_location(index_phos,inverse_index_phos,len_index_phos) 
         call allocate_index_neighbors_phos(maxneigh,len_index_phos)
         phoscutoff=int(distphoscutoff/delta)+2
-        call make_table_index_neighbors_phos(phoscutoff,len_index_phos,index_phos)
+        call make_table_index_neighbors_phos(phoscutoff,len_index_phos,index_phos) 
+        call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
     endif
 
     if(systype=="nucl_ionbin_MgA") then 
         phoscutoff=int(distphoscutoff/delta)+2
-    endif
+        call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
+    endif   
+    
+    if(systype=="nucl_ionbin_Fe") then 
+        phoscutoff=int(distphoscutoff/delta)+2
+        call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
+        call allocate_field_triplets(11)
+        call init_var_compute_fdisPPP
 
-    call allocate_field(nx,ny,nz,nsegtypes)
-    call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
+    endif   
+    
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(info)
@@ -131,9 +140,8 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info) 
-
+    
     if(write_struct) call error_handler(1,"stop after write_chains_struct")
-
 
     ! call test_index_histone(info)  
 
@@ -165,7 +173,7 @@ program main
     else if(runtype=="rangedielect") then 
         loop => dielectscale   
     else
-        if(associated(loop)) nullify(loop) ! make explicit that no association is made
+        nullify(loop) ! make explicit that no association is made
     endif  
 
     ! .. select variable with which list_array to associate
@@ -215,6 +223,7 @@ program main
     ! call error_handler(1,"stop")
 
     print*,"write_sys_only=", write_sys_only  
+
     do c=1,cuantas
 
         local_conf=c
@@ -262,12 +271,16 @@ program main
 
                     isfirstguess=(loop%val==loopbegin) 
 
-                    call init_vars_input()  ! sets chem potential
+                    call init_vars_input()  ! sets chem potential 
+
+                   ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
                       
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
+
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
+                    !isSolution=.true.
                     call fcnptr(x, fvec, neq)
-                    
+                 
                     call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
                     
                     if(systype=="nucl_ionbin_Mg") then  
@@ -280,6 +293,10 @@ program main
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
 
+                    if(systype=="nucl_ionbin_Fe") then
+                        call compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
+                    !    call compute_FEchem_react_PP_expl(FEchempair)
+                    endif          
                 
                     if(isSolution) then
                         call compute_vars_and_output()
@@ -300,7 +317,7 @@ program main
                         loop%stepsize=loop%stepsize/2.0d0   ! decrease increment
                         loop%val=loop%val-loop%stepsize     ! step back
                         
-                        do i=1,neq
+                        do i=1,neqint
                             x(i)=xguess(i)
                         enddo
                 
@@ -313,8 +330,6 @@ program main
                     iter  = 0              ! reset of iteration counter
 
                 enddo ! end while loop
-
-
                 
                 if(isSolution.or.(abs(loop%val-loopbegin)>loopeps) )then 
                     if(abs(list_val-list(nlist_elem))<listeps) then 

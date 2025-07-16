@@ -12,10 +12,10 @@ module anderson
 
     implicit none
 
-    real(dp), parameter ::  BETA_A=0.9         ! mixing parameter for anderson mixing 
-    real(dp), parameter ::  BETA_S=-0.2        ! mixing parameter for simple mixing 
-    real(dp), parameter ::  TOL_DELTA=0.1      ! treshold for Anderson to start 
-    integer, parameter  ::   NUMBER_SOL=5      ! number of previous solutions used in Anderson mixing */
+    real(dp), parameter ::  BETA_A=0.7 ! 0.9         ! mixing parameter for anderson mixing 
+    real(dp), parameter ::  BETA_S= -0.1   !  -0.2    ! mixing parameter for simple mixing 
+    real(dp), parameter ::  TOL_DELTA=0.0000001 ! 0.01     ! treshold for Anderson to start 
+    integer, parameter  ::  NUMBER_SOL=5       ! number of previous solutions used in Anderson mixing */
 
     integer ::  step   ! counter 
 
@@ -349,7 +349,7 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         fnorm = L2norm(fvec,NN)
         conv = (fnorm <= TOL)  ! 1=true if found solution */
 
-        print*,"step = ",step,"L2norm = ",fnorm
+!        print*,"step = ",step,"L2norm = ",fnorm
 
         step = step+1
     enddo    

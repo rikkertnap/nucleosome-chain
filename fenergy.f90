@@ -83,6 +83,9 @@ contains
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
+        case ("nucl_ionbin_Fe")
+            text="fcnenergy: systype: "//systype//" not implemnted yet"
+            print*,text
 
         case("elect")
             
@@ -106,8 +109,7 @@ contains
 
         case default  
 
-            text="fcnenergy: wrong systype: "//systype//"stopping program"
-            call print_to_log(LogUnit,text)
+           
             stop
         
         end select 

@@ -437,7 +437,7 @@ subroutine read_inputfile(info)
     call set_value_int_var(maxfkfunevals,isSet_maxfkfunevals,1000)
     call set_value_int8_var(maxniter,isSet_maxniter,int(1000,8))
     call set_value_logical_var(write_Palpha,isSet_write_Palpha,.false.)
-     call set_value_logical_var(write_oxygen,isSet_write_oxygen,.false.)
+    call set_value_logical_var(write_oxygen,isSet_write_oxygen,.false.)
     call set_value_logical_var(pbc_chains, isSet_pbc_chains,.false.)
     call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
@@ -478,7 +478,7 @@ subroutine check_value_systype(systype,info)
     character(len=15), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=15) :: systypestr(14)
+    character(len=15) :: systypestr(15)
     integer :: i
     logical :: flag
 
@@ -496,14 +496,17 @@ subroutine check_value_systype(systype,info)
     systypestr(10)="nucl_neutral_sv"
     systypestr(11)="nucl_ionbin_Mg"
     systypestr(12)="nucl_ionbin_MgA"
+    systypestr(13)="nucl_ionbin_Fe"
+    
     ! only need to check input systypes
-    systypestr(13)="bulk_water"
-    systypestr(14)="bulk_water_ox"
+
+    systypestr(14)="bulk_water"
+    systypestr(15)="bulk_water_ox"
 
 
     flag=.FALSE.
 
-    do i=1,12 
+    do i=1,15 
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -1051,7 +1054,7 @@ subroutine check_value_method(method,info)
     integer :: i
     logical :: flag
 
-    ! permissible values of runtype
+    ! permissible values of method
 
     methodstr(1)="kinsol"
     methodstr(2)="anderson"
@@ -1114,7 +1117,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=15), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=15) :: systypestr(9)
+    character(len=15) :: systypestr(10)
     integer :: i
     logical :: flag
 
@@ -1131,8 +1134,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(7)="nucl_neutral_sv"
         systypestr(8)="nucl_ionbin_Mg"
         systypestr(9)="nucl_ionbin_MgA"
+        systypestr(10)="nucl_ionbin_Fe"
 
-        do i=1,9
+        do i=1,10
             if(systype==systypestr(i)) flag=.true.
         enddo
 
@@ -1403,6 +1407,9 @@ end subroutine set_value_char_array_var
 subroutine output()
 
     use globals, only : systype
+    use myutils, only : lenText
+
+    character(len=lenText) :: text
 
     select case (systype)
     case ("elect") 
@@ -1424,6 +1431,12 @@ subroutine output()
 
         call output_nucl_ionbin_Mg
         call output_individualcontr_fe
+
+    case("nucl_ionbin_Fe") 
+        
+        text="output: systype: "//systype//" not implemnted yet"
+        call output_nucl_ionbin_Mg
+        !call output_individualcontr_fe
 
     case("nucl_neutral_sv")
 
@@ -1749,9 +1762,9 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'q residual  = ',qres
     write(un_sys,*)'tol_conv    = ',tol_conv
     write(un_sys,*)'denspol     = ',denspol
-    do t=1,nsegtypes
-        write(un_sys,*)'sumphi(',t,')    = ',sumphi(t)
-    enddo    
+    !do t=1,nsegtypes
+    !    write(un_sys,*)'sumphi(',t,')    = ',sumphi(t)
+    !enddo    
     write(un_sys,*)'check phi   = ',checkphi
     write(un_sys,*)'check xpol  = ',checkxpol
     write(un_sys,*)'FEq         = ',FEq
@@ -3101,7 +3114,7 @@ subroutine make_filename_label(fnamelabel)
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-        "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
+        "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
         
         fnamelabel=trim(sublabel)
         
@@ -3312,6 +3325,9 @@ subroutine compute_vars_and_output()
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
     use field, only : distribution_charge_nucl_ionbin_sv, max_potential
     use chains, only : avAsphparam
+    use myutils, only : lenText
+
+    character(len=lenText) :: text
     
     select case (systype)
     case ("elect")
@@ -3370,7 +3386,7 @@ subroutine compute_vars_and_output()
         call max_potential()
         call output()           
 
-      case ("nucl_ionbin_MgA")
+    case ("nucl_ionbin_MgA")
 
         call charge_polymer()
         call average_charge_polymer()        
@@ -3378,9 +3394,22 @@ subroutine compute_vars_and_output()
         call make_ion_excess()
         call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential() 
-        call output()       
+        call output()   
 
-     case ("nucl_neutral_sv")
+    case ("nucl_ionbin_Fe")   
+
+        text="compute_vars_and_input: systype: "//systype//" not implemnted yet"
+        print*,text
+        
+        call charge_polymer()
+        call average_charge_polymer()        
+        !call fcnenergy() ! need avfdis in check_volumefraction routine
+        call make_ion_excess()
+        !call make_beta(sumphi) ! sumphi computed in fcnenergy()
+        call max_potential() 
+        call output()   
+
+    case ("nucl_neutral_sv")
 
         call fcnenergy()
         call output()           

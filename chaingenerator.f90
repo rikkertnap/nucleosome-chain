@@ -264,7 +264,7 @@ subroutine read_chains_xyz(systype,info)
     integer, intent(out) :: info
 
     if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
-       .or. systype=="nucl_ionbin_MgA") then 
+       .or. systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe") then 
         call read_chains_xyz_nucl_volume(info)
     else
         call read_chains_xyz_nucl(info)
@@ -732,6 +732,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
     use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, Asphparam
     use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
+    use chains, only : allocate_indexconftriplet, allocate_ntriplet
     use eigenvalues, only : asphericty_parameter
     use parameters, only : VdWscale, isChainEnergyFile, isVdW, isvdwintene, mtpdbfname, orientfname
     use parameters, only : pbc_chains, readinchains, unit_conv, vnucl, write_rotations
@@ -885,7 +886,8 @@ subroutine read_chains_xyz_nucl_volume(info)
     !nrotpts=rotation_triplets(1)
     
     ! return position (chain_elem) and number (nelem) of elements of every AA segment
-                        
+                          
+
     call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
     if(info/=0) return
 
@@ -930,15 +932,22 @@ subroutine read_chains_xyz_nucl_volume(info)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
     
     ! pairs variable 
-    if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA") then 
+    if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
         call allocate_indexconfpair(cuantas,nseg)
         call allocate_nneighbor(cuantas,nseg)
         tPhos = find_type_phosphate()
     endif
-   
+    ! triplet  variable 
+    if(systype=="nucl_ionbin_Fe") then 
+        print*,"allocate_indexconftriplet"
+        call allocate_indexconftriplet(cuantas,nseg)
+        call allocate_ntriplet(cuantas,nseg)
+    endif
+
     if(isVdW) call init_GBenergyeffective(segcm,nnucl,segnumAAstart,segnumAAend) 
     
     isReadGood=.true. 
+   
 
     do while ((conf<=max_confor).and.isReadGood)
     
@@ -999,7 +1008,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 chain(2,s) = xseg(2,s)-xseg(2,nrotpts) 
                 chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
             enddo
-
+          
 
             ! 0. rotate chain 
             
@@ -1079,6 +1088,7 @@ subroutine read_chains_xyz_nucl_volume(info)
             endif     
 
             ! 6. make indexconfig i.e. place conformation on lattice
+              
 
             select case (geometry)
             case ("cubic")
@@ -1166,15 +1176,24 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 enddo ! end s loop
 
-                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then
+                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA")  then
+    
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                     call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
                     call write_phosphate_pairs(.true.,conf,info)
-
-                    call find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
-
+                
                 endif    
-            
+
+                if(systype=="nucl_ionbin_Fe") then
+                
+                    call find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                    call write_phosphate_triplets(.true.,conf,info)
+                    call find_phosphate_pairs_exclude_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                    call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
+                    call write_phosphate_pairs(.true.,conf,info)
+                    
+                endif  
+
                 ! if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
 
                 energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
@@ -1189,14 +1208,16 @@ subroutine read_chains_xyz_nucl_volume(info)
                 energychainLJ(conf)    = energyLJ
                 energychain(conf)      = energy
                 no_overlapchain(conf)  = no_overlap 
+
                 Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
                 Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
                 bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
                 dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
                 nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
                 gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+    
                 Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
-
+               
                 if(COMOLD) then     
                     Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
                     Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
@@ -1207,7 +1228,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                     Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
                 endif 
 
-                conf=conf+1   
+                conf=conf+1       
                                     
             case("prism") 
                     
@@ -3158,6 +3179,65 @@ subroutine write_phosphate_pairs(write_pairs,conf,info)
 end subroutine write_phosphate_pairs
 
 
+subroutine write_phosphate_triplets(write_triplets,conf,info)
+
+    use globals, only : cuantas,nseg
+    use myutils, only : lenText, newunit
+    use chains, only : type_of_monomer, ntriplet, indexconftriplet, distphoscutoff
+    use parameters, only : ta
+
+    implicit none 
+
+    logical, intent(in) :: write_triplets
+    integer, intent(in) :: conf
+    integer, intent(inout) :: info
+ 
+    ! .. local
+    character(len=lenText) :: filename
+    integer :: un_pp, num_triplets
+    integer :: s, j, tPhos
+    character(len=10) ::istr
+
+    info=0
+
+    num_triplets=0
+    do s=1,nseg
+        if(ntriplet(s,conf)>0) num_triplets=num_triplets+ntriplet(s,conf)
+    enddo
+    num_triplets = num_triplets/3
+
+
+    print*,"write_triplets=",write_triplets
+    
+    if(write_triplets) then
+
+        tPhos = find_type_phosphate()
+        
+        write(istr,'(I4)')conf
+        filename='phosphate_triplets.'//trim(adjustl(istr))//'.log'
+        
+        !     .. opening file
+        open(unit=newunit(un_pp),file=filename)
+
+        write(un_pp,*)"phosphate triplets"
+        write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+        write(un_pp,*)"distphoscutoff=",distphoscutoff
+        write(un_pp,*)"conf=",conf
+        write(Un_pp,*)"number of triplets = ", num_triplets
+
+        do s=1,nseg
+            if(ntriplet(s,conf)>0) then 
+                write(un_pp,*)s,type_of_monomer(s),ntriplet(s,conf),&
+                    (indexconftriplet(1,s,conf)%elem(j),indexconftriplet(2,s,conf)%elem(j),j=1,ntriplet(s,conf))
+            endif
+        enddo
+            
+        close(un_pp)
+          
+    endif
+        
+end subroutine write_phosphate_triplets
+
 
 subroutine set_mapping_num_to_char(type_of_monomer_num_to_char)
 
@@ -4004,9 +4084,7 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
     enddo 
 
     ! print 
-
-
-    if(.true.)then
+    if(.true.) then
         
         fname='phosphate_pairs.log'
         fname=trim(adjustl(fname))
@@ -4093,6 +4171,142 @@ subroutine write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
 
 end subroutine write_indexconfpair
 
+
+! Like subroutine find_phosphate_pairs
+! Here phosphate monomers belonging to tripelt are exluded from being pairs
+! pre  find_phosphate_triplets need to establihsed first : use ntriplet
+
+subroutine find_phosphate_pairs_exclude_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+
+    use chains, only :  type_of_monomer,indexconfpair
+    use chains, only : nneigh, indexconfpair, distphoscutoff, ntriplet
+    use parameters, only : tA 
+    use parameters, only : pbc_chains
+    use volume, only : delta, linearIndexFromCoordinate
+    use myutils, only : newunit,LogUnit, error_handler, print_to_log
+    
+    integer, intent(in) :: nseg
+    integer, intent(in) :: conf
+    integer, intent(in) :: tPhos
+    real(dp), intent(in) :: sqrDphoscutoff
+    real(dp), intent(in) :: chain(3,nseg)
+    real(dp), intent(in) :: Lx,Ly,Lz
+
+    integer, parameter :: maxnneigh = 10
+
+    integer :: s, sprime, i, j, xi, yi, zi , idx
+    integer, dimension(:,:), allocatable :: list_of_pairs, index_of_pairs
+    real(dp) :: sqrdist
+
+    character(len=100) :: fname, text
+    integer :: un_pp, info
+    character(len=10) ::istr
+    logical ::  pair_triplet_disjoined
+    
+    allocate(list_of_pairs(nseg,maxnneigh))
+    allocate(index_of_pairs(nseg,maxnneigh))
+
+    info=0
+
+    do s=1,nseg 
+        nneigh(s,conf)=0
+        if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
+            if(ntriplet(s,conf)==0) then 
+                do sprime=1,nseg
+                    if(type_of_monomer(sprime)==tPhos ) then
+                        if(s/=sprime) then ! prevent s=sprime being counted as a pair
+                            if(ntriplet(sprime,conf)==0) then  
+
+                                sqrdist=0.0_dp
+                                do i=1,3
+                                    sqrdist=sqrdist+(chain(i,s)-chain(i,sprime))**2
+                                enddo
+    
+                                if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
+                                    ! accept s and sprime are a pair
+                                    nneigh(s,conf)=nneigh(s,conf)+1
+                                    list_of_pairs(s,nneigh(s,conf))=sprime ! temporarily storage of  segment number of neighbor to (s,conf)
+
+                                    ! transforming form real- to lattice coordinates                 
+                                    
+                                    if(pbc_chains) then  
+                                        xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                        yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                        zi = int(pbc(chain(3,sprime),Lz)/delta)+1
+                                    else 
+                                        xi = int(chain(1,sprime)/delta)+1
+                                        yi = int(chain(2,sprime)/delta)+1
+                                        zi = int(chain(3,sprime)/delta)+1
+                                    endif    
+
+                                    call linearIndexFromCoordinate(xi,yi,zi,idx)
+                                    !idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                                    
+                                    index_of_pairs(s,nneigh(s,conf))=idx  ! temporarily storage of index of neighbor to (s, conf)
+                                endif
+                            endif
+                        endif 
+                    endif
+                enddo
+            endif                    
+        endif    
+    enddo 
+
+    ! print 
+    if(.true.) then
+        
+        fname='phosphate_pairs.log'
+        fname=trim(adjustl(fname))
+        !     .. opening file
+        open(unit=newunit(un_pp),file=fname)
+
+        write(un_pp,*)"phosphate pairs"
+        write(un_pp,*)"value ta=",ta, "value tPhos=",tPhos
+        write(un_pp,*)"distphoscutoff=",distphoscutoff
+        write(un_pp,*)"conf=",conf
+        do s=1,nseg
+             write(un_pp,*)s,type_of_monomer(s),nneigh(s,conf),(list_of_pairs(s,j),j=1,nneigh(s,conf))
+        enddo
+        close(un_pp)
+
+    endif        
+
+    ! allocate indexconfpair
+    do s=1,nseg
+        allocate(indexconfpair(s,conf)%elem(nneigh(s,conf)))
+    enddo
+    
+    ! ..assign indexconfpair
+    do s=1,nseg
+        do j=1,nneigh(s,conf)
+            indexconfpair(s,conf)%elem(j)=index_of_pairs(s,j)
+        enddo 
+    enddo 
+
+    deallocate(list_of_pairs)
+    deallocate(index_of_pairs)
+
+    ! check that union of sets of pairs and triplet is empty 
+    ! ntriplet(s,conf) nonozero then nneigh(s,conf) zero and reverse
+
+    pair_triplet_disjoined=.true.
+    do s=1,nseg
+        if(ntriplet(s,conf)>0)then
+            if(nneigh(s,conf)>0) pair_triplet_disjoined=.false.
+        endif    
+    enddo
+
+    if(.not.pair_triplet_disjoined) then
+        info=1
+        text="Warning: union of sets of pairs and triplets is NOT empty"
+        print*,text
+        call print_to_log(LogUnit,text) 
+        call error_handler(info,"find_phosphate_pairs_exclude_triplets")
+    endif
+
+end subroutine find_phosphate_pairs_exclude_triplets
+
+
 ! Finds triplets of phosphate pairs for given conformation number conf 
 ! Conformation is stored in chain
 ! input integer :: nseg : number atoms/segment
@@ -4103,10 +4317,11 @@ end subroutine write_indexconfpair
 !       real(dp) :: LX,Ly,Lz : dimension lattice/box in nm 
 
 
-subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
+subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
 
     use chains, only :  type_of_monomer,indexconfpair
     use chains, only : nneigh, indexconfpair, distphoscutoff
+    use chains, only : ntriplet,indexconftriplet
     use parameters, only : tA 
     use parameters, only : pbc_chains
     use volume, only : delta, linearIndexFromCoordinate
@@ -4117,13 +4332,25 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
     integer, intent(in) :: tPhos
     real(dp), intent(in) :: sqrDphoscutoff
     real(dp), intent(in) :: chain(3,nseg)
+    real(dp), intent(in) :: Lx,Ly,Lz
 
-    integer :: s, sprime, sdblprime, i, j
+    ! local variables 
+     integer, parameter :: maxntriplet = 1
+
+
+    integer :: s, sprime, sdblprime, i, j, idx, idxdble
     real(dp) :: sqrdist, sqrdists, sqrdistsprime
-    integer :: num_triplets 
-    
-    num_triplets = 0
+    integer :: num_triplets, countseg
+    integer :: xi, yi, zi 
 
+    integer, dimension(:,:,:), allocatable ::  list_of_triplets
+    integer, dimension(:,:,:), allocatable :: index_of_triplets
+
+    allocate(list_of_triplets(nseg,maxntriplet,2))
+    allocate(index_of_triplets(2,nseg,maxntriplet))
+    
+    ntriplet=0
+    
     do s=1,nseg 
         if(type_of_monomer(s)==tPhos) then ! tPhos equiv to ta which is not set yet 
             do sprime=1,nseg
@@ -4138,7 +4365,7 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
                         if(sqrdist<=sqrDphoscutoff) then ! comparing square of distance to square of cutoff  
                             ! accept s and sprime are a pair
 
-                            do sdblprime=1,nseg
+                            do sdblprime=sprime+1,nseg ! sdbprime=1,nseg
                                 if(type_of_monomer(sdblprime)==tPhos ) then
                                     if((s/=sdblprime).and.(sprime/=sdblprime )) then ! prevent sdblprime =s or s=sprime to count counted as a pair
                                         sqrdists=0.0_dp
@@ -4150,7 +4377,42 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
                                         if((sqrdists<=sqrDphoscutoff) .and. (sqrdistsprime<=sqrDphoscutoff) ) then 
                                             ! accept sdlbprime as a pair with s and sprime 
                                             print*,"triplet =",s," ",sprime," ",sdblprime
-                                            num_triplets = num_triplets +1
+                                            ntriplet(s,conf)= ntriplet(s,conf)+1
+
+                                             
+                                            list_of_triplets(s,ntriplet(s,conf),1) = sprime ! temporarily storage 
+                                            list_of_triplets(s,ntriplet(s,conf),2) = sdblprime
+                                            
+                                            ! transforming form real- to lattice coordinates                 
+                            
+                                            if(pbc_chains) then  
+                                                xi = int(pbc(chain(1,sprime),Lx)/delta)+1
+                                                yi = int(pbc(chain(2,sprime),Ly)/delta)+1
+                                                zi = int(pbc(chain(3,sprime),Lz)/delta)+1
+                                            else 
+                                                xi = int(chain(1,sprime)/delta)+1
+                                                yi = int(chain(2,sprime)/delta)+1
+                                                zi = int(chain(3,sprime)/delta)+1
+                                            endif    
+
+                                            call linearIndexFromCoordinate(xi,yi,zi,idx)
+                                            !idx = coordtoindex(xi,yi,zi) ! hash-table look up
+                                        
+                                             if(pbc_chains) then  
+                                                xi = int(pbc(chain(1,sdblprime),Lx)/delta)+1
+                                                yi = int(pbc(chain(2,sdblprime),Ly)/delta)+1
+                                                zi = int(pbc(chain(3,sdblprime),Lz)/delta)+1
+                                            else 
+                                                xi = int(chain(1,sdblprime)/delta)+1
+                                                yi = int(chain(2,sdblprime)/delta)+1
+                                                zi = int(chain(3,sdblprime)/delta)+1
+                                            endif    
+
+                                            call linearIndexFromCoordinate(xi,yi,zi,idxdble)
+                                            !idx dble= coordtoindex(xi,yi,zi) ! hash-table look up
+                                            
+                                            index_of_triplets(1,s,ntriplet(s,conf))=idx  ! temporarily storage 
+                                            index_of_triplets(2,s,ntriplet(s,conf))=idxdble  ! temporarily storage 
                                         endif
                                     endif
                                 endif
@@ -4164,11 +4426,40 @@ subroutine find_phosphate_triplets_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain)
         endif
     enddo 
 
-    print*,""
-    print*,"number of triplets = ", num_triplets
+    ! print 
+    if(.true.) then 
+        num_triplets=0
+        do s=1,nseg
+            if(ntriplet(s,conf)>0) then
+                num_triplets=num_triplets+ntriplet(s,conf)
+                print*,"ntriplet(",s,conf,")=",ntriplet(s,conf)
+            endif     
+        enddo
 
+        num_triplets = num_triplets/3
+        print*,""
+        print*,"number of triplets = ", num_triplets
+    endif
+
+
+    ! allocate indexconftriplet
+    do s=1,nseg
+        allocate(indexconftriplet(1,s,conf)%elem(ntriplet(s,conf)))
+        allocate(indexconftriplet(2,s,conf)%elem(ntriplet(s,conf)))
+    enddo
     
-end subroutine find_phosphate_triplets_pairs
+    ! ..assign indexconftriplet
+    do s=1,nseg
+        do j=1,ntriplet(s,conf)
+            indexconftriplet(1,s,conf)%elem(j)=index_of_triplets(1,s,j)
+            indexconftriplet(2,s,conf)%elem(j)=index_of_triplets(2,s,j)
+        enddo 
+    enddo 
+
+    deallocate(list_of_triplets)
+    deallocate(index_of_triplets)
+    
+end subroutine find_phosphate_triplets
 
 
 ! Compute index_phos and len_phos:

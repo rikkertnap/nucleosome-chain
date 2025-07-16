@@ -26,6 +26,7 @@
     integer, parameter :: Phos2Mg=8   ! warning renumbered this from 6 to 7 to 8  !!!
     integer, parameter :: Phos2Fe2=9
     integer, parameter :: Phos2Fe3=10
+    integer, parameter :: Phos3Fe3=11
 
 
     !  .. volume 
@@ -33,13 +34,14 @@
     real(dp) :: vsol                 ! volume of solvent  in nm^3       
     real(dp) :: vpolA(5),deltavA(4)  ! volume of one polymer segment, vpol  in units of vsol
     real(dp) :: vpolB(5),deltavB(4)
-    real(dp) :: vpolAA(12),deltavAA(11)        
+    real(dp) :: vpolAA(13),deltavAA(13)        
     real(dp), dimension(:), allocatable         :: vpol   ! volume of polymer segment of given type, vpol in units of vsol
     real(dp), dimension(:,:), allocatable       :: vnucl  ! volume of segment type t element j  
     character(len=3), dimension(:), allocatable :: vnucl_type_char
     real(dp), dimension(:),   allocatable       :: vnucl_type
     logical , dimension(:),   allocatable       :: vnucl_type_isChargeable
-    real(dp), dimension(10) :: vPP  ! volume of different chemical states of phosphate 
+    real(dp), dimension(10) :: vPP
+    real(dp), dimension(11) :: vPPP ! volume of different chemical states of phosphate 
     
     real(dp) :: vNa                ! volume Na+ ion in units of vsol
     real(dp) :: vK                 ! volume K+  ion in units of vsol
@@ -69,7 +71,8 @@
     integer :: zpolAA(8)
     integer :: zpolA(5)          ! valence charge polymer
     integer :: zpolB(5)          ! valence charge polymer
-    integer, dimension(10) :: qPP ! charge of different phosphate chemical state
+    integer, dimension(10) :: qPP  ! charge of different phosphate chemical state in pairs
+    real, dimension(11)    :: qPPP ! charge of different phophatec chemical state in triplet
 
     integer :: zNa               ! valence charge Na+ ion 
     integer :: zK                ! valence charge K+ ion 
@@ -184,7 +187,7 @@
 
     real(dp) :: KaA(4),K0aA(4),pKaA(4)     ! constant for  acid 
     real(dp) :: KaB(4),K0aB(4),pKaB(4)   
-    real(dp) :: KaAA(11),K0aAA(11), pKaAA(11) 
+    real(dp) :: KaAA(12),K0aAA(12), pKaAA(12) 
     type (looplist), target :: pKd         ! binding constants 
     type (looplist), target :: deltaGd 
       
@@ -261,7 +264,7 @@ contains
                 neq = 2 * nsize     
             case ("nucl_neutral_sv")
                 neq =  nsize 
-            case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
+            case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
                 neq = 2 * nsize 
             case ("brushdna","nucl_ionbin")
                 numeq=0 
@@ -552,6 +555,7 @@ contains
                 pKaAA(9)=  4.0_dp   ! A2Fe   <=> 2A^- + Fe^++  
                 pKaAA(10)= -0.4_dp  ! AFe^2+ <=> A^-  + Fe^+++  
                 pKaAA(11)= 4.0_dp   ! A2Fe^+ <=> 2A^- + Fe^+++  
+                pKaAA(12)= 4.0_dp   ! A3Fe   <=> 3A^- + Fe^+++  
 
             else ! errro
                 print*,"Error in init_dna:"
@@ -560,12 +564,12 @@ contains
             endif    
         endif
         
-        do i=1,11
+        do i=1,size(K0aAA)
             KaAA(i) = 10.0_dp**(-pKaAA(i))  
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
 
-        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA") then
+        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA".and. systype/="nucl_ionbin_Fe") then ! old binding model
             K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
             K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
         endif 
@@ -585,25 +589,37 @@ contains
         vpolAA(10) = 2.0_dp*vA+vFe2 ! vA2Fe2 
         vpolAA(11) = vA+vFe3        ! vAFe3
         vpolAA(12) = 2.0_dp*vA+vFe3 ! vA2Fe3 
+        vpolAA(13) = 3.0_dp*vA+vFe3 ! vA3Fe3 
         
-        deltavAA(1) = vpolAA(1)+1.0_dp-vpolAA(2) ! vA- + vH+ - vAH
-        deltavAA(2) = vpolAA(1)+vNa-vpolAA(3)    ! vA- + vNa+ - vANa
-        deltavAA(3) = vpolAA(1)+vCa-vpolAA(4)    ! vA- + vCa2+ - vACa+
-        deltavAA(4) = 2.0_dp*vpolAA(1)+vCa-vpolAA(5) ! 2vA- + vCa2+ -vA2Ca 
-        deltavAA(5) = vpolAA(1)+vMg-vpolAA(6)    ! vA- + vMg2+ - vAMg+
-        deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7) ! 2vA- + vMg2+ -vA2Mg
-        deltavAA(7) = vpolAA(1)+vK-vpolAA(8)    ! vA- + vK+ - vAK
-        deltavAA(8) = vpolAA(1)+vFe2-vpolAA(9)    ! vA- + vFe2+ - vAFe2
-        deltavAA(9) = 2.0_dp*vpolAA(1)+vFe2-vpolAA(10) ! 2vA- + vFe2+ -vA2Fe2
-        deltavAA(10) = vpolAA(1)+vFe3-vpolAA(11) ! vA- + vFe3+ - vAFe3(2+)
-        deltavAA(11) = 2.0_dp*vpolAA(1)+vFe3-vpolAA(12) ! 2vA- + vFe3+ -vA2Fe3
+        
+        deltavAA(1) = vpolAA(1)+1.0_dp-vpolAA(2)        ! vA- + vH+ - vAH
+        deltavAA(2) = vpolAA(1)+vNa-vpolAA(3)           ! vA- + vNa+ - vANa
+        deltavAA(3) = vpolAA(1)+vCa-vpolAA(4)           ! vA- + vCa2+ - vACa+
+        deltavAA(4) = 2.0_dp*vpolAA(1)+vCa-vpolAA(5)    ! 2vA- + vCa2+ -vA2Ca 
+        deltavAA(5) = vpolAA(1)+vMg-vpolAA(6)           ! vA- + vMg2+ - vAMg+
+        deltavAA(6) = 2.0_dp*vpolAA(1)+vMg-vpolAA(7)    ! 2vA- + vMg2+ -vA2Mg
+        deltavAA(7) = vpolAA(1)+vK-vpolAA(8)            ! vA- + vK+ - vAK
+        deltavAA(8) = vpolAA(1)+vFe2-vpolAA(9)          ! vA- + vFe2+ - vAFe2
+        deltavAA(9) = 2.0_dp*vpolAA(1)+vFe2-vpolAA(10)  ! 2vA- + vFe2+ -vA2Fe2
+        deltavAA(10) = vpolAA(1)+vFe3-vpolAA(11)        ! vA- + vFe3+ - vAFe3(2+)
+        deltavAA(11) = 2.0_dp*vpolAA(1)+vFe3-vpolAA(12) ! 2vA- + vFe3+ -vA2Fe3(1+) 
+        deltavAA(12) = 3.0_dp*vpolAA(1)+vFe3-vpolAA(13) ! 3vA- + vFe3+ -vA2Fe3
 
-        if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA") then
+
+        if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then
             call init_vPP(info)
             call error_handler(info,"init_vPP")
             call init_qpp()
         endif
             
+
+        if(systype=="nucl_ionbin_Fe") then
+            call init_vPPP(info)
+            call error_handler(info,"init_vPPP")
+            call init_qppp()
+        endif
+            
+
         ! determine if there is only one seg type is chargeable
         flag_one=0
         do tt=1,nsegtypes
@@ -991,7 +1007,7 @@ contains
 
             xtmp=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
                 -xbulk%Ca -xbulk%Fe2 -xbulk%Fe3 -xbulk%Mg -xbulk%O2 -xbulk%sol
-            print*,"xtmp=",xtmp
+            !print*,"xtmp=",xtmp
         else 
           
             xbulk%O2 = 0.0_dp        
@@ -1035,7 +1051,7 @@ contains
         K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
  
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.& 
-           systype=="nucl_ionbin_MgA") then 
+           systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then 
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
         endif    
@@ -1139,7 +1155,7 @@ contains
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
-        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA") 
+        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe") 
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
@@ -1216,7 +1232,7 @@ contains
         integer, intent(in) :: nelemtypes
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA") then 
+           systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe") then 
             allocate(vnucl(nelemtypes,nsegtypes))
         endif    
 
@@ -1230,7 +1246,7 @@ contains
         integer, intent(in) :: nelemtypes
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA") then 
+           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
@@ -1254,6 +1270,7 @@ contains
         if(systype=="nucl_ionbin_sv") vnucl=0.0_dp 
         if(systype=="nucl_ionbin_Mg") vnucl=0.0_dp
         if(systype=="nucl_ionbin_MgA") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_Fe") vnucl=0.0_dp
 
     end subroutine init_vnucl
        
@@ -1277,7 +1294,7 @@ contains
         pKaion = 0.0_dp
         
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA") then 
+           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
         endif    
        
@@ -1295,10 +1312,12 @@ contains
     end subroutine init_lseg
 
 
-    ! Inits vPP in terms of vpol 
-    ! used only for systype equal nucl_ionbin_Mg
-    ! pre:  vpol and vsol and tA need to be set before 
-    ! post:  vPP 
+    ! vPP is equal to volume of indivual phosphate of pair when NOT in a briged state 
+    ! vPP in a bridged state i.e. state= Phos2Mg, Phos2Fe2 or Phos2Fe3 , equal to totat volume of pairs
+    ! Meaning e.g vPP(Phos2Mg)/2 is volume per phosphate 
+    ! vPP uses vpol(tphos) in units of terms of vsol 
+    ! pre:  vpol and vsol and tA need to be set 
+    ! post: vPP 
 
     subroutine init_vPP(info)
 
@@ -1328,24 +1347,103 @@ contains
         vPP(PhosFe2) = (vpol(tPhos)+vFe2 ) * vsol
         vPP(Phos2Fe2) = (2.0_dp*vpol(tPhos)+vFe2 ) * vsol
         vPP(PhosFe3) = (vpol(tPhos)+vFe3 ) * vsol
-        vPP(Phos2Fe3) = (2.0_dp*vpol(tPhos)+vFe3 ) * vsol
+        vPP(Phos2Fe3) = (2.0_dp*vpol(tPhos)+vFe3 ) * vsol  
+       !  vPP(Phos3Fe3) = (3.0_dp*vpol(tPhos)+vFe3 ) * vsol
  
     end subroutine   init_vPP 
 
+    ! vPPP equal vPP for nonovalent condensation reaction : singlet
+    ! vPPP is not vPP for pair and triplet
+    ! vPPP is volume of one phosphate that is part of a triplet in a given chamical state
+    ! vPPP indivual volumer 
+    ! for doublet 1/2 of the total volume of total volume doublet state 
+    ! for triplet 1?3 of the total volume of total volume triplet state  
+    ! vPPP uses vpol(tphos) in units of terms of vsol 
+    ! pre:  vpol and vsol and tA need to be set 
+    ! post: vPPP 
+
+    subroutine init_vPPP(info)
+
+        integer, intent(inout) :: info
+        integer :: tPhos
+        real(dp), parameter :: eps_vpol=1.0e-5_dp
+
+        tPhos = tA
+        info = 0
+
+        if(tPhos==0) then
+            info=err_error
+            return
+        endif
+
+        if(abs(vpol(tPhos))<eps_vpol) then 
+            info=err_error
+            return
+        endif    
+
+        ! singlet state of triplet
+
+        vPPP(Phos) = vpol(tPhos) * vsol
+        vPPP(PhosH) = vpol(tPhos) * vsol
+        vPPP(PhosK) = (vpol(tPhos)+vK ) * vsol
+        vPPP(PhosNa) = (vpol(tPhos)+vNa ) * vsol 
+        vPPP(PhosMg) = (vpol(tPhos)+vMg ) * vsol
+        vPPP(PhosFe2) = (vpol(tPhos)+vFe2 ) * vsol
+        vPPP(PhosFe3) = (vpol(tPhos)+vFe3 ) * vsol
+
+        ! doublet state of triplet 
+        vPPP(Phos2Mg) = (2.0_dp*vpol(tPhos)+vMg ) * vsol /2.0_dp
+        vPPP(Phos2Fe2) = (2.0_dp*vpol(tPhos)+vFe2 ) * vsol /2.0_dp
+        vPPP(Phos2Fe3) = (2.0_dp*vpol(tPhos)+vFe3 ) * vsol  /2.0_dp
+
+        ! triplet state of triplet
+        vPPP(Phos3Fe3) = (3.0_dp*vpol(tPhos)+vFe3 ) * vsol/3.0_dp
+ 
+    end subroutine   init_vPPP
+
     subroutine init_qPP()
         
+        ! charge of phophate as part of pair
+        ! singlet charge of pair
         qPP(Phos) = -1
         qPP(PhosH) = 0
         qPP(PhosK) = 0
         qPP(PhosNa) = 0
         qPP(PhosMg) = 1
-        qPP(Phos2Mg) = 0
         qPP(PhosFe2) = 1
-        qPP(Phos2Fe2) = 0
         qPP(PhosFe3) = 2
-        qPP(Phos2Fe2) = 1
+
+        ! doublet charge of pair
+        qPP(Phos2Mg) = 0
+        qPP(Phos2Fe2) = 0
+        qPP(Phos2Fe3) = 1
 
     end subroutine   init_qPP
+    
+    subroutine init_qPPP()
+        ! charge of phospahte as part of triplet state 
+        ! singlet charge of triplet  
+        
+        qPPP(Phos) = -1.0_dp
+        qPPP(PhosH) = 0.0_dp
+        qPPP(PhosK) = 0.0_dp
+        qPPP(PhosNa) = 0.0_dp
+        qPPP(PhosMg) = 1.0_dp
+        qPPP(PhosFe2) = 1.0_dp 
+        qPPP(PhosFe3) = 2.0_dp
+
+        ! doublet charges of triplet 
+ 
+        qPPP(Phos2Mg)  = 0.0_dp
+        qPPP(Phos2Fe2) = 0.0_dp
+        qPPP(Phos2Fe3) = 0.5_dp ! half of qPP(Phos2Fe3) distribute over pair
+
+        ! charge of phospahte that for a trivalent triplet state 
+        qPPP(Phos3Fe3) = 0.0_dp
+
+
+    end subroutine   init_qPPP
+
 
     !  .. assign vpol from values in file named filename
     !  .. values vpol are normalized by vsol
@@ -1567,11 +1665,12 @@ contains
         
         line=0
         ios=0
-        maxline=11  !size(pKd)
+        maxline=size(pKd) ! 12
         
         do while (line<maxline.and.ios==0)
             line=line+1
             read(un,*,iostat=ios)pKd(line)
+            !print*,line,pKd(line)
         enddo
         
         close(un)
@@ -1806,7 +1905,7 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

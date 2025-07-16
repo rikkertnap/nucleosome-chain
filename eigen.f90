@@ -49,12 +49,17 @@ function Asphericty_parameter(Rgsqr,gyr_tensor)result(Ap)
     real(dp) :: bsph,ccyl
     real(dp) :: sumeigen,diffRg2
 
-    call comp_eigenvalues(3,gyr_tensor,eigenvalues,info_eigen)
+    call comp_eigenvalues(3,gyr_tensor,eigenvalues,info_eigen) 
     
     bsph = eigenvalues(3)-(eigenvalues(1)+eigenvalues(2))/2.0_dp
-    ccyl = eigenvalues(2)-eigenvalues(1)
+    ccyl = eigenvalues(2)-eigenvalues(1)      
 
-    Ap=(bsph*bsph+(3.0_dp/4.0_dp)*ccyl*ccyl)/Rgsqr**2
+    if(Rgsqr>0.0_dp) then 
+        Ap=(bsph*bsph+(3.0_dp/4.0_dp)*ccyl*ccyl)/Rgsqr**2
+    else
+        Ap= 0.0_dp 
+        print*, "Warning in Asphericty_parameter : Rgsqr = 0 !"
+    endif    
 
     sumeigen = sum(eigenvalues)
     diffRg2=abs(sumeigen-Rgsqr)

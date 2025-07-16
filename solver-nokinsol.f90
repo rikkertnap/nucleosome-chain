@@ -11,18 +11,17 @@ subroutine solver(x, xguess, accuracy, residual, isSolution)
     !     .. arguments
     real(dp), dimension(neq) :: x  ! explicit size array
     !real(dp) :: x(neq)
-    real(dp), dimension(neq) :: xguess
+    real(dp), dimension(neq) :: xguess 
     real(dp), intent(in) :: accuracy
     real(dp), intent(out) :: residual
     logical, intent(out)  :: isSolution
-
 
     call set_size_neq
     call set_fcn
 
     if(method.eq."kinsol") then
 
-        call kinsol_gmres_solver(x, xguess, accuracy, residual, isSolution)
+!        call kinsol_gmres_solver(x, xguess, accuracy, residual, issolution)
 
     else if(method.eq."anderson") then
 

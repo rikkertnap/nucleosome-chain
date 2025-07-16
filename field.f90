@@ -52,6 +52,10 @@ module field
     real(dp)                                :: fdisP2Mg_loc, fdisP2Mg_loc_swap ! fdisP2Mg    local equivalent of fraction of fdisP2Mg(i,k)     
     real(dp)                                :: fdisP2Fe2_loc, fdisP2Fe2_loc_swap ! fdisP2Fe2    local equivalent of fraction of fdisP2Fe2(i,k)     
     real(dp)                                :: fdisP2Fe3_loc, fdisP2Fe3_loc_swap ! fdisP2Fe2 
+    
+    real(dp), dimension(:,:,:), allocatable   :: fdisPPP_loc1 , fdisPPP_loc1_swap    ! fdisPPP(J,K,L)  
+    real(dp), dimension(:,:,:), allocatable   :: fdisPPP_loc2 , fdisPPP_loc2_swap    ! fdisPPP(J,K,L)  
+    real(dp), dimension(:,:,:), allocatable   :: fdisPPP_loc3 , fdisPPP_loc3_swap    ! fdisPPP(J,K,L)  
 
 contains
 
@@ -183,7 +187,7 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP,len_index_phos
 
         integer :: N, Nindex
-        integer :: ier(26), i
+        integer :: i
 
 
         if(systype=="nucl_ionbin_Mg") then 
@@ -198,7 +202,7 @@ contains
 
         endif
  
-        if(systype=="nucl_ionbin_MgA") then
+        if(systype=="nucl_ionbin_MgA" .or. systype =="nucl_ionbin_Fe") then
 
             N=Nx*Ny*Nz
             allocate(rhoqphos(N))
@@ -208,6 +212,25 @@ contains
         endif
 
     end subroutine allocate_field_pairs
+
+    subroutine allocate_field_triplets(maxfdisPPP)
+
+        use globals, only : systype 
+        integer, intent(in) :: maxfdisPPP
+
+        if(systype=="nucl_ionbin_Fe") then
+
+            allocate(fdisPPP_loc1(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+            allocate(fdisPPP_loc1_swap(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+            allocate(fdisPPP_loc2(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+            allocate(fdisPPP_loc2_swap(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+            allocate(fdisPPP_loc3(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+            allocate(fdisPPP_loc3_swap(maxfdisPPP,maxfdisPPP,maxfdisPPP))
+
+        endif
+
+    end subroutine allocate_field_triplets
+
 
 
     subroutine init_field_pairs()
@@ -231,6 +254,21 @@ contains
         endif
 
     end subroutine init_field_pairs
+
+    subroutine init_field_triplets()
+       
+        use globals, only : systype
+ 
+        if(systype=="nucl_ionbin_Fe") then
+            fdisPPP_loc1=0.0_dp
+            fdisPPP_loc1_swap=0.0_dp
+            fdisPPP_loc2=0.0_dp
+            fdisPPP_loc2_swap=0.0_dp
+            fdisPPP_loc3=0.0_dp
+            fdisPPP_loc3_swap=0.0_dp
+        endif
+
+    end subroutine init_field_triplets
 
     !  compute routines 
 
@@ -283,6 +321,8 @@ contains
     subroutine charge_polymer()
 
         use globals, only : systype
+
+        character(len=80) :: text
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
@@ -301,7 +341,7 @@ contains
 
             call charge_nucl_ionbin_sv()  
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
 
             call charge_nucl_ionbin_Mg() 
 
@@ -522,6 +562,8 @@ contains
     subroutine average_charge_polymer()
 
         use globals, only : systype
+
+        character(len=80) :: text
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
@@ -540,7 +582,13 @@ contains
 
             call average_charge_nucl_ionbin_sv()
 
-         case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+
+            call average_charge_nucl_ionbin_Mg()
+
+        case ("nucl_ionbin_Fe")
+            text="average_charge_polymer: systype: nucl_ionbin_Fe  not yet implemented"
+            print*,text 
 
             call average_charge_nucl_ionbin_Mg()
 

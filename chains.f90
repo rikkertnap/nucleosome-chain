@@ -22,6 +22,11 @@ module chains
                                                                             ! segment number s and neighbor j used for distributed volume 
     integer, dimension(:,:), allocatable        :: nneigh                   ! number of neigbors or pairs of segment s in conf alpha used only phosphates  
 
+    type(var_iarray), allocatable               :: indexconftriplet(:,:,:)  ! indexconftriplet(k,s,alpha)%elem(j) = layer number of conf alpha and 
+                                                                            ! segment number s and triplet j and triplet element k used for distributed volume 
+    integer, dimension(:,:), allocatable        :: ntriplet                 ! number of triplets  segment s in conf alpha used only phosphates  
+
+
     type(var_iarray), allocatable               :: indexconf(:,:)           ! indexconf(s,alpha)%elem(j) = layer number of conf alpha and segment number s and element j
                                                                             ! used for distributed volume 
     integer, dimension(:,:), allocatable        :: indexchain               ! indexchain(s,alpha) = layer number of conf alpha and segment number s
@@ -78,8 +83,10 @@ module chains
     real(dp) :: distphoscutoff ! distance allow between two phosphate to be a pair
     integer  :: maxneigh       ! maximum of neigbors 
     
-    ! 
     integer  :: len_index_phos ! length of array index_phos
+
+    !  .. triplet parameters 
+    integer  :: maxtriplet     ! maximum number of triplets per monomer  
  
 contains 
 
@@ -168,7 +175,7 @@ contains
     end subroutine allocate_indexconfpair
 
    
-    ! Allocates neigh : neigbors that segment number s in conf alpha has 
+    ! Allocates nneigh : neigbors that segment number s in conf alpha has 
     ! used only for segment s that is a phosphate
 
     subroutine allocate_nneighbor(cuantas,nseg)
@@ -179,5 +186,31 @@ contains
                   
     end subroutine allocate_nneighbor
    
+
+
+    ! Allocates indexconftriplet(k,s,alpha)%elem(j) = layer number of conf alpha and segment number s and triplet j 
+    ! element k of triplit used for distributed volume
+    ! When used indexchain is not needed and can be deallocated
+    ! inputs: dimension of indexconfpair: cuantas, nseg and  nelem(:) 
+
+    subroutine allocate_indexconftriplet(cuantas,nseg)
+
+        integer, intent(in) :: cuantas,nseg
+
+        allocate(indexconftriplet(2,nseg,cuantas)) 
+        
+    end subroutine allocate_indexconftriplet
+
+
+    ! Allocates ntriplet : number of triplets that segment number s in conf alpha has 
+    ! used only for segment s that is a phosphate
+
+    subroutine allocate_ntriplet(cuantas,nseg)
+
+        integer, intent(in) :: cuantas,nseg
+
+        allocate(ntriplet(nseg,cuantas))
+                  
+    end subroutine allocate_ntriplet
 
 end module chains
