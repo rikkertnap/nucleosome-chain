@@ -18,6 +18,7 @@ module modfcnFeexpl
 
     integer :: singlet_list(7), doublet_list(3), triplet_list(1)
     character(len=8) :: char_state(11)
+    real(dp), parameter  :: eps_val =1.0_dp 
     
     private 
     public :: init_var_compute_fdisppp , fcnnucl_Fe_expl, test_compute_fdisPPP , compute_average_charge_PPP_expl
@@ -211,6 +212,8 @@ contains
         call init_allowedStates
 
         exponent_third = 1.0_dp/3.0_dp
+        
+        !call print_allowedStates
 
     end subroutine init_var_compute_fdisPPP
     
@@ -451,10 +454,15 @@ contains
 
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
 
+        real(dp) :: numphos, numphos_comp, numpairs,numtriplets
+        logical  :: testnumphos
+
         ! .. executable statements 
 
         ! print*,"K0aAA=",K0aAA
         K0aPP=K0aAA(6) ! P2Mg ???
+
+        testnumphos =.true.
 
         n=nsize
 
@@ -755,7 +763,9 @@ contains
 
                             local_rhopol_charge(m,ta)=local_rhopol_charge(m,ta)+pro/(2.0_dp*nneigh(s,c))
 
+                       
                         enddo 
+
 
                         
                         do j=1,ntriplet(s,c)
@@ -813,7 +823,7 @@ contains
                                 local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(6.0_dp*ntriplet(s,c))
                                 local_rhopol_charge(k,ta) = local_rhopol_charge(k,ta)+pro/(6.0_dp*ntriplet(s,c))
 
-                                ! second integral contibution to position mm
+                                ! second integral contibution to position m
                                 
                                 ! loc1      =  (k , m , mm)
                                 ! loc1_swap =  (k , mm, m )
@@ -866,7 +876,7 @@ contains
                                                 (fdisPPP_loc1(JJ,KK,LL)      + fdisPPP_loc2(JJ,KK,LL))*qPPP(LL) )/6.0_dp
                                         
                                             sum_xphos = sum_xphos  + & 
-                                                ((fdisPPP_loc2_swap(JJ,KK,LL) + fdisPPP_loc3(JJ,KK,LL))*vPPP(JJ) + &
+                                                ((fdisPPP_loc2_swap(JJ,KK,LL) + fdisPPP_loc3_swap(JJ,KK,LL))*vPPP(JJ) + &
                                                 (fdisPPP_loc1_swap(JJ,KK,LL) + fdisPPP_loc3(JJ,KK,LL))*vPPP(KK) + &
                                                 (fdisPPP_loc1(JJ,KK,LL)      + fdisPPP_loc2(JJ,KK,LL))*vPPP(LL) )/6.0_dp
                                         enddo
@@ -1000,21 +1010,26 @@ contains
         
         print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
                     
-        !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
-        ! print*,"vnucl(1,ta)=",vnucl(1,ta)," ta=",ta
-        ! print*,"vPP(Phos)=",vPP(phos)
-
-        print*,"sum(rhopol_charge(:,ta)=",sum(rhopol_charge(:,ta))*volcell 
-
+        
+        ! test
+        if(testnumphos) then  
+            call numbers_pairs_and_triplets(numpairs, numtriplets)
+            numphos = 2 * numpairs + 3 * numtriplets
+            numphos_comp = sum(rhopol_charge(:,ta))* volcell ! computed number of phosphates 
+            if(abs(numphos-numphos_comp)> eps_val) then 
+                print*,"Computed number of phophates not equal to expected"
+                print*,"numphos = ",numphos," numphos computed = ",numphos_comp       
+            endif
+     
+        endif        
 
     end subroutine fcnnucl_Fe_expl    
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
 
-    subroutine compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
+    subroutine compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP, avfdisPPP)
 
-       
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
@@ -1028,23 +1043,30 @@ contains
         use field, only      : xsol, psi, fdis, rhopol_charge, fdisPP_loc, fdisPP_loc_swap 
         use field, only      : fdisP2Mg_loc, fdisP2Mg_loc_swap, fdisP2Fe2_loc, fdisP2Fe2_loc_swap
         use field, only      : fdisP2Fe3_loc, fdisP2Fe3_loc_swap
+        use field, only      : fdisPPP_loc1 , fdisPPP_loc1_swap , fdisPPP_loc2 , fdisPPP_loc2_swap
+        use field, only      : fdisPPP_loc3 , fdisPPP_loc3_swap    
         use field, only      : q, lnproshift
         use myutils, only    : error_handler
         use modfcnMgexpl, only : compute_fdisPP
+        use chains, only     : indexconftriplet, ntriplet
 
         real(dp), intent(inout) :: avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
         real(dp), intent(inout) :: avfdisPP(7,7)
+        real(dp), intent(inout) :: avfdisPPP(11,11,11)
+
 
         !     .. local variables
         
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge,mm,sw                ! dummy indices
         integer  :: k_ind, m_ind
-        integer  :: JJ, KK
+        integer  :: JJ, KK, LL
         real(dp) :: local_avfdisP2Mg,local_avfdisPP(7,7),local_avfdisP2Fe2,local_avfdisP2Fe3
-        real(dp) :: sumrhopairs
+        real(dp) :: local_avfdisPPP(11,11,11)
+        real(dp) :: sumrhopairs, sumrhotriplets
+        real(dp) :: check
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
         integer  :: nsizepsi
         ! .. executable statements 
@@ -1059,6 +1081,8 @@ contains
         local_avfdisP2Mg = 0.0_dp    
         local_avfdisP2Fe2 = 0.0_dp 
         local_avfdisP2Fe3 = 0.0_dp 
+
+        local_avfdisPPP = 0.0_dp
         
         n=nsize
 
@@ -1128,6 +1152,23 @@ contains
                             lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
                                     -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
                         enddo    
+
+                         do jj=1,ntriplet(s,c)
+                        
+                            m  = indexconftriplet(1,s,c)%elem(jj) ! ntriplet for monomer s
+                            mm = indexconftriplet(2,s,c)%elem(jj)   
+
+                            call  compute_fdisPPP(fdisPPP_loc1, k , m, mm)
+
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta) + lnexppi(mm,ta)+ &
+                                            (lnexppivw(k) + lnexppivw(m)  + lnexppivw(mm))*vnucl(1,ta) &
+                                          -log(fdisPPP_loc1(Phos,Phos,Phos))  )/(3.0_dp*ntriplet(s,c))   
+
+                            ! divide by 3 not 6 because need to permute m and mm but symmetric                        
+                             
+                        enddo    
+
+
                     endif        
                 enddo    
 
@@ -1166,31 +1207,145 @@ contains
                             local_avfdisP2Fe3 = local_avfdisP2Fe3 + fdisP2Fe3_loc*pro/nneigh(s,c)
                     
                         enddo 
+
+                        do j=1,ntriplet(s,c)
+
+                            do sw=1,2 ! sum of potentail other element of s permute m and mm
+
+                                if(sw==1) then 
+                                    m  = indexconftriplet(1,s,c)%elem(j) ! ntriplet for monomer s
+                                    mm = indexconftriplet(2,s,c)%elem(j)   
+                                else 
+                                    m  = indexconftriplet(2,s,c)%elem(j) ! ntriplet for monomer s
+                                    mm = indexconftriplet(1,s,c)%elem(j)   
+                                endif 
+
+                                ! all permutations of (k, m, mm)
+
+                                call  compute_fdisPPP(fdisPPP_loc1,      k , m, mm)
+                                call  compute_fdisPPP(fdisPPP_loc1_swap, k , mm, m)
+                                call  compute_fdisPPP(fdisPPP_loc2,      m ,  k, mm)
+                                call  compute_fdisPPP(fdisPPP_loc2_swap, mm , k, m)
+                                call  compute_fdisPPP(fdisPPP_loc3,      m, mm,  k)
+                                call  compute_fdisPPP(fdisPPP_loc3_swap, mm ,m,  k)
+
+                                ! loc1      =  (k , m , mm)
+                                ! loc1_swap =  (k , mm, m )
+                                ! loc2      =  (m , k , mm)
+                                ! loc2_swap =  (mm, k , m )
+                                ! loc3      =  (m , mm, k )
+                                ! loc3_swap =  (mm ,m , k )
+                            
+                                ! permutations of integral contrubutions of fPPP and second coordinate permutation of triplet
+                                
+                                ! first integral contibution to position k
+
+                                do JJ=1,11
+                                    do KK=1,11
+                                        do LL=1,11
+                                            local_avfdisPPP(JJ,KK,LL) = local_avfdisPPP(JJ,KK,LL)+ &
+                                               ( fdisPPP_loc1(JJ,KK,LL) + fdisPPP_loc1_swap(JJ,KK,LL)) *&
+                                                pro/(6.0_dp*ntriplet(s,c))
+                                        enddo
+                                    enddo            
+                                enddo
+
+                                ! second integral contibution to position m
+                            
+                                do JJ=1,11
+                                    do KK=1,11
+                                        do LL=1,11
+                                            local_avfdisPPP(JJ,KK,LL) = local_avfdisPPP(JJ,KK,LL)+ &
+                                               (fdisPPP_loc2(JJ,KK,LL) + fdisPPP_loc3(JJ,KK,LL)) * &
+                                                pro/(6.0_dp*ntriplet(s,c))
+                                            
+                                        enddo
+                                    enddo            
+                                enddo
+
+                                ! third integral contibution to position mm 
+                            
+                                do JJ=1,11
+                                    do KK=1,11
+                                        do LL=1,11
+                                            local_avfdisPPP(JJ,KK,LL) = local_avfdisPPP(JJ,KK,LL)+ &
+                                               (fdisPPP_loc2_swap(JJ,KK,LL) + fdisPPP_loc3_swap(JJ,KK,LL)) *&
+                                                pro/(6.0_dp*ntriplet(s,c))
+                                           
+                                        enddo
+                                    enddo            
+                                enddo
+
+                            enddo
+
+                        enddo      
+                    
                     endif
                 enddo
             endif    
         enddo
    
-        avfdisP2Mg = local_avfdisP2Mg
-        avfdisP2Fe2 = local_avfdisP2Fe2
-        avfdisP2Fe3 = local_avfdisP2Fe3
-        avfdisPP = local_avfdisPP
-
-        ! .. construction of avfdisP2Mg and avfdisPP 
-        ! .. normalized avfdisPP with number of average number pairs = integral of rhopol_charge(:,ta)
+        avfdisP2Mg = local_avfdisP2Mg/2.0_dp
+        avfdisP2Fe2 = local_avfdisP2Fe2/2.0_dp
+        avfdisP2Fe3 = local_avfdisP2Fe3/2.0_dp
+        avfdisPP = local_avfdisPP/2.0_dp
+        avfdisPPP = local_avfdisPPP/6.0_dp
  
-        sumrhopairs=sum(rhopol_charge(:,tA)) 
-        sumrhopairs=sumrhopairs*volcell
+        ! .. normalized avfdisPP with number of average number pairs 
+        ! .. normalized avfdisPPP with number of average number triplets
 
-        avfdisPP=avfdisPP/(sumrhopairs*q) ! also norm with q
-        avfdisP2Mg=avfdisP2Mg/(sumrhopairs*q)
-        avfdisP2Fe2=avfdisP2Fe2/(sumrhopairs*q)
-        avfdisP2Fe3=avfdisP2Fe3/(sumrhopairs*q)
+        call numbers_pairs_and_triplets(sumrhopairs, sumrhotriplets)
+
+        avfdisPP    = avfdisPP/(sumrhopairs*q) ! also norm with q
+        avfdisP2Mg  = avfdisP2Mg/(sumrhopairs*q)
+        avfdisP2Fe2 = avfdisP2Fe2/(sumrhopairs*q)
+        avfdisP2Fe3 = avfdisP2Fe3/(sumrhopairs*q)
+
+        avfdisPPP  = avfdisPPP/(sumrhotriplets*q) ! also norm with q
+
+    
+        check = sum(avfdisPPP)
+        print*,"sum fPPP =",check
             
-        print*,"sumphos=",sumrhopairs
-
     end subroutine compute_average_charge_PPP_expl
 
+
+
+    subroutine numbers_pairs_and_triplets(sumrhopairs, sumrhotriplets)
+        
+        use globals, only    : nseg, local_conf
+        use chains, only      : type_of_monomer, nneigh, ntriplet
+        use parameters, only : ta
+
+        real(dp), intent(out) :: sumrhopairs, sumrhotriplets 
+
+        ! local variables
+        integer :: c, s, j
+
+        sumrhopairs = 0.0_dp
+        sumrhotriplets = 0.0_dp
+
+        do c=local_conf,local_conf       
+            do s=1,nseg
+                if(type_of_monomer(s)==ta) then
+                    do j=1,nneigh(s,c)
+                        sumrhopairs = sumrhopairs + 1.0_dp/(2.0_dp*nneigh(s,c)) 
+                    enddo   
+                    do j=1,ntriplet(s,c) 
+                        sumrhotriplets  = sumrhotriplets  + 1.0_dp/(6.0_dp*ntriplet(s,c))
+                    enddo   
+                endif
+            enddo
+        enddo
+
+        sumrhopairs = sumrhopairs                 ! * 2.0_dp / 2.0_dp
+        sumrhotriplets = sumrhotriplets * 2.0_dp  ! *  3.0_dp /3.0_dp
+
+        print*,"sumrhopairs=",sumrhopairs
+        print*,"sumrhotriplets=",sumrhotriplets
+        print*,"sumrhophos=",sumrhotriplets*3.0_dp +sumrhopairs* 2.0_dp
+
+    end subroutine 
 
 end module modfcnFeexpl
 

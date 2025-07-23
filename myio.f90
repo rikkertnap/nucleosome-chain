@@ -1705,7 +1705,7 @@ subroutine output_nucl_ionbin_Mg
         write(un_sys,*)'pKa(',t,')  = ',pKa(t)
     enddo    
     ! pKaA of phophate
-    do k=1,11
+    do k=1,12
         write(un_sys,*)'pKaAA(',k,') = ',pKaAA(k),K0aAA(k)
     enddo
     write(un_sys,*)'Hcp_s       = ',Hcp_s

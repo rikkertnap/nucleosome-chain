@@ -58,7 +58,7 @@ function Asphericty_parameter(Rgsqr,gyr_tensor)result(Ap)
         Ap=(bsph*bsph+(3.0_dp/4.0_dp)*ccyl*ccyl)/Rgsqr**2
     else
         Ap= 0.0_dp 
-        print*, "Warning in Asphericty_parameter : Rgsqr = 0 !"
+        print*, "Warning: in Asphericty_parameter : Rgsqr = 0 !"
     endif    
 
     sumeigen = sum(eigenvalues)

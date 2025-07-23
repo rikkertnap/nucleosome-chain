@@ -169,6 +169,7 @@
     real(dp), dimension(:,:), allocatable :: avgdisA,avgdisB   ! average fraction of Acidic and Basic AA in state A,AH,ANa etc 
     
     real(dp) :: avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3, avfdisPP(7,7)   ! average fraction monomer of phopsphate pairs in chemical state PP,PPH, , etc  
+    real(dp) :: avfdisPPP(11,11,11)
     real(dp) :: avfdisA(12)        ! average fraction of monomer ta=phosphate in state 
                                    ! A, AH, ANa, ACa, A2Ca, AMg, A2Mg, AK, AFe2, A2Fe2, AFe3, A2Fe3 
     real(dp) :: avfdisB(5)         ! average fraction of monomer state
@@ -1421,6 +1422,7 @@ contains
     end subroutine   init_qPP
     
     subroutine init_qPPP()
+
         ! charge of phospahte as part of triplet state 
         ! singlet charge of triplet  
         

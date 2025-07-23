@@ -590,7 +590,7 @@ contains
             text="average_charge_polymer: systype: nucl_ionbin_Fe  not yet implemented"
             print*,text 
 
-            call average_charge_nucl_ionbin_Mg()
+            call average_charge_nucl_ionbin_Fe()
 
         case ("elect","electA","electVdWAB","electdouble") 
 
@@ -727,14 +727,14 @@ contains
 
     end subroutine average_charge_nucl_ionbin
 
-    ! compute average charge and charge fraction of  nucleosome for systype nucl_ionbin_Mg
+    ! compute average charge fraction of  nucleosome for systype nucl_ionbin_Mg
 
     subroutine average_charge_nucl_ionbin_Mg()
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
         use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
-        use parameters, only : qPP, Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
+        use parameters, only : Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
         use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
         use chains, only: type_of_monomer,ismonomer_chargeable
 
@@ -869,7 +869,149 @@ contains
     end subroutine average_charge_nucl_ionbin_Mg
 
 
-    ! compute average charge of nucleosome for systype nucl_ionbin_sv
+     ! compute average charge fraction of  nucleosome for systype nucl_ionbin_Fe
+
+    subroutine average_charge_nucl_ionbin_Fe()
+
+        use globals, only : nseg,nsize,nsegtypes
+        use volume, only : volcell
+        use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
+        use parameters, only : Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
+        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
+        use chains, only: type_of_monomer,ismonomer_chargeable
+
+        integer, dimension(:), allocatable   :: npol
+        integer :: i,s,t,k,JJ, KK
+        real(dp) :: sumrhopolt ! average density of polymer of type t 
+        real(dp) :: sumavfdisPP
+
+        allocate(npol(nsegtypes))
+        
+        npol=0
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            npol(t)=npol(t)+1
+        enddo   
+            
+        do t=1,nsegtypes
+            ! init 
+            avfdis(t)=0.0_dp ! A^-
+            do k=1,4               ! A^-, AH, ANa, AK for AA that are acid
+                avgdisA(t,k)=0.0_dp 
+            enddo
+            do k=1,3 !             ! BH^+, B, BHCl for AA that are base
+                avgdisB(t,k)=0.0_dp
+            enddo
+
+            if(ismonomer_chargeable(t)) then 
+                sumrhopolt=npol(t)/volcell
+                if(npol(t)/=0) then
+                    if(t/=tA) then 
+                        if(zpol(t,1)==0) then ! acid
+                            do k=1,4
+                                avgdisA(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisA(t,k)=avgdisA(t,k)+gdisA(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisA(t,k)=avgdisA(t,k)/sumrhopolt  
+                            enddo
+                            avfdis(t)=zpol(t,2)*avgdisA(t,1) ! signed charged fraction   
+                        else ! base
+                            do k=1,3
+                                avgdisB(t,k)=0.0_dp
+                                do i=1,nsize
+                                    avgdisB(t,k)=avgdisB(t,k)+gdisB(i,k,t)*rhopol_charge(i,t)
+                                enddo
+                                avgdisB(t,k)=avgdisB(t,k)/sumrhopolt 
+                            enddo
+                            avfdis(t)=zpol(t,1)*avgdisB(t,1) 
+                        endif            
+                    else
+                        ! t=tA phophates
+ 
+                        do k=1,12
+                            avfdisA(k)=0.0_dp
+                        enddo   
+                            
+                        ! charged phosphates
+                        do JJ=1,7
+                            KK=Phos
+                            avfdisA(1)=avfdisA(1) + avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+ 
+                        ! protonated phosphates
+                        do JJ=1,7
+                            KK=PhosH    
+                            avfdisA(2) = avfdisA(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+ 
+                        ! Na bound  phosphates
+                        do JJ=1,7
+                            KK=PhosNa
+                            avfdisA(3) = avfdisA(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+    
+                        ! Ca bound phosphates             
+                        avfdisA(4) = 0.0_dp
+
+                        ! P2Ca bound phosphates
+                        avfdisA(5) = 0.0_dp
+
+                        ! K bound  phosphates
+                        do JJ=1,7
+                            KK=PhosK
+                            avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                        ! Mg bound phosphates
+                        do JJ=1,7
+                            KK=PhosMg
+                            avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                         ! Fe2 bound phosphates
+                        do JJ=1,7
+                            KK=PhosFe2
+                            avfdisA(9) = avfdisA(9)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                        ! Fe3 bound phosphates
+                        do JJ=1,7
+                            KK=PhosFe3
+                            avfdisA(11) = avfdisA(11)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+                        enddo
+
+                        ! P2Mg bound phophates 
+                        avfdisA(7)=2.0_dp*avfdisP2Mg
+                        
+                        ! P2Fe2 bound phophates 
+                        avfdisA(10)=2.0_dp*avfdisP2Fe2
+
+                        ! P2Fe3 bound phophates 
+                        avfdisA(12)=2.0_dp*avfdisP2Fe3
+
+                        do k=1,12
+                            avfdisA(k)=avfdisA(k)/2.0_dp
+                        enddo  
+                        ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
+                         
+                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6)  ! signed charged fraction   
+                        
+                        print*,"warning: check avfdis(ta) in average_charge_nucl_ionbin_Fe"
+
+
+                    endif               
+                endif
+            endif    
+        enddo         
+
+        deallocate(npol)    
+
+    end subroutine average_charge_nucl_ionbin_Fe
+
+
+    ! compute average charge fractionof nucleosome for systype nucl_ionbin_sv
 
     subroutine average_charge_nucl_ionbin_sv()
 
@@ -947,7 +1089,7 @@ contains
 
     subroutine distribution_charge_nucl_ionbin_sv(qpol_local)
 
-        use globals, only : nseg,nsize,nsegtypes
+        use globals, only : nsize,nsegtypes
         use parameters, only : zpol, tA
         use chains, only: ismonomer_chargeable
 
@@ -1206,7 +1348,7 @@ contains
         use parameters, only : index_Phos=>ta ! index of phosphate 
         use globals, only : nsegtypes
         use molecules, only : moleclist, init_zero_moleclist
-        use chains, only : mapping_num_to_char
+    !    use chains, only : mapping_num_to_char
 
         ! argument list
 

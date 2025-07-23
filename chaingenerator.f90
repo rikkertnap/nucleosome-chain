@@ -4376,10 +4376,9 @@ subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz
                                         enddo
                                         if((sqrdists<=sqrDphoscutoff) .and. (sqrdistsprime<=sqrDphoscutoff) ) then 
                                             ! accept sdlbprime as a pair with s and sprime 
-                                            print*,"triplet =",s," ",sprime," ",sdblprime
+                                            ! print*,"triplet =",s," ",sprime," ",sdblprime
                                             ntriplet(s,conf)= ntriplet(s,conf)+1
 
-                                             
                                             list_of_triplets(s,ntriplet(s,conf),1) = sprime ! temporarily storage 
                                             list_of_triplets(s,ntriplet(s,conf),2) = sdblprime
                                             
@@ -4411,7 +4410,7 @@ subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz
                                             call linearIndexFromCoordinate(xi,yi,zi,idxdble)
                                             !idx dble= coordtoindex(xi,yi,zi) ! hash-table look up
                                             
-                                            index_of_triplets(1,s,ntriplet(s,conf))=idx  ! temporarily storage 
+                                            index_of_triplets(1,s,ntriplet(s,conf))=idx     ! temporarily storage 
                                             index_of_triplets(2,s,ntriplet(s,conf))=idxdble  ! temporarily storage 
                                         endif
                                     endif
@@ -4427,7 +4426,7 @@ subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz
     enddo 
 
     ! print 
-    if(.true.) then 
+    if(.false.) then 
         num_triplets=0
         do s=1,nseg
             if(ntriplet(s,conf)>0) then
@@ -4437,7 +4436,6 @@ subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz
         enddo
 
         num_triplets = num_triplets/3
-        print*,""
         print*,"number of triplets = ", num_triplets
     endif
 
