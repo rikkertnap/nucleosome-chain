@@ -14,7 +14,9 @@
     type(bornmoleclist) :: bornrad,bornbulk 
     type(moleclist) :: beta_ion_excess
 
-    ! .. index for different chemical states of phosphate used in vPP and qPP in for systype nucl_ionbin_Mg
+    ! .. index for different chemical states of phosphate used in vPP and qPP 
+    ! .. in for systype nucl_ionbin_Mg and systype nucl_ionbin_Fe
+    ! .. warning numbering different  from avfdisA 
 
     integer, parameter :: Phos=1 
     integer, parameter :: PhosH=2
@@ -170,8 +172,14 @@
     
     real(dp) :: avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3, avfdisPP(7,7)   ! average fraction monomer of phopsphate pairs in chemical state PP,PPH, , etc  
     real(dp) :: avfdisPPP(11,11,11)
-    real(dp) :: avfdisA(12)        ! average fraction of monomer ta=phosphate in state 
-                                   ! A, AH, ANa, ACa, A2Ca, AMg, A2Mg, AK, AFe2, A2Fe2, AFe3, A2Fe3 
+    real(dp) :: avfdisA_pairs(13)
+    real(dp) :: avfdisA_triplets(13)
+    real(dp) :: avfdisA(13)        
+    ! average fraction of monomer ta=phosphate in state 
+    ! A, AH, ANa, ACa, A2Ca, AMg, A2Mg, AK, AFe2, A2Fe2, AFe3, A2Fe3 
+    !  index of avfdispairs <=> index avfdisA 
+    !  1 == P^- 2 == PH  , 3  == PNa,   4  == PCa,  5  == P2Ca,  6  == PMg, 7 == P2Mg 
+    !  8 == PK, 9 == PFe2, 10 == P2Fe2, 11 == PFe3, 12 == P2Fe3, 13 == P3Fe3  
     real(dp) :: avfdisB(5)         ! average fraction of monomer state
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
     real(dp) :: max_psi(6)         ! maximum electrostatic potential on each face of lattice 

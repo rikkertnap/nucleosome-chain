@@ -57,6 +57,11 @@ module field
     real(dp), dimension(:,:,:), allocatable   :: fdisPPP_loc2 , fdisPPP_loc2_swap    ! fdisPPP(J,K,L)  
     real(dp), dimension(:,:,:), allocatable   :: fdisPPP_loc3 , fdisPPP_loc3_swap    ! fdisPPP(J,K,L)  
 
+
+    real(dp), parameter  :: eps_val = 1.0e-7_dp 
+    
+    private :: eps_val 
+
 contains
 
     subroutine allocate_field(Nx,Ny,Nz,nsegtypes)
@@ -140,14 +145,14 @@ contains
     end subroutine deallocate_field
 
 
-    subroutine allocate_part_fnc(N)
-       
-        integer, intent(in) :: N
+!    subroutine allocate_part_fnc(N)
+!       
+!        integer, intent(in) :: N
 
         ! allocate(lnq(N))
         ! allocate(q(N))
 
-    end subroutine allocate_part_fnc
+!    end subroutine allocate_part_fnc
 
     ! set all densities to zero
     
@@ -187,9 +192,7 @@ contains
         integer, intent(in) :: Nx,Ny,Nz,maxneigh, maxfdisPP,len_index_phos
 
         integer :: N, Nindex
-        integer :: i
-
-
+       
         if(systype=="nucl_ionbin_Mg") then 
 
             N=Nx*Ny*Nz
@@ -230,8 +233,6 @@ contains
         endif
 
     end subroutine allocate_field_triplets
-
-
 
     subroutine init_field_pairs()
        
@@ -276,7 +277,7 @@ contains
     subroutine check_integral_rholpol_multi(sumrhopol, checkintegral)
 
         use volume, only : volcell
-        use globals, only : nsize, systype, nseg, nsegtypes
+        use globals, only : nsize, nseg, nsegtypes
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
         integer :: t,i
@@ -299,7 +300,7 @@ contains
     subroutine check_integral_rholpolAB(sumrhopol, checkintegral)
 
         use volume, only : volcell
-        use globals, only : nsize, systype, nseg
+        use globals, only : nsize, nseg
 
         real(dp), intent(inout) :: sumrhopol,checkintegral 
         integer :: i
@@ -322,7 +323,6 @@ contains
 
         use globals, only : systype
 
-        character(len=80) :: text
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
@@ -393,7 +393,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge 
 
         integer :: i, t
@@ -430,7 +430,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
@@ -477,7 +477,7 @@ contains
 
         use globals, only : nsize, nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, qpol, qpol_tot, tA
+        use parameters, only : qpol, qpol_tot, tA
         use chains, only : ismonomer_chargeable, type_of_charge
 
         integer :: i, t
@@ -562,8 +562,6 @@ contains
     subroutine average_charge_polymer()
 
         use globals, only : systype
-
-        character(len=80) :: text
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
@@ -587,9 +585,7 @@ contains
             call average_charge_nucl_ionbin_Mg()
 
         case ("nucl_ionbin_Fe")
-            text="average_charge_polymer: systype: nucl_ionbin_Fe  not yet implemented"
-            print*,text 
-
+            
             call average_charge_nucl_ionbin_Fe()
 
         case ("elect","electA","electVdWAB","electdouble") 
@@ -741,7 +737,6 @@ contains
         integer, dimension(:), allocatable   :: npol
         integer :: i,s,t,k,JJ, KK
         real(dp) :: sumrhopolt ! average density of polymer of type t 
-        real(dp) :: sumavfdisPP
 
         allocate(npol(nsegtypes))
         
@@ -854,10 +849,7 @@ contains
                         enddo  
                         ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
                          
-                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6)  ! signed charged fraction   
-                        
-                        print*,"warning: check avfdis(ta) in average_charge_nucl_ionbin_Mg"
-
+                        avfdis(ta)= - avfdisA(1)+avfdisA(4)+avfdisA(6)  ! signed charged fraction  
 
                     endif               
                 endif
@@ -875,15 +867,14 @@ contains
 
         use globals, only : nseg,nsize,nsegtypes
         use volume, only : volcell
-        use parameters, only : zpol, tA, avfdis, avfdisA, avgdisA, avgdisB
+        use parameters, only : zpol, tA, avfdis, avgdisA, avgdisB, avfdisA
         use parameters, only : Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
-        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
+        use parameters, only : avfdisA_pairs,  avfdisA_triplets
         use chains, only: type_of_monomer,ismonomer_chargeable
 
         integer, dimension(:), allocatable   :: npol
-        integer :: i,s,t,k,JJ, KK
+        integer :: i,s,t,k
         real(dp) :: sumrhopolt ! average density of polymer of type t 
-        real(dp) :: sumavfdisPP
 
         allocate(npol(nsegtypes))
         
@@ -929,77 +920,12 @@ contains
                         endif            
                     else
                         ! t=tA phophates
- 
-                        do k=1,12
-                            avfdisA(k)=0.0_dp
-                        enddo   
-                            
-                        ! charged phosphates
-                        do JJ=1,7
-                            KK=Phos
-                            avfdisA(1)=avfdisA(1) + avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
- 
-                        ! protonated phosphates
-                        do JJ=1,7
-                            KK=PhosH    
-                            avfdisA(2) = avfdisA(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
- 
-                        ! Na bound  phosphates
-                        do JJ=1,7
-                            KK=PhosNa
-                            avfdisA(3) = avfdisA(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-    
-                        ! Ca bound phosphates             
-                        avfdisA(4) = 0.0_dp
-
-                        ! P2Ca bound phosphates
-                        avfdisA(5) = 0.0_dp
-
-                        ! K bound  phosphates
-                        do JJ=1,7
-                            KK=PhosK
-                            avfdisA(8) = avfdisA(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-
-                        ! Mg bound phosphates
-                        do JJ=1,7
-                            KK=PhosMg
-                            avfdisA(6) = avfdisA(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-
-                         ! Fe2 bound phosphates
-                        do JJ=1,7
-                            KK=PhosFe2
-                            avfdisA(9) = avfdisA(9)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-
-                        ! Fe3 bound phosphates
-                        do JJ=1,7
-                            KK=PhosFe3
-                            avfdisA(11) = avfdisA(11)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
-                        enddo
-
-                        ! P2Mg bound phophates 
-                        avfdisA(7)=2.0_dp*avfdisP2Mg
                         
-                        ! P2Fe2 bound phophates 
-                        avfdisA(10)=2.0_dp*avfdisP2Fe2
-
-                        ! P2Fe3 bound phophates 
-                        avfdisA(12)=2.0_dp*avfdisP2Fe3
-
-                        do k=1,12
-                            avfdisA(k)=avfdisA(k)/2.0_dp
-                        enddo  
-                        ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
+                        call average_charge_fraction_phos_pairs(avfdisA_pairs)
+                        call average_charge_fraction_phos_triplets(avfdisA_triplets)
+                        call average_charge_fraction_phos(avfdisA_pairs,avfdisA_triplets, avfdisA)
                          
-                        avfdis(ta)= - avfdis(1)+avfdis(4)+avfdis(6)  ! signed charged fraction   
-                        
-                        print*,"warning: check avfdis(ta) in average_charge_nucl_ionbin_Fe"
-
+                        avfdis(ta) = - avfdisA(1)+avfdisA(4)+avfdisA(6)  ! signed charged fraction   
 
                     endif               
                 endif
@@ -1009,6 +935,258 @@ contains
         deallocate(npol)    
 
     end subroutine average_charge_nucl_ionbin_Fe
+
+    !  Compute average charge fraction orchemical state of phosphate  monomer belong to a phospahtres pairs pairs
+    !  avfdisPP fraction of pairs i.e normed with total number of pairs!
+    !  index of avfdispairs <=> index avfdisA 
+    !  1 == P^- 2 == PH  , 3  == PNa,   4  == PCa,  5  == P2Ca,  6  == PMg, 7 == P2Mg 
+    !  8 == PK, 9 == PFe2, 10 == P2Fe2, 11 == PFe3, 12 == P2Fe3, 13 == P3Fe3  
+    
+    subroutine average_charge_fraction_phos_pairs(avfdisA_pairs)
+
+        use parameters, only : Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
+        use parameters, only : avfdisPP, avfdisP2Mg, avfdisP2Fe2, avfdisP2Fe3
+        
+
+        real(dp), dimension(:) ,intent(inout) :: avfdisA_pairs
+        real(dp) :: check_val
+
+        ! local variables
+        integer :: k, JJ, KK    
+        integer :: dim_avfdisA_pairs,  dim_avfdisPP
+
+        dim_avfdisA_pairs=size(avfdisA_pairs)
+        dim_avfdisPP=size(avfdisPP,dim=1) ! dim1=dim2
+
+        ! init 
+        do k=1,dim_avfdisA_pairs
+            avfdisA_pairs(k)=0.0_dp
+        enddo   
+            
+        ! charged phosphates
+        do JJ=1,dim_avfdisPP
+            KK=Phos
+            avfdisA_pairs(1)=avfdisA_pairs(1) + avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! protonated phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosH    
+            avfdisA_pairs(2) = avfdisA_pairs(2)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! Na bound  phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosNa
+            avfdisA_pairs(3) = avfdisA_pairs(3)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! Ca bound phosphates             
+        avfdisA_pairs(4) = 0.0_dp
+
+        ! P2Ca bound phosphates
+        avfdisA_pairs(5) = 0.0_dp
+
+        ! K bound  phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosK
+            avfdisA_pairs(8) = avfdisA_pairs(8)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! Mg bound phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosMg
+            avfdisA_pairs(6) = avfdisA_pairs(6)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+            ! Fe2 bound phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosFe2
+            avfdisA_pairs(9) = avfdisA_pairs(9)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! Fe3 bound phosphates
+        do JJ=1,dim_avfdisPP
+            KK=PhosFe3
+            avfdisA_pairs(11) = avfdisA_pairs(11)+avfdisPP(JJ,KK)+avfdisPP(KK,JJ)
+        enddo
+
+        ! P2Mg bound phophates 
+        avfdisA_pairs(7) = 2.0_dp*avfdisP2Mg
+        
+        ! P2Fe2 bound phophates 
+        avfdisA_pairs(10) = 2.0_dp*avfdisP2Fe2
+
+        ! P2Fe3 bound phophates 
+        avfdisA_pairs(12) = 2.0_dp*avfdisP2Fe3
+
+        avfdisA_pairs = avfdisA_pairs /2
+                        
+        ! divide by 2 because avfdisPP fraction of pairs i.e normed with total number of pairs!
+        ! Here norming  with total number of monomer that are part of a pair
+         
+        check_val = sum(avfdisA_pairs) 
+         if(abs(check_val-1.0_dp)> eps_val) then 
+            print*,"sum avfdisA_pairs not equal to 1"
+            print*,"sum avfdisA_pairs = ",check_val       
+        endif        
+
+        print*,"sum avfdisA_pairs=",sum(avfdisA_pairs) 
+    
+    end subroutine average_charge_fraction_phos_pairs
+
+    subroutine average_charge_fraction_phos_triplets(avfdisA_triplets)
+
+        use parameters, only :  Phos, PhosH, PhosK, PhosNa, PhosMg, PhosFe2, PhosFe3
+        use parameters, only : Phos2Mg, Phos2Fe2, Phos2Fe3, Phos3Fe3
+        use parameters, only : avfdisPPP
+        
+        real(dp), dimension(:), intent(inout) :: avfdisA_triplets
+
+        real(dp) :: check_val 
+        real(dp) :: sum_avfJ
+        integer :: dim_avfdisA_triplets,  dim_avfdisPPP
+        integer :: J, K, L
+        real(dp), dimension(:), allocatable :: avfdisA_triplets_tmp
+
+        dim_avfdisA_triplets=size(avfdisA_triplets)
+        dim_avfdisPPP=size(avfdisPPP,dim=1) ! dim1=dim2=dim3
+
+        allocate(avfdisA_triplets_tmp(dim_avfdisPPP))
+
+        ! init  
+        avfdisA_triplets = 0.0_dp ! im
+        avfdisA_triplets_tmp =0.0_dp
+                    
+        do J=1, dim_avfdisPPP
+            sum_avfJ =0.0_dp
+            do K=1,dim_avfdisPPP
+                do L=1,dim_avfdisPPP 
+                    sum_avfJ = sum_avfJ + avfdisPPP(J,K,L)+avfdisPPP(K,J,L)+avfdisPPP(K,L,J) 
+                enddo
+            enddo
+            avfdisA_triplets_tmp(J)= sum_avfJ/3.0_dp 
+        enddo        
+
+        check_val = sum(avfdisA_triplets_tmp)
+
+        if(abs(check_val-1.0_dp)> eps_val) then 
+            print*,"sum avfdisA_triplets_tmp not equal to 1"
+            print*,"sum avfdisA_triplets_tmp = ",check_val       
+        endif        
+
+        ! reshuffle indices
+        !  1 == P^-, 2 == PH  , 3  == PNa,   4  == PCa,  5  == P2Ca,  6  == PMg, 7 == P2Mg 
+        !  8 == PK,  9 == PFe2, 10 == P2Fe2, 11 == PFe3, 12 == P2Fe3, 13 == P3Fe3  
+
+        avfdisA_triplets(1) = avfdisA_triplets_tmp(Phos)
+        avfdisA_triplets(2) = avfdisA_triplets_tmp(PhosH)
+        avfdisA_triplets(3) = avfdisA_triplets_tmp(PhosNa)
+        avfdisA_triplets(4) = 0.0_dp
+        avfdisA_triplets(5) = 0.0_dp
+        avfdisA_triplets(6) = avfdisA_triplets_tmp(PhosMg)
+        avfdisA_triplets(7) = avfdisA_triplets_tmp(Phos2Mg)
+        avfdisA_triplets(8) = avfdisA_triplets_tmp(PhosK)
+        avfdisA_triplets(9) = avfdisA_triplets_tmp(PhosFe2)
+        avfdisA_triplets(10) = avfdisA_triplets_tmp(Phos2Fe2)
+        avfdisA_triplets(11) = avfdisA_triplets_tmp(PhosFe3)
+        avfdisA_triplets(12) = avfdisA_triplets_tmp(Phos2Fe3) 
+        avfdisA_triplets(13) = avfdisA_triplets_tmp(Phos3Fe3)
+        
+        check_val = sum(avfdisA_triplets)
+
+        if(abs(check_val-1.0_dp)> eps_val) then 
+            print*,"sum avfdisA_triplets not equal to 1"
+            print*,"sum avfdisA_triplets = ",check_val       
+        endif        
+
+        print*,"sum avfdisA_triplets = ",check_val
+        
+    end subroutine average_charge_fraction_phos_triplets
+
+
+    subroutine average_charge_fraction_phos(avfdisA_pairs, avfdisA_triplets, avfdisA)
+
+        real(dp), dimension(:), intent(in) :: avfdisA_pairs
+        real(dp), dimension(:), intent(in) :: avfdisA_triplets
+        real(dp), dimension(:), intent(inout) :: avfdisA
+
+        real(dp) :: check_val, numpairs, numtriplets
+
+        ! init   
+        avfdisA = 0.0_dp            
+
+        numpairs = numbers_pairs()
+        numtriplets = numbers_triplets()
+
+        
+        avfdisA = 2.0_dp * numpairs * avfdisA_pairs + 3.0_dp * numtriplets * avfdisA_triplets
+        avfdisA = avfdisA / ( 2.0_dp * numpairs  + 3.0_dp * numtriplets )
+   
+        check_val = sum(avfdisA)
+
+        if(abs(check_val-1.0_dp)> eps_val) then 
+            print*,"sum avfdisA not equal to 1"
+            print*,"sum avfdisA = ",check_val       
+        endif        
+
+        print*,"sum avfdisA = ",check_val
+        
+    end subroutine average_charge_fraction_phos
+
+    function numbers_pairs() result(sumrhopairs)
+        
+        use globals, only    : nseg, local_conf
+        use chains, only      : type_of_monomer, nneigh
+        use parameters, only : ta
+
+        real(dp) :: sumrhopairs
+
+        ! local variables
+        integer :: c, s, j
+
+        sumrhopairs = 0.0_dp
+
+        do c=local_conf,local_conf       
+            do s=1,nseg
+                if(type_of_monomer(s)==ta) then
+                    do j=1,nneigh(s,c)
+                        sumrhopairs = sumrhopairs + 1.0_dp/(2.0_dp*nneigh(s,c)) 
+                    enddo      
+                endif
+            enddo
+        enddo
+
+        sumrhopairs = sumrhopairs                 ! * 2.0_dp / 2.0_dp
+        
+    end function numbers_pairs
+
+    function numbers_triplets() result(sumrhotriplets)
+        
+        use globals, only    : nseg, local_conf
+        use chains, only      : type_of_monomer, ntriplet
+        use parameters, only : ta
+
+        real(dp) ::  sumrhotriplets 
+
+        ! local variables
+        integer :: c, s, j
+
+        sumrhotriplets = 0.0_dp
+
+        do c=local_conf,local_conf       
+            do s=1,nseg
+                if(type_of_monomer(s)==ta) then
+                    do j=1,ntriplet(s,c) 
+                        sumrhotriplets  = sumrhotriplets  + 1.0_dp/(6.0_dp*ntriplet(s,c))
+                    enddo   
+                endif
+            enddo
+        enddo
+
+        sumrhotriplets = sumrhotriplets * 2.0_dp  ! *  3.0_dp /3.0_dp
+
+    end function numbers_triplets
 
 
     ! compute average charge fractionof nucleosome for systype nucl_ionbin_sv
@@ -1378,8 +1556,8 @@ contains
         ion_excess_ads%Na = ion_excess_ads%Na+ avfdisA(3) * numberelem(index_Phos) ! Na-phosphate 
         ion_excess_ads%K  = ion_excess_ads%K + avfdisA(8) * numberelem(index_Phos) ! K-phosphate
         ion_excess_ads%Mg =       (avfdisA(6)+avfdisA(7)) * numberelem(index_Phos) ! Mg-phosphate
-        ion_excess_ads%Fe2 =      (avfdisA(9)+avfdisA(10)) *numberelem(index_Phos) ! Fe2-phosphate
-        ion_excess_ads%Fe3 =      (avfdisA(11)+avfdisA(12)) *numberelem(index_Phos) ! Fe3-phosphate
+        ion_excess_ads%Fe2 =      (avfdisA(9)+avfdisA(10)) * numberelem(index_Phos) ! Fe2-phosphate
+        ion_excess_ads%Fe3 =      (avfdisA(11)+avfdisA(12)+avfdisA(13)) * numberelem(index_Phos) ! Fe3-phosphate
     
         
         ! calculate ion_excess_tot = sum of free adsorped ion excess
@@ -1424,7 +1602,7 @@ contains
        
         ! sum of ion_excess weighted with valence of ion
        
-        sum_ion_excess =ion_excess%Na -ion_excess%Cl+ion_excess%K +2.0_dp*ion_excess%Ca+2.0_dp*ion_excess%Mg +&
+        sum_ion_excess = ion_excess%Na -ion_excess%Cl + ion_excess%K +2.0_dp*ion_excess%Ca+2.0_dp*ion_excess%Mg +&
          ion_excess%Hplus -ion_excess%OHmin + 2.0_dp*ion_excess%Fe2 +3.0_dp*ion_excess%Fe3
         
     end subroutine make_ion_excess
@@ -1528,6 +1706,10 @@ contains
         max_psi = (/psi_back, psi_front, psi_left, psi_right, psi_up, psi_down/) 
         
     end subroutine max_potential
+
+
+
+
       
 end module field
 

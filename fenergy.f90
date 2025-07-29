@@ -8,13 +8,13 @@ module energy
     
     implicit none
   
-    !     .. variables
+    ! .. variables
     
     real(dp) :: FE                  ! free energy
     real(dp) :: FEbulk              ! free energybulk
     real(dp) :: deltaFE             ! free energy difference delteFE=FE-FEbulk
   
-    !     .. auxiliary variable used in free energy computation  
+    ! .. auxiliary variable used in free energy computation  
 
     real(dp) :: FEq                 ! partition function poly A and B 
     real(dp) :: FEpi                ! sum over pi
@@ -25,24 +25,24 @@ module energy
     real(dp) :: FEelvarborn         ! electrostatics energy contrbution to total free energy from palpha due to Born self-energy 
     real(dp) :: FEborn              ! Born self-energy  
     real(dp) :: FEchemsurf(2)       ! chemical free energy surface
-    real(dp) :: FEchem
-    real(dp) :: FEchempair
-    real(dp) :: FEbind,FEbindA,FEbindB    ! complexation contribution
-    real(dp) :: FEVdW,FEVdWB,FEVdWC       ! Van der Waals contribution
-    real(dp) :: FEconf
-    real(dp) :: Econf
-    real(dp) :: FEalt               ! free energy
-    real(dp) :: FEbulkalt           ! free energybulk
+    real(dp) :: FEchem              ! chemical free energy of AA and phosphate in singlet state 
+    real(dp) :: FEchempair          ! chemical free energy of phosphate in doublet state 
+    real(dp) :: FEchemtriplet       ! chemical free energy of phosphate in triplet state 
+    real(dp) :: FEbind,FEbindA,FEbindB    ! free energy complexation contribution
+    real(dp) :: FEVdW,FEVdWB,FEVdWC       ! free energy Van der Waals contribution
+    real(dp) :: FEconf              ! free energy configuration entropy
+    real(dp) :: Econf               ! energy configuration 
+    real(dp) :: FEalt               ! free energy alternative 
+    real(dp) :: FEbulkalt           ! free energybulk alternative  
     real(dp) :: deltaFEalt          ! free energy difference delteFE=FE-FEbulk
     real(dp) :: Eshift              ! shift in energy for palpha for neutralnoVdW
-
     real(dp) :: FEBornbulk          ! Born energy free energybulk
-
     real(dp) :: FEchemsurfalt(2)    ! chemical free energy surface
-    real(dp) :: diffFEchemsurf(2)   ! difference chem
-
+    real(dp) :: diffFEchemsurf(2)   ! difference chemicla free energy surface
     type(moleclist) :: FEtrans,FEchempot,FEtransbulk,FEchempotbulk
     type(moleclist) :: deltaFEtrans,deltaFEchempot
+
+    ! .. auxilary variable
 
     real(dp), dimension(:), allocatable :: sumphi, sumxpol, sumrhocharge ! integral over phi and xpol
 
@@ -78,14 +78,10 @@ contains
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
         
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
-
-        case ("nucl_ionbin_Fe")
-            text="fcnenergy: systype: "//systype//" not implemnted yet"
-            print*,text
 
         case("elect")
             
@@ -278,7 +274,7 @@ contains
 
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-            "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA")
+            "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -1457,7 +1453,7 @@ contains
             enddo
 
 
-        case("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
             
             do t=1,nsegtypes
 
@@ -1465,7 +1461,23 @@ contains
 
                     if(t==ta) then 
 
-                        FEchem_react = FEchem_react+FEchempair/volcell ! unit FEchempair allready here in E !!
+                         ! unit FEchempair allready in unit of E 
+                            ! at end of routine multiplied with volcell 
+                            ! hence divide by volcell to compensate
+
+                        if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA") then 
+                            FEchem_react = FEchem_react+FEchempair/volcell 
+                        else 
+                            if(systype=="nucl_ionbin_Fe") then 
+                                FEchem_react = FEchem_react+(FEchempair+FEchemtriplet)/volcell 
+
+                            else
+                                print*,"Wrong systype in FEchem_react_multi. systype =",systype
+         
+                            endif
+                        endif    
+
+                
 
                     else
                        
@@ -1844,7 +1856,7 @@ contains
 
             call check_volume_nucl_ionbin_sv(checksumxpoltot)
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
 
             call check_volume_nucl_ionbin_Mg(checksumxpoltot)
 
@@ -2094,7 +2106,7 @@ contains
     end subroutine check_volume_nucl_ionbin_sv
 
 
-    ! Check volume for systype="nucl_ionbin_Mg"
+    ! Check volume for systype="nucl_ionbin_Mg" a
     ! Integral over xpol compared to expected outcome
     ! output : real(dp)  checksumxpoltot : difference
     ! pre avfdis evaluated first 
@@ -2105,8 +2117,8 @@ contains
         use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
         use volume, only : volcell 
         use parameters, only : tPhos=>ta
-        use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2, vFe3
-        use parameters, only : avfdisA, Phos2Mg, Phos2Fe2, Phos2Fe3
+        use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2, vFe3, vPPP
+        use parameters, only : avfdisA, Phos2Mg, Phos2Fe2, Phos2Fe3, Phos3Fe3
         use chains, only     : ismonomer_chargeable, type_of_charge
         
         real(dp),intent(inout) :: checksumxpoltot
@@ -2117,6 +2129,7 @@ contains
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
         real(dp) :: deltavpolstatePNa, deltavpolstatePK, deltavpolstatePMg,deltavpolstateP2Mg
         real(dp) :: deltavpolstatePFe2, deltavpolstateP2Fe2, deltavpolstatePFe3, deltavpolstateP2Fe3
+        real(dp) ::  deltavpolstateP3Fe3
         
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -2170,24 +2183,26 @@ contains
                 else ! t=tPhos = ta  phosphate 
                 
                     ! formula in check_volume_nucl_inbin_sv does not work here because  fdisA(i,k) = 0 !!    
-
+                    ! singlet 
                     deltavpolstatePNa=vNa*vsol
                     deltavpolstatePK=vK*vsol
                     deltavpolstatePMg=vMg*vsol
                     deltavpolstatePFe2=vFe2*vsol
                     deltavpolstatePFe3=vFe3*vsol
-
-                    ! deltavpolstateP2Mg=(vpol(ta)+vMg)*vsol  
+                    ! doublet 
                     deltavpolstateP2Mg=(vPP(Phos2Mg)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
                     deltavpolstateP2Fe2=(vPP(Phos2Fe2)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp ! volume change per 1 phosphate
                     deltavpolstateP2Fe3=(vPP(Phos2Fe3)-2.0_dp*vpol(tPhos)*vsol)/2.0_dp 
+                    ! triplet
+                    deltavpolstateP3Fe3=(3.0_dp* vPPP(Phos3Fe3)-3.0_dp*vpol(tPhos)*vsol)/3.0_dp ! volume change per 1 phosphate
 
-                    sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates divide by volcell
+                    sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates mu;tiple by volcell
                     deltaxpol(tPhos)=sumrhophos*(&
-                            avfdisA(3)*deltavpolstatePNa  + avfdisA(8)*deltavpolstatePK+&
-                            avfdisA(6)*deltavpolstatePMg  + avfdisA(7)*deltavpolstateP2Mg+&
-                            avfdisA(9)*deltavpolstatePFe2  + avfdisA(10)*deltavpolstateP2Fe2+&
-                            avfdisA(11)*deltavpolstatePFe3 + avfdisA(12)*deltavpolstateP2Fe3) 
+                            avfdisA(3)*deltavpolstatePNa   + avfdisA(8)*deltavpolstatePK + &
+                            avfdisA(6)*deltavpolstatePMg   + avfdisA(7)*deltavpolstateP2Mg + &
+                            avfdisA(9)*deltavpolstatePFe2  + avfdisA(10)*deltavpolstateP2Fe2 + &
+                            avfdisA(11)*deltavpolstatePFe3 + avfdisA(12)*deltavpolstateP2Fe3 + &
+                            avfdisA(13)*deltavpolstateP3Fe3 ) 
            
                 endif    
             endif

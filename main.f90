@@ -295,7 +295,7 @@ program main
 
                     if(systype=="nucl_ionbin_Fe") then
                         call compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP,avfdisPPP)
-                    !    call compute_FEchem_react_PP_expl(FEchempair)
+                        call compute_FEchem_react_PPP_expl(FEchempair,FEchemtriplet)
                     endif          
                 
                     if(isSolution) then

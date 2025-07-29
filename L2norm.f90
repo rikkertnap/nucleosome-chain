@@ -54,7 +54,7 @@ contains
         real(dp), intent(in) :: f(:)
         integer, intent(in)  :: nb, ne
         real(dp)             :: norm ! output
-        integer              :: i ,n
+        integer              :: i
 
         norm=0.0_dp
         do i=nb,ne

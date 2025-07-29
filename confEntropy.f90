@@ -47,8 +47,7 @@ contains
         case ("nucl_ionbin_MgA")
             call FEconf_nucl_ionbin_MgA(FEconf,Econf)
         case ("nucl_ionbin_Fe")
-            text="FEconf_entropy: systype: "//systype//" not yet implemented"
-            print*,text
+            call FEconf_nucl_ionbin_Fe(FEconf,Econf)
         case ("nucl_neutral_sv")
             call FEconf_nucl_neutral_sv(FEconf,Econf)
         case default
@@ -71,8 +70,8 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vpol, isVdW, isrhoselfconsistent, write_Palpha
+        use field, only : xsol, q, lnproshift
+        use parameters, only : vpol, write_Palpha
         use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
@@ -81,7 +80,7 @@ contains
 
         real(dp) :: lnexppi(nsize,nsegtypes)   ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k             ! dummy indices
+        integer  :: i, t, c, s, k             ! dummy indices
         real(dp) :: FEconf_local,Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
@@ -90,7 +89,7 @@ contains
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
-        character(len=lenText) :: fname, istr
+        character(len=lenText) :: fname
 
         !  .. opens file to save Palpha 
         if(write_Palpha) then
@@ -187,8 +186,8 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr,  nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vpol, isVdW, VdWscale, write_Palpha 
+        use field, only : xsol, q, lnproshift
+        use parameters, only : vpol, write_Palpha 
         use myutils, only : newunit, lenText
 
         real(dp), intent(out) :: FEconf,Econf
@@ -196,7 +195,7 @@ contains
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k       ! dummy indices
+        integer  :: i, t, c, s, k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -206,7 +205,7 @@ contains
         real(dp) :: Asphparam_local
         integer  :: nbonds,ndihedrals,nangles
         integer  :: un
-        character(len=lenText) :: fname, istr
+        character(len=lenText) :: fname
         
         !  .. opens file to save Palpha 
         if(write_Palpha) then
@@ -296,8 +295,8 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol,psi, fdis,rhopol,q, lnproshift
-        use parameters, only : vpol, zpol, isVdW, isrhoselfconsistent, write_Palpha
+        use field, only : xsol,psi, fdis, q, lnproshift
+        use parameters, only : vpol, zpol, write_Palpha
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -305,7 +304,7 @@ contains
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,g,gn,c,s,k       ! dummy indices
+        integer  :: i, t, c, s, k       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -416,7 +415,7 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol, psi, fdis, rhopol, q ,lnproshift
+        use field, only : xsol, psi, fdis, q ,lnproshift
         use parameters, only : vpol, zpol, write_Palpha
         use myutils, only : lenText, newunit
         
@@ -530,12 +529,12 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
-        use chains, only : indexchain, type_of_monomer, ismonomer_chargeable, logweightchain, isAmonomer
+        use globals, only : nseg, nnucl, nsize, local_conf
+        use chains, only : indexchain, logweightchain, isAmonomer
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field,  only : xsol, psi, fdisA,fdisB, rhopol, q ,lnproshift
+        use field,  only : xsol, psi, fdisA,fdisB, q ,lnproshift
         use parameters
         use myutils, only : lenText, newunit
 
@@ -547,7 +546,6 @@ contains
         integer  :: i,k,c,s        ! dummy indices
         real(dp) :: pro,lnpro
         real(dp) :: FEconf_local, Econf_local
-        real(dp) :: q_local
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
         real(dp) :: dihedral_angle_local(nnucl-3)
@@ -652,9 +650,9 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol,psi, fdis,rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
+        use field, only : xsol, psi, rhopol,q, lnproshift, fdisA, epsfcn, Depsfcn
         use field, only : xOHmin,xHplus,xNa,xCl,xMg,xCa,xFe2
-        use parameters, only : bornrad, lb, VdWscale, tA, isrhoselfconsistent, isVdW, write_Palpha
+        use parameters, only : bornrad, lb, tA, write_Palpha
         use parameters, only : vpolAA, vsol, vNa, vCl, vFe2, vMg, vCa ,vpol
         use parameters, only : zNa, zCl, zFe2, zMg, zCa, zpolAA        
         use Poisson, only : Poisson_Equation_Eps, Poisson_Equation_Surface_Eps, grad_pot_sqr_eps_cubic
@@ -667,12 +665,12 @@ contains
         ! .. declare local variables
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: i,t,c,s,k,tc,l    ! dummy indices
+        integer  :: i, t, c, s, k   ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         integer  :: tcfdis(3)
         real(dp) :: rhopolAA(nsize),rhopolACa(nsize), rhopolAMg(nsize)
-        real(dp) :: lbr,expborn,Etotself,expsqrgrad, Eself
+        real(dp) :: lbr,expborn,Etotself,expsqrgrad
         real(dp) :: expsqrgradpsi(nsize),expEtotself(nsize)
         real(dp) :: Rgsqr_local,Rendsqr_local
         real(dp) :: bond_angle_local(nnucl-2)
@@ -836,8 +834,8 @@ contains
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle 
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol,psi, fdis,rhopol,q, lnproshift
-        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
+        use field, only : xsol,psi, fdis,q, lnproshift
+        use parameters, only : vnucl, vsol, zpol, write_Palpha
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -846,7 +844,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: i,j, t,g,gn,c,s,k, jcharge       ! dummy indices
+        integer  :: i,j, t, c, s, k, jcharge       ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -952,18 +950,18 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
+        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
         use parameters, only : ta, Phos
         use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
-        use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only : index_phos, inverse_index_phos, len_index_phos
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP
-        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
+        use parameters, only : vnucl, vsol, write_Palpha
         ! use VdW, only : VdW_contribution_lnexp
         use myutils, only : lenText, newunit
         
@@ -973,7 +971,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: i,j, t,g,gn,c,s,k, jcharge, ind, jj, m, k_ind, mr      ! dummy indices
+        integer  :: i,j, t, c, s, k, jcharge, ind, jj, m, k_ind, mr      ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -1119,15 +1117,14 @@ contains
 
         use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
         use parameters, only : ta, Phos
-        use volume, only : inverse_indexneighbor_phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
-        use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
         use field, only : xsol,psi, q, lnproshift
         use field, only : gdisA,gdisB, fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc,  fdisP2Fe3_loc
-        use parameters, only : vnucl, vsol, zpol, isVdW,  isrhoselfconsistent, write_Palpha
+        use parameters, only : vnucl, vsol, write_Palpha
         use myutils, only : lenText, newunit
         use modfcnMgexpl, only : compute_fdisPP
         
@@ -1137,7 +1134,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: i,j, t,g,gn,c,s,k, jcharge, ind, jj, m, k_ind, mr      ! dummy indices
+        integer  :: i, j, t, c,s,k, jcharge, jj, m     ! dummy indices
         real(dp) :: FEconf_local
         real(dp) :: Econf_local
         real(dp) :: Rgsqr_local,Rendsqr_local
@@ -1274,17 +1271,198 @@ contains
 
     end subroutine FEconf_nucl_ionbin_MgA    
 
+
+    subroutine FEconf_nucl_ionbin_Fe(FEconf,Econf)
+
+        !  .. variables and constant declaractions 
+
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
+        use parameters, only : ta, Phos
+        use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
+        use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh
+        use chains, only : indexconftriplet, ntriplet
+        use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing, avnucl_spacing
+        use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle
+        use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
+        use field, only : xsol, psi, q, lnproshift
+        use field, only : gdisA, gdisB, fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc,  fdisP2Fe3_loc
+        use field, only : fdisPPP_loc1
+        use parameters, only : vnucl, vsol, write_Palpha
+        use myutils, only : lenText, newunit
+        use modfcnMgexpl, only : compute_fdisPP
+        use modfcnFeexpl, only : compute_fdisPPP
+        
+        real(dp), intent(out) :: FEconf,Econf
+        
+        ! .. declare local variables
+        real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
+        real(dp) :: lnexppivw(nsize)
+        real(dp) :: pro,lnpro
+        integer  :: i, j, t, c, s, k, jcharge, jj, m, mm      ! dummy indices
+        real(dp) :: FEconf_local
+        real(dp) :: Econf_local
+        real(dp) :: Rgsqr_local,Rendsqr_local
+        real(dp) :: bond_angle_local(nnucl-2)
+        real(dp) :: dihedral_angle_local(nnucl-3)
+        real(dp) :: nucl_spacing_local(nnucl-1) 
+        real(dp) :: Asphparam_local
+        integer  :: nbonds,ndihedrals,nangles
+        integer  :: un
+        character(len=lenText) :: fname
+
+        if(write_Palpha) then
+            call make_filename_Palpha(fname,0)
+            open(unit=newunit(un),file=fname)
+        endif
+
+        !     .. executable statements 
+        do i=1,nsize   
+            lnexppivw(i) = log(xsol(i))/vsol
+        enddo
+            
+         
+        do t=1,nsegtypes
+            if(ismonomer_chargeable(t)) then
+                if(t/=ta) then
+                    if(type_of_charge(t)=="A") then  !  acid
+                        do i=1,nsize
+                            lnexppi(i,t) = psi(i) -log(gdisA(i,1,t))      ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
+                        enddo
+
+                    else !  base
+                        do i=1,nsize
+                            lnexppi(i,t) = -log(gdisB(i,2,t))             ! auxilary variable palpha lo  
+                        enddo
+                    endif  
+                                
+                else
+                    ! t=ta : phosphate              
+                    do i=1,nsize ! loop over index of  location of phosphates
+                        lnexppi(i,t) = psi(i)!!   ! auxilary variable palpha
+                    enddo
+                endif
+            endif      
+        enddo   
+
+       
+        !if(isVdW) then 
+        !    print*,"VdW SCF not allowed in FEconf_nucl_ionbin_Mg"
+        !endif 
+
+        !  .. computation polymer volume fraction      
+       
+        FEconf_local= 0.0_dp !init FEconf
+        Econf_local=0.0_dp   !init Econf
+        Rgsqr_local=0.0_dp
+        Rendsqr_local=0.0_dp
+        bond_angle_local = 0.0_dp
+        dihedral_angle_local = 0.0_dp
+        nucl_spacing_local = 0.0_dp
+        Asphparam_local = 0.0_dp
+
+        nbonds=nnucl-1
+        nangles=nnucl-2
+        ndihedrals=nnucl-3
+ 
+ 
+        do c=local_conf,local_conf                          ! loop over cuantas
+            if(no_overlapchain(c)) then 
+                lnpro=logweightchain(c)-energychainLJ(c) 
+                do s=1,nseg                           ! loop over segments 
+                    t=type_of_monomer(s)
+                    if(t/=ta) then 
+                        do j=1,nelem(s)               ! loop over elements of segment 
+                            k = indexconf(s,c)%elem(j)
+                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
+                        enddo
+                        if(ismonomer_chargeable(t)) then
+                            jcharge=elem_charge(t)
+                            k = indexconf(s,c)%elem(jcharge) 
+                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
+                        endif
+                    else 
+                        ! phosphates 
+                      
+                        k = indexconf(s,c)%elem(1)
+
+                        do jj=1,nneigh(s,c)           ! loop neighbors 
+
+                            m = indexconfpair(s,c)%elem(jj)
+                           
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
+
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
+                                          -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
+                        enddo
+
+                        do jj=1,ntriplet(s,c)
+                        
+                            m  = indexconftriplet(1,s,c)%elem(jj) ! ntriplet for monomer s
+                            mm = indexconftriplet(2,s,c)%elem(jj)   
+
+                            call  compute_fdisPPP(fdisPPP_loc1, k , m, mm)
+
+                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta) + lnexppi(mm,ta)+ &
+                                            (lnexppivw(k) + lnexppivw(m)  + lnexppivw(mm))*vnucl(1,ta) &
+                                          -log(fdisPPP_loc1(Phos,Phos,Phos))  )/(3.0_dp*ntriplet(s,c))   
+
+                            ! divide by 3 not 6 because need to permute m and mm but symmetric           
+
+                        enddo   
+
+                    endif        
+                enddo    
+
+                pro = exp(lnpro-lnproshift)  
+
+                FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
+                Econf_local=Econf_local+pro*energychainLJ(c)
+                Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
+                Rendsqr_local =Rendsqr_local+Rendsqr(c)*pro
+                bond_angle_local = bond_angle_local +bond_angle(:,c)*pro
+                dihedral_angle_local = dihedral_angle_local +dihedral_angle(:,c)*pro
+                nucl_spacing_local = nucl_spacing_local+nucl_spacing(:,c)*pro
+                Asphparam_local = Asphparam_local + Asphparam(c) * pro
+            
+                if(write_Palpha) write(un,*)pro/q
+            endif    
+        enddo
+
+        Econf_local=Econf_local/q
+        Rgsqr_local=Rgsqr_local/q
+        Rendsqr_local=Rendsqr_local/q
+        bond_angle_local = bond_angle_local/q
+        dihedral_angle_local = dihedral_angle_local/q 
+        nucl_spacing_local = nucl_spacing_local/q 
+        Asphparam_local = Asphparam_local/q
+       
+        ! normalize
+
+        FEconf=FEconf_local
+        Econf =Econf_local
+        avRgsqr=Rgsqr_local
+        avRendsqr=Rendsqr_local
+        avbond_angle = bond_angle_local
+        avdihedral_angle = dihedral_angle_local
+        avnucl_spacing = nucl_spacing_local
+        avAsphparam = Asphparam_local
+
+            
+        if(write_Palpha) close(un)
+
+    end subroutine FEconf_nucl_ionbin_Fe    
+
     subroutine FEconf_nucl_neutral_sv(FEconf,Econf)
     
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl, nsegtypes, nsize, local_conf
+        use globals, only : nseg, nnucl, nsize, local_conf
         use chains, only : indexconf, nelem, type_of_monomer, logweightchain
         use chains, only : Rgsqr, Rendsqr, avRgsqr, avRendsqr, nucl_spacing
         use chains, only : bond_angle, dihedral_angle,avbond_angle, avdihedral_angle, avnucl_spacing       
         use chains, only : Asphparam, avAsphparam, energychainLJ, no_overlapchain
-        use field, only : xsol, rhopol, q, lnproshift
-        use parameters, only : vsol, vnucl, isVdW, isrhoselfconsistent, write_Palpha
+        use field, only : xsol, q, lnproshift
+        use parameters, only : vsol, vnucl, write_Palpha
         use myutils, only : lenText, newunit
 
         real(dp), intent(out) :: FEconf,Econf
@@ -1409,7 +1587,7 @@ contains
     subroutine make_filename_label(fnamelabel)
 
         use globals, only : systype, runtype, set_confor, local_conf, nnucl
-        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2, cFeCl3, pHbulk,VdWepsBB
+        use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2, cFeCl3, pHbulk
         use parameters, only : init_denspol,VdWscale,pKd,dielectscale
 
         character(len=*), intent(inout) :: fnamelabel

@@ -51,7 +51,7 @@ module myio
 
     ! unit number
     integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl, un_xO2
-    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe
+    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_xFe2, un_xFe3
     integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
     integer :: un_chargepol
 
@@ -1427,16 +1427,10 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
-    case("nucl_ionbin_Mg","nucl_ionbin_MgA")
+    case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
 
         call output_nucl_ionbin_Mg
         call output_individualcontr_fe
-
-    case("nucl_ionbin_Fe") 
-        
-        text="output: systype: "//systype//" not implemnted yet"
-        call output_nucl_ionbin_Mg
-        !call output_individualcontr_fe
 
     case("nucl_neutral_sv")
 
@@ -1445,8 +1439,10 @@ subroutine output()
 
     case default
 
-        print*,"Error in output subroutine"
-        print*,"Wrong value systype : ", systype
+        text="Error in output subroutine"
+        print*,text
+        text="Wrong value systype : "//trim(adjustl(systype))
+        print*,text
 
     end select
 
@@ -1456,10 +1452,13 @@ end subroutine output
 subroutine output_nucl_ionbin_Mg
 
     !     .. variables and constant declaractions
-    use globals
+    use globals, only : nnucl, nseg, nsegtypes, nsize, cuantas, bcflag, runtype, systype
     use volume
     use parameters
-    use field
+    use field, only : xsol, xNa, xK, xMg, xCa, xFe2, xFe3, xCl, xHplus, xOHmin, xO2, xNaCl, xKCl 
+    use field, only : psi, rhoq, rhoqpol, xpol, xpol_t
+    use field, only : q, fdis, fdisA, gdisA, gdisB 
+    use field, only : numbers_pairs, numbers_triplets
     use energy
     use surface
     use myutils, only : newunit
@@ -1477,11 +1476,12 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
     character(len=90) :: xCafilename
     character(len=90) :: xMgfilename
+    character(len=90) :: xFe2filename
+    character(len=90) :: xFe3filename
     character(len=90) :: xNaClfilename
     character(len=90) :: xKClfilename
     character(len=90) :: xClfilename
@@ -1498,15 +1498,22 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
 
-    logical :: isopen
     integer :: i,j,k          ! dummy indexes
-    real(dp) :: denspol
+    real(dp) :: denspol, numpairs, numtriplets
 
     ! .. executable statements
 
     denspol=init_denspol()
+
+    numpairs= numbers_pairs()
+    if(systype=="nucl_ionbin_Fe") then 
+        numtriplets = numbers_triplets()
+    else
+        numtriplets = 0.0_dp
+    endif
+        
+
    
     ! .. make label filenames 
 
@@ -1519,6 +1526,8 @@ subroutine output_nucl_ionbin_Mg
     xKfilename     = 'xKions.'//trim(fnamelabel)
     xCafilename    = 'xCaions.'//trim(fnamelabel)
     xMgfilename    = 'xMgions.'//trim(fnamelabel)
+    xfe2filename   = 'xFe2ions.'//trim(fnamelabel)
+    xFe3filename   = 'xFe3ions.'//trim(fnamelabel)
     xNaClfilename  = 'xNaClionpair.'//trim(fnamelabel)
     xKClfilename   = 'xKClionpair.'//trim(fnamelabel)
     xClfilename    = 'xClions.'//trim(fnamelabel)
@@ -1564,6 +1573,8 @@ subroutine output_nucl_ionbin_Mg
         open(unit=newunit(un_xK),file=xKfilename)
         open(unit=newunit(un_xCa),file=xCafilename)
         open(unit=newunit(un_xMg),file=xMgfilename)
+        open(unit=newunit(un_xFe2),file=xFe2filename)
+        open(unit=newunit(un_xFe3),file=xFe3filename)
         open(unit=newunit(un_xNaCl),file=xNaClfilename)
         open(unit=newunit(un_xKCl),file=xKClfilename)
         open(unit=newunit(un_xpair),file=densfracionpairfilename)
@@ -1632,12 +1643,15 @@ subroutine output_nucl_ionbin_Mg
             write(un_xK,*)xK(i)
             write(un_xCa,*)xCa(i)
             write(un_xMg,*)xMg(i)
+            write(un_xFe2,*)xFe2(i)
+            write(un_xFe3,*)xFe3(i)
             write(un_xNaCl,*)xNaCl(i)
             write(un_xKCl,*)xKCl(i)
             write(un_xpair,*)(xNaCl(i)/vNaCl)/(xNa(i)/vNa+xCl(i)/vCl+xNaCl(i)/vNaCl)
             write(un_xCl,*)xCl(i)
             write(un_xHplus,*)xHplus(i)
             write(un_xOHmin,*)xOHmin(i)
+            
         enddo
     endif
 
@@ -1785,10 +1799,16 @@ subroutine output_nucl_ionbin_Mg
         write(un_sys,*)'qpol(',t,')      = ',qpol(t)
     enddo
     write(un_sys,*)'qpoltot     = ',qpol_tot
+    if(systype=="nucl_ionbin_Fe") then 
+        do k=1,13
+            write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k), ' ',avfdisA_pairs(k),' ',avfdisA_triplets(k)
+        enddo
+    else 
+        do k=1,13
+            write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k)
+        enddo
+    endif
 
-    do k=1,12
-        write(un_sys,*)'avfdisA(',k,')   = ',avfdisA(k)
-    enddo
     do t=1,nsegtypes
         write(un_sys,*)'avfdis(',t,')    = ',avfdis(t)
     enddo    
@@ -1812,7 +1832,11 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'avfdisP2Mg  = ',avfdisP2Mg
     write(un_sys,*)'avfdisP2Fe2 = ',avfdisP2Fe2
     write(un_sys,*)'avfdisP2Fe3 = ',avfdisP2Fe3
-    write(un_sys,*)'check avfdisPP = ',sum(avfdisPP)+avfdisP2Mg+avfdisP2Fe2+avfdisP2Fe3
+    write(un_sys,*)'check avfdisPP  = ',sum(avfdisPP)+avfdisP2Mg+avfdisP2Fe2+avfdisP2Fe3
+    write(un_sys,*)'check avfdisPPP = ',sum(avfdisPPP)
+    write(un_sys,*)'number of pairs      = ', numpairs
+    write(un_sys,*)'number of triplets   = ', numtriplets
+    write(un_sys,*)'number of phosphates = ', numtriplets * 3.0_dp + numpairs * 2.0_dp
 
     write(un_sys,*)'nsize       = ',nsize
     write(un_sys,*)'cuantas     = ',cuantas
@@ -1891,6 +1915,9 @@ subroutine output_nucl_ionbin_Mg
         close(un_xK)
         close(un_xCa)
         close(un_xMg)
+        close(un_xMg)
+        close(un_xFe2)
+        close(un_xFe3)
         close(un_xNaCl)
         close(un_xKCl)
         close(un_xpair)
@@ -3326,8 +3353,6 @@ subroutine compute_vars_and_output()
     use field, only : distribution_charge_nucl_ionbin_sv, max_potential
     use chains, only : avAsphparam
     use myutils, only : lenText
-
-    character(len=lenText) :: text
     
     select case (systype)
     case ("elect")
@@ -3397,15 +3422,12 @@ subroutine compute_vars_and_output()
         call output()   
 
     case ("nucl_ionbin_Fe")   
-
-        text="compute_vars_and_input: systype: "//systype//" not implemnted yet"
-        print*,text
         
         call charge_polymer()
         call average_charge_polymer()        
-        !call fcnenergy() ! need avfdis in check_volumefraction routine
+        call fcnenergy() ! need avfdis in check_volumefraction routine
         call make_ion_excess()
-        !call make_beta(sumphi) ! sumphi computed in fcnenergy()
+        call make_beta(sumphi) ! sumphi computed in fcnenergy()
         call max_potential() 
         call output()   
 
