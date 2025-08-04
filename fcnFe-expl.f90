@@ -402,11 +402,11 @@ contains
     subroutine fcnnucl_Fe_expl(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf, LEFT, RIGHT, bcflag
         use parameters, only : expmu, vsol
         use parameters, only : vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vnucl,vPP,vO2,vPPP
-        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,qPPP,K0aAA,K0a,K0aion
-        use parameters, only : ta, iter
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,qPPP
+        use parameters, only : K0aAA, K0a, K0aion, ta, iter
         use parameters, only : Phos, Phos2Mg, Phos2Fe2, Phos2Fe3 
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
@@ -422,7 +422,8 @@ contains
         use field, only      : fdisPPP_loc3 , fdisPPP_loc3_swap 
         use field, only      : numbers_pairs, numbers_triplets
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
-        use Poisson, only    : Poisson_Equation
+        use Poisson, only    : Poisson_Equation_nopbc
+        use surface, only    : sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR, surface_charge
 
         use modfcnMgexpl, only : compute_fdisPP
 
@@ -841,12 +842,12 @@ contains
                                     do KK=1,11
                                         do LL=1,11
                                             sum_rhoqphos = sum_rhoqphos + &
-                                                ((fdisPPP_loc2(JJ,KK,LL)      + fdisPPP_loc3(JJ,KK,LL))*qPPP(JJ) + &
+                                                ((fdisPPP_loc2(JJ,KK,LL)     + fdisPPP_loc3(JJ,KK,LL))*qPPP(JJ) + &
                                                 (fdisPPP_loc1(JJ,KK,LL)      + fdisPPP_loc3_swap(JJ,KK,LL))*qPPP(KK) + &
                                                 (fdisPPP_loc1_swap(JJ,KK,LL) + fdisPPP_loc2_swap(JJ,KK,LL))*qPPP(LL) )/6.0_dp
                                         
                                             sum_xphos = sum_xphos  + & 
-                                                ((fdisPPP_loc2(JJ,KK,LL)      + fdisPPP_loc3(JJ,KK,LL))*vPPP(JJ) + &
+                                                ((fdisPPP_loc2(JJ,KK,LL)     + fdisPPP_loc3(JJ,KK,LL))*vPPP(JJ) + &
                                                 (fdisPPP_loc1(JJ,KK,LL)      + fdisPPP_loc3_swap(JJ,KK,LL))*vPPP(KK) + &
                                                 (fdisPPP_loc1_swap(JJ,KK,LL) + fdisPPP_loc2_swap(JJ,KK,LL))*vPPP(LL) )/6.0_dp
                                         enddo
@@ -1001,9 +1002,19 @@ contains
         ! .. end computation polymer density and charge density  
 
         ! .. electrostatics 
-
-        call Poisson_Equation(f,psi,rhoq)
-
+           
+        sigmaqSurfR = surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
+        sigmaqSurfL = surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+            
+        ! .. Poisson Eq 
+        
+        !call Poisson_Equation(f,psi,rhoq)
+        
+        call Poisson_Equation_nopbc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    
+        ! .. boundary conditions only if bcflag /= cc or cp 
+        !   call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+        
         norm=l2norm_f90(f)
         iter=iter+1
                     
@@ -1490,7 +1501,7 @@ contains
                                 enddo
                             enddo
         
-                            sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
+                            sum_pi=sum_pi-(vPP(Phos2Mg)/2.0_dp)* (betapi_k+betapi_m)*fdisP2Mg_loc*pro/nneigh(s,c)
                             sum_pi=sum_pi-(vPP(Phos2Fe2)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Fe2_loc*pro/nneigh(s,c)
                             sum_pi=sum_pi-(vPP(Phos2Fe3)/2.0_dp)*(betapi_k+betapi_m)*fdisP2Fe3_loc*pro/nneigh(s,c)
 
@@ -1569,7 +1580,7 @@ contains
                                             sum_psi = sum_psi - &   
                                                 ((qPPP(JJ) * psi_k + qPPP(KK) * psi_m + qPPP(LL) * psi_mm ) * & 
                                                     fdisPPP_loc1(JJ,KK,LL) + &
-                                                 (qPPP(JJ) * psi_k + qPPP(KK) * betapi_mm + qPPP(LL) * psi_m ) * & 
+                                                 (qPPP(JJ) * psi_k + qPPP(KK) * psi_mm + qPPP(LL) * psi_m ) * & 
                                                     fdisPPP_loc1_swap(JJ,KK,LL) ) * pro/ (6.0_dp*ntriplet(s,c))
                                           
 
@@ -1595,7 +1606,7 @@ contains
                                             sum_psi = sum_psi - &   
                                                 ((qPPP(JJ) * psi_m + qPPP(KK) * psi_k + qPPP(LL) * psi_mm ) * & 
                                                     fdisPPP_loc2(JJ,KK,LL) + &
-                                                 (qPPP(JJ) * psi_m + qPPP(KK) * betapi_mm + qPPP(LL) * psi_k ) * & 
+                                                 (qPPP(JJ) * psi_m + qPPP(KK) * psi_mm + qPPP(LL) * psi_k ) * & 
                                                     fdisPPP_loc3(JJ,KK,LL) ) * pro/ (6.0_dp*ntriplet(s,c))
 
                                             
@@ -1621,7 +1632,7 @@ contains
                                             sum_psi = sum_psi - &   
                                                 ((qPPP(JJ) * psi_mm + qPPP(KK) * psi_k + qPPP(LL) * psi_m ) * & 
                                                     fdisPPP_loc2_swap(JJ,KK,LL) + &
-                                                 (qPPP(JJ) * psi_mm + qPPP(KK) * betapi_m + qPPP(LL) * psi_k ) * & 
+                                                 (qPPP(JJ) * psi_mm + qPPP(KK) * psi_m + qPPP(LL) * psi_k ) * & 
                                                     fdisPPP_loc3_swap(JJ,KK,LL) ) * pro/ (6.0_dp*ntriplet(s,c))
 
                                         enddo

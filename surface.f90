@@ -5,14 +5,14 @@ module surface
 
     implicit none
 
-
     real(dp) :: sigmaSurfL          ! surface density of acid on surface in nm^2
     real(dp) :: sigmaSurfR          ! surface density of acid on surface in nm^2
+    real(dp) :: psiSR, psiSL        !  surface potenital in reduced units for constant potentail bc
 
     real(dp), dimension(:), allocatable :: sigmaqSurfL         ! surface charge density on surface in nm^2
     real(dp), dimension(:), allocatable :: sigmaqSurfR         ! surface charge density on surface in nm^2
-    real(dp), dimension(:), allocatable ::  psiSurfL            ! surface potential
-    real(dp), dimension(:), allocatable ::  psiSurfR            ! surface potential
+    real(dp), dimension(:), allocatable ::  psiSurfL           ! surface potential
+    real(dp), dimension(:), allocatable ::  psiSurfR           ! surface potential
 
     !   different surface states
 
@@ -33,13 +33,11 @@ module surface
 
     private  :: allocate_psiSurf_sigmaqSurf
     private  :: init_surface_quartz, init_surface_calcite, init_surface_taurine, init_surface_constcharge, init_surface_clay
-    private  :: KS,pKS,cap,KTa,pKTa
+    private  :: KS, pKS, cap, KTa, pKTa
 
 contains
 
         subroutine init_surface(bc,nsurf)
-
-            implicit none
 
             character(len=2), intent(in) :: bc(2)
             integer, intent(in) :: nsurf
@@ -57,8 +55,10 @@ contains
                     call init_surface_taurine(RIGHT)
                 case ("cc")
                     call init_surface_constcharge(RIGHT)
+                case ("cp") 
+                    ! empty no init neccessary    
                 case default
-                    print*,"bc(RIGHT) does not match qu, cl, ca, ta, or cc"
+                    print*,"bc(RIGHT) does not match qu, cl, ca, ta, cc or cp"
             end select
 
             select case (bc(LEFT))
@@ -66,15 +66,16 @@ contains
                     call init_surface_taurine(LEFT)
                 case ("cc")
                     call init_surface_constcharge(LEFT)
+                case ("cp") 
+                    ! empty no init neccessary  
                 case default
-                    print*,"bc(LEFT) does not match ta, or cc"
+                    print*,"bc(LEFT) does not match ta, cc or cp"
             end select
         end subroutine init_surface
 
         function surface_charge(bc,psiSurf,side) result(sigmaqSurf)
 
             use volume,  only : nsurf
-            implicit none
 
             real(dp), intent(in) :: psiSurf(:)
             character(len=2), intent(in) :: bc
@@ -94,6 +95,8 @@ contains
                         sigmaqSurf = surface_charge_taurine(psiSurf,RIGHT)
                     case ("cc")
                         sigmaqSurf = sigmaSurfR
+                    case ("cp") 
+                        sigmaqSurf = surface_charge_constant_potential(RIGHT)   
                     case default
                         print*,"RIGHT: bc does not match qu, cl, ca, ta, or cc"    
                         sigmaqSurf = 0.0_dp
@@ -103,7 +106,9 @@ contains
                     case ("ta")
                         sigmaqSurf = surface_charge_taurine(psiSurf,LEFT)
                     case ("cc")
-                        sigmaqSurf = sigmaSurfL
+                        sigmaqSurf = sigmaSurfL 
+                    case ("cp") 
+                        sigmaqSurf = surface_charge_constant_potential(LEFT)  
                     case default
                         print*,"LEFT: bc does not match ta or cc"
                         sigmaqSurf = 0.0_dp
@@ -116,10 +121,11 @@ contains
         end function surface_charge
 
 
-
         subroutine allocate_psiSurf_sigmaqSurf(nsurf)
 
             integer, intent(in) :: nsurf
+
+            print*,"allovate surface "
 
             allocate(sigmaqSurfL(nsurf))
             allocate(sigmaqSurfR(nsurf))
@@ -134,8 +140,6 @@ contains
 
             use physconst, only : Na
             use parameters,  only : vsol,delta,lb
-
-            implicit none
 
             integer :: i
 
@@ -171,8 +175,6 @@ contains
             use mathconst
             use physconst, only : Na
             use parameters,  only : vsol,delta,lb
-
-            implicit none
 
             integer :: i
 
@@ -212,8 +214,6 @@ contains
             use physconst, only : Na
             use parameters,  only : vsol,delta,lb
 
-            implicit none
-
             integer :: i
 
             ! see Luetzenkirchen book chapter 7 pages 204-206
@@ -251,8 +251,6 @@ contains
 
             use physconst, only : Na
             use parameters,  only : vsol,delta,lb
-
-            implicit none
 
             integer, intent(in) :: side
 
@@ -296,10 +294,8 @@ contains
 
         function surface_charge_quartz(psiS) result(surface_charge)
 
-            use parameters, only : xbulk, vNa, vCl, vCa, vsol
+            use parameters, only : xbulk, vNa, vCl, vCa
             use volume, only : nsurf
-
-            implicit none
 
             real(dp), intent(in) :: psiS(:)
 
@@ -339,14 +335,11 @@ contains
 
         function surface_charge_calcite(psiS) result(surface_charge)
 
-            use parameters, only : xbulk, vNa, vCl, vCa, vsol
+            use parameters, only : xbulk, vCa, vsol
             use volume, only : nsurf
-
-            implicit none
 
             real(dp), intent(in) :: psiS(:)
             real(dp) :: surface_charge(nsurf)
-
 
             ! .. local variables
             real(dp) :: xS(6)
@@ -383,13 +376,11 @@ contains
 
         function surface_charge_clay(psiS) result(surface_charge)
 
-            use parameters, only : xbulk, vNa, vCl, vCa, vsol
+            use parameters, only : xbulk, vNa, vCl, vCa
             use volume, only : nsurf
-            implicit none
 
             real(dp), intent(in) :: psiS(:)
             real(dp) :: surface_charge(nsurf)
-
 
             ! .. local variables
 
@@ -428,11 +419,8 @@ contains
 
         function surface_charge_taurine(psiS,side) result(surface_charge)
 
-
-            use parameters, only : xbulk, vNa, vCl, vCa, vsol
+            use parameters, only : xbulk, vNa,  vCa
             use volume, only : nsurf
-
-            implicit none
 
             real(dp), intent(in) :: psiS(:)
             integer, intent(in) :: side
@@ -480,6 +468,33 @@ contains
             enddo
 
         end function surface_charge_taurine
+
+
+        ! surface charge for constant surface  potential surface charge in dimensionless units
+
+        function surface_charge_constant_potential(side) result(surface_charge)
+
+            use volume, only : nsurf, nz, nx, ny, coordtoindex
+            use field, only : psi
+          
+            integer, intent(in) :: side
+            real(dp) :: surface_charge(nsurf)
+
+            ! .. local variables
+            integer :: iz, idx
+
+             if(side==LEFT) then
+                do iz=1,nz
+                    idx = coordtoindex(1,1 ,iz)
+                    surface_charge(iz)= -2.0_dp * ( psi(idx) - psiSL )  
+                enddo
+            else 
+                do iz=1,nz 
+                    idx = coordtoindex(nx,ny,iz)
+                    surface_charge(iz)= -2.0_dp * ( psi(idx) -psiSR ) 
+                enddo
+            endif    
+        end function surface_charge_constant_potential
 
 
 end module surface

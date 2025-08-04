@@ -74,10 +74,10 @@ contains
 
         ! cubic lattice  or prism surface in x-y direction at z=0 and z=nz  
         ! nz=nzmax
-        nsize = nx*ny*nz                       ! total number of cells or layers
-        volcell = delta*delta*delta*1.0_dp     ! volume of one latice volume 
-        areacell = delta*delta
-        nsurf = nx*ny  
+        nsize = nx*ny*nz                             ! total number of cells or layers
+        volcell = delta * delta * delta * 1.0_dp     ! volume of one latice volume 
+        areacell = delta * delta
+        nsurf = nx * ny  
 
         areasurf=nsurf*delta*delta
       

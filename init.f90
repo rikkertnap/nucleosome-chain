@@ -9,10 +9,17 @@ module initxvector
 
 contains
 
+
+! Makes an inital guess vector xguess
+! Order of assignment:
+! if flagstored present and true  : xguess => xstored
+! if flagstored false and isfirstguess true                 
+!                                 : xguess => init_guess(x,xguess)
+! else                            : xguess => x
+
 subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
   
-    use globals, only : neq,neqmax,systype,bcflag,LEFT,RIGHT
-    use volume, only : nsurf 
+    use globals, only : neq 
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential 
@@ -21,7 +28,7 @@ subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
     real(dp), optional, intent(in) :: xstored(:)
     
     !  ..local variables 
-    integer :: i ,neq_bc
+    integer :: i 
 
     if(present(flagstored)) then
         if(present(xstored)) then
@@ -96,11 +103,11 @@ subroutine init_guess_elect(x, xguess)
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i
+    integer :: i
     character(len=8) :: fname(4)
     integer :: ios,un_file(4)
     integer, parameter :: A=1, B=2   
-    character(len=lenText) :: text, istr, str
+    character(len=lenText) :: text, istr
   
     ! .. init guess all xbulk     
 
@@ -166,20 +173,19 @@ end subroutine init_guess_elect
 
 subroutine init_guess_nucl_neutral_sv(x, xguess)
     
-    use globals, only : neqint,nsize,nsegtypes
-    use volume, only : nz
-    use field, only : xsol,rhopol,xpol
-    use parameters, only : xbulk, infile, isrhoselfconsistent
+    use globals, only : neqint,nsize
+    use field, only : xsol
+    use parameters, only : xbulk, infile
     use myutils, only : newunit, lenText, error_handler
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, k, t
+    integer :: i
     character(len=8) :: fname
     character(len=lenText) :: text, istr
-    integer :: ios,un_file,count_scf
+    integer :: ios,un_file
   
     !     .. init guess all xbulk      
 
@@ -220,7 +226,6 @@ end subroutine init_guess_nucl_neutral_sv
 subroutine init_guess_neutral(x, xguess)
     
     use globals, only : neqint,nsize,nsegtypes
-    use volume, only : nz
     use field, only : xsol,rhopol,xpol
     use parameters, only : xbulk, infile, isrhoselfconsistent
     use myutils, only : newunit, lenText, error_handler
@@ -229,9 +234,9 @@ subroutine init_guess_neutral(x, xguess)
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, k, t
+    integer :: i, k, t
     character(len=8) :: fname(2)
-    character(len=lenText) :: text, istr, str
+    character(len=lenText) :: text, istr
     integer :: ios,un_file(2),count_scf
   
     !     .. init guess all xbulk      
@@ -287,9 +292,8 @@ end subroutine init_guess_neutral
 
 subroutine init_guess_neutralnoVdW(x, xguess)
     
-    use globals, only : neqint,nsize,nsegtypes
-    use volume, only : nz
-    use field, only : xsol,rhopol
+    use globals, only : neqint,nsize
+    use field, only : xsol
     use parameters, only : xbulk, infile
     use myutils, only : newunit, lenText, error_handler
   
@@ -297,7 +301,7 @@ subroutine init_guess_neutralnoVdW(x, xguess)
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, t
+    integer :: i
     character(len=8) :: fname
     character(len=lenText) :: text, istr
     integer :: ios,un_file
@@ -349,7 +353,7 @@ subroutine init_guess_multi(x, xguess)
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, k, t
+    integer :: i, k, t
     character(len=8) :: fname(4)
     integer :: ios,un_file(4),count_scf
     character(len=lenText) :: text, istr
@@ -380,7 +384,7 @@ subroutine init_guess_multi(x, xguess)
             endif    
         enddo
 
-        if(bcflag(LEFT)/="cc") then 
+        if(bcflag(LEFT)/="cc" .and. bcflag(LEFT)/="cp") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -397,8 +401,7 @@ subroutine init_guess_multi(x, xguess)
                 x(i+nsize)   = psi(i)     ! placing psi in vector x
             enddo 
         else
-
-
+        
             do i=1,nsize
                 read(un_file(1),*)xsol(i)    ! solvent
                 read(un_file(2),*)psi(i)     ! potential
@@ -428,7 +431,7 @@ subroutine init_guess_multi(x, xguess)
             endif        
         enddo
 
-        if(bcflag(RIGHT)/="cc") then
+        if(bcflag(RIGHT)/="cc" .and. bcflag(LEFT)/="cp") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -461,7 +464,7 @@ subroutine init_guess_multinoVdW(x, xguess)
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
     !     ..local variables 
-    integer :: n, i, t
+    integer :: i
     character(len=8) :: fname(2)
     character(len=lenText) :: text, istr
     integer :: ios,un_file(2)
@@ -539,8 +542,6 @@ subroutine init_guess_multi_born(x, xguess)
     character(len=8) :: fname(4)
     character(len=lenText) :: text, istr
     integer :: ios, un_file(4), count_sc
-    real(dp) :: val ! dummy variable for reading in files
-
 
     do i=1,neqint
         x(i)=0.0_dp    
@@ -566,13 +567,11 @@ subroutine init_guess_multi_born(x, xguess)
             endif
         enddo
 
-
         k1=nsize
         k2=2*nsize
         k3=3*nsize
         k4=4*nsize
         k5=5*nsize
-
 
         if(bcflag(RIGHT)/="cc") then
             do i=1,nsurf 

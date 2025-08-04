@@ -180,6 +180,10 @@ subroutine read_inputfile(info)
                 read(buffer, *,iostat=ios) systype
             case ('runtype')
                 read(buffer, *,iostat=ios) runtype
+            case ('bcflag(LEFT)')
+                read(buffer,*,iostat=ios) bcflag(LEFT)
+            case ('bcflag(RIGHT)')
+                read(buffer,*,iostat=ios) bcflag(RIGHT)    
             case ('chainmethod')
                 read(buffer,*,iostat=ios) chainmethod
             case ('chaintype')
@@ -207,6 +211,14 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) KionNa
             case ('KionK')
                 read(buffer,*,iostat=ios) KionK
+            case ('sigmaSurfL')
+                read(buffer,*,iostat=ios) sigmaSurfL
+            case ('sigmaSurfR')
+                read(buffer,*,iostat=ios) sigmaSurfR
+            case ('psiSL')
+                read(buffer,*,iostat=ios) psiSL
+            case ('psiSR')
+                read(buffer,*,iostat=ios) psiSR
             case ('cNaCl')
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
@@ -566,7 +578,7 @@ subroutine check_value_bcflag(bcflag,info)
     character(len=2), intent(in), dimension(2) :: bcflag
     integer, intent(out), optional :: info
 
-    character(len=15) :: bcvalues(2,5)
+    character(len=15) :: bcvalues(2,6)
     integer :: i
     logical :: flag
 
@@ -579,12 +591,16 @@ subroutine check_value_bcflag(bcflag,info)
     bcvalues(RIGHT,3)="ca"
     bcvalues(RIGHT,4)="ta"
     bcvalues(RIGHT,5)="cc"
+    bcvalues(RIGHT,6)="cp"
+
     bcvalues(LEFT,1)="ta"
     bcvalues(LEFT,2)="cc"
+    bcvalues(LEFT,3)="cp"
 
     flag=.FALSE.
+    ! restrict to cc and cp 
 
-    do i=1,5
+    do i=5,6 
         if(bcflag(RIGHT)==bcvalues(RIGHT,i)) flag=.TRUE.
     enddo
     if (flag.eqv. .FALSE.) then
@@ -596,7 +612,7 @@ subroutine check_value_bcflag(bcflag,info)
     endif
 
     flag=.FALSE.
-    do i=1,2
+    do i=2,3
         if(bcflag(LEFT)==bcvalues(LEFT,i)) flag=.TRUE.
     enddo
     if (flag.eqv. .FALSE.) then
