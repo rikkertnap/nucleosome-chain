@@ -402,7 +402,7 @@ contains
     subroutine fcnnucl_Fe_expl(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf, LEFT, RIGHT, bcflag
+        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf, LEFT, RIGHT, bctype
         use parameters, only : expmu, vsol
         use parameters, only : vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vnucl,vPP,vO2,vPPP
         use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,qPPP
@@ -1003,8 +1003,8 @@ contains
 
         ! .. electrostatics 
            
-        sigmaqSurfR = surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-        sigmaqSurfL = surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+        sigmaqSurfR = surface_charge(bctype(RIGHT),psiSurfR,RIGHT)
+        sigmaqSurfL = surface_charge(bctype(LEFT),psiSurfL,LEFT)
             
         ! .. Poisson Eq 
         
@@ -1012,8 +1012,8 @@ contains
         
         call Poisson_Equation_bc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
     
-        ! .. boundary conditions only if bcflag /= cc or cp 
-        !   call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+        ! .. boundary conditions only if bctype /= cc or cp 
+        !   call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bctype)    
         
         norm=l2norm_f90(f)
         iter=iter+1
@@ -1044,7 +1044,7 @@ contains
     subroutine fcnnonucl_cp(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, neq, LEFT, RIGHT, bcflag
+        use globals, only    : nsize, neq, LEFT, RIGHT, bctype
         use parameters, only : expmu
         use parameters, only : vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vO2
         use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg 
@@ -1105,8 +1105,8 @@ contains
 
         ! .. electrostatics 
            
-        sigmaqSurfR = surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-        sigmaqSurfL = surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+        sigmaqSurfR = surface_charge(bctype(RIGHT),psiSurfR,RIGHT)
+        sigmaqSurfL = surface_charge(bctype(LEFT),psiSurfL,LEFT)
             
         ! .. Poisson Eq 
         
@@ -1114,8 +1114,8 @@ contains
         
         call Poisson_Equation_bc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
     
-        ! .. boundary conditions only if bcflag /= cc or cp 
-        call Poisson_Equation_Surface(f,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+        ! .. boundary conditions only if bctype /= cc or cp 
+        call Poisson_Equation_Surface(f,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bctype)    
         
         norm=l2norm_f90(f)
         iter=iter+1

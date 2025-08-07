@@ -92,7 +92,7 @@ end subroutine init_guess
 
 subroutine init_guess_elect(x, xguess)
 
-    use globals, only : neqint, bcflag,LEFT,RIGHT,nsize
+    use globals, only : neqint, bctype,LEFT,RIGHT,nsize
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol
     use surface, only : psisurfL, psisurfR 
@@ -134,7 +134,7 @@ subroutine init_guess_elect(x, xguess)
             endif
         enddo
 
-        if(bcflag(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -150,7 +150,7 @@ subroutine init_guess_elect(x, xguess)
             x(i+3*nsize) = rhopol(i,B)   ! placing xsol  in vector x
         enddo
     
-        if(bcflag(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -342,7 +342,7 @@ end subroutine init_guess_neutralnoVdW
 
 subroutine init_guess_multi(x, xguess)
 
-    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
+    use globals, only : bctype,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,xpol_t
     use surface, only : psisurfL, psisurfR 
@@ -384,7 +384,7 @@ subroutine init_guess_multi(x, xguess)
             endif    
         enddo
 
-        if(bcflag(LEFT)/="cc" .and. bcflag(LEFT)/="cp") then 
+        if(bctype(LEFT)/="cc" .and. bctype(LEFT)/="cp") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -431,7 +431,7 @@ subroutine init_guess_multi(x, xguess)
             endif        
         enddo
 
-        if(bcflag(RIGHT)/="cc" .and. bcflag(LEFT)/="cp") then
+        if(bctype(RIGHT)/="cc" .and. bctype(LEFT)/="cp") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -453,7 +453,7 @@ end subroutine init_guess_multi
 
 subroutine init_guess_multinoVdW(x, xguess)
 
-    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint
+    use globals, only : bctype,LEFT,RIGHT,nsize,neqint
     use volume, only : nsurf
     use field, only : xsol,psi
     use surface, only : psisurfL, psisurfR 
@@ -492,7 +492,7 @@ subroutine init_guess_multinoVdW(x, xguess)
                 call error_handler(ios,text)
             endif
         enddo
-        if(bcflag(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -506,7 +506,7 @@ subroutine init_guess_multinoVdW(x, xguess)
                   
         enddo
     
-        if(bcflag(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -528,7 +528,7 @@ end subroutine init_guess_multinoVdW
 
 subroutine init_guess_multi_born(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes
+    use globals, only : neq,bctype,LEFT,RIGHT,nsize,neqint,nsegtypes
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,rhopol,fdisA
     use surface, only : psisurfL, psisurfR 
@@ -573,7 +573,7 @@ subroutine init_guess_multi_born(x, xguess)
         k4=4*nsize
         k5=5*nsize
 
-        if(bcflag(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -593,7 +593,7 @@ subroutine init_guess_multi_born(x, xguess)
             x(i+k5) = fdisA(i,6)*rhopol(i,tA)
         enddo         
 
-        if(bcflag(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -613,13 +613,13 @@ subroutine init_guess_multi_born(x, xguess)
         
         neq_bc=0
         k=count_sc+1
-        if(bcflag(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc") then
             neq_bc=nsurf
             do i=1,neq_bc
                 x(k+i)   =psiSurfR(i)                  ! surface potentail
             enddo
         endif   
-        if(bcflag(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc") then 
             do i=1,nsurf
                 x(k+neq_bc+i) = psiSurfL(i)           ! surface potentail
             enddo

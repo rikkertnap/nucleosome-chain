@@ -1630,13 +1630,13 @@ contains
 
         neq_bc=0
         k=count_sc+1
-        if(bcflag(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc") then
             neq_bc=nx*ny
             do i=1,neq_bc
                 psiSurfR(i) =x(k+i)                 ! surface potentail
             enddo
         endif   
-        if(bcflag(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc") then 
             do i=1,nx*ny
                 psiSurfL(i) =x(k+neq_bc+i)          ! surface potentail
             enddo
@@ -1656,8 +1656,8 @@ contains
         call dielectfcn(phi,epsfcn,Depsfcn,dielectP,dielectW,nsize) 
 
         ! surface charge 
-        !sigmaqSurfR=surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
-        !sigmaqSurfL=surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+        !sigmaqSurfR=surface_charge(bctype(RIGHT),psiSurfR,RIGHT)
+        !sigmaqSurfL=surface_charge(bctype(LEFT),psiSurfL,LEFT)
         
         ! gradient potential contribution to PDF
         call grad_pot_sqr_eps_cubic(psi,epsfcn, Depsfcn,expsqrgradpsi)
@@ -1949,13 +1949,13 @@ contains
    
       
             neq_bc=0
-            if(bcflag(RIGHT)/="cc") then
+            if(bctype(RIGHT)/="cc") then
                 neq_bc=nx*ny
                 do i=1,neq_bc
                     psiSurfR(i) =x(2*n+i)                 ! surface potentail
                 enddo
             endif   
-            if(bcflag(LEFT)/="cc") then 
+            if(bctype(LEFT)/="cc") then 
                 do i=1,nx*ny
                     psiSurfL(i) =x(2*n+neq_bc+i)          ! surface potentail
                 enddo

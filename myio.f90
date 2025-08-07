@@ -13,7 +13,7 @@ module myio
     integer, parameter ::  myio_err_domain    = 6
     integer, parameter ::  myio_err_inputfile = 7
     integer, parameter ::  myio_err_input     = 8
-    integer, parameter ::  myio_err_bcflag    = 9
+    integer, parameter ::  myio_err_bctype    = 9
     integer, parameter ::  myio_err_label     = 10
     integer, parameter ::  myio_err_VdWeps    = 11
     integer, parameter ::  myio_err_nsegtypes = 12
@@ -149,8 +149,8 @@ subroutine read_inputfile(info)
     ! init surface charge 
     sigmaSurfL = 0.0_dp
     sigmaSurfR = 0.0_dp
-    bcflag(LEFT) = "cc"
-    bcflag(RIGHT) = "cc"
+    bctype(LEFT) = "cc"
+    bctype(RIGHT) = "cc"
 
     ios = 0
     line = 0
@@ -180,9 +180,9 @@ subroutine read_inputfile(info)
             case ('runtype')
                 read(buffer, *,iostat=ios) runtype
             case ('bcflag(LEFT)')
-                read(buffer,*,iostat=ios) bcflag(LEFT)
+                read(buffer,*,iostat=ios) bctype(LEFT)
             case ('bcflag(RIGHT)')
-                read(buffer,*,iostat=ios) bcflag(RIGHT)    
+                read(buffer,*,iostat=ios) bctype(RIGHT)    
             case ('chainmethod')
                 read(buffer,*,iostat=ios) chainmethod
             case ('chaintype')
@@ -402,8 +402,8 @@ subroutine read_inputfile(info)
         return
     endif
 
-    call check_value_bcflag(bcflag,info_bc)
-    if (info_bc == myio_err_bcflag) then
+    call check_value_bctype(bctype,info_bc)
+    if (info_bc == myio_err_bctype) then
         if (present(info)) info = info_bc
         return
     endif
@@ -570,11 +570,11 @@ subroutine check_value_runtype(runtype,info)
 
 end subroutine check_value_runtype
 
-subroutine check_value_bcflag(bcflag,info)
+subroutine check_value_bctype(bctype,info)
 
     use globals, only : LEFT, RIGHT
 
-    character(len=2), intent(in), dimension(2) :: bcflag
+    character(len=2), intent(in), dimension(2) :: bctype
     integer, intent(out), optional :: info
 
     character(len=15) :: bcvalues(2,6)
@@ -583,7 +583,7 @@ subroutine check_value_bcflag(bcflag,info)
 
     if (present(info)) info = 0 ! init 
 
-    ! permissible values of bcflag
+    ! permissible values of bctype
 
     bcvalues(RIGHT,1)="qu"
     bcvalues(RIGHT,2)="cl"
@@ -600,11 +600,11 @@ subroutine check_value_bcflag(bcflag,info)
     ! restrict to cc and cp 
 
     do i=5,6 
-        if(bcflag(RIGHT)==bcvalues(RIGHT,i)) flag=.TRUE.
+        if(bctype(RIGHT)==bcvalues(RIGHT,i)) flag=.TRUE.
     enddo
     if (flag.eqv. .FALSE.) then
-        print*,"Error value of bcflag is not permissible"
-        print*,"bcflag(RIGHT) = ",bcflag(RIGHT)
+        print*,"Error value of bctype is not permissible"
+        print*,"bctype(RIGHT) = ",bctype(RIGHT)
         if (present(info)) info = myio_err_systype
         !if (present(fcnname)) print*,"Error in ",fcnname
         stop
@@ -612,17 +612,17 @@ subroutine check_value_bcflag(bcflag,info)
 
     flag=.FALSE.
     do i=2,3
-        if(bcflag(LEFT)==bcvalues(LEFT,i)) flag=.TRUE.
+        if(bctype(LEFT)==bcvalues(LEFT,i)) flag=.TRUE.
     enddo
     if (flag.eqv. .FALSE.) then
-        print*,"Error value of bcflag is not permissible"
-        print*,"bcflag(LEFT) = ",bcflag(LEFT)
-        if (present(info)) info = myio_err_bcflag
+        print*,"Error value of bctype is not permissible"
+        print*,"bctype(LEFT) = ",bctype(LEFT)
+        if (present(info)) info = myio_err_bctype
         !if(present(fcnname)) print*,"Error in ",fcnname
         ! stop
     endif
 
-end subroutine check_value_bcflag
+end subroutine check_value_bctype
 
 
 subroutine check_value_GBtype(GBtype,info)
@@ -1467,7 +1467,7 @@ end subroutine output
 subroutine output_nucl_ionbin_multi
 
     !     .. variables and constant declaractions
-    use globals, only : nnucl, nseg, nsegtypes, nsize, cuantas, bcflag, runtype, systype
+    use globals, only : nnucl, nseg, nsegtypes, nsize, cuantas, bctype, runtype, systype
     use volume
     use parameters
     use field, only : xsol, xNa, xK, xMg, xCa, xFe2, xFe3, xCl, xHplus, xOHmin, xO2, xNaCl, xKCl 
@@ -1711,8 +1711,8 @@ subroutine output_nucl_ionbin_multi
 
     ! system description
     write(un_sys,*)'systype     = ',systype
-    write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
-    write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
+    write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2192,8 +2192,8 @@ subroutine output_nucl_mul
 
     ! system description
     write(un_sys,*)'systype     = ',systype
-    write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
-    write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
+    write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2338,17 +2338,17 @@ subroutine output_nucl_mul
     endif
     
 
-    if(bcflag(LEFT)=='ta') then
+    if(bctype(LEFT)=='ta') then
       do i=1,4
         write(un_sys,fmt)'fdisTaL(',i,')  = ',fdisTaL(i)
       enddo
     endif
-    if(bcflag(RIGHT)=='ta') then
+    if(bctype(RIGHT)=='ta') then
       do i=1,4
         write(un_sys,fmt)' fdisTaR(',i,')  = ',fdisTaR(i)
       enddo
     endif
-    if((bcflag(RIGHT)/='ta').and.(bcflag(RIGHT)/='cc') ) then
+    if((bctype(RIGHT)/='ta').and.(bctype(RIGHT)/='cc') ) then
       do i=1,6
         write(un_sys,fmt)' fdisSuR(',i,')  = ',fdisS(i)
       enddo
@@ -2614,8 +2614,8 @@ subroutine output_elect
 
     ! system description
     write(un_sys,*)'systype     = ',systype
-    write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
-    write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
+    write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2740,17 +2740,17 @@ subroutine output_elect
     write(un_sys,*)'sigmaSurfL  = ',sigmaSurfL/((4.0_dp*pi*lb)*delta)
     write(un_sys,*)'sigmaSurfR  = ',sigmaSurfR/((4.0_dp*pi*lb)*delta)
 
-    if(bcflag(LEFT)=='ta') then
+    if(bctype(LEFT)=='ta') then
       do i=1,4
         write(un_sys,fmt)'fdisTaL(',i,')  = ',fdisTaL(i)
       enddo
     endif
-    if(bcflag(RIGHT)=='ta') then
+    if(bctype(RIGHT)=='ta') then
       do i=1,4
         write(un_sys,fmt)' fdisTaR(',i,')  = ',fdisTaR(i)
       enddo
     endif
-    if((bcflag(RIGHT)/='ta').and.(bcflag(RIGHT)/='cc') ) then
+    if((bctype(RIGHT)/='ta').and.(bctype(RIGHT)/='cc') ) then
       do i=1,6
         write(un_sys,fmt)' fdisSuR(',i,')  = ',fdisS(i)
       enddo
@@ -3304,7 +3304,7 @@ end subroutine  make_sublabel
 
 ! subroutine copy_solution(x)
 
-!     use globals, only : systype, neq, nsize, bcflag, LEFT, RIGHT
+!     use globals, only : systype, neq, nsize, bctype, LEFT, RIGHT
 !     use volume, only  : nx,ny
 !     use surface, only : psiSurfL, psiSurfR
 !     use field
@@ -3326,13 +3326,13 @@ end subroutine  make_sublabel
 !         enddo
 
 !         neq_bc=0 ! surface potential
-!         if(bcflag(RIGHT)/="cc") then
+!         if(bctype(RIGHT)/="cc") then
 !             neq_bc=nx*ny
 !             do i=1,neq_bc
 !                 psiSurfR(i) =x(4*nsize+i)
 !             enddo
 !         endif
-!         if(bcflag(LEFT)/="cc") then
+!         if(bctype(LEFT)/="cc") then
 !             do i=1,nx*ny
 !                 psiSurfL(i) =x(4*nsize+neq_bc+i)
 !             enddo

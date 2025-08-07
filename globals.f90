@@ -34,10 +34,10 @@ module globals
     
     character(len=15) :: systype   ! systype selects fcn    
     character(len=15) :: runtype   ! runtype
-    character(len=2)  :: bcflag(2) ! bcflag selects bc surface 
+    character(len=2)  :: bctype(2) ! bctype selects electrostatic boundary condition of surface  LEFT and RIGHT
 
-    integer, parameter :: LEFT = 1
-    integer, parameter :: RIGHT = 2
+    integer, parameter :: LEFT = 1. ! z=0 bottom plane 
+    integer, parameter :: RIGHT = 2 ! z=nz delta  top plane
 
     logical, parameter :: DEBUG = .false. ! switch for debug information
 

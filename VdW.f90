@@ -29,6 +29,8 @@ subroutine allocate_VdWeps
     use parameters, only : VdWeps, VdWepsin
 
     integer :: ier
+
+    ier = 0
    
     if (.not. allocated(VdWeps))  then 
         allocate(VdWeps(nsegtypes,nsegtypes),stat=ier)
@@ -51,9 +53,6 @@ subroutine allocate_VdWeps
 end subroutine allocate_VdWeps
 
 
-
-
-
 function VdW_energy(rhopol)result(EVdW)
 
     real(dp), intent(in) :: rhopol(:,:)
@@ -70,8 +69,8 @@ end function
  
 subroutine read_VdWeps(info)
     
-    use globals, only : nsegtypes , runtype
-    use parameters, only : VdWeps, VdWepsin 
+    use globals, only : nsegtypes 
+    use parameters, only : VdWeps
     use myutils, only : newunit
 
     integer,  intent(out), optional :: info

@@ -165,7 +165,7 @@ contains
         real(dp) :: sigma
 
         ! local variables
-        real(dp) :: a, b, c, sqraplusb, sqraminb
+        real(dp) :: a, b
 
         a = dotproduct(runit, u1) 
         b = dotproduct(runit, u2) 

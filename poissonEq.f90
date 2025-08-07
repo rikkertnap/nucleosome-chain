@@ -298,12 +298,12 @@ contains
 
     subroutine set_nshift_Poisson_Equation_Surface
        
-        use globals, only : nsize, systype, nsegtypes, bcflag, LEFT, RIGHT
+        use globals, only : nsize, systype, nsegtypes, bctype, LEFT, RIGHT
         use volume, only : nsurf
         
         ! .. electrostatics: self consistent boundary conditions
         
-        if(bcflag(RIGHT)=='cc' .or. bcflag(RIGHT)=='cp') then
+        if(bctype(RIGHT)=='cc' .or. bctype(RIGHT)=='cp') then
             nshift_bc_right = 0
         else 
             select case(systype)
@@ -323,7 +323,7 @@ contains
             end select
         endif  
 
-        if(bcflag(LEFT)/='cc' .and. bcflag(LEFT)/='cp') then
+        if(bctype(LEFT)/='cc' .and. bctype(LEFT)/='cp') then
             nshift_bc_left = nshift_bc_right + nsurf 
         else 
             nshift_bc_left = nshift_bc_right  
@@ -331,7 +331,7 @@ contains
 
     end subroutine set_nshift_Poisson_Equation_Surface
 
-    subroutine Poisson_Equation_Surface(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)
+    subroutine Poisson_Equation_Surface(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bctype)
 
         use globals, only : nsize, LEFT, RIGHT
         use volume, only : nx, ny, nz, coordtoindex
@@ -343,7 +343,7 @@ contains
         real(dp), intent(inout) :: psisurfL(:)
         real(dp), intent(in)  :: sigmaqSurfR(:)
         real(dp), intent(in)  :: sigmaqSurfL(:)
-        character(len=2), intent(in)  :: bcflag(2)
+        character(len=2), intent(in)  :: bctype(2)
 
         ! local variables
         integer :: ix, iy
@@ -351,7 +351,7 @@ contains
 
         call set_nshift_Poisson_Equation_Surface    ! .. neeed to be placed  outside
 
-        if(bcflag(RIGHT)/='cc'.and. bcflag(RIGHT)/='cp') then
+        if(bctype(RIGHT)/='cc'.and. bctype(RIGHT)/='cp') then
             do ix=1,nx
                 do iy=1,ny
                     idxR = coordtoindex(ix, iy, nz)
@@ -369,7 +369,7 @@ contains
             enddo
         endif    
 
-        if(bcflag(LEFT)/='cc'.and. bcflag(LEFT)/='cp') then  
+        if(bctype(LEFT)/='cc'.and. bctype(LEFT)/='cp') then  
             do ix=1,nx
                 do iy=1,ny
                     idxL = coordtoindex(ix,iy,1)
@@ -387,7 +387,7 @@ contains
 
     end subroutine Poisson_Equation_Surface
 
-    subroutine Poisson_Equation_Surface_Eps(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,eps)
+    subroutine Poisson_Equation_Surface_Eps(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bctype,eps)
 
         use globals, only : nsize, LEFT, RIGHT
         use volume, only : nx,ny,nz, linearIndexFromCoordinate
@@ -402,7 +402,7 @@ contains
         real(dp), intent(in)  :: sigmaqSurfR(:)
         real(dp), intent(in)  :: sigmaqSurfL(:)
         real(dp), intent(in)  :: eps(:)
-        character(len=2), intent(in)  :: bcflag(2)
+        character(len=2), intent(in)  :: bctype(2)
 
         ! local variables
         integer :: ix, iy
@@ -414,7 +414,7 @@ contains
         
         call  set_nshift_Poisson_Equation_Surface
 
-        if(bcflag(RIGHT)/='cc') then
+        if(bctype(RIGHT)/='cc') then
             do ix=1,nx
                 do iy=1,ny
                     call linearIndexFromCoordinate(ix,iy,nz-1,idzmin)
@@ -436,7 +436,7 @@ contains
             enddo
         endif    
 
-        if(bcflag(LEFT)/='cc') then 
+        if(bctype(LEFT)/='cc') then 
             do ix=1,nx
                 do iy=1,ny
                     call linearIndexFromCoordinate(ix,iy,2,idzpls)

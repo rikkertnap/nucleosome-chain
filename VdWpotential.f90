@@ -30,7 +30,7 @@ module VdW_potential
     implicit none
 
     integer :: conf_write_com = 0         ! counter for write_chain_com_unitvec_lammps_trj
-    integer :: un_traj_com                ! unit number for file 
+    !integer :: un_traj_com                ! unit number for file 
     
     ! auxilary variable used in determine COM and unitvectors 
 
@@ -50,7 +50,7 @@ module VdW_potential
     private :: make_com_unit_vector_nucl_simple,make_com_unit_vector_nucl_simpleCOM 
     private :: make_com_unit_vector_nucl_rotation
     private :: parameter_com_ref, parameter_com, normal_vector
-    private :: un_traj_com
+    !private :: un_traj_com
     private :: segnumAAstartGBcom, segnumAAendGBcom
     private :: vec_ref, unit_vec_ref, atom_id_unit_relative
     private :: EGB_threshold 
@@ -129,7 +129,7 @@ contains
 
     function VdWpotentialenergy_SAW(chain)result(Energy)
 
-        use globals, only : nseg, nsegtypes
+        use globals, only : nseg
         use chains, only : type_of_monomer
         use parameters, only :  lsegAA,VdWeps
 
@@ -184,7 +184,7 @@ contains
 
     function VdWpotentialenergy(chain)result(Energy)
 
-        use globals, only : nseg, nsegtypes
+        use globals, only : nseg
         use chains, only : type_of_monomer
         use parameters, only :  lsegAA,VdWeps
 
@@ -237,7 +237,7 @@ contains
 
     function  LJpotentialenergy(chain) result(Energy)
 
-        use globals, only : nseg, nsegtypes
+        use globals, only : nseg
         use chains, only : type_of_monomer
         use parameters, only :  lsegAA,VdWeps
 
@@ -283,8 +283,7 @@ contains
 
     function  LJenergyeffective(chain,nmer)result(Energy)
 
-        use globals, only : nseg, nsegtypes
-        use chains, only : segcm, type_of_monomer
+        use chains, only : segcm
         !use parameters, only :  omegaLJ,epsLJ
 
         real(dp), intent(in) :: chain(:,:)
@@ -292,8 +291,8 @@ contains
 
         real(dp) :: Energy
         
-        real(dp) :: Ene,sqrlseg,sqrdist,sqromega
-        integer ::  i,j,s,t
+        real(dp) :: Ene,sqrdist,sqromega
+        integer ::  i,j
         real(dp) :: xi,xj,yi,yj,zi,zj
         integer :: isegcm, jsegcm
 
@@ -302,6 +301,9 @@ contains
 
         Ene=0.0_dp 
         sqromega=omegaLJ**2
+        
+        print*,"Warning : LJenergyeffective : omegaLJ and epsLJ uninitialized"
+
        
         do i=1,nmer
             isegcm=segcm(i)
@@ -418,7 +420,6 @@ contains
 
     function  GBenergyeffective_comb(chain,nmer)result(Energy)
 
-        use globals, only : nseg, nsegtypes
         use chains, only : segcm 
         use GB_potential, only : GBpotential_general
 
@@ -499,8 +500,6 @@ contains
 
         real(dp) :: rcom(3,nmer)
         real(dp) :: uvector(3,nmer)
-
-        integer :: info
 
         select case (GBCOMtype)
         case ("simple") 
@@ -807,7 +806,6 @@ contains
     subroutine make_com_unit_vector_nucl_rotation(chain,nmer,unitvector_triplets,rcom,uvector)
 
         use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
-        use chains, only : segcm
 
         real(dp), intent(in) :: chain(:,:)               ! dimension : (3,s) 
         integer, intent(in) :: nmer
@@ -821,11 +819,13 @@ contains
         real(dp) :: triangle_vec_ref(3,3), triangle_vec(3,3,nmer)
         real(dp) :: norm_vec_ref(3), norm_vec(3,nmer), norm_tri(3,nmer)
         real(dp) :: a(3), a_rot(3), b(3), u(3)
-        real(dp) :: rcom_ref(3), unorm, angle, epsAngle
+        real(dp) :: rcom_ref(3), unorm, angle
         real(dp) :: qu(4)
         real(dp) :: Rmat1(3,3), Rmat2(3,3), Rmat_comb(3,3)
-        integer  :: i, k, n
+        integer  :: k, n
          
+        real(dp), parameter  :: epsAngle = 0.0000000000001_dp ! init
+
         ! determine com using unitvectortriplets
         ! determine s_ref and t_ref value of parameter function of plane of reference vectors. 
         ! use vec_ref and unit_vec_ref and atom_id_unit_relative in init_GBenergyeffective
@@ -938,7 +938,6 @@ contains
     subroutine make_com_nucl_rotation(chain,nmer,unitvector_triplets,rcom)
 
         use quaternions, only : rot_axis_angle, rot_axis_angle_to_quat, rotation_matrix_from_quat, vec_norm
-        use chains, only : segcm
 
         real(dp), intent(in) :: chain(:,:)               ! dimension : (3,s) 
         integer, intent(in) :: nmer
@@ -946,12 +945,12 @@ contains
         real(dp), intent(inout) :: rcom(:,:)             ! dimension : (nnucl,3)
       
         real(dp) :: s_ref, t_ref
-        real(dp) :: unit_vec(3), vec(3,3)
+        real(dp) :: vec(3,3) !, unit_vec(3)
         real(dp) :: vec_origin_ref(3), vec_origin(3)
-        real(dp) :: triangle_vec_ref(3,3), triangle_vec(3,3,nmer)
-        real(dp) :: norm_vec_ref(3), norm_vec(3,nmer), norm_tri(3,nmer)
+        real(dp) :: triangle_vec_ref(3,3) !, triangle_vec(3,3,nmer)
+        real(dp) :: norm_vec_ref(3) !, norm_vec(3,nmer)
         real(dp) :: rcom_ref(3)
-        integer  :: i, k, n
+        integer  :: k, n
          
         ! determine com using unitvectortriplets
         ! determine s_ref and t_ref value of parameter function of plane of reference vectors. 
@@ -1021,13 +1020,11 @@ contains
         real(dp), dimension(:,:), intent(in) :: rveccom
         real(dp), dimension(:,:), intent(in) :: unitvector
         
-        real(dp) :: x, y, z
         integer ::  n
         real(dp) :: xbox0, xbox1(3)
-        integer :: idatom, item, conf
+        integer :: idatom, item
         real(dp) :: shapex,shapey,shapez
         real(dp) :: rcom(3), uvec(3), uref(3), qu(4), rotaxis(3), theta
-        real(dp) :: unorm
 
         xbox0 = 0.0_dp 
         xbox1(1) = nx*delta*10.0_dp ! conversion form nm -> Angstrom
@@ -1090,14 +1087,11 @@ contains
         integer :: un_trj
 
         ! local
-        character(len=lenText) :: istr
         character(len=lenText) :: fname
         integer :: ios
         logical :: exist
         
         info = 0    
-
-       
 
         fname='trajcomunit_'//trim(adjustl(GBtype))//trim(adjustl(GBCOMtype))
         fname=trim(adjustl(fname))//'.lammpstrj'
@@ -1132,7 +1126,6 @@ contains
 
         ! .. local arguments
 
-        integer :: info_GBfile
         character(len=10) :: fname
         integer :: ios,un_input  ! un = unit number
         character(len=100) :: buffer, label

@@ -133,7 +133,7 @@ program main
     endif   
     
     call init_field()
-    call init_surface(bcflag,nsurf)
+    call init_surface(bctype,nsurf)
     call make_isrhoselfconsistent(info)
     call set_size_neq()             ! number of non-linear equation neq
     call set_fcn()

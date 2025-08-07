@@ -1617,7 +1617,7 @@ contains
 
     function FEelect_surface() result(FEelsurf)
 
-        use globals, only : bcflag,LEFT,RIGHT, pi
+        use globals, only : bctype,LEFT,RIGHT, pi
         use volume, only : areacell, nx, ny, delta
         use parameters, only : lb
         use surface, only : sigmaSurfL, sigmaSurfR,sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR
@@ -1651,7 +1651,7 @@ contains
          
     function FEchem_surface(FEelsurf) result(FEchemsurf)
 
-        use globals, only : bcflag,LEFT,RIGHT, pi
+        use globals, only : bctype,LEFT,RIGHT, pi
         use volume, only : areacell, nx, ny, delta
         use parameters, only : lb
         use surface, only : sigmaSurfL, sigmaSurfR,sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR
@@ -1676,7 +1676,7 @@ contains
             psiSurf(LEFT,s)     = psiSurfL(s)
         enddo    
 
-        if(bcflag(RIGHT)=='qu') then ! quartz
+        if(bctype(RIGHT)=='qu') then ! quartz
 
             FEchemSurftmp=0.0_dp
             do s=1, nx*ny
@@ -1684,7 +1684,7 @@ contains
             enddo    
             FEchemSurf(RIGHT) = FEchemSurftmp*sigmaSurf(RIGHT)*areacell/(delta*4.0_dp*pi*lb) -2.0_dp*FEelsurf(RIGHT)
         
-        elseif(bcflag(RIGHT)=="cl" ) then  ! clay
+        elseif(bctype(RIGHT)=="cl" ) then  ! clay
         
             FEchemSurftmp=0.0_dp
             do s=1, nx*ny
@@ -1693,36 +1693,36 @@ contains
 
             FEchemSurf(RIGHT) = FEchemSurftmp*sigmaSurf(RIGHT)*areacell/(delta*4.0_dp*pi*lb) -2.0_dp*FEelsurf(RIGHT)
         
-        elseif(bcflag(RIGHT)=="ca" ) then ! calcite
+        elseif(bctype(RIGHT)=="ca" ) then ! calcite
         
             FEchemSurf(RIGHT) =(log(fdisS(2))+log(fdisS(5)))*sigmaSurf(RIGHT)*areacell/(delta*4.0_dp*pi*lb) - &
                 2.0_dp*FEelsurf(RIGHT)
         
-        elseif(bcflag(RIGHT)=="ta" ) then ! taurine 
+        elseif(bctype(RIGHT)=="ta" ) then ! taurine 
         
             FEchemSurf(RIGHT)=(log(fdisTaR(2))*sigmaSurf(RIGHT)*areacell/(delta*4.0_dp*pi*lb)) -2.0_dp*FEelsurf(RIGHT)
         
-        elseif(bcflag(RIGHT)=="cc") then  
+        elseif(bctype(RIGHT)=="cc") then  
         
             FEchemSurf(RIGHT)=0.0_dp
         
         else
             print*,"Error in FEchem_surface"
-            print*,"Wrong value bcflag(RIGHT) : ",bcflag(RIGHT)
+            print*,"Wrong value bctype(RIGHT) : ",bctype(RIGHT)
             stop
         endif 
 
-        if(bcflag(LEFT)=="ta" ) then ! taurine 
+        if(bctype(LEFT)=="ta" ) then ! taurine 
 
             FEchemSurf(LEFT)= log(fdisTaL(2))*sigmaSurf(LEFT)*areacell/(delta*4.0_dp*pi*lb) -2.0_dp*FEelsurf(LEFT)
         
-        elseif(bcflag(LEFT)=="cc") then  
+        elseif(bctype(LEFT)=="cc") then  
         
             FEchemSurf(LEFT)=0.0_dp
         
         else
             print*,"Error in FEchem_surface"
-            print*,"Wrong value bcflag(LEFT) : ",bcflag(LEFT)
+            print*,"Wrong value bctype(LEFT) : ",bctype(LEFT)
         endif 
 
     end function
