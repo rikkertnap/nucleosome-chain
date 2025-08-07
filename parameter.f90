@@ -245,8 +245,10 @@
     integer, parameter ::  err_file         = 2 
     integer, parameter ::  err_error        = 3
 
-    ! unit conversion : converts unit of input conformation to nm unit!
+    real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
+    real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
 
+    ! unit conversion : converts unit of input conformation to nm unit!
     real(dp) :: unit_conv
 
     private :: err_pKdfile_noexist,err_pKdfile,err_pKderror
@@ -258,7 +260,7 @@ contains
 
     subroutine set_size_neq()
 
-        use globals, only: systype,nsegtypes, nsize,bcflag,LEFT,RIGHT, neq, neqint
+        use globals, only: systype,nsegtypes, nsize,LEFT,RIGHT, neq, neqint
         use volume, only : nx, ny, nz
         use myutils, only  : error_handler
 
@@ -306,7 +308,7 @@ contains
                 call error_handler(1,"set_size_neq")
         end select  
 
-        neqint =neq ! used for MPI func binding, MPI has no integer(8)
+        neqint =int(neq,kind(neqint)) ! used for MPI func binding, MPI has no integer(8)
          
     end subroutine set_size_neq
 
@@ -529,11 +531,10 @@ contains
         use physconst, only : Na
         use myutils, only : error_handler
 
-        real(dp) :: KAA(7)
         real(dp) :: vA    
-        integer  :: tAA,i,tt,s,flag_one
-        logical  :: isOandNpresent,  isApresent
-        integer   :: info
+        integer  :: i,tt,s,flag_one
+        logical  :: isApresent
+        integer  :: info
 
         ! determine segment type number of phosphate constaining segments
 
@@ -905,7 +906,6 @@ contains
 
     function ion_strength(xbulk)result(IS)
 
-        use globals, only : neq, systype
         use physconst, only : Na
         use myutils, only : lenText, print_to_log, LogUnit
 
@@ -959,7 +959,7 @@ contains
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
-        real(dp) :: xO2salt            ! volume fraction of O2 disolved gas in bulk solution   
+       ! real(dp) :: xO2salt            ! volume fraction of O2 disolved gas in bulk solution   
         real(dp) :: xtmp
 
         real(dp) :: KaAA6              ! auxilary varialbe
@@ -1143,10 +1143,8 @@ contains
 
     subroutine init_vars_input()
 
-        use globals, only : systype, runtype
-        
-        ! local variable
-        integer :: i
+        use globals, only : systype
+    
 
         select case (systype)
         case ("elect")
@@ -1192,7 +1190,7 @@ contains
    
     subroutine allocate_chain_parameters
         
-        use globals, only : nsegtypes, systype
+        use globals, only : nsegtypes
         
         !  allocate array depending on nsegtypes
 
@@ -1588,7 +1586,6 @@ contains
         character(len=80) :: istr,str
         character(len=2)  :: istr2
         logical :: exist
-        real(dp) :: a,b
 
         info = 0
 
@@ -1653,7 +1650,7 @@ contains
         !      .. local variables
         integer :: ios, un  ! un = unit number
         integer :: line, maxline
-        character(len=80) :: istr,str
+        character(len=80) :: str
         logical :: exist
         character(len=10) :: fname
 
@@ -1797,6 +1794,7 @@ contains
 
         integer :: ier
 
+        ier = 0 
         if (present(info)) info = 0
 
         if (.not. allocated(isrhoselfconsistent))  then 
@@ -1821,16 +1819,15 @@ contains
     subroutine make_isrhoselfconsistent(info)
 
         use globals, only : nsegtypes,nseg,systype
-        use chains, only : type_of_monomer_char,type_of_monomer,ismonomer_chargeable
+        use chains, only : type_of_monomer_char,type_of_monomer
         use myutils, only : print_to_log, LogUnit, lenText
  
         !     .. arguments 
     
         integer,  intent(out), optional :: info
 
-        integer :: info_alloc, info_Mg, info_AA
-        integer :: i, t, tt, s
-        logical :: flag
+        integer :: info_alloc
+        integer :: i, s
         integer :: ttAA, ttP ! local location of A and P segment
         character(len=lenText) :: text
         
@@ -1847,10 +1844,6 @@ contains
         do i=1,nsegtypes
             isrhoselfconsistent(i)=.false.
         enddo
-
-
-
-         
 
         ! Mg/Ca self consistent equation
 

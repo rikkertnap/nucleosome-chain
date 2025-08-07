@@ -1,15 +1,14 @@
 module Poisson  
 
     use precision_definition
-
     implicit none
 
     real(dp), parameter :: epsabsDpsi = 1.0e-8_dp  ! tolerance for absDpsi
-    integer :: noffset_bc 
+    integer :: nshift_bc_right, nshift_bc_left 
 
     private :: epsabsDpsi
     private :: ipbc
-    private :: noffset_bc 
+    private :: nshift_bc_right, nshift_bc_left 
 
 contains
 
@@ -17,30 +16,22 @@ contains
 
         use volume, only : geometry
 
-        implicit none
-
         ! input arguments 
         real(dp), intent(inout) :: fvec(:)
         real(dp), intent(in) :: psi(:)
         real(dp), intent(in) :: rhoq(:)
     
         if(geometry=="cubic") then 
-
             call Poisson_Equation_cubic(fvec,psi,rhoq)
-        
         else if (geometry=="prism") then 
-        
             call Poisson_Equation_prism(fvec,psi,rhoq)
-
         else 
-
             print*,"Wrong geometry in Pousson_equation"   
-        
         endif
         
     end subroutine Poisson_equation
         
-    subroutine Poisson_Equation_nopbc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
 
         use volume, only : geometry
 
@@ -52,22 +43,16 @@ contains
         real(dp), intent(in) :: sigmaqSurfL(:)
     
         if(geometry=="cubic") then 
-
-            call Poisson_Equation_cubic_nopbc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
-    
+            call Poisson_Equation_cubic_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
         else 
-
-            print*,"Wrong geometry in Poisson_equation"   
-        
+            print*,"Wrong geometry in Poisson_equation_bc "   
         endif
         
-    end subroutine Poisson_equation_nopbc
+    end subroutine Poisson_equation_bc
 
     subroutine Poisson_Equation_Eps(fvec,psi,rhoq,eps)
 
         use volume, only : geometry
-
-        implicit none
 
         ! input arguments 
         real(dp), intent(inout) :: fvec(:)
@@ -75,25 +60,19 @@ contains
         real(dp), intent(in) :: rhoq(:)
         real(dp), intent(in) :: eps(:)
     
-        if(geometry=="cubic") then 
-
+        if(geometry=="cubic") then
             call Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps)
-        
         else if (geometry=="prism") then 
-        
-              print*,"Poisson Eq with varying dielectric constant for prism coordinates not implemented yet."
-    
+            print*,"Poisson Eq with varying dielectric constant for prism coordinates not implemented yet."
         endif
         
-    end subroutine
+    end subroutine Poisson_Equation_Eps
 
     subroutine Poisson_Equation_cubic(fvec,psi,rhoq)
 
-        use globals, only : nsize, neq
+        use globals, only : nsize
         use parameters, only : constqW
         use volume, only : nx,ny,nz, coordtoindex ! linearIndexFromCoordinate
-
-        implicit none
 
         ! input arguments 
         real(dp), intent(inout) :: fvec(:)
@@ -101,25 +80,17 @@ contains
         real(dp), intent(in) :: rhoq(:)
         
         ! local variables
-        integer :: ix, iy, iz, noffset
-        integer :: idxR, idxL, id2D  
+        integer :: ix, iy, iz, nshift
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
 
         ! .. electrostatics 
        
-        noffset = nsize
+        nshift = nsize
 
         do ix=1,nx
             do iy=1,ny
                 do iz=1,nz
-                    !call linearIndexFromCoordinate(ix,           iy,iz  ,id)
-                    !call linearIndexFromCoordinate(ipbc(ix+1,nx),iy,iz  ,idxpls)
-                    !call linearIndexFromCoordinate(ipbc(ix-1,nx),iy,iz  ,idxmin)
-                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz+1,nz),idzpls)
-                    !call linearIndexFromCoordinate(ix,           iy,ipbc(iz-1,nz),idzmin)
-                    !call linearIndexFromCoordinate(ix,ipbc(iy+1,ny),iz  ,idypls)
-                    !call linearIndexFromCoordinate(ix,ipbc(iy-1,ny),iz  ,idymin)            
-
+                        
                     id     = coordtoindex(ix,           iy,iz)
                     idxpls = coordtoindex(ipbc(ix+1,nx),iy,iz)
                     idxmin = coordtoindex(ipbc(ix-1,nx),iy,iz)
@@ -128,7 +99,7 @@ contains
                     idypls = coordtoindex(ix,ipbc(iy+1,ny),iz)
                     idymin = coordtoindex(ix,ipbc(iy-1,ny),iz)
 
-                    fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
+                    fvec(nshift+id)= -0.5_dp*(          psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
                         -6.0_dp*psi(id) +rhoq(id)*constqW)
                 enddo
             enddo
@@ -139,7 +110,7 @@ contains
 
     subroutine Poisson_Equation_prism(fvec,psi,rhoq)
 
-        use globals, only : nsize, neq
+        use globals, only : nsize
         use parameters, only : constqW
         use volume, only : nx,ny,nz, coordtoindex
         use volume, only : cos_two_beta, sin_two_beta
@@ -152,14 +123,13 @@ contains
         real(dp), intent(in) :: rhoq(:)
         
         ! local variables
-        integer :: ix, iy, iz, noffset
-        integer :: idxR, idxL, id2D  
+        integer :: ix, iy, iz, nshift
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
         integer :: idxypls, idxymin, idxplsymin, idxminypls
 
         ! .. electrostatics 
        
-        noffset=nsize
+        nshift = nsize
 
         do ix=1,nx
             do iy=1,ny
@@ -177,7 +147,7 @@ contains
                     idxplsymin = coordtoindex(ipbc(ix+1,nx),ipbc(iy-1,ny),iz )
                     idxminypls = coordtoindex(ipbc(ix-1,nx),ipbc(iy+1,ny),iz )
                     
-                    fvec(noffset+id)= -0.5_dp*(                                             &
+                    fvec(nshift+ id)= -0.5_dp*(                                             &
                         (psi(idxpls)+psi(idxmin)+psi(idypls)+psi(idymin)-4.0_dp*psi(id)     &
                         -sin_two_beta*(psi(idxypls)-psi(idxplsymin)-psi(idxminypls) +psi(idxymin))/2.0_dp) & 
                         /cos_two_beta+psi(idzpls)-2.0_dp*psi(id)+ psi(idzmin)  +rhoq(id)*constqW)
@@ -185,13 +155,12 @@ contains
             enddo
         enddo    
  
-        
     end subroutine Poisson_Equation_prism
 
 
     subroutine Poisson_Equation_Eps_cubic(fvec,psi,rhoq,eps)
 
-        use globals, only : nsize, neq
+        use globals, only : nsize
         use parameters, only : constqW
         use volume, only : nx,ny,nz, coordtoindex  
 
@@ -204,13 +173,12 @@ contains
         real(dp), intent(in) :: eps(:)
         
         ! local variables
-        integer :: ix, iy, iz, noffset
-        integer :: idxR, idxL, id2D  
+        integer :: ix, iy, iz, nshift
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
 
         ! .. electrostatics 
        
-        noffset=nsize
+        nshift = nsize
 
         do ix=1,nx
             do iy=1,ny
@@ -224,16 +192,15 @@ contains
                     idypls = coordtoindex(ix,ipbc(iy+1,ny),iz)
                     idymin = coordtoindex(ix,ipbc(iy-1,ny),iz)
 
-
-                    fvec(noffset+id)= -0.5_dp*( &
-                         (eps(idxpls)+eps(id)    )*psi(idxpls) +& 
-                         (eps(id)    +eps(idxmin))*psi(idxmin) +&
-                         (eps(idypls)+eps(id)    )*psi(idypls) +&
-                         (eps(id)    +eps(idymin))*psi(idymin) +& 
-                         (eps(idzpls)+eps(id)    )*psi(idzpls) +&
-                         (eps(id)    +eps(idzmin))*psi(idzmin) &
+                    fvec(nshift+id)= -0.5_dp*( &
+                        (eps(idxpls)+eps(id)    )*psi(idxpls) +& 
+                        (eps(id)    +eps(idxmin))*psi(idxmin) +&
+                        (eps(idypls)+eps(id)    )*psi(idypls) +&
+                        (eps(id)    +eps(idymin))*psi(idymin) +& 
+                        (eps(idzpls)+eps(id)    )*psi(idzpls) +&
+                        (eps(id)    +eps(idzmin))*psi(idzmin) &
                         -(eps(idxpls)+eps(idxmin)+eps(idypls)+eps(idymin) + &
-                          eps(idzpls)+eps(idzmin)+6.0_dp*eps(id)) *psi(id) +2.0_dp*rhoq(id)*constqW)
+                        eps(idzpls)+eps(idzmin)+6.0_dp*eps(id)) *psi(id) +2.0_dp*rhoq(id)*constqW)
                 enddo
             enddo
         enddo    
@@ -241,9 +208,9 @@ contains
     end subroutine Poisson_Equation_Eps_cubic
 
 
-    subroutine Poisson_Equation_cubic_nopbc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    subroutine Poisson_Equation_cubic_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
 
-        use globals, only : nsize, neq
+        use globals, only : nsize
         use parameters, only : constqW
         use volume, only : nx,ny,nz, coordtoindex ! linearIndexFromCoordinate
 
@@ -255,13 +222,13 @@ contains
         real(dp), intent(in) :: sigmaqSurfL(:)
         
         ! local variables
-        integer :: ix, iy, iz, noffset
-        integer :: idxR, idxL, id2D  
+        integer :: ix, iy, iz, nshift
+        integer :: id2D  
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
 
         ! .. electrostatics 
        
-        noffset = nsize
+        nshift = nsize
 
         do ix=1,nx
             do iy=1,ny
@@ -275,7 +242,8 @@ contains
                     idypls  = coordtoindex(ix,ipbc(iy+1,ny),iz)
                     idymin  = coordtoindex(ix,ipbc(iy-1,ny),iz)
 
-                    fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
+                    fvec(nshift+id)= -0.5_dp*( & 
+                        psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
                         -6.0_dp*psi(id) +rhoq(id)*constqW)
                 enddo
             enddo
@@ -293,7 +261,8 @@ contains
                 idypls  = coordtoindex(ix,ipbc(iy+1,ny),iz)
                 idymin  = coordtoindex(ix,ipbc(iy-1,ny),iz)
 
-                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls) +sigmaqSurfL(id) &
+                fvec(nshift+id)= -0.5_dp*( &
+                    psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls) +sigmaqSurfL(id) &
                     - 5.0_dp*psi(id) +rhoq(id)*constqW)
             
             enddo
@@ -313,57 +282,63 @@ contains
                 
                 id2D=id-(nsize-nx*ny)
                 
-                fvec(noffset+id)= -0.5_dp*( psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzmin) +sigmaqSurfR(id2D) &
+                fvec(nshift+id)= -0.5_dp*(&
+                    psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzmin) +sigmaqSurfR(id2D) &
                     -5.0_dp*psi(id) +rhoq(id)*constqW)
             enddo
         enddo    
 
 
-    end subroutine Poisson_Equation_cubic_nopbc
+    end subroutine Poisson_Equation_cubic_bc
 
-    ! Set value offset use to the assignmet of the PE and potential EL bc to the iteration vector fvec 
-    ! noffset, noffset_bc and noffset_bc_left 
-    ! only noffset_bc set sofar !!!!
+    ! Set value nshift use to the assignmet of the PE and potential EL bc to the iteration vector fvec 
+    ! nshift, nshift_bc_ and noffset_bc_left 
+    ! only noffset_bc set sofar !!!! not include potential VdW
 
 
-    subroutine set_offset_Poisson_Equation_Surface
+    subroutine set_nshift_Poisson_Equation_Surface
        
-        use globals, only : nsize, systype, nsegtypes
+        use globals, only : nsize, systype, nsegtypes, bcflag, LEFT, RIGHT
+        use volume, only : nsurf
         
         ! .. electrostatics: self consistent boundary conditions
         
-        select case(systype)
-        case ("elect") 
-            noffset_bc=4*nsize
-        case("electA")  
-            noffset_bc=3*nsize
-        case("electdouble") 
-            noffset_bc=4*nsize
-        case("electnopoly") 
-            noffset_bc=2*nsize
-        case("brush_mul") 
-            noffset_bc=(2+nsegtypes)*nsize    
-        case("brushdna") 
-            noffset_bc=(2+nsegtypes)*nsize    
-        case default    
-            print*,"error: systype wrong value for Poisson_equation_surface "  
-        end select
-    
+        if(bcflag(RIGHT)=='cc' .or. bcflag(RIGHT)=='cp') then
+            nshift_bc_right = 0
+        else 
+            select case(systype)
+            case ("elect") 
+                nshift_bc_right = 4 * nsize
+            case("brush_mul","brushdna") 
+                nshift_bc_right = ( 2 + nsegtypes) * nsize  
+            case("brush_mulnoVdW") 
+                nshift_bc_right = 2 * nsize  
+            case("nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv")
+                nshift_bc_right = 2 * nsize  
+            case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+                nshift_bc_right = 2 * nsize  
+            case default    
+                print*,"error: systype wrong value for set_nshift_Poisson_Equation_Surface" 
+                stop 
+            end select
+        endif  
 
-    end subroutine set_offset_Poisson_Equation_Surface
+        if(bcflag(LEFT)/='cc' .and. bcflag(LEFT)/='cp') then
+            nshift_bc_left = nshift_bc_right + nsurf 
+        else 
+            nshift_bc_left = nshift_bc_right  
+        endif       
 
-    subroutine Poisson_Equation_Surface(fvec,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)
+    end subroutine set_nshift_Poisson_Equation_Surface
 
-        use globals, only : nsize, neq, LEFT, RIGHT, systype, nsegtypes
-        use parameters, only : constqW
-        use volume, only : nx,ny,nz, linearIndexFromCoordinate
+    subroutine Poisson_Equation_Surface(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)
 
-        implicit none
+        use globals, only : nsize, LEFT, RIGHT
+        use volume, only : nx, ny, nz, coordtoindex
 
         ! input arguments 
         real(dp), intent(inout)  :: fvec(:)
         real(dp), intent(in)  :: psi(:)
-        real(dp), intent(in)  :: rhoq(:)
         real(dp), intent(inout) :: psisurfR(:)
         real(dp), intent(inout) :: psisurfL(:)
         real(dp), intent(in)  :: sigmaqSurfR(:)
@@ -371,49 +346,40 @@ contains
         character(len=2), intent(in)  :: bcflag(2)
 
         ! local variables
-        integer :: ix, iy, iz!, noffset
+        integer :: ix, iy
         integer :: idxR, idxL, idxR2D
-        integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
-        integer :: neq_bc, noffset2_bc
 
-        ! .. neeed to be placed  outside
+        call set_nshift_Poisson_Equation_Surface    ! .. neeed to be placed  outside
 
-        call set_offset_Poisson_Equation_Surface
-       
-        neq_bc=0
-
-        if(bcflag(RIGHT)/='cc') then
-            neq_bc=nx*ny
+        if(bcflag(RIGHT)/='cc'.and. bcflag(RIGHT)/='cp') then
             do ix=1,nx
                 do iy=1,ny
-                    call linearIndexFromCoordinate(ix,iy,nz,idxR)
-                    idxR2D=idxR-(nsize-nx*ny) ! check this 
-                    fvec(noffset_bc+idxR2D)=psisurfR(idxR2D)-psi(idxR)-sigmaqSurfR(idxR2D)/2.0_dp
+                    idxR = coordtoindex(ix, iy, nz)
+                    idxR2D = idxR - (nsize - nx * ny) 
+                    fvec(nshift_bc_right+idxR2D) = psisurfR(idxR2D)-psi(idxR)-sigmaqSurfR(idxR2D)/2.0_dp
                 enddo
             enddo
         else
             do ix=1,nx
                 do iy=1,ny
-                    call linearIndexFromCoordinate(ix,iy,nz,idxR)
-                    idxR2D=idxR-(nsize-nx*ny)
+                    idxR = coordtoindex(ix,iy,nz)
+                    idxR2D = idxR - ( nsize - nx * ny)
                     psisurfR(idxR2D) = psi(idxR)+sigmaqSurfR(idxR2D)/2.0_dp 
                 enddo
             enddo
         endif    
 
-        noffset2_bc=noffset_bc +neq_bc
-
-        if(bcflag(LEFT)/='cc') then 
+        if(bcflag(LEFT)/='cc'.and. bcflag(LEFT)/='cp') then  
             do ix=1,nx
                 do iy=1,ny
-                    call linearIndexFromCoordinate(ix,iy,1,idxL)
-                    fvec(noffset2_bc+idxL)=psi(idxL)-psisurfL(idxL)+sigmaqSurfL(idxL)/2.0_dp
+                    idxL = coordtoindex(ix,iy,1)
+                    fvec(nshift_bc_left+idxL)=psi(idxL)-psisurfL(idxL)+sigmaqSurfL(idxL)/2.0_dp
                 enddo
             enddo
         else    
             do ix=1,nx
                 do iy=1,ny
-                    call linearIndexFromCoordinate(ix,iy,1,idxL)
+                    idxL = coordtoindex(ix,iy,1)
                     psisurfL(idxL) = psi(idxL)+sigmaqSurfL(idxL)/2.0_dp
                 enddo
             enddo
@@ -421,12 +387,9 @@ contains
 
     end subroutine Poisson_Equation_Surface
 
+    subroutine Poisson_Equation_Surface_Eps(fvec,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,eps)
 
-
-    subroutine Poisson_Equation_Surface_Eps(fvec,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag,eps)
-
-        use globals, only : nsize, neq, LEFT, RIGHT, systype, nsegtypes
-        use parameters, only : constqW
+        use globals, only : nsize, LEFT, RIGHT
         use volume, only : nx,ny,nz, linearIndexFromCoordinate
 
         implicit none
@@ -434,7 +397,6 @@ contains
         ! input arguments 
         real(dp), intent(inout)  :: fvec(:)
         real(dp), intent(in)  :: psi(:)
-        real(dp), intent(in)  :: rhoq(:)
         real(dp), intent(inout) :: psisurfR(:)
         real(dp), intent(inout) :: psisurfL(:)
         real(dp), intent(in)  :: sigmaqSurfR(:)
@@ -443,33 +405,23 @@ contains
         character(len=2), intent(in)  :: bcflag(2)
 
         ! local variables
-        integer :: ix, iy, iz, noffset
+        integer :: ix, iy
         integer :: idxR, idxL, idxR2D
-        integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
-        integer :: neq_bc
+        integer :: idzmin, idzpls
         real(dp) :: epsxR, epsxL
 
-        ! .. electrostatics: self consistent boundary conditions
+        ! .. electrostatic: self consistent boundary conditions
         
-        
-        select case(systype)
-        case("brushborn") 
-            noffset=(2+nsegtypes)*nsize    
-        case default    
-            print*,"error: systype wrong value for Poisson_Equation_Surface_Eps "    
-        end select
-
-        neq_bc=0
+        call  set_nshift_Poisson_Equation_Surface
 
         if(bcflag(RIGHT)/='cc') then
-            neq_bc=nx*ny
             do ix=1,nx
                 do iy=1,ny
                     call linearIndexFromCoordinate(ix,iy,nz-1,idzmin)
                     call linearIndexFromCoordinate(ix,iy,nz,idxR)
                     idxR2D=idxR-(nsize-nx*ny) 
                     epsxR=3.0_dp*eps(idxR)-2.0_dp*eps(idzmin)
-                    fvec(noffset+idxR2D)=psisurfR(idxR2D)-psi(idxR)-sigmaqSurfR(idxR2D)*epsxR/2.0_dp
+                    fvec(nshift_bc_right+idxR2D)=psisurfR(idxR2D)-psi(idxR)-sigmaqSurfR(idxR2D)*epsxR/2.0_dp
                 enddo
             enddo
         else
@@ -484,15 +436,13 @@ contains
             enddo
         endif    
 
-        noffset=noffset +neq_bc
-
         if(bcflag(LEFT)/='cc') then 
             do ix=1,nx
                 do iy=1,ny
                     call linearIndexFromCoordinate(ix,iy,2,idzpls)
                     call linearIndexFromCoordinate(ix,iy,1,idxL)
                     epsxL=3.0_dp*eps(idxL)-2.0_dp*eps(idzpls)
-                    fvec(noffset+idxL)=psi(idxL)-psisurfL(idxL)+sigmaqSurfL(idxL)*epsxL/2.0_dp
+                    fvec(nshift_bc_left+idxL)=psi(idxL)-psisurfL(idxL)+sigmaqSurfL(idxL)*epsxL/2.0_dp
                 enddo
             enddo
         else    
@@ -508,13 +458,12 @@ contains
 
     end subroutine Poisson_Equation_Surface_Eps
 
-
         
     subroutine Poisson_Pol_Equation(fvec,D2psi,rhoq,rhob)
 
-        use globals, only : nsize, neq
+        use globals, only : nsize
         use parameters, only : constq0
-        use volume, only : nx,ny,nz, linearIndexFromCoordinate
+        use volume, only : linearIndexFromCoordinate
 
         implicit none
 
@@ -537,19 +486,13 @@ contains
 
     end subroutine
 
-
-
-
     ! computes gradient electrostatic potential multiplied by (scaled) derivate of dielectric 
     ! with respect of volume fraction of polymer. Terms occur in PDF 
 
     subroutine grad_pot_sqr_eps_cubic(psi,eps,Deps,sqrDpsi)
         
-        use globals, only : nsize
-        use volume, only : nx,ny,nz,delta,linearIndexFromCoordinate
+        use volume, only : nx,ny,nz,linearIndexFromCoordinate
         use parameters, only : constqE
-
-        implicit none
 
         ! input arguments 
         real(dp), intent(in) :: psi(:)
@@ -559,9 +502,8 @@ contains
         
         ! local variables
         integer :: ix, iy, iz
-        integer :: idxR, idxL, id2D  
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
-        real(dp):: Dpsi(3),epsz0,epsznz
+        real(dp):: Dpsi(3)!,epsz0,epsznz
 
         ! .. electrostatics 
        
@@ -623,8 +565,6 @@ contains
         use globals, only : nsize
         use volume, only : nx,ny,nz,delta,linearIndexFromCoordinate
 
-        implicit none
-
         ! input arguments 
         real(dp), intent(in) :: psi(:)
         real(dp), intent(inout) :: Dpsi(:,:),unitdirDpsi(:,:)
@@ -632,8 +572,7 @@ contains
     
         
         ! local variables
-        integer :: ix, iy, iz
-        integer :: idxR, idxL, id2D  
+        integer :: ix, iy, iz 
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
 
         ! .. electrostatics 
@@ -706,7 +645,6 @@ contains
         
         ! local variables
         integer :: ix, iy, iz
-        integer :: idxR, idxL, id2D 
         integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin 
         integer :: idxypls, idxymin, idxplsymin, idxminypls
         real(dp) :: Dpsiu,Dpsiv

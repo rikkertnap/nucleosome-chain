@@ -50,10 +50,9 @@ module myio
     integer :: maxlist_step
 
     ! unit number
-    integer :: un_sys,un_xpolAB,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl, un_xO2
-    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_rhopolAB, un_fe, un_xFe2, un_xFe3
-    integer :: un_dip ,un_dielec,un_xpolABz, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision
-    integer :: un_chargepol
+    integer :: un_sys,un_xsol,un_xNa,un_xCl,un_xK,un_xCa,un_xMg,un_xNaCl,un_xKCl, un_xO2
+    integer :: un_xOHmin,un_xHplus,un_fdisA,un_fdisB,un_psi,un_charge, un_xpair, un_fe, un_xFe2, un_xFe3
+    integer :: un_chargepol, un_xpol, un_fdis, un_fdisP, un_angle, un_dist, un_fdision,un_surf
 
     ! format specifiers
     character(len=80), parameter  :: fmt = "(A9,I1,A5,ES25.16)"
@@ -91,7 +90,7 @@ subroutine read_inputfile(info)
 
     ! .. local arguments
 
-    integer :: info_sys, info_bc, info_run, info_geo, info_meth, info_chaintype, info_combi, info_VdWeps
+    integer :: info_sys, info_bc, info_run, info_geo, info_meth, info_chaintype, info_VdWeps
     integer :: info_chainmethod, info_dielect, info_GB, info_GBCOM
     character(len=8) :: fname
     integer :: ios,un_input  ! un = unit number
@@ -1445,7 +1444,7 @@ subroutine output()
 
     case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
 
-        call output_nucl_ionbin_Mg
+        call output_nucl_ionbin_multi
         call output_individualcontr_fe
 
     case("nucl_neutral_sv")
@@ -1465,7 +1464,7 @@ subroutine output()
 end subroutine output
 
 
-subroutine output_nucl_ionbin_Mg
+subroutine output_nucl_ionbin_multi
 
     !     .. variables and constant declaractions
     use globals, only : nnucl, nseg, nsegtypes, nsize, cuantas, bcflag, runtype, systype
@@ -1473,7 +1472,7 @@ subroutine output_nucl_ionbin_Mg
     use parameters
     use field, only : xsol, xNa, xK, xMg, xCa, xFe2, xFe3, xCl, xHplus, xOHmin, xO2, xNaCl, xKCl 
     use field, only : psi, rhoq, rhoqpol, xpol, xpol_t
-    use field, only : q, fdis, fdisA, gdisA, gdisB 
+    use field, only : q, fdisA, gdisA, gdisB 
     use field, only : numbers_pairs, numbers_triplets
     use energy
     use surface
@@ -1503,6 +1502,7 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: xClfilename
     character(len=90) :: xO2filename 
     character(len=90) :: potentialfilename
+    character(len=90) :: surffilename
     character(len=90) :: chargefilename
     character(len=90) :: chargepolfilename
     character(len=90) :: xHplusfilename
@@ -1514,6 +1514,8 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
+
+    integer :: ix,iy, idxL, idxR, idxR2D
 
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol, numpairs, numtriplets
@@ -1559,6 +1561,7 @@ subroutine output_nucl_ionbin_Mg
     densfracionpairfilename = 'densityfracionpair.'//trim(fnamelabel)
     anglesfilename = 'angles.'//trim(fnamelabel)
     spacingfilename = 'spacing.'//trim(fnamelabel)
+    surffilename   = 'surface.'//trim(fnamelabel)
 
     !     .. opening files
 
@@ -1571,6 +1574,9 @@ subroutine output_nucl_ionbin_Mg
         open(unit=newunit(un_xpol),file=xpolfilename)
         if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
         if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
+        
+        open(unit=newunit(un_surf),file=surffilename)
+
     endif 
 
     if(write_frac) then 
@@ -1623,6 +1629,15 @@ subroutine output_nucl_ionbin_Mg
             write(un_xpol,*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
         enddo
 
+        do ix=1,nx
+            do iy=1,ny 
+                idxL = coordtoindex(ix,iy,1)
+                idxR = coordtoindex(ix,iy,nz)
+                idxR2D = idxR - ( nsize - nx * ny)
+
+                write(un_surf,*)psiSurfL(idxL),psi(idxL),sigmaqSurfL(idxL),psiSurfR(idxR2D),psi(idxR),sigmaqSurfR(idxR2D)
+            enddo    
+        enddo    
     endif     
 
     if(write_frac) then 
@@ -1912,6 +1927,8 @@ subroutine output_nucl_ionbin_Mg
 
         if(nnucl>=3) close(un_angle)
         if(nnucl>=2) close(un_dist)
+
+        close(un_surf)
     
     endif    
 
@@ -1946,7 +1963,7 @@ subroutine output_nucl_ionbin_Mg
 
 
 
-end subroutine output_nucl_ionbin_Mg
+end subroutine output_nucl_ionbin_multi
 
 
 subroutine output_nucl_mul
@@ -1973,7 +1990,6 @@ subroutine output_nucl_mul
     character(len=90) :: sysfilename
     character(len=90) :: xsolfilename
     character(len=90) :: xpolfilename
-    character(len=90) :: xpolendfilename
     character(len=90) :: xNafilename
     character(len=90) :: xKfilename
     character(len=90) :: xCafilename
@@ -1993,10 +2009,8 @@ subroutine output_nucl_mul
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
 
-    logical :: isopen
-    integer :: i,j,k          ! dummy indexes
+    integer :: i,k          ! dummy indexes
     real(dp) :: denspol
 
     ! .. executable statements
@@ -2463,9 +2477,8 @@ subroutine output_elect
     character(len=90) :: anglesfilename
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-    logical :: isopen
-    integer :: i,j,k,t          ! dummy indexes
+
+    integer :: i,k,t          ! dummy indexes
     real(dp) :: denspol
 
     ! .. executable statements
@@ -2835,10 +2848,9 @@ subroutine output_neutral
     character(len=80) :: fmt2reals,fmt3reals,fmt4reals,fmt5reals,fmt6reals,fmtNplus1reals
 
     !     .. local arguments
-    integer :: i, j, t
+    integer :: i, t
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr,istr
-    logical :: isopen
+    character(len=20) :: istr
     real(dp) :: denspol
 
     !     .. executable statements
@@ -3000,10 +3012,9 @@ end subroutine output_neutral
 
 subroutine output_individualcontr_fe
 
-    use globals, only : LEFT,RIGHT, systype
+    use globals, only : LEFT,RIGHT
     use energy
     use myutils, only : newunit
-    use volume, only : delta,nz
     use parameters, only : isEnergyShift
     use chains, only : energychain_min
 
@@ -3011,8 +3022,6 @@ subroutine output_individualcontr_fe
 
     character(len=100) :: fenergyfilename
     character(len=100) :: fnamelabel
-    character(len=20) :: rstr
-
    
     !     .. make label filename
     call make_filename_label(fnamelabel)
@@ -3093,7 +3102,7 @@ subroutine make_filename_label(fnamelabel)
 
     use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf, nnucl
     use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2,cFeCl3
-    use parameters, only : pHbulk,VdWepsBB,init_denspol,VdWscale,pKd,dielectscale
+    use parameters, only : pHbulk,init_denspol,VdWscale,pKd,dielectscale
     
     character(len=*), intent(inout) :: fnamelabel
 
@@ -3293,71 +3302,71 @@ subroutine  make_sublabel(set_confor,num_conf,sublabel)
 
 end subroutine  make_sublabel
 
-subroutine copy_solution(x)
+! subroutine copy_solution(x)
 
-    use globals, only : systype, neq, nsize, bcflag, LEFT, RIGHT
-    use volume, only  : nx,ny
-    use surface, only : psiSurfL, psiSurfR
-    use field
+!     use globals, only : systype, neq, nsize, bcflag, LEFT, RIGHT
+!     use volume, only  : nx,ny
+!     use surface, only : psiSurfL, psiSurfR
+!     use field
 
-    real(dp), dimension(neq) :: x  ! expliciet size array
+!     real(dp), dimension(neq) :: x  ! expliciet size array
 
-    ! local variable
-    integer :: i, neq_bc
-    integer, parameter :: A=1, B=2
+!     ! local variable
+!     integer :: i, neq_bc
+!     integer, parameter :: A=1, B=2
 
-    select case (systype)
-    case ("elect")
+!     select case (systype)
+!     case ("elect")
 
-        do i=1,nsize
-            xsol(i)= x(i)
-            psi(i) = x(i+nsize)
-            rhopol(i,A)=x(i+2*nsize)
-            rhopol(i,B)=x(i+3*nsize)
-        enddo
+!         do i=1,nsize
+!             xsol(i)= x(i)
+!             psi(i) = x(i+nsize)
+!             rhopol(i,A)=x(i+2*nsize)
+!             rhopol(i,B)=x(i+3*nsize)
+!         enddo
 
-        neq_bc=0 ! surface potential
-        if(bcflag(RIGHT)/="cc") then
-            neq_bc=nx*ny
-            do i=1,neq_bc
-                psiSurfR(i) =x(4*nsize+i)
-            enddo
-        endif
-        if(bcflag(LEFT)/="cc") then
-            do i=1,nx*ny
-                psiSurfL(i) =x(4*nsize+neq_bc+i)
-            enddo
-            neq_bc=neq_bc+nx*ny
-        endif
+!         neq_bc=0 ! surface potential
+!         if(bcflag(RIGHT)/="cc") then
+!             neq_bc=nx*ny
+!             do i=1,neq_bc
+!                 psiSurfR(i) =x(4*nsize+i)
+!             enddo
+!         endif
+!         if(bcflag(LEFT)/="cc") then
+!             do i=1,nx*ny
+!                 psiSurfL(i) =x(4*nsize+neq_bc+i)
+!             enddo
+!             neq_bc=neq_bc+nx*ny
+!         endif
 
-    case ("neutral")
+!     case ("neutral")
 
-        do i=1,nsize
-            xsol(i)= x(i)
-        enddo
+!         do i=1,nsize
+!             xsol(i)= x(i)
+!         enddo
 
-    case ("neutralnoVdW")
+!     case ("neutralnoVdW")
 
-        do i=1,nsize
-            xsol(i)= x(i)
-        enddo
+!         do i=1,nsize
+!             xsol(i)= x(i)
+!         enddo
 
-    case ("brush_mulnoVdW")
+!     case ("brush_mulnoVdW")
 
-        do i=1,nsize
-            xsol(i)= x(i)
-            psi(i) = x(i+nsize)
-        enddo
+!         do i=1,nsize
+!             xsol(i)= x(i)
+!             psi(i) = x(i+nsize)
+!         enddo
 
-    case default
+!     case default
 
-        print*,"Error: systype incorrect in copy_solution"
-        print*,"stopping program"
-        stop
+!         print*,"Error: systype incorrect in copy_solution"
+!         print*,"stopping program"
+!         stop
 
-    end select
+!     end select
 
-end subroutine copy_solution
+! end subroutine copy_solution
 
 ! output routine
 
@@ -3367,7 +3376,6 @@ subroutine compute_vars_and_output()
     use energy, only : fcnenergy, sumphi
     use field, only : charge_polymer, average_charge_polymer, make_ion_excess, make_beta
     use field, only : distribution_charge_nucl_ionbin_sv, max_potential
-    use chains, only : avAsphparam
     use myutils, only : lenText
     
     select case (systype)
@@ -3473,9 +3481,7 @@ subroutine write_chain_config()
 
     character(len=100) :: fname
     integer :: i, un_cc
-    character(len=10) ::istr
    
-        
     fname='chain_config.log'
     !     .. opening file
     open(unit=newunit(un_cc),file=fname)

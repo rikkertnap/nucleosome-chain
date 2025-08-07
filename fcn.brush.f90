@@ -59,15 +59,12 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
+        integer  :: n,i,k,c,s,t  ! dummy indices
         real(dp) :: norm
-        real(dp) :: rhopol0 !integra_q
-        integer  :: noffset, count_scf
-        real(dp) :: locallnproshift(2), globallnproshift(2)
-
+        real(dp) :: rhopol0 
+        real(dp) :: locallnproshift(2)
 
         !     .. executable statements 
- 
 
         n=nsize
         ! read out x 
@@ -258,8 +255,6 @@ contains
         real(dp) :: locallnproshift(2), globallnproshift(2)
 
         !     .. executable statements 
-
-       
 
         n=nsize
         ! read out x 
@@ -2305,10 +2300,9 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
+        integer  :: n,i,j,k,c,s,t   ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
-        integer  :: noffset
         real(dp) :: locallnproshift(2), globallnproshift(2)
 
         !     .. executable statements 
@@ -2477,6 +2471,8 @@ contains
         real(dp), intent(out) :: f(neq)
 
         call fcnnucl_Fe_expl(x,f,nn)
+        !call fcnnonucl_cp(x,f,nn)
+        
 
     end subroutine fcnnucl_ionbin_sv_Fe
 
@@ -2509,10 +2505,9 @@ contains
         !     .. local variables
 
         real(dp) :: phiNaCl,phiNa,phiCl,phiK,phiKCl
-        real(dp) :: deltavolNaCl,deltavolKCl,norm
+        real(dp) :: deltavolNaCl,deltavolKCl
 
         !     .. executable statements 
-
 
         deltavolNaCl=(vNaCl-vNa-vCl)
         deltavolKCl=(vKCl-vNa-vCl)
@@ -2689,11 +2684,7 @@ contains
     subroutine set_contraints(constr)
     
         use precision_definition
-        use globals, only : systype, neq , nsize,  LEFT, RIGHT, bcflag
-        use volume, only : nx,ny 
-
-
-        implicit none
+        use globals, only : systype, neq , nsize,  LEFT, RIGHT
             
         real(dp), intent(inout):: constr(:)
 

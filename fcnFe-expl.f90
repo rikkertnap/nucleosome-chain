@@ -22,7 +22,7 @@ module modfcnFeexpl
     
     private 
     public :: compute_fdisPPP, init_var_compute_fdisppp
-    public :: fcnnucl_Fe_expl, test_compute_fdisPPP, compute_average_charge_PPP_expl
+    public :: fcnnucl_Fe_expl, test_compute_fdisPPP, compute_average_charge_PPP_expl, fcnnonucl_cp
     public :: compute_FEchem_react_PPP_expl
 
 contains
@@ -422,7 +422,7 @@ contains
         use field, only      : fdisPPP_loc3 , fdisPPP_loc3_swap 
         use field, only      : numbers_pairs, numbers_triplets
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
-        use Poisson, only    : Poisson_Equation_nopbc
+        use Poisson, only    : Poisson_Equation_bc
         use surface, only    : sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR, surface_charge
 
         use modfcnMgexpl, only : compute_fdisPP
@@ -1010,7 +1010,7 @@ contains
         
         !call Poisson_Equation(f,psi,rhoq)
         
-        call Poisson_Equation_nopbc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+        call Poisson_Equation_bc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
     
         ! .. boundary conditions only if bcflag /= cc or cp 
         !   call Poisson_Equation_Surface(f,psi,rhoq,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
@@ -1038,6 +1038,97 @@ contains
         endif        
 
     end subroutine fcnnucl_Fe_expl    
+
+    ! no nucleosome only  boundary cp 
+
+    subroutine fcnnonucl_cp(x,f,nn)
+
+        use precision_definition
+        use globals, only    : nsize, neq, LEFT, RIGHT, bcflag
+        use parameters, only : expmu
+        use parameters, only : vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vO2
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg 
+        use parameters, only : iter
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhoq 
+        use field, only      : psi
+        use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
+        use Poisson, only    : Poisson_Equation_bc,  Poisson_Equation_Surface
+        use surface, only    : sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR, surface_charge
+
+        !     .. scalar arguments
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        !     .. local variables
+        integer  :: n,i,k       ! dummy indices
+        real(dp) :: norm, normvol,normPE
+              
+        ! .. executable statements 
+        n = nsize
+        
+        ! read out x 
+        k = n
+        do i=1,n                     
+            xsol(i) = x(i)        ! volume fraction solvent
+            psi(i)  = x(i+k)      ! potential
+        enddo  
+
+        do i=1,n                  ! init volume fractions
+       
+            xNa(i)      = expmu%Na*(xsol(i)**vNa)*exp(-psi(i)*zNa) ! Na+ volume fraction
+            xK(i)       = expmu%K* (xsol(i)**vK) *exp(-psi(i)*zK)  ! K+ volume fraction
+            xCl(i)      = expmu%Cl*(xsol(i)**vCl)*exp(-psi(i)*zCl) ! Cl- volume fraction
+            xHplus(i)   = expmu%Hplus*(xsol(i))  *exp(-psi(i))     ! H+  volume fraction
+            xOHmin(i)   = expmu%OHmin*(xsol(i))  *exp(+psi(i))     ! OH- volume fraction
+            xFe2(i)     = expmu%Fe2*(xsol(i)**vFe2)*exp(-psi(i)*zFe2) ! Fe++ volume fraction
+            xFe3(i)     = expmu%Fe3*(xsol(i)**vFe3)*exp(-psi(i)*zFe3) ! Fe+++ volume fraction
+            xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
+            xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
+            xO2(i)      = expmu%O2*(xsol(i)**vO2)                  ! O2 volume fraction
+            
+        enddo
+
+        
+        do i=1,n
+
+            f(i) = xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xFe2(i)+xCa(i)+xMg(i)+&
+                xK(i)+xFe3(i)+xO2(i)-1.0_dp
+        
+            rhoq(i) = zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
+                zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zFe2*xFe2(i)/vFe2 +zFe3*xFe3(i)/vFe3+zK*xK(i)/vK ! total charge density in units of vsol  
+
+        enddo
+        
+
+        ! .. electrostatics 
+           
+        sigmaqSurfR = surface_charge(bcflag(RIGHT),psiSurfR,RIGHT)
+        sigmaqSurfL = surface_charge(bcflag(LEFT),psiSurfL,LEFT)
+            
+        ! .. Poisson Eq 
+        
+        !call Poisson_Equation(f,psi,rhoq)
+        
+        call Poisson_Equation_bc(f,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+    
+        ! .. boundary conditions only if bcflag /= cc or cp 
+        call Poisson_Equation_Surface(f,psi,psisurfR,psisurfL,sigmaqSurfR,sigmaqSurfL,bcflag)    
+        
+        norm=l2norm_f90(f)
+        iter=iter+1
+                    
+        normvol = L2norm_f90(f(1:nsize))
+        normPE  = L2norm_f90(f(nsize+1:2*nsize))
+        
+        print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+                    
+        
+    end subroutine fcnnonucl_cp   
+
+
 
 
     ! compute the average fraction of charged state of the phosphate pairs 

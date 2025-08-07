@@ -19,7 +19,7 @@ contains
 
 subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
   
-    use globals, only : neq 
+    use globals, only : neqint 
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential 
@@ -37,7 +37,7 @@ subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
             else if(isfirstguess) then       ! first guess
                 call init_guess(x,xguess)
             else  
-                do i=1,neq
+                do i=1,neqint
                     xguess(i)=x(i)      
                 enddo
             endif
@@ -48,7 +48,7 @@ subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
     else if(isfirstguess) then       ! first guess
         call init_guess(x,xguess)
     else     
-        do i=1,neq
+        do i=1,neqint
             xguess(i)=x(i)     
         enddo
     endif
@@ -92,7 +92,7 @@ end subroutine init_guess
 
 subroutine init_guess_elect(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize
+    use globals, only : neqint, bcflag,LEFT,RIGHT,nsize
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol
     use surface, only : psisurfL, psisurfR 
@@ -163,7 +163,7 @@ subroutine init_guess_elect(x, xguess)
     endif
 
     !     .. end init from file 
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
@@ -342,7 +342,7 @@ end subroutine init_guess_neutralnoVdW
 
 subroutine init_guess_multi(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
+    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,xpol_t
     use surface, only : psisurfL, psisurfR 
@@ -361,7 +361,7 @@ subroutine init_guess_multi(x, xguess)
     ! .. init guess all xbulk     
 
     do i=1,neqint
-        x(i)=0.0_dp    
+        x(i)=1.0_dp    
     enddo
 
     do i=1,nsize
@@ -444,7 +444,7 @@ subroutine init_guess_multi(x, xguess)
     endif
     !     .. end init from file 
   
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
@@ -453,7 +453,7 @@ end subroutine init_guess_multi
 
 subroutine init_guess_multinoVdW(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint
+    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint
     use volume, only : nsurf
     use field, only : xsol,psi
     use surface, only : psisurfL, psisurfR 
@@ -519,7 +519,7 @@ subroutine init_guess_multinoVdW(x, xguess)
     endif
     !     .. end init from file 
   
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
@@ -649,7 +649,7 @@ end subroutine init_guess_multi_born
 
 subroutine make_guess_from_xstored(xguess,xstored)
 
-    use globals, only : neq
+    use globals, only : neqint
 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potentia
     real(dp), intent(in) :: xstored(:)
@@ -657,7 +657,7 @@ subroutine make_guess_from_xstored(xguess,xstored)
     !   .. local variables
     integer :: i
    
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=xstored(i)     
     enddo 
 

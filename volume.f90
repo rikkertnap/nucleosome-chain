@@ -279,16 +279,16 @@ contains
     end function
          
    
-    subroutine allocate_index_neighbors(maxneigh)
-
+!   subroutine allocate_index_neighbors(maxneigh)
+!
 !        use globals, only : nsize
-
-        integer, intent(in) :: maxneigh
-
+!
+!       integer, intent(in) :: maxneigh
+!
 !        allocate(indexneighbor(nsize,maxneigh))
 !        allocate(inverse_indexneighbor(nsize,nsize))
-        
-    end subroutine allocate_index_neighbors
+!        
+!    end subroutine allocate_index_neighbors
 
     
     ! Calculate indexneighbor(idx,k) 
