@@ -129,8 +129,12 @@ program main
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
         call allocate_field_triplets(11)
         call init_var_compute_fdisPPP
-
     endif   
+
+    if(systype=="nonucl_ST") then 
+        no_overlapchain(1)=.true. ! otherwise loop does not start !!
+    endif    
+    
     
     call init_field()
     call init_surface(bcflag,nsurf)
@@ -151,13 +155,6 @@ program main
     allocate(x(neq))
     allocate(xguess(neq))
     allocate(fvec(neq))
-        
-    ! print*,"elemcharge"
-    ! do i=1,nsegtypes
-    !    print*,"elemcharge(",i,")=",elem_charge(i)," type= ",mapping_num_to_char(i),&
-    !         " type of charge=" ,type_of_charge(i)
-    ! enddo   
-
 
     ! .. loop over pH, or pKd etc  values
 
@@ -278,7 +275,7 @@ program main
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
 
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
-                    !isSolution=.true.
+                    ! isSolution=.true.
                     call fcnptr(x, fvec, neq)
                  
                     call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
@@ -324,8 +321,7 @@ program main
                     else 
                         ! break while loop over loop%val by making loop%stepsize smaller loop%delta
                         loop%stepsize = loop%delta/2.0_dp 
-                    endif
-                    
+                    endif     
 
                     iter  = 0              ! reset of iteration counter
 
@@ -357,7 +353,6 @@ program main
                         print*,text
                     endif   
                 endif       
-
                 
                 use_xstored=.true.
 

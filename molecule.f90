@@ -37,25 +37,70 @@ module molecules
 
 contains
 
-    subroutine init_zero_moleclist(moleclist_record)
+    subroutine init_zero_moleclist(struct)
     
-        type(moleclist), intent(inout) :: moleclist_record
+        type(moleclist), intent(inout) :: struct
 
-        moleclist_record%sol = 0.0_dp
-        moleclist_record%Na = 0.0_dp
-        moleclist_record%Cl = 0.0_dp
-        moleclist_record%K = 0.0_dp
-        moleclist_record%Fe2 = 0.0_dp
-        moleclist_record%Fe3 = 0.0_dp
-        moleclist_record%Ca = 0.0_dp
-        moleclist_record%Mg= 0.0_dp
-        moleclist_record%NaCl = 0.0_dp
-        moleclist_record%KCl = 0.0_dp
-        moleclist_record%Hplus = 0.0_dp
-        moleclist_record%OHmin = 0.0_dp
-        moleclist_record%O2 = 0.0_dp
+        struct%sol = 0.0_dp
+        struct%Na = 0.0_dp
+        struct%Cl = 0.0_dp
+        struct%K = 0.0_dp
+        struct%Fe2 = 0.0_dp
+        struct%Fe3 = 0.0_dp
+        struct%Ca = 0.0_dp
+        struct%Mg= 0.0_dp
+        struct%NaCl = 0.0_dp
+        struct%KCl = 0.0_dp
+        struct%Hplus = 0.0_dp
+        struct%OHmin = 0.0_dp
+        struct%O2 = 0.0_dp
 
     end subroutine init_zero_moleclist
+
+
+     function get_value_moleclist(struct,member) result(val)
+
+        type(moleclist) , intent(in) :: struct 
+        character(len=5),  intent(in) :: member
+        real(dp) :: val
+
+        select case (member)
+            case ("sol") 
+                val=struct%sol
+            case ("Na") 
+                val=struct%Na
+            case ("Cl") 
+                val=struct%Cl
+            case ("K") 
+                val=struct%K
+            case ("Hplus") 
+                val=struct%Hplus
+            case ("OHmin") 
+                val=struct%OHmin
+            case ("Fe2") 
+                val=struct%Fe2
+            case ("Fe3") 
+                val=struct%Fe3
+            case ("Mg") 
+                val=struct%Mg
+            case default
+                print*,"Wrong value member molecule list :  ",member
+                stop
+        end select      
+            
+    end function get_value_moleclist
+
+
+    function sum_value_moleclist(struct) result(val)
+
+        type(moleclist) , intent(in) :: struct
+        real(dp) :: val
+
+        
+        val = struct%sol + struct%Na +struct%Cl + struct%K + struct%Fe2 + struct%Fe3 + &
+        struct%Ca + struct%Mg+struct%NaCl + struct%KCl + struct%Hplus + struct%OHmin + struct%O2 
+        
+    end function sum_value_moleclist   
 
 end module molecules
 

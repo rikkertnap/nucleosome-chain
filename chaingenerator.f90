@@ -37,7 +37,7 @@ contains
 ! Main chain generator routine selects type of method to use 
 ! based on value 
 ! input character(len=15) chainmethod
-!       character(len=15) systype
+!       character(len=20) systype
 
 subroutine make_chains(chainmethod,systype)
 
@@ -45,10 +45,12 @@ subroutine make_chains(chainmethod,systype)
     use myio, only : myio_err_chainmethod
 
     character(len=15), intent(in) :: chainmethod
-    character(len=15), intent(in) :: systype 
+    character(len=20), intent(in) :: systype 
 
-    integer :: i, info
-    character(len=lenText) :: text, istr
+    integer :: info
+    character(len=lenText) :: text
+
+    if(systype=="nonucl_ST") return ! alternate return
 
     info=0
 
@@ -77,7 +79,7 @@ subroutine make_chains_mc()
     use globals
     use chains
     use random, only : seed
-    use parameters, only : lseg, write_mc_chains, isVdW, isVdWintEne
+    use parameters, only : lseg, write_mc_chains
     use parameters, only : maxnchainsrotations, maxnchainsrotationsxy
     use volume, only : nx, ny, nz, delta, geometry
     use volume, only : coordinateFromLinearIndex, linearIndexFromCoordinate
@@ -88,26 +90,20 @@ subroutine make_chains_mc()
 
     !     .. variable and constant declaractions      
 
-    integer :: i,j,k,s,g,gn      ! dummy indices
+    integer :: j,s             ! dummy indices
     integer :: idx               ! index label
-    integer :: ix,iy,idxtmp,ntheta
     integer :: nchains           ! number of rotations
     integer :: maxnchains        ! number of rotations
     integer :: maxntheta         ! maximum number of rotation in xy-plane
     integer :: conf              ! counts number of conformations
-    integer :: allowedconf
     real(dp) :: chain(3,nseg,200) ! chain(x,i,l)= coordinate x of segement i ,x=2 y=3,z=1
     real(dp) :: chain_rot(3,nseg)
     real(dp) :: x(nseg), y(nseg), z(nseg) ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates
-    real(dp) :: xpp(nseg), ypp(nseg), zpp(nseg)  
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm         ! sizes box
-    real(dp) :: xpt,ypt          ! coordinates
-    real(dp) :: theta, theta_angle
-    character(len=lenText) :: text, istr
-    integer  :: xi,yi,zi ,un_trj, un_ene, segcenter
+    character(len=lenText) :: text
+    integer  :: xi,yi,zi, un_ene,un_trj
     real(dp) :: energy   
-    logical :: saw 
     integer :: info    
    
     !  .. executable statements
@@ -260,7 +256,7 @@ end subroutine make_chains_mc
 subroutine read_chains_xyz(systype,info)
 
     ! .. argument
-    character(len=15), intent(in) :: systype
+    character(len=20), intent(in) :: systype
     integer, intent(out) :: info
 
     if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
@@ -327,37 +323,26 @@ subroutine read_chains_xyz_nucl(info)
 
     ! .. local variables
 
-    integer :: i,j,s,rot,g,gn      ! dummy indices
-    integer :: idx                 ! index label
-    integer :: ix,iy,iz,idxtmp,ntheta
-    integer :: nchains              ! number of rotations
-    integer :: maxnchains           ! number of rotations
-    integer :: maxntheta            ! maximum number of rotation in xy-plane
+    integer :: i,s                  ! dummy indices
+    integer :: idx                  ! index label
     integer :: conf,conffile        ! counts number of conformations  
-    integer :: nsegfile             ! nseg in chain file      
-    integer :: cuantasfile          ! cuantas in chain file                                              
+    integer :: nsegfile             ! nseg in chain file                                              
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg)  ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
-    real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
     integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm ! sizes box and center of mass box
-    real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc               
     real(dp) :: energy, energyLJ                                            
     character(len=25) :: fname
-    integer :: ios, rankfile, iosene
-    character(len=30) :: str
+    integer :: ios, rankfile
     real(dp) :: scalefactor
-    integer :: un,unw,un_ene ! unit number
+    integer :: un,un_ene ! unit number
     logical :: exist
     character(len=lenText) :: text,istr
-    real(dp) :: d_type_num, d_atom_num
-    integer :: i_type_num, i_atom_num
     logical :: isReadGood
     real(dp) :: equilat, equilat_rot
-    integer :: ii
     integer :: s_local
     integer :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     logical :: no_overlap
@@ -724,7 +709,7 @@ end subroutine read_chains_xyz_nucl
 subroutine read_chains_xyz_nucl_volume(info)
 
     !     .. variable and constant declaractions                                                                                    
-    use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA, DEBUG 
+    use globals, only : nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA, DEBUG 
     use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, set_confor, runtype, systype
     use chains, only : var_darray
     use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
@@ -755,37 +740,28 @@ subroutine read_chains_xyz_nucl_volume(info)
 
     ! .. local variables
 
-    integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos ! dummy indices
+    integer :: i,j,s,k,sAA ,tPhos ! dummy indices
     integer :: idx, idx_tmp                   ! index label
-    integer :: ix,iy,iz 
     integer :: conf,conffile        ! counts number of conformations  
-    integer :: nsegfile             ! nseg in chain file      
-    integer :: cuantasfile          ! cuantas in chain file                                              
+    integer :: nsegfile             ! nseg in chain file                                                  
     real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg),chain_pbc_tmp(3),chain_tmp(3)    ! chains(x,i)= coordinate x of segement i
     real(dp) :: xseg(3,nseg)
-    real(dp) :: x(nseg), y(nseg), z(nseg)    ! coordinates
     real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
     real(dp) :: xpp(nseg),ypp(nseg)
     real(dp) :: rtranslate(3)
-    integer  :: xi,yi,zi, ri(3)
+    integer  :: xi,yi,zi
     real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
-    real(dp) :: xpt,ypt              ! coordinates
     real(dp) :: xc,yc,zc             ! coordinates            
-    real(dp) :: energy, energyLJ, energyLJ_comb                                            
+    real(dp) :: energy, energyLJ                                           
     character(len=25) :: fname
-    character(lenText):: fname2
-    integer :: ios, rankfile, iosene
-    character(len=30) :: str
+    integer :: ios, rankfile
     real(dp) :: scalefactor
-    integer :: un,unw,un_ene ! unit number
+    integer :: un,un_ene ! unit number
     logical :: exist
     character(len=lenText) :: text,istr
-    real(dp) :: d_type_num, d_atom_num
-    integer :: i_type_num, i_atom_num
     logical :: isReadGood, isVolfracLargerOne
     integer :: nrotpts
     real(dp) :: equilat,equilat_rot
-    integer :: nelem2(3),nsegAA2 
     integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
     integer  :: orient_triplet_ref(3)
     real(dp) :: orient_vector_ref(3)
@@ -803,7 +779,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     
     integer :: un_traj, info_traj
     real(dp) :: chain_lammps(3,nseg,1)
-    real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
+    real(dp) :: sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
     ! integer, dimension(:,:), allocatable   :: list_of_pairs
     integer :: max_range_nneigh 
     integer :: s_local 
@@ -1431,11 +1407,10 @@ subroutine read_graftpts_xyz_nucl(info)
     character(len=25) :: fname
     integer :: ios 
     real(dp) :: xc,yc,zc          
-    integer :: ix,iy,iz,un,s, i,t
+    integer :: s,t
     integer :: rankfile
-    integer :: item,moltype,nsegfile,idatom
-    character(len=30) :: istr,str
-    !real(dp) :: xbox0,xbox1
+    integer :: item,un
+    character(len=30) :: istr
     real(dp) :: scalefactor
     logical :: exist, isGraftItem
 
@@ -1639,7 +1614,7 @@ subroutine normed_weightchains()
     use globals, only : cuantas
     use chains, only : energychain, logweightchain
    
-    integer :: un, c, k
+    integer ::  c
     real(dp) :: localsum, totalsum, logtotalsum
 
         
@@ -1682,13 +1657,10 @@ end function
 
 subroutine global_minimum_chainenergy()
 
-    !use  mpivars
-    use  globals, only : cuantas
-    use  chains, only : energychain, energychain_min
+    use  chains, only : energychain_min
     use  parameters, only: isEnergyShift
 
     real(dp) :: localmin(2), globalmin(2)
-    integer :: i
 
     localmin(1)=minimum_chainenergy()
     localmin(2)=0 !rank   
@@ -1791,7 +1763,7 @@ subroutine set_lsegAA
 
     use globals
     use chains
-    use parameters, only : lseg, lsegAA,lsegPAA, lsegPAMPS, lsegPEG
+    use parameters, only : lsegAA,lsegPAA, lsegPAMPS ! , lsegPEG
     use parameters, only : chainmethod 
 
     if(chainmethod=='MC') then  ! chain are not read in from file 
@@ -1899,7 +1871,7 @@ subroutine read_type_of_monomer(type_of_monomer, type_of_monomer_char,filename, 
     !      .. local variables
     integer :: ios, un  ! un = unit number
     integer :: s
-    character(80) :: istr,str,letter
+    character(80) :: istr,str
 
     !     .. reading in of variables from file
     open(unit=newunit(un),file=filename,iostat=ios,status='old')
@@ -2068,11 +2040,11 @@ subroutine write_indexchain_lammps_trj(info)
 
     integer, optional, intent(inout) :: info
 
-    character(len=lenText) :: text, istr
+    character(len=lenText) ::  istr
     character(len=25) :: fname
     integer :: ios, un_trj 
     real(dp):: x, y, z
-    integer :: ix, iy, iz, ic(3), idx
+    integer ::  ic(3), idx
     real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, moltype, conf
 
@@ -2139,11 +2111,11 @@ subroutine write_indexconf_lammps_trj(info)
 
     integer, optional, intent(inout) :: info
 
-    character(len=lenText) :: text, istr
+    character(len=lenText) :: istr
     character(len=25) :: fname
     integer :: ios, un_trj 
     real(dp):: x, y, z
-    integer :: ix, iy, iz, i, j, k, idx, s, em
+    integer :: i, j, k, idx, s, em
     real(dp) :: xbox0,xbox1(3)
     integer :: idatom, item, conf
     character(len=3) :: moltype
@@ -2318,9 +2290,8 @@ subroutine write_chain_lammps_trj(un_trj,chain,nchains)
     integer, intent(in) :: nchains
     integer , intent(in) :: un_trj
     
-    character(len=lenText) :: istr
     real(dp) :: x, y, z
-    integer ::  i, j, k
+    integer ::  j
     real(dp) :: xbox0, xbox1(3)
     integer :: idatom, item, moltype !, conf_write
 
@@ -2369,18 +2340,17 @@ subroutine write_chain_elem_index_lammps_trj(un_trj,chain_elem_index)
     use globals, only : nseg
     use myutils, only : newunit, lenText
     use volume, only : delta, nx, ny, nz, coordinateFromLinearIndex
-    use chains, only : type_of_monomer, nelem,  nucl_elem_type, type_of_monomer_char
+    use chains, only : type_of_monomer, nelem,  nucl_elem_type
     use chains, only : var_darray ! type def  
 
     type(var_darray), allocatable, dimension(:,:), intent(in) :: chain_elem_index
     integer, intent(in) :: un_trj
     
-    character(len=lenText) :: istr
     real(dp) :: x, y, z, xcm, ycm, zcm
     integer ::  j, s
     real(dp) :: xbox0, xbox1(3)
-    integer :: idatom, item, conf, nsegtot
-    character(len=3) :: moltype,idatom_char
+    integer :: idatom, item, nsegtot
+    character(len=3) :: moltype
 
     xbox0=0.0_dp 
     xbox1(1)=nx*delta*10.0_dp
@@ -2647,7 +2617,7 @@ function gyr_tensor_com_rotation(rcom,nmer) result(mat)
     integer, intent(in) :: nmer  
     
     real(dp) :: mat(3,3)
-    integer :: m, n, i, j, ii, jj
+    integer :: m, n, i, j
         
     mat=0.0_dp
 
@@ -2676,7 +2646,7 @@ function bond_angles_com_rotation(rcom,nmer) result(bondangle)
 
     ! .. local variables
     real(dp) :: u1(3), u2(3), absu1, absu2
-    integer :: i, j, k ,isegcom, ipls1segcom
+    integer :: i, k ,isegcom, ipls1segcom
 
 
     bondangle=0.0_dp    
@@ -2715,7 +2685,7 @@ function bond_angles_com(chain,nmer,segcom) result(bondangle)
 
     ! .. local variables
     real(dp) :: u1(3), u2(3), absu1, absu2
-    integer :: i,j,k ,isegcom, ipls1segcom
+    integer :: i ,k ,isegcom, ipls1segcom
 
 
     bondangle=0.0_dp    
@@ -2754,14 +2724,12 @@ function dihedral_angles_com(chain,nmer,segcm) result(dihedral)
     real(dp) :: dihedral(nmer-3)
     
     ! .. local variables
-    integer  :: i,j,k 
+    integer  :: i,k 
     real(dp) :: u1(3),u2(3),u3(3),n123(3),n234(3)
     real(dp) :: absn123, absn234, absu2
     integer  :: isegcm,ipls1segcm,ipls2segcm,ipls3segcm
-    real(dp) :: theta(nmer-3), costheta, x, y, sintheta, sintheta2 ,theta2,sintheta3, sintheta4
+    real(dp) :: theta(nmer-3), costheta, x, y, sintheta
     
-
-
     if(nmer>=4) then  ! need at least 4 unit/nucleosomes
 
         isegcm    =segcm(1)
@@ -2833,11 +2801,11 @@ function dihedral_angles_com_rotation(rcom,nmer) result(dihedral)
     real(dp) :: dihedral(nmer-3)
     
     ! .. local variables
-    integer  :: i,j,k 
+    integer  :: i,k 
     real(dp) :: u1(3),u2(3),u3(3),n123(3),n234(3)
     real(dp) :: absn123, absn234, absu2
     integer  :: isegcm,ipls1segcm,ipls2segcm,ipls3segcm
-    real(dp) :: theta(nmer-3), costheta, x, y, sintheta, sintheta2 ,theta2,sintheta3, sintheta4
+    real(dp) :: theta(nmer-3), costheta, x, y, sintheta
     
 
 
@@ -2953,7 +2921,7 @@ subroutine make_segcom(segcom,nnucl,filename)
     !      .. local variables
     integer :: ios, un  ! un = unit number
     integer :: s
-    character(80) :: istr,str,letter
+    character(80) :: istr,str
 
     !     .. reading in of variables from file
     open(unit=newunit(un),file=filename,iostat=ios,status='old')
@@ -3099,7 +3067,6 @@ function open_output_file(filename,info)result(un)
     integer :: un
 
     ! local
-    character(len=lenText) :: istr
     character(len=25) :: fname
     integer :: ios
     logical :: exist
@@ -3129,7 +3096,7 @@ end function open_output_file
 
 subroutine write_phosphate_pairs(write_pairs,conf,info)
 
-    use globals, only : cuantas,nseg
+    use globals, only : nseg
     use myutils, only : lenText, newunit
     use chains, only : type_of_monomer, nneigh, indexconfpair, distphoscutoff
     use parameters, only : ta
@@ -3181,7 +3148,7 @@ end subroutine write_phosphate_pairs
 
 subroutine write_phosphate_triplets(write_triplets,conf,info)
 
-    use globals, only : cuantas,nseg
+    use globals, only : nseg
     use myutils, only : lenText, newunit
     use chains, only : type_of_monomer, ntriplet, indexconftriplet, distphoscutoff
     use parameters, only : ta
@@ -3295,8 +3262,8 @@ subroutine read_nucl_elements(fname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_
 
     ! local variables
 
-    integer          :: ios, un, s, sAA, j, k, ttype ,t
-    character(len=3) :: elem_type(nsegtypesAA), voltype
+    integer          :: ios, un, s, sAA, j, k, t
+    character(len=3) :: elem_type(nsegtypesAA)
     real(dp)         :: x(3)
     logical          :: isReadGood
     integer          :: num_elem_CA
@@ -3545,7 +3512,7 @@ function find_vol_elem(elem_type)result(vol_elem)
 
     real(dp):: vol_elem
 
-    integer :: elem, j , nelem_types
+    integer :: j, nelem_types
     logical :: IsNotFound
 
     nelem_types=size(vnucl_type)
@@ -3680,7 +3647,7 @@ subroutine read_nucl_orient_triplets(fname,nnucl,nuc_orient_triplet,info)
 
     ! local arguments
 
-    integer  :: ios, un, s,  i
+    integer  :: ios, un,  i
     integer :: ix(3)
     logical :: isReadGood
 
@@ -3722,7 +3689,7 @@ subroutine allocate_chain_elements(nsegAA,nelemAA,chain_elem)
 
     ! local arguments
 
-    integer   :: s, k, j
+    integer   :: s, k
     
     allocate(chain_elem(3,nsegAA))
 
@@ -3790,7 +3757,7 @@ end subroutine print_nucl_elements
 
 subroutine compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
 
-    use chains, only : type_of_monomer, type_of_monomer_char, mapping_num_to_char  
+    use chains, only : type_of_monomer,  mapping_num_to_char  
 
     integer, intent(in) :: nseg 
     integer, intent(in) :: nsegtypes
@@ -3801,7 +3768,7 @@ subroutine compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
 
     character(len=3) :: list_type_char_DNA(6)  ! list of DNA elements in char
     integer          :: list_type_int_DNA(6)   ! list of DNA elements in integer 
-    integer          :: i, s, t, k, nnucl_counter, type_int
+    integer          :: s, t, k, nnucl_counter, type_int
     character(len=3) :: type_char  
     logical          :: isMonomerDNA, isPreviousMonomerDNA
 
@@ -4038,7 +4005,6 @@ subroutine find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
     
     character(len=100) :: fname
     integer :: un_pp
-    character(len=10) ::istr
     
     allocate(list_of_pairs(nseg,maxnneigh))
     allocate(index_of_pairs(nseg,maxnneigh))
@@ -4126,7 +4092,7 @@ subroutine write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
     use chains, only :  type_of_monomer,indexconfpair, indexconf
     use chains, only : nneigh, distphoscutoff
     use parameters, only : tA 
-    use volume, only : delta, linearIndexFromCoordinate,coordinateFromLinearIndex
+    use volume, only : linearIndexFromCoordinate,coordinateFromLinearIndex
     use myutils, only : newunit
     
     integer, intent(in) :: nseg
@@ -4135,8 +4101,8 @@ subroutine write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
     real(dp), intent(in) :: sqrDphoscutoff
 
 
-    integer :: s, sprime, i, j
-    integer :: xi, yi, zi , idx    
+    integer :: s,  j
+    integer :: xi, yi, zi  
     character(len=100) :: fname
     integer :: un_pp
     character(len=10) ::istr
@@ -4200,7 +4166,6 @@ subroutine find_phosphate_pairs_exclude_triplets(nseg,conf,tPhos,sqrDphoscutoff,
 
     character(len=100) :: fname, text
     integer :: un_pp, info
-    character(len=10) ::istr
     logical ::  pair_triplet_disjoined
     
     allocate(list_of_pairs(nseg,maxnneigh))
@@ -4319,10 +4284,8 @@ end subroutine find_phosphate_pairs_exclude_triplets
 
 subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
 
-    use chains, only :  type_of_monomer,indexconfpair
-    use chains, only : nneigh, indexconfpair, distphoscutoff
-    use chains, only : ntriplet,indexconftriplet
-    use parameters, only : tA 
+    use chains, only :  type_of_monomer
+    use chains, only : ntriplet,indexconftriplet 
     use parameters, only : pbc_chains
     use volume, only : delta, linearIndexFromCoordinate
     use myutils, only : newunit
@@ -4340,7 +4303,7 @@ subroutine find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz
 
     integer :: s, sprime, sdblprime, i, j, idx, idxdble
     real(dp) :: sqrdist, sqrdists, sqrdistsprime
-    integer :: num_triplets, countseg
+    integer :: num_triplets
     integer :: xi, yi, zi 
 
     integer, dimension(:,:,:), allocatable ::  list_of_triplets
@@ -4473,7 +4436,6 @@ subroutine find_phosphate_loc(index_phos,len_index_phos)
     integer, intent(inout) :: len_index_Phos
 
     integer :: location_list(nsize) ! location_list(i) if > 0 then there is a or multiple phosphate located at latiice element i
-    integer :: num_phos ! number of phophates
     integer :: cell_num, conf, s, i, k, tPhos
     integer :: index_phos_tmp(nsize)
     
@@ -4687,7 +4649,7 @@ end subroutine
 
 subroutine test_nmer_indexchain_histone(s0,s1,info)
 
-    use globals, only : systype, nnucl
+    use globals, only : systype
 
     integer, intent(inout) :: info     
     integer, intent(in) :: s0,s1
@@ -4708,7 +4670,7 @@ end subroutine
 
 subroutine test_index_histone(info) 
     
-    use globals, only : systype, nnucl 
+    use globals, only : nnucl 
  
     integer, intent(inout) :: info
 

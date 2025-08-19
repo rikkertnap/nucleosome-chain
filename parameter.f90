@@ -14,6 +14,11 @@
     type(bornmoleclist) :: bornrad,bornbulk 
     type(moleclist) :: beta_ion_excess
 
+    type(moleclist) :: Diffcoeff
+    type(moleclist) :: mumin,mumax
+    type(moleclist) :: xvolmin,xvolmax
+
+
     ! .. index for different chemical states of phosphate used in vPP and qPP 
     ! .. in for systype nucl_ionbin_Mg and systype nucl_ionbin_Fe
     ! .. warning numbering different  from avfdisA 
@@ -30,8 +35,9 @@
     integer, parameter :: Phos2Fe3=10
     integer, parameter :: Phos3Fe3=11
 
-
     !  .. volume 
+
+    type(moleclist) :: vol  
   
     real(dp) :: vsol                 ! volume of solvent  in nm^3       
     real(dp) :: vpolA(5),deltavA(4)  ! volume of one polymer segment, vpol  in units of vsol
@@ -68,6 +74,8 @@
     real(dp) :: RO2
 
     ! .. charges 
+
+    type(moleclist) :: zval
 
     integer, dimension(:,:), allocatable :: zpol ! valence charge polymer
     integer :: zpolAA(8)
@@ -159,7 +167,7 @@
     logical :: isEnergyShift          ! if true energychain is shifted by energychain_min see chaingenerator
     logical :: pbc_chains             ! if true apply pbc to chain conformation
  
-    ! ..average structural properties of layer
+    ! .. average structural properties of layer
 
     real(dp) :: avRsqr             ! average Radius of Gyration Nucleosome chain
     real(dp) :: qpolA              ! charge poly A of layer 
@@ -245,6 +253,11 @@
     integer, parameter ::  err_file         = 2 
     integer, parameter ::  err_error        = 3
 
+    ! electrostatic difference between z=0 and z=nz delta plane 
+    real(dp) :: deltapsi 
+    real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
+    real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
+
     ! unit conversion : converts unit of input conformation to nm unit!
 
     real(dp) :: unit_conv
@@ -258,13 +271,13 @@ contains
 
     subroutine set_size_neq()
 
-        use globals, only: systype,nsegtypes, nsize,bcflag,LEFT,RIGHT, neq, neqint
+        use globals, only: systype,nsegtypes, nsize,LEFT,RIGHT, neq, neqint
         use volume, only : nx, ny, nz
         use myutils, only  : error_handler
 
         integer :: numeq, t
 
-        nsize= nx*ny*nz
+        nsize = nx * ny * nz
 
         select case (systype)
             case ("brush_mul") 
@@ -275,6 +288,10 @@ contains
                 neq =  nsize 
             case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
                 neq = 2 * nsize 
+            case ("nucl_ionbin_Fe_ST","nonucl_ST")
+                numeq = 6
+                neq = (2 +numeq) * nsize 
+                print*,"Warning set_size_neq : numeq of ion density set to 6  set for Steady State"
             case ("brushdna","nucl_ionbin")
                 numeq=0 
                 do t=1,nsegtypes
@@ -306,8 +323,9 @@ contains
                 call error_handler(1,"set_size_neq")
         end select  
 
-        neqint =neq ! used for MPI func binding, MPI has no integer(8)
-         
+    !    neqint = neq 
+        neqint=int(neq,kind(neqint)) ! used for MPI func binding, MPI has no integer(8)
+    
     end subroutine set_size_neq
 
     
@@ -315,8 +333,6 @@ contains
 
         use mathconst
         use physconst
-        
-        implicit none
         
         real(dp), intent(in) :: T     
         real(dp) :: lb
@@ -333,18 +349,18 @@ contains
     subroutine init_constants()
 
         use globals
+        use mathconst
         use volume
         use random
-        use physconst
-        
-        implicit none      
+        use physconst   
         
         real(dp) :: vA,vB, vAA, vAMPS, vPEG
         
         !  .. initializations of variables
  
-        pi=acos(-1.0_dp)          ! pi = arccos(-1)
-        itmax=2000                ! maximum number of iterations      
+        call make_mathconst() ! init pi
+
+        itmax = 2000              ! maximum number of iterations      
       
         !  .. charges  
         zNa   = 1                 ! valence positive charged ion
@@ -352,8 +368,8 @@ contains
         zCa   = 2                 ! valence divalent positive charged ion
         zMg   = 2                 ! valence divalent positive charged ion
         zCl   =-1                 ! valence negative charged ion
-        zFe2  = 2                ! valence divalent positive charged ion
-        zFe3  = 3                ! valence divalent positive charged ion
+        zFe2  = 2                 ! valence divalent positive charged ion
+        zFe3  = 3                 ! valence divalent positive charged ion
 
         zpolA(1)=-1 ! A-
         zpolA(2)= 0 ! AH
@@ -487,6 +503,35 @@ contains
             
         endif    
 
+        ! assign vol and zval  
+
+        vol%sol = vsol 
+        vol%Na  = vNa
+        vol%Cl  = vCl 
+        vol%K   = vK
+        vol%Fe2 = vFe2
+        vol%Fe3 = vFe3
+        vol%Mg  = vMg
+        vol%Ca  = vCa
+        vol%NaCl = vNaCl
+        vol%KCl  = vKCl
+        vol%Hplus = 1.0_dp
+        vol%OHmin = 1.0_dp
+
+        zval%sol = 0.0_dp
+        zval%Na  = 1.0_dp
+        zval%Cl  = -1.0_dp
+        zval%K   =  1.0_dp
+        zval%Fe2 = 2.0_dp
+        zval%Fe3 = 3.0_dp
+        zval%Mg  = 2.0_dp
+        zval%Ca  = 2.0_dp
+        zval%NaCl = 0.0_dp
+        zval%KCl  = 0.0_dp
+        zval%Hplus = 1.0_dp
+        zval%OHmin = -1.0_dp
+        zval%O2 = 0.0_dp
+        
         cuantas=max_confor
 
     end subroutine init_constants
@@ -529,16 +574,15 @@ contains
         use physconst, only : Na
         use myutils, only : error_handler
 
-        real(dp) :: KAA(7)
         real(dp) :: vA    
-        integer  :: tAA,i,tt,s,flag_one
-        logical  :: isOandNpresent,  isApresent
+        integer  :: i,tt,s,flag_one
+        logical  :: isApresent
         integer   :: info
 
         ! determine segment type number of phosphate constaining segments
 
         do s=1, nseg
-            if(type_of_monomer_char(s)=="P")  tA =type_of_monomer(s)
+            if(type_of_monomer_char(s)=="P")  tA = type_of_monomer(s)
         enddo
 
         isApresent=(tA/=0) ! check if phosphate acid monomer is defined in list of typesfname
@@ -707,7 +751,7 @@ contains
         ! local variables
         real(dp) ::  xbulkidO2, xbulksalt, conc, tolerance
         real(dp),  dimension(:), allocatable ::  x, xguess
-        character(len=15) :: systype_old
+        character(len=20) :: systype_old
         logical :: issolution
         character(len=lenText) :: text
 
@@ -772,7 +816,7 @@ contains
         type(moleclist), intent(inout) :: xbulk
 
         real(dp),  dimension(:), allocatable ::  x, xguess
-        character(len=15) :: systype_old
+        character(len=20) :: systype_old
         logical :: issolution
         character(len=lenText) :: text
 
@@ -905,9 +949,7 @@ contains
 
     function ion_strength(xbulk)result(IS)
 
-        use globals, only : neq, systype
         use physconst, only : Na
-        use myutils, only : lenText, print_to_log, LogUnit
 
         type(moleclist), intent(in) :: xbulk
         real(dp) :: IS
@@ -959,7 +1001,6 @@ contains
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
-        real(dp) :: xO2salt            ! volume fraction of O2 disolved gas in bulk solution   
         real(dp) :: xtmp
 
         real(dp) :: KaAA6              ! auxilary varialbe
@@ -1130,6 +1171,87 @@ contains
         
     end subroutine init_expmu_elect
 
+    function chem_potential_bulk(xbulk,xbulksol,vol,psi,zval)result(mu)
+   
+        real(dp), intent(in) :: xbulk, xbulksol, vol, psi, zval
+        real(dp) :: mu
+
+        real(dp) , parameter :: epsxbulk = 1.0e-20_dp
+
+        if(xbulk>epsxbulk) then  
+            mu = log(xbulk/vol) -log(xbulksol) * vol + zval * psi
+        else
+            mu = 0.0_dp
+        endif
+
+    end function 
+
+
+    subroutine init_mu_elect
+
+        use globals, only : DEBUG_ST
+    
+        real(dp) :: psimin,psimax
+
+        deltapsi = (psiSR-psiSL)
+        psimin = psiSL
+        psimax = psiSR
+    
+        if(DEBUG_ST) print*,"psimin=",psimin," psimax=",psimax
+      
+        mumin%Na = chem_potential_bulk(xbulk%Na, xbulk%sol, vol%Na, psimin, zval%Na)
+        mumax%Na = chem_potential_bulk(xbulk%Na, xbulk%sol, vol%Na, psimax, zval%Na)
+
+        mumin%Cl = chem_potential_bulk(xbulk%Cl, xbulk%sol, vol%Cl, psimin, zval%Cl)
+        mumax%Cl = chem_potential_bulk(xbulk%Cl, xbulk%sol, vol%Cl, psimax, zval%Cl)
+ 
+        mumin%K = chem_potential_bulk(xbulk%K, xbulk%sol, vol%K, psimin, zval%K)
+        mumax%K = chem_potential_bulk(xbulk%K, xbulk%sol, vol%K, psimax, zval%K)
+        
+        mumin%Mg = chem_potential_bulk(xbulk%Mg, xbulk%sol, vol%Mg, psimin, zval%Mg)
+        mumax%Mg = chem_potential_bulk(xbulk%Mg, xbulk%sol, vol%Mg, psimax, zval%Mg)
+        
+        mumin%Fe2 = chem_potential_bulk(xbulk%Fe2, xbulk%sol, vol%Fe2, psimin, zval%Fe2)
+        mumax%Fe2 = chem_potential_bulk(xbulk%Fe2, xbulk%sol, vol%Fe2, psimax, zval%Fe2)
+
+        mumin%Fe3 = chem_potential_bulk(xbulk%Fe3, xbulk%sol, vol%Fe3, psimin, zval%Fe3)
+        mumax%Fe3 = chem_potential_bulk(xbulk%Fe3, xbulk%sol, vol%Fe3, psimax, zval%Fe3)
+  
+        mumin%Hplus = chem_potential_bulk(xbulk%Hplus, xbulk%sol, vol%Hplus, psimin, zval%Hplus)
+        mumax%Hplus = chem_potential_bulk(xbulk%Hplus, xbulk%sol, vol%Hplus, psimax, zval%Hplus)
+        
+        mumin%OHmin = chem_potential_bulk(xbulk%OHmin, xbulk%sol, vol%OHmin, psimin, zval%OHmin)
+        mumax%OHmin = chem_potential_bulk(xbulk%OHmin, xbulk%sol, vol%OHmin, psimax, zval%OHmin)
+          
+        xvolmin = xbulk 
+        xvolmax = xvolmin
+        if(DEBUG_ST) then 
+            print*,"mu Na"
+            print*,"mu_zmax=",mumax%Na
+            print*,"mu_zmin=",mumin%Na
+            print*,"mu Cl"
+            print*,"mu_zmax=",mumax%Cl
+            print*,"mu_zmin=",mumin%Cl
+            print*,"mu K"
+            print*,"mu_zmax=",mumax%K
+            print*,"mu_zmin=",mumin%K
+            print*,"mu Mg"
+            print*,"mu_zmax=",mumax%Mg
+            print*,"mu_zmin=",mumin%Mg
+            print*,"mu Hplus"
+            print*,"mu_zmax=",mumax%Hplus
+            print*,"mu_zmin=",mumin%Hplus
+            print*,"mu OHmin"
+            print*,"mu_zmax=",mumax%OHmin
+            print*,"mu_zmin=",mumin%OHmin
+
+            print*,"mu sol"
+            print*,"mu_zmax=",mumax%sol
+            print*,"mu_zmin=",mumin%sol     
+        endif
+
+    end subroutine init_mu_elect
+
 
     subroutine init_expmu_neutral
 
@@ -1139,60 +1261,117 @@ contains
 
     end subroutine init_expmu_neutral
 
+
+    subroutine init_diffusion_coeff()
+
+        ! values from "Diffusion- Mass transfer in Fuild System" by E.L.Cussler page 143
+        ! at T= 25 C
+        ! all values are in 10-5 cm^2/sec 10-9 m^2/sec
+
+        Diffcoeff%sol   = 0.0e-9_dp ! not needed for calcualting conductivity
+        Diffcoeff%Na    = 1.33e-9_dp
+        Diffcoeff%Cl    = 2.03e-9_dp
+        Diffcoeff%K     = 1.96e-9_dp
+        Diffcoeff%Ca    = 0.79e-9_dp 
+        Diffcoeff%NaCl  = 0.0e-9_dp  ! not charged not needed
+        Diffcoeff%KCl   = 0.0e-9_dp  ! not charged 
+        Diffcoeff%Hplus = 9.31e-9_dp
+        Diffcoeff%OHmin = 5.28e-9_dp        
+
+    end subroutine  init_diffusion_coeff
+
+
     ! inits chem potential 
 
     subroutine init_vars_input()
 
-        use globals, only : systype, runtype
-        
-        ! local variable
-        integer :: i
+        use globals, only : systype, DEBUG_ST
 
         select case (systype)
         case ("elect")
+     
             call init_expmu_elect()
             call set_VdWepsAAandBB() ! special assigemnt of VdWepsAA etc  
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
+     
         case ("neutral","neutralnoVdW")
+     
             call init_expmu_neutral()   
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
+     
         case ("brush_mul","brush_mulnoVdW") 
+     
             call init_expmu_elect() 
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale) 
             call set_dielect_scale(dielectscale)    
+     
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe") 
+     
             call init_dna() 
             call init_expmu_elect()
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
+
+        case("nucl_ionbin_Fe_ST")
+
+            call init_expmu_elect()
+            call init_mu_elect()  
+            
+            print*,"init_vars_input:"
+            print*,"xbulk=",xbulk
+            print*,"mumax=", mumax
+            print*,"mumin=", mumin
+            print*,"xvolmax=",xvolmax
+            print*,"xvolmin=",xvolmin
+
         case ("nucl_neutral_sv") 
+      
             ! call init_dna() 
             call init_expmu_neutral()
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
+      
         case("brushborn") 
+      
             call init_dna()
             call init_expmu_elect()  
             call set_VdWeps_scale(VdWscale)
-            call set_energychainLJ_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)  
+            
+        case ("nonucl_ST") 
+        
+            call init_expmu_elect() 
+            call init_mu_elect()  
+            
+            if(DEBUG_ST) then 
+                print*,"init_vars_input:"
+                print*,"xbulk=",xbulk
+                print*,"mumax=", mumax
+                print*,"mumin=", mumin
+                print*,"xvolmax=",xvolmax
+                print*,"xvolmin=",xvolmin
+            endif
+
         case default   
+      
             print*,"Error: systype incorrect at init_vars_input" 
             print*,"Wrong value systype : ", systype
             print*,"stopping program"
             stop
-         end select
+      
+        end select
              
     end subroutine init_vars_input
 
    
     subroutine allocate_chain_parameters
         
-        use globals, only : nsegtypes, systype
+        use globals, only : nsegtypes
         
         !  allocate array depending on nsegtypes
 
@@ -1588,7 +1767,6 @@ contains
         character(len=80) :: istr,str
         character(len=2)  :: istr2
         logical :: exist
-        real(dp) :: a,b
 
         info = 0
 
@@ -1653,7 +1831,7 @@ contains
         !      .. local variables
         integer :: ios, un  ! un = unit number
         integer :: line, maxline
-        character(len=80) :: istr,str
+        character(len=80) :: str
         logical :: exist
         character(len=10) :: fname
 
@@ -1797,6 +1975,7 @@ contains
 
         integer :: ier
 
+        ier = 0
         if (present(info)) info = 0
 
         if (.not. allocated(isrhoselfconsistent))  then 
@@ -1821,16 +2000,15 @@ contains
     subroutine make_isrhoselfconsistent(info)
 
         use globals, only : nsegtypes,nseg,systype
-        use chains, only : type_of_monomer_char,type_of_monomer,ismonomer_chargeable
+        use chains, only : type_of_monomer_char,type_of_monomer
         use myutils, only : print_to_log, LogUnit, lenText
  
         !     .. arguments 
     
         integer,  intent(out), optional :: info
 
-        integer :: info_alloc, info_Mg, info_AA
-        integer :: i, t, tt, s
-        logical :: flag
+        integer :: info_alloc
+        integer :: i, s
         integer :: ttAA, ttP ! local location of A and P segment
         character(len=lenText) :: text
         
@@ -1847,10 +2025,6 @@ contains
         do i=1,nsegtypes
             isrhoselfconsistent(i)=.false.
         enddo
-
-
-
-         
 
         ! Mg/Ca self consistent equation
 
@@ -1915,7 +2089,8 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe",&
+                "nucl_ionbin_Fe_ST","nonucl_ST")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"
@@ -1941,7 +2116,6 @@ contains
                 energychainLJ(c)=VdWscale%val*energychainLJ0(c)
             enddo
         endif    
-
 
     end subroutine set_energychainLJ_scale
 

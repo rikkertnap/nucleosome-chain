@@ -19,7 +19,7 @@ contains
 
 subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
   
-    use globals, only : neq 
+    use globals, only : neqint 
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential 
@@ -37,7 +37,7 @@ subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
             else if(isfirstguess) then       ! first guess
                 call init_guess(x,xguess)
             else  
-                do i=1,neq
+                do i=1,neqint
                     xguess(i)=x(i)      
                 enddo
             endif
@@ -48,7 +48,7 @@ subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
     else if(isfirstguess) then       ! first guess
         call init_guess(x,xguess)
     else     
-        do i=1,neq
+        do i=1,neqint
             xguess(i)=x(i)     
         enddo
     endif
@@ -78,7 +78,9 @@ subroutine init_guess(x, xguess)
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe") 
             call init_guess_multi(x,xguess)
         case ("nucl_neutral_sv")  
-            call init_guess_nucl_neutral_sv(x,xguess)
+            call init_guess_nucl_neutral_sv(x,xguess) 
+        case ("nonucl_ST") 
+            call init_guess_nonucl_ST(x,xguess)
         case ("brushborn") 
             call init_guess_multi_born(x,xguess)
         case default   
@@ -92,7 +94,7 @@ end subroutine init_guess
 
 subroutine init_guess_elect(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize
+    use globals, only : neqint,bcflag,LEFT,RIGHT,nsize
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol
     use surface, only : psisurfL, psisurfR 
@@ -140,14 +142,14 @@ subroutine init_guess_elect(x, xguess)
             enddo
         endif            
         do i=1,nsize
-            read(un_file(1),*)xsol(i)    ! solvent
-            read(un_file(2),*)psi(i)     ! degree of complexation A
+            read(un_file(1),*)xsol(i)     ! solvent
+            read(un_file(2),*)psi(i)      ! degree of complexation A
             read(un_file(3),*)rhopol(i,A) ! degree of complexation A
-            read(un_file(4),*)rhopol(i,B)   ! degree of complexation A
-            x(i)         = xsol(i)    ! placing xsol  in vector x
-            x(i+nsize)   = psi(i)     ! placing xsol  in vector x
-            x(i+2*nsize) = rhopol(i,A) ! placing xsol  in vector x
-            x(i+3*nsize) = rhopol(i,B)   ! placing xsol  in vector x
+            read(un_file(4),*)rhopol(i,B) ! degree of complexation A
+            x(i)         = xsol(i)        ! placing xsol  in vector x
+            x(i+nsize)   = psi(i)         ! placing xsol  in vector x
+            x(i+2*nsize) = rhopol(i,A)    ! placing xsol  in vector x
+            x(i+3*nsize) = rhopol(i,B)    ! placing xsol  in vector x
         enddo
     
         if(bcflag(RIGHT)/="cc") then
@@ -163,7 +165,7 @@ subroutine init_guess_elect(x, xguess)
     endif
 
     !     .. end init from file 
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
@@ -342,7 +344,7 @@ end subroutine init_guess_neutralnoVdW
 
 subroutine init_guess_multi(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
+    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,xpol_t
     use surface, only : psisurfL, psisurfR 
@@ -444,7 +446,7 @@ subroutine init_guess_multi(x, xguess)
     endif
     !     .. end init from file 
   
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
@@ -453,7 +455,7 @@ end subroutine init_guess_multi
 
 subroutine init_guess_multinoVdW(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint
+    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint
     use volume, only : nsurf
     use field, only : xsol,psi
     use surface, only : psisurfL, psisurfR 
@@ -519,11 +521,160 @@ subroutine init_guess_multinoVdW(x, xguess)
     endif
     !     .. end init from file 
   
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=x(i)
     enddo
 
 end subroutine init_guess_multinoVdW
+
+! make initial guess for elect potential
+! linear function between surface potential psiL and psiR
+! return :real(dp) :: electpot
+! pre : init_surface called to rescale psiL and psR
+
+subroutine make_guess_potential_ST(electpot)
+
+    use globals, only : DEBUG_ST
+    use parameters, only : psiSL,psiSR 
+    use volume, only : nx, ny, nz, coordtoindex
+
+    real(dp), intent(inout) :: electpot(:)
+
+    ! local variable 
+    real(dp) :: slope, electpot_val
+    integer :: i, j, k, indx
+
+    slope= (psiSR-psiSL)/(nz*1.0_dp)
+     if(DEBUG_ST) print*,"slope=",slope, "psimin=",psiSL," psimax=",psiSR
+    
+    do k=1,nz 
+        electpot_val = slope * (k - 0.5_dp) + psiSR  ! middle of lattice cell in z-direction
+        do j=1,ny
+            do i=1,nx 
+                indx=coordtoindex(i,j,k)
+                electpot(indx)=electpot_val
+            enddo
+        enddo
+    enddo            
+
+end subroutine make_guess_potential_ST
+
+! Makes an inital guess vector xguess for systype nonucl_ST
+
+subroutine init_guess_nonucl_ST(x, xguess)
+
+    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,DEBUG_ST
+    use volume, only : nsurf
+    use field, only : xsol, psi
+    use surface, only : psisurfL, psisurfR 
+    use parameters, only : xbulk, infile, xvolmin
+    use myutils, only : newunit, lenText, error_handler
+    use molecules, only : get_value_moleclist, sum_value_moleclist
+  
+    real(dp) :: x(:)       ! volume fraction solvent iteration vector 
+    real(dp) :: xguess(:)  ! guess fraction  solvent 
+  
+    !     ..local variables 
+    integer :: i, t
+    character(len=9) :: fname(8)
+    character(len=lenText) :: text, istr
+    integer :: ios,un_file(8)
+    character(len=5) :: iontypes(6),key
+    real(dp) :: xvol,xtmp,xtest
+    ! .. init guess all xbulk     
+
+    call make_guess_potential_ST(psi)
+    
+    do i=1,nsize
+        x(i)       = xbulk%sol
+        x(i+nsize) = psi(i)
+    enddo 
+      
+    iontypes=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   "/)
+
+    xtest=0.0_dp
+
+    do t=1,size(iontypes)
+    
+        key = trim(iontypes(t))
+        xvol = get_value_moleclist(xvolmin,key)
+        xtest = xtest +xvol
+        if(DEBUG_ST) print*,"t= ",t," key= ",key," xvol=",xvol
+
+        do i=(1+t)*nsize+1,(2+t)*nsize 
+            x(i)=xvol
+           ! write(300+t,*)i, x(i)
+        enddo       
+    enddo
+
+    xtest=xtest+xbulk%sol
+    if(DEBUG_ST)  print*,"xtest=",xtest
+
+    xtest = sum_value_moleclist(xbulk)
+    if(DEBUG_ST) print*,"xtest=",xtest
+
+
+   ! check packing
+    do i=1,nsize
+        xtmp=0.0_dp
+        do t=2,size(iontypes)+1
+            xtmp=xtmp+x(i+t*nsize)
+        enddo
+        xtmp=xtmp+xbulk%sol
+        write(100,*)xtmp    
+    enddo
+
+    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    
+        write(fname(1),'(A7)')'xsol.in'
+        write(fname(2),'(A6)')'psi.in'
+        write(fname(3),'(A6)')'xNa.in'
+        write(fname(4),'(A6)')'xCl.in'
+        write(fname(5),'(A5)')'xK.in'
+        write(fname(6),'(A6)')'xMg.in'
+        write(fname(7),'(A9)')'xHplus.in'
+        write(fname(8),'(A9)')'xOHmin.in'
+
+        do i=1,8 ! loop files
+            open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
+            endif
+        enddo
+        if(bcflag(LEFT)/="cc") then 
+            do i=1,nsurf
+                read(un_file(2),*)psisurfL(i)
+            enddo
+        endif            
+        do i=1,nsize
+            read(un_file(1),*)xsol(i)    ! solvent
+            read(un_file(2),*)psi(i)     ! potential
+        
+            x(i)         = xsol(i)    ! placing xsol in vector x
+            x(i+nsize)   = psi(i)     ! placing psi in vector x
+                  
+        enddo
+    
+        if(bcflag(RIGHT)/="cc") then
+            do i=1,nsurf 
+                read(un_file(2),*)psisurfR(i)
+            enddo
+        endif            
+       
+         do i=1,2
+            close(un_file(i))
+        enddo
+
+    endif
+    !     .. end init from file 
+  
+    do i=1,neqint
+        xguess(i)=x(i)
+    enddo
+
+end subroutine init_guess_nonucl_ST
 
 
 subroutine init_guess_multi_born(x, xguess)
@@ -649,7 +800,7 @@ end subroutine init_guess_multi_born
 
 subroutine make_guess_from_xstored(xguess,xstored)
 
-    use globals, only : neq
+    use globals, only : neqint
 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potentia
     real(dp), intent(in) :: xstored(:)
@@ -657,7 +808,7 @@ subroutine make_guess_from_xstored(xguess,xstored)
     !   .. local variables
     integer :: i
    
-    do i=1,neq
+    do i=1,neqint
         xguess(i)=xstored(i)     
     enddo 
 

@@ -62,11 +62,9 @@ contains
     subroutine fcnenergy()
  
         use globals, only : systype 
-        use myutils, only : print_to_log,LogUnit,lenText
 
-      
-        character(len=lenText) :: text 
-
+        character(len=70) :: text
+       
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin")
         
@@ -82,6 +80,15 @@ contains
         
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
+
+        case ("nucl_ionbin_Fe_ST")
+        
+            call fcnenergy_ionbin_sv()
+            call fcnenergy_elect_alternative()
+
+        case("nonucl_ST")
+            text="fenergy not yet implemented for nonucl_ST"
+            print*,text
 
         case("elect")
             
@@ -104,8 +111,7 @@ contains
             call fcnenergy_neutral_sv_alternative() 
 
         case default  
-
-           
+            print*,"Warning in fcnenergy"   
             stop
         
         end select 
@@ -115,22 +121,22 @@ contains
    
     subroutine fcnenergy_elect()
 
-        use globals
-        use volume
-        use parameters
-        use field
-        use surface
+        use globals, only : nsize, nseg, LEFT, RIGHT
+        use volume, only : volcell
+        use parameters, only : xbulk, vsol, vNa, vK, vCl, vCa, vNaCl, vKCl
+        use field, only : xsol, xHplus, xOHmin, xNa, xCa, xCl, xK, xNaCl, xKCl
+        use field, only : psi, rhoq, rhopol, fdisA, fdisB , q , lnproshift
+       ! use surface
 
         !  .. local arguments 
     
-        real(dp) :: sigmaq0,psi0
-        real(dp) :: qsurf(2)           ! total charge on surface 
-        real(dp) :: qsurfg             ! total charge on grafting surface  
-        integer  :: i,j,s,g               ! dummy variables 
+     !    real(dp) :: sigmaq0,psi0
+     !    real(dp) :: qsurf(2)           ! total charge on surface 
+     !   real(dp) :: qsurfg             ! total charge on grafting surface  
+        integer  :: i                  ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        integer  :: nzadius
-        real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
-        real(dp) :: FEchemSurftmp
+     !   real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
+     !   real(dp) :: FEchemSurftmp
         integer, parameter :: A=1, B=2    
 
         !  .. computation of free energy 
@@ -188,7 +194,7 @@ contains
         FE = FEq  + FEpi + FErho + FEel + FEVdW + FEbind -Eshift
         
     
-        qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+       ! qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
   
         volumelat= volcell*nsize                  ! volume lattice
 
@@ -202,22 +208,24 @@ contains
 
     subroutine fcnenergy_elect_alternative()
     
-        use globals
-        use volume
-        use parameters
-        use field
-        use VdW
-        use surface
-        use conform_entropy
+        use globals, only : systype, nsize
+        use volume, only : volcell
+        use parameters, only : xbulk, expmu, bornbulk, isVdW
+        use parameters, only :  vsol, vNa, vK, vCl, vCa, vNaCl, vKCl, vFe2, vFe3, vMg
+        use field, only : xsol, xHplus, xOHmin, xNa, xCa, xCl, xK, xNaCl, xKCl
+        use field, only : xFe2, xFe3, xMg
+    
+       ! use VdW
+       ! use surface
+       ! use conform_entropy
 
         !  .. local arguments 
     
-        real(dp) :: sigmaq0,psi0
-        real(dp) :: qsurf(2)           ! total charge on surface 
-        real(dp) :: qsurfg             ! total charge on grafting surface  
-        integer :: i,j,s               ! dummy variables 
+        !real(dp) :: sigmaq0,psi0
+        !real(dp) :: qsurf(2)           ! total charge on surface 
+        !real(dp) :: qsurfg             ! total charge on grafting surface  
         real(dp) :: volumelat          ! volume lattice 
-        integer :: nzadius
+        !integer :: nzadius
     
 
         ! .. computation of alternative computation free energy
@@ -387,18 +395,16 @@ contains
         use surface
         use dielectric_const, only : born
         use Poisson, only :  grad_pot_sqr_eps_cubic
-        use chains, only : ismonomer_chargeable,type_of_monomer,type_of_charge
+        use chains, only : ismonomer_chargeable,type_of_monomer
 
         !  .. local arguments 
     
-        integer  :: i,j,s,g,t          ! dummy variables 
+        integer  :: i,s,t          ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        real(dp) :: FEchemSurftmp
         integer  :: ier
         logical  :: alloc_fail
         real(dp) :: sqrgradpsi(nsize)
         real(dp) :: Etotself,lbr
-        real(dp) :: vnucltot
         integer  :: ncharge
 
         
@@ -553,14 +559,10 @@ contains
 
         !  .. local arguments 
     
-        integer  :: i,j,s,g,t          ! dummy variables 
+        integer  :: i,s,t          ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        real(dp) :: FEchemSurftmp
         integer  :: ier
         logical  :: alloc_fail
-        real(dp) :: sqrgradpsi(nsize)
-        real(dp) :: Etotself,lbr
-        real(dp) :: vnucltot
         integer  :: ncharge
 
         
@@ -679,18 +681,17 @@ contains
         use globals, only : nsize, nseg, nsegtypes
         use volume, only : volcell
         use parameters
-        use field, only : xsol, xpol_t, rhopol, q, lnproshift
+        use field, only : xsol, rhopol, q, lnproshift
         use VdW, only : VdW_energy
     
 
         !     .. local arguments 
     
-        integer  :: i,j,t,g             ! dummy variables 
+        integer  :: i                  ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
         integer  :: ier
         logical  :: alloc_fail
-        real(dp) :: vnucltot
-
+       
         if (.not. allocated(sumphi))  then 
             allocate(sumphi(nsegtypes),stat=ier)
             if( ier/=0 ) alloc_fail=.true.
@@ -763,7 +764,7 @@ contains
 
         !     .. local arguments 
     
-        integer  :: i,j,t,g             ! dummy variables 
+        integer  :: i,t                ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
         integer  :: ier
         logical  :: alloc_fail
@@ -834,7 +835,7 @@ contains
 
         !  .. variable and constant declaractions 
     
-        use globals, only : nsize, nseg, nsegtypes
+        use globals, only : nsize
         use volume, only : volcell
         use parameters
         use field
@@ -883,7 +884,7 @@ contains
 
         !  .. variable and constant declaractions 
     
-        use globals, only : nsize, nseg, nsegtypes
+        use globals, only : nsize
         use volume, only : volcell
         use parameters
         use field
@@ -933,7 +934,6 @@ contains
         use globals, only : nsize
         use parameters, only : vsol 
         use volume, only : volcell
-        use field, only : xpol,xsol
 
         real(dp), intent(in) :: xvol(nsize)
         real(dp), intent(in) :: xvolbulk 
@@ -967,7 +967,6 @@ contains
         use globals, only : nsize
         use volume, only : volcell
         use parameters, only : vsol
-        implicit none
 
         real(dp), intent(in) :: xvol(nsize)
         real(dp), intent(in) :: expchempot 
@@ -1003,15 +1002,11 @@ contains
 
     real(dp) function FEtrans_entropy_bulk(xvolbulk,vol,flag)
     
-        use globals
-        use parameters
-        implicit none
+        use parameters, only : vsol
 
         real(dp), intent(in) :: xvolbulk 
         real(dp), intent(in) :: vol    
         character(len=1), optional, intent(in) :: flag    
-
-        integer :: i
 
         if(xvolbulk==0.0_dp) then 
             FEtrans_entropy_bulk=0.0_dp
@@ -1028,21 +1023,14 @@ contains
     end function FEtrans_entropy_bulk
 
     real(dp) function FEchem_pot_bulk(xvolbulk,expchempot,vol,flag)
-    
-        use globals
-        use field
-        use parameters
-        implicit none
 
+        use parameters, only : vsol
+    
         real(dp), intent(in) :: xvolbulk
         real(dp), intent(in) :: expchempot 
         real(dp), intent(in) :: vol    
         character(len=1), optional, intent(in) :: flag    
 
-        ! .. local 
-        integer :: i
-        real(dp) :: chempot ! chemical potential difference 
-        real(dp) :: sumdens 
 
         if(expchempot==0.0_dp) then 
             FEchem_pot_bulk = 0.0_dp
@@ -1057,13 +1045,14 @@ contains
     end function FEchem_pot_bulk
 
 
-    real(dp) function FEchem_react()
+    function FEchem_react() result(FEchem_react_val)
 
         use globals, only : systype, nsize
         use field
         use volume, only : volcell
         use parameters, only : vpolA,vsol,zpolA,vpolB,zpolB
 
+        real(dp) ::  FEchem_react_val
 
         integer :: i, k
         real(dp) :: lambdaA, lambdaB, rhopolAq, rhopolBq, xpolA, xpolB
@@ -1071,10 +1060,12 @@ contains
         integer, parameter :: A=1, B=2
 
 
+        FEchem_react_val = 0.0_dp
+
         select case (systype)
         case ("elect")
 
-            FEchem_react = 0.0_dp
+            FEchem_react_val = 0.0_dp
 
             do i=1,nsize
 
@@ -1097,19 +1088,19 @@ contains
                 xpolA = xpolA +rhopol(i,A)*fdisA(i,5)*vpolA(5)*vsol/2.0_dp
                 xpolB = xpolB +rhopol(i,B)*fdisB(i,5)*vpolB(5)*vsol/2.0_dp
                 
-                FEchem_react = FEchem_react + (- rhopol(i,A)*lambdaA -psi(i)*rhopolAq -betapi*xpolA &
+                FEchem_react_val = FEchem_react_val + (- rhopol(i,A)*lambdaA -psi(i)*rhopolAq -betapi*xpolA &
                     +fdisA(i,5)*rhopol(i,A)/2.0_dp)
 
-                FEchem_react = FEchem_react + (- rhopol(i,B)*lambdaB -psi(i)*rhopolBq -betapi*xpolB &
+                FEchem_react_val = FEchem_react_val + (- rhopol(i,B)*lambdaB -psi(i)*rhopolBq -betapi*xpolB &
                     +fdisB(i,5)*rhopol(i,B)/2.0_dp)
 
             enddo
 
-            FEchem_react=volcell*FEChem_react    
+            FEchem_react_val = volcell * FEChem_react_val    
 
         case("electA") 
 
-            FEchem_react = 0.0_dp
+            FEchem_react_val = 0.0_dp
 
             do i=1,nsize
 
@@ -1126,14 +1117,14 @@ contains
                 enddo   
                 xpolA = xpolA +rhopol(i,A)*fdisA(i,5)*vpolA(5)*vsol/2.0_dp
                 
-                FEchem_react = FEchem_react + (- rhopol(i,A)*lambdaA -psi(i)*rhopolAq -betapi*xpolA &
+                FEchem_react_val = FEchem_react_val+ (- rhopol(i,A)*lambdaA -psi(i)*rhopolAq -betapi*xpolA &
                     +fdisA(i,5)*rhopol(i,A)/2.0_dp)
             enddo
 
-            FEchem_react=volcell*FEChem_react 
+            FEchem_react_val= volcell * FEChem_react_val 
 
         case("neutral","electnopoly") 
-            FEchem_react=0.0_dp
+            FEchem_react_val=0.0_dp
         case default
             print*,"systype in FEchem_react wrong"  
         end select
@@ -1161,7 +1152,6 @@ contains
 
         integer  :: i, k, t, jcharge
         real(dp) :: lambda,  rhopolq, betapi, xpol, Eself ,bornene, lbr, Ebornself
-        real(dp) :: xvol(nsize),sumbetapi(nsize)
         real(dp) :: sqrgradpsi(nsize) ! make allocatable only for sytype=brushborn
         integer  :: state 
         real(dp) :: vpolstate(4)
@@ -1612,12 +1602,9 @@ contains
 
 
 
-    
-
-
     function FEelect_surface() result(FEelsurf)
 
-        use globals, only : bcflag,LEFT,RIGHT, pi
+        use globals, only : LEFT,RIGHT, pi
         use volume, only : areacell, nx, ny, delta
         use parameters, only : lb
         use surface, only : sigmaSurfL, sigmaSurfR,sigmaqSurfL, sigmaqSurfR, psiSurfL, psiSurfR
@@ -1661,7 +1648,8 @@ contains
         real(dp) ::  FEchemsurf(2)
 
         real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx)
-        real(dp) :: sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
+    !    real(dp) :: sigmaq0Surf(2,nx*ny),
+        real(dp) :: psiSurf(2,nx*ny)
         real(dp) :: FEchemSurftmp
         integer :: s 
 
@@ -1732,14 +1720,16 @@ contains
         
         use globals, only : LEFT,RIGHT
         use volume, only : nx,ny,areacell,delta
-        use mathconst
+        use mathconst, only : pi
         use parameters, only : lb
 
         real(dp), intent(in) :: sigmaqSurfR(:),sigmaqSurfL(:)
         real(dp) :: qsurf(2)
+       
         ! local
         integer :: i, s 
-        real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx)
+        ! real(dp) :: sigmaSurf(2),
+        real(dp) :: sigmaqSurf(2,ny*nx)
   
         do s=1,nx*ny
             sigmaqSurf(RIGHT,s) = sigmaqSurfR(s)
@@ -1754,7 +1744,7 @@ contains
             qsurf(i)=(qsurf(i)/(4.0_dp*pi*lb*delta))*areacell  ! areacell=area size one surface element, 4*pi*lb*delta make correct dimensional full unit    
         enddo
         
-    end function
+    end function SurfaceCharge
 
 
     function FE_selfenergy_brush()result(FEborn)
@@ -1824,7 +1814,6 @@ contains
     ! sumvolnucl = \sum_t \sum_j(t) vnucl(j,t)
     
     function calculate_sumvolnucl()result(sumvolnucl)
-
 
         use globals, only : nseg
         use chains, only : type_of_monomer, nelem 
@@ -1979,14 +1968,14 @@ contains
 
     subroutine check_volume_nucl_neutral_sv(checksumxpoltot)
 
-        use globals, only : nsegtypes, nseg
+        use globals, only : nsegtypes
         use field, only   : xpol_t  
         use volume, only  : volcell 
 
         real(dp),intent(inout) :: checksumxpoltot
 
-        integer :: t,i,ier
-        real(dp) :: sumvolnucl,sumxpoltot
+        integer :: t,ier
+        real(dp) :: sumvolnucl
 
         if (.not. allocated(sumxpol))  then 
             allocate(sumxpol(nsegtypes),stat=ier)
@@ -2025,7 +2014,7 @@ contains
         real(dp),intent(inout) :: checksumxpoltot
 
         integer :: t,i,ier
-        real(dp) :: sumvolnucl,sumxpoltot, sumrhophos
+        real(dp) :: sumvolnucl, sumrhophos
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
 
@@ -2114,7 +2103,7 @@ contains
     subroutine check_volume_nucl_ionbin_Mg(checksumxpoltot)
 
         use globals, only : nsegtypes, nsize
-        use field, only : xpol_t, rhopol_charge, gdisA, gdisB, fdisA
+        use field, only : xpol_t, rhopol_charge, gdisA, gdisB
         use volume, only : volcell 
         use parameters, only : tPhos=>ta
         use parameters, only : vsol, vNa, vK, vCl, vMg,vpol, vPP, vFe2, vFe3, vPPP
@@ -2124,7 +2113,7 @@ contains
         real(dp),intent(inout) :: checksumxpoltot
 
         integer :: t,i,ier
-        real(dp) :: sumvolnucl,sumxpoltot, sumrhophos, sumxphos
+        real(dp) :: sumvolnucl, sumrhophos, sumxphos
         real(dp), dimension(:), allocatable ::  deltaxpol
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
         real(dp) :: deltavpolstatePNa, deltavpolstatePK, deltavpolstatePMg,deltavpolstateP2Mg

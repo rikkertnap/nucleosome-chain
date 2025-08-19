@@ -2476,10 +2476,49 @@ contains
         real(dp), intent(in) :: x(neq)
         real(dp), intent(out) :: f(neq)
 
-        call fcnnucl_Fe_expl(x,f,nn)
+        !call fcnnucl_Fe_expl(x,f,nn)
+        call fcnnonucl_cp(x,f,nn)
 
     end subroutine fcnnucl_ionbin_sv_Fe
 
+    subroutine fcnnucl_ionbin_sv_Fe_ST(x,f,nn)
+
+        use precision_definition
+        use globals , only : neq
+        use modfcnFeexpl
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Fe_expl_ST(x,f,nn) 
+        !call fcnnonucl_cp(x,f,nn)
+
+    end subroutine fcnnucl_ionbin_sv_Fe_ST
+
+    subroutine fcnnonuclST(x,f,nn)
+
+        use precision_definition
+        use globals , only : neq
+        use modfcnFeexpl
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnonucl_ST(x,f,nn)
+
+    end subroutine fcnnonuclST
 
 
     !  .. function solves for bulk volume fraction 
@@ -2703,7 +2742,7 @@ contains
     
         select case (systype)
             case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA",&
-                "nucl_ionbin_Fe")      ! multi copolymer:
+                "nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nonucl_ST")     ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo
@@ -2741,7 +2780,6 @@ contains
                 do i=1,nsize                    
                     constr(i+nsize)=0.0_dp     ! electrostatic potential 
                 enddo  
-            
             case default
                 print*,"Error in call to set_constraints subroutine"    
                 print*,"Wrong value systype : ", systype
@@ -2778,9 +2816,13 @@ contains
         case ("nucl_ionbin_MgA")
             fcnptr => fcnnucl_ionbin_sv_Mg_A
         case ("nucl_ionbin_Fe")
-            fcnptr => fcnnucl_ionbin_sv_Fe
+            fcnptr => fcnnucl_ionbin_sv_Fe 
+        case ("nucl_ionbin_Fe_ST")
+            fcnptr => fcnnucl_ionbin_sv_Fe_ST
         case ("nucl_neutral_sv")
             fcnptr => fcnnucl_neutral_sv    
+        case ("nonucl_ST")
+            fcnptr => fcnnonuclST
         case ("brushborn")
             fcnptr => fcnbrushborn    
         case ("elect")                  ! copolymer weak polyacid, no VdW

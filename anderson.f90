@@ -12,10 +12,10 @@ module anderson
 
     implicit none
 
-    real(dp), parameter ::  BETA_A=0.9 ! 0.9         ! mixing parameter for anderson mixing 
-    real(dp), parameter ::  BETA_S= -0.1   !  -0.2    ! mixing parameter for simple mixing 
-    real(dp), parameter ::  TOL_DELTA=0.0000001 ! 0.01     ! treshold for Anderson to start 
-    integer, parameter  ::  NUMBER_SOL=5       ! number of previous solutions used in Anderson mixing */
+    real(dp), parameter ::  BETA_A = 0.9 ! 0.9         ! mixing parameter for anderson mixing 
+    real(dp), parameter ::  BETA_S = -0.05  !  -0.2    ! mixing parameter for simple mixing 
+    real(dp), parameter ::  TOL_DELTA = 0.001 ! 0.01     ! treshold for Anderson to start 
+    integer, parameter  ::  NUMBER_SOL= 10       ! number of previous solutions used in Anderson mixing */
 
     integer ::  step   ! counter 
 
@@ -167,7 +167,7 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
     real(dp), allocatable, dimension(:)  :: V, theta
     character(len=256) :: istr, rstr, text
     
-    NN = N
+    NN = int(N,kind(NN))
     M = NUMBER_SOL         ! number of previous solution 
 
     ! memory allocation 
@@ -183,7 +183,7 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
     allocate(theta(M))
     
     !  set fields and initial  starting solution  
-    do  i = 1, N
+    do  i = 1, NN
         x(i) =  xguess(i)
     enddo
     
@@ -208,7 +208,7 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         fnorm = L2norm(fvec,NN)
         conv = (fnorm <= TOL)  ! 1=true if found solution 
 
-        print*,"step = ",step," L2norm =",fnorm
+        print*,"step = ",step,"norm = ",fnorm
         step = step + 1
         j = j+1
 
@@ -233,9 +233,9 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         delta = fnorm/L2norm(xoutM,NN)
         conv = (fnorm <= TOL)       ! 1=true if found solution
         
-        print*,"step = ", step," L2norm = ",fnorm," delta =",delta
+        print*,"step = ",step,"norm = ",fnorm,"delta = ",delta
         
-        if( delta < 0.1)  then ! Anderson mixing
+        if( delta < TOL)  then ! Anderson mixing
         
             call deviation_matrix(U, F, M, NN)
             call deviation_vector(V, F, M, NN)
@@ -280,15 +280,6 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         call print_to_log(LogUnit,text)
     endif     
     
-    if (conv) then
-        do i = 1, N
-            write(istr,'(I3)')i
-            write(rstr,'(E25.16)')x(i)
-            text="x["//trim(adjustl(istr))//"]="//trim(adjustl(rstr))
-            call print_to_log(LogUnit,text)
-        enddo
-    endif    
-
     ! free memory 
     deallocate(fvec)
     deallocate(xin)  
@@ -323,13 +314,13 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
     real(dp), allocatable, dimension(:)  :: fvec
     character(len=256) :: rstr, istr, text
         
-    NN=N
+    NN = int(N,kind(NN))
           
     !memory allocation 
     allocate(fvec(NN))!     ! tmp F(x) 
          
     ! set fields and initial  starting solution  
-    do i = 1,  N
+    do i = 1,  NN
         x(i) = xguess(i)
     enddo
         
@@ -370,15 +361,7 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         call print_to_log(LogUnit,text)
     endif    
 
-    if (conv) then
-        do i = 1, N
-            write(istr,'(I3)')i
-            write(rstr,'(E25.16)')x(i)
-            text="x["//trim(adjustl(istr))//"]="//trim(adjustl(rstr))
-            call print_to_log(LogUnit,text)
-        enddo
-    endif     
-  
+   
     ! free memory 
     deallocate(fvec)
   

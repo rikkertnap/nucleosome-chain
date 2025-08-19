@@ -1,18 +1,20 @@
 module surface
 
-     use globals, only : LEFT, RIGHT
-     use mathconst
+    use precision_definition
+    use globals, only : LEFT, RIGHT
+    use mathconst, only : pi
+    use parameters, only : psiSR, psiSL ! surface potenital in reduced units for bc=cp
 
     implicit none
 
     real(dp) :: sigmaSurfL          ! surface density of acid on surface in nm^2
     real(dp) :: sigmaSurfR          ! surface density of acid on surface in nm^2
-    real(dp) :: psiSR, psiSL        !  surface potenital in reduced units for constant potentail bc
+         ! surface potenital in reduced units for constant potentail bc
 
     real(dp), dimension(:), allocatable :: sigmaqSurfL         ! surface charge density on surface in nm^2
     real(dp), dimension(:), allocatable :: sigmaqSurfR         ! surface charge density on surface in nm^2
-    real(dp), dimension(:), allocatable ::  psiSurfL           ! surface potential
-    real(dp), dimension(:), allocatable ::  psiSurfR           ! surface potential
+    real(dp), dimension(:), allocatable :: psiSurfL            ! surface potential
+    real(dp), dimension(:), allocatable :: psiSurfR            ! surface potential
 
     !   different surface states
 
@@ -32,7 +34,8 @@ module surface
     real(dp) :: qTa(4)               ! charge
 
     private  :: allocate_psiSurf_sigmaqSurf
-    private  :: init_surface_quartz, init_surface_calcite, init_surface_taurine, init_surface_constcharge, init_surface_clay
+    private  :: init_surface_quartz, init_surface_calcite, init_surface_taurine, init_surface_constcharge
+    private  :: init_surface_constpotential, init_surface_clay
     private  :: KS, pKS, cap, KTa, pKTa
 
 contains
@@ -56,7 +59,7 @@ contains
                 case ("cc")
                     call init_surface_constcharge(RIGHT)
                 case ("cp") 
-                    ! empty no init neccessary    
+                     call init_surface_constpotential(RIGHT)  
                 case default
                     print*,"bc(RIGHT) does not match qu, cl, ca, ta, cc or cp"
             end select
@@ -67,10 +70,11 @@ contains
                 case ("cc")
                     call init_surface_constcharge(LEFT)
                 case ("cp") 
-                    ! empty no init neccessary  
+                    call init_surface_constpotential(LEFT)  
                 case default
                     print*,"bc(LEFT) does not match ta, cc or cp"
             end select
+
         end subroutine init_surface
 
         function surface_charge(bc,psiSurf,side) result(sigmaqSurf)
@@ -110,7 +114,7 @@ contains
                     case ("cp") 
                         sigmaqSurf = surface_charge_constant_potential(LEFT)  
                     case default
-                        print*,"LEFT: bc does not match ta or cc"
+                        print*,"LEFT: bc does not match ta, cc or cp "
                         sigmaqSurf = 0.0_dp
                 end select
             else
@@ -125,7 +129,7 @@ contains
 
             integer, intent(in) :: nsurf
 
-            print*,"allovate surface "
+            print*,"allocate surface "
 
             allocate(sigmaqSurfL(nsurf))
             allocate(sigmaqSurfR(nsurf))
@@ -133,7 +137,6 @@ contains
             allocate(psiSurfR(nsurf))
 
         end subroutine allocate_psiSurf_sigmaqSurf
-
 
 
         subroutine init_surface_quartz()
@@ -282,15 +285,45 @@ contains
 
             use parameters,  only : delta,lb
 
-            implicit none
-
             integer, intent(in) :: side
 
             ! site density
             if(side==RIGHT) sigmaSurfR = sigmaSurfR * 4.0_dp*pi*lb*delta ! dimensionless surface charge
             if(side==LEFT)  sigmaSurfL = sigmaSurfL * 4.0_dp*pi*lb*delta ! dimensionless surface charge
 
+
         end subroutine init_surface_constcharge
+
+        subroutine init_surface_constpotential(side)
+
+            use parameters,  only : Tref 
+            use physconst, only : kBoltzmann, elemcharge  
+            use volume, only : nsurf
+
+            integer, intent(in) :: side
+
+            real(dp) :: beta_times_e ! e /(kB T)
+            integer :: s 
+
+            beta_times_e = elemcharge/(kBoltzmann*Tref)
+            print*,"beta_times_e=",beta_times_e
+
+            ! site density
+            if(side==RIGHT) then 
+                psiSR = psiSR * beta_times_e ! dimensionless surface potential
+                do s = 1, nsurf
+                    psiSurfR(s) = psiSR
+                enddo
+            endif     
+            if(side==LEFT) then 
+                psiSL=  psiSL * beta_times_e ! dimensionless surface potential
+                do s = 1, nsurf
+                    psiSurfL(s) = psiSL
+                enddo
+            endif
+
+        end subroutine init_surface_constpotential
+
 
         function surface_charge_quartz(psiS) result(surface_charge)
 
@@ -474,6 +507,7 @@ contains
 
         function surface_charge_constant_potential(side) result(surface_charge)
 
+            use globals, only : nsize
             use volume, only : nsurf, nz, nx, ny, coordtoindex
             use field, only : psi
           
@@ -481,19 +515,30 @@ contains
             real(dp) :: surface_charge(nsurf)
 
             ! .. local variables
-            integer :: iz, idx
+            integer :: ix,iy, idxL, idxR, idxR2D , nshift
+            
+            nshift= (nsize-nx*ny)
 
              if(side==LEFT) then
-                do iz=1,nz
-                    idx = coordtoindex(1,1 ,iz)
-                    surface_charge(iz)= -2.0_dp * ( psi(idx) - psiSL )  
-                enddo
-            else 
-                do iz=1,nz 
-                    idx = coordtoindex(nx,ny,iz)
-                    surface_charge(iz)= -2.0_dp * ( psi(idx) -psiSR ) 
-                enddo
-            endif    
+                do ix=1,nx
+                    do iy=1,ny
+                        idxL = coordtoindex(ix, iy ,1)
+                        surface_charge(idxL) = -2.0_dp * ( psi(idxL) - psiSL )  
+                    enddo
+                enddo    
+            else if(side==RIGHT) then
+                do ix=1,nx
+                    do iy=1,ny
+                        idxR = coordtoindex(ix, iy ,nz)
+                        idxR2D = idxR-nshift
+                        surface_charge(idxR2D) = -2.0_dp * ( psi(idxR) -psiSR ) 
+                    enddo
+                enddo 
+            else
+                print*,"Error: side value is not equal to  LEFT or RIGHT"
+                stop
+            endif   
+
         end function surface_charge_constant_potential
 
 

@@ -1,9 +1,9 @@
 subroutine solver(x, xguess, accuracy, residual, isSolution)
 
-    use globals
-    use parameters
-    use listfcn
-    use fcnpointer
+    use precision_definition
+    use globals ,only : neq
+    use parameters, only : method, set_size_neq, maxfkfunevals
+    use listfcn, only :  set_fcn
     use anderson
 
     implicit none

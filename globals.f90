@@ -32,7 +32,7 @@ module globals
     integer(8) :: neqmax      ! maximum number of non-linear equations
     integer  :: neqint        ! number of non-linear equations, for mpi fnc bindings
     
-    character(len=15) :: systype   ! systype selects fcn    
+    character(len=20) :: systype   ! systype selects fcn    
     character(len=15) :: runtype   ! runtype
     character(len=2)  :: bcflag(2) ! bcflag selects bc surface 
 
@@ -40,6 +40,7 @@ module globals
     integer, parameter :: RIGHT = 2
 
     logical, parameter :: DEBUG = .false. ! switch for debug information
+    logical, parameter :: DEBUG_ST = .false. ! switch for debug information for Steady state
 
 end module globals
 
