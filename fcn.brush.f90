@@ -2742,14 +2742,21 @@ contains
     
         select case (systype)
             case ("brush_mul","brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA",&
-                "nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nonucl_ST")     ! multi copolymer:
+                "nucl_ionbin_Fe")     ! multi copolymer:
                 do i=1,neqint
                     constr(i)=1.0_dp
                 enddo
                 do i=1,nsize                    
                     constr(i+nsize)=0.0_dp     ! electrostatic potential 
                 enddo  
-               
+            case ("nucl_ionbin_Fe_ST","nonucl_ST")   
+                do i=1,neqint
+                    constr(i)=2.0_dp
+                enddo
+                do i=1,nsize
+                    constr(i+nsize)=0.0_dp     ! electrostatic potential 
+                enddo
+
             case ("brushborn")                 
                 do i=1,neqint
                     constr(i)=1.0_dp
