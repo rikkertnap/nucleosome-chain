@@ -3,13 +3,13 @@ module surface
     use precision_definition
     use globals, only : LEFT, RIGHT
     use mathconst, only : pi
-    use parameters, only : psiSR, psiSL ! surface potenital in reduced units for bc=cp
+    use parameters, only : psiSR, psiSL , psiS ! surface potenital in reduced units for bc=cp
 
     implicit none
 
     real(dp) :: sigmaSurfL          ! surface density of acid on surface in nm^2
     real(dp) :: sigmaSurfR          ! surface density of acid on surface in nm^2
-         ! surface potenital in reduced units for constant potentail bc
+    real(dp) :: qsurfL, qsurfR
 
     real(dp), dimension(:), allocatable :: sigmaqSurfL         ! surface charge density on surface in nm^2
     real(dp), dimension(:), allocatable :: sigmaqSurfR         ! surface charge density on surface in nm^2
@@ -128,8 +128,6 @@ contains
         subroutine allocate_psiSurf_sigmaqSurf(nsurf)
 
             integer, intent(in) :: nsurf
-
-            print*,"allocate surface "
 
             allocate(sigmaqSurfL(nsurf))
             allocate(sigmaqSurfR(nsurf))
@@ -298,17 +296,13 @@ contains
 
         subroutine init_surface_constpotential(side)
 
-            use parameters,  only : Tref 
-            use physconst, only : kBoltzmann, elemcharge  
+            use globals, only : runtype
+            use parameters,  only : beta_times_e  
             use volume, only : nsurf
 
             integer, intent(in) :: side
 
-            real(dp) :: beta_times_e ! e /(kB T)
-            integer :: s 
-
-            beta_times_e = elemcharge/(kBoltzmann*Tref)
-            print*,"beta_times_e=",beta_times_e
+            integer :: s
 
             ! site density
             if(side==RIGHT) then 
@@ -318,6 +312,9 @@ contains
                 enddo
             endif     
             if(side==LEFT) then 
+
+               if(runtype=="rangepsiL") psiSL = psiS%val  ! transfer value psiS to psiSL
+
                 psiSL=  psiSL * beta_times_e ! dimensionless surface potential
                 do s = 1, nsurf
                     psiSurfL(s) = psiSL
@@ -325,6 +322,25 @@ contains
             endif
 
         end subroutine init_surface_constpotential
+
+         subroutine init_surface_constpotential_rangepsiL
+
+            use globals, only : runtype
+            use parameters,  only : beta_times_e 
+            use volume, only : nsurf
+
+            integer :: s 
+
+            if(runtype=="rangepsiL") then 
+                psiSL = psiS%val  ! transfer value psiS to psiSL  
+                psiSL=  psiSL * beta_times_e ! dimensionless surface potential
+
+                do s = 1, nsurf
+                    psiSurfL(s) = psiSL
+                enddo
+            endif    
+
+        end subroutine init_surface_constpotential_rangepsiL
 
 
         function surface_charge_quartz(psiS) result(surface_charge)

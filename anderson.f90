@@ -13,7 +13,7 @@ module anderson
     implicit none
 
     real(dp), parameter ::  BETA_A = 0.9 ! 0.9         ! mixing parameter for anderson mixing 
-    real(dp), parameter ::  BETA_S = -0.1   !  -0.2    ! mixing parameter for simple mixing 
+    real(dp), parameter ::  BETA_S = -0.1  !  -0.2    ! mixing parameter for simple mixing 
     real(dp), parameter ::  TOL_DELTA = 0.001 ! 0.01     ! treshold for Anderson to start 
     integer, parameter  ::  NUMBER_SOL= 6       ! number of previous solutions used in Anderson mixing */
 
@@ -208,7 +208,7 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         fnorm = L2norm(fvec,NN)
         conv = (fnorm <= TOL)  ! 1=true if found solution 
 
-        print*,"step = ",step," L2norm =",fnorm
+        print*,"step = ",step,"norm = ",fnorm
         step = step + 1
         j = j+1
 
@@ -233,7 +233,7 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         delta = fnorm/L2norm(xoutM,NN)
         conv = (fnorm <= TOL)       ! 1=true if found solution
         
-        print*,"step = ", step," L2norm = ",fnorm," delta =",delta
+        print*,"step = ",step,"norm = ",fnorm,"delta = ",delta
         
         if( delta < TOL)  then ! Anderson mixing
         
@@ -280,15 +280,6 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         call print_to_log(LogUnit,text)
     endif     
     
-    if (conv) then
-        do i = 1, NN
-            write(istr,'(I3)')i
-            write(rstr,'(E25.16)')x(i)
-            text="x["//trim(adjustl(istr))//"]="//trim(adjustl(rstr))
-            call print_to_log(LogUnit,text)
-        enddo
-    endif    
-
     ! free memory 
     deallocate(fvec)
     deallocate(xin)  
@@ -370,15 +361,7 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         call print_to_log(LogUnit,text)
     endif    
 
-    if (conv) then
-        do i = 1, NN
-            write(istr,'(I3)')i
-            write(rstr,'(E25.16)')x(i)
-            text="x["//trim(adjustl(istr))//"]="//trim(adjustl(rstr))
-            call print_to_log(LogUnit,text)
-        enddo
-    endif     
-  
+   
     ! free memory 
     deallocate(fvec)
   

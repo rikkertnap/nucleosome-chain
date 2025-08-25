@@ -2476,6 +2476,25 @@ contains
 
     end subroutine fcnnucl_ionbin_sv_Fe
 
+    subroutine fcnnonuclcp(x,f,nn)
+
+        use precision_definition
+        use globals , only : neq
+        use modfcnFeexpl
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnonucl_cp(x,f,nn)
+        
+
+    end subroutine fcnnonuclcp
 
 
     !  .. function solves for bulk volume fraction 
@@ -2770,6 +2789,8 @@ contains
             fcnptr => fcnnucl_ionbin_sv_Mg_A
         case ("nucl_ionbin_Fe")
             fcnptr => fcnnucl_ionbin_sv_Fe
+        case ("nonuclcp")
+            fcnptr => fcnnonuclcp
         case ("nucl_neutral_sv")
             fcnptr => fcnnucl_neutral_sv    
         case ("brushborn")

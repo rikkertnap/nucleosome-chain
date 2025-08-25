@@ -114,6 +114,7 @@
     real(dp) :: constqWin        ! constant in Poisson eq dielectric constant of water  stored for loop dielect   
     real(dp) :: constq0          ! constant in Poisson eq dielectric constant of vacuum 
     real(dp) :: constqE          ! electrostatic pre-factor in pdf 
+    real(dp) :: beta_times_e     ! conversion factor  e/ kBT 
   
     !  .. solver variables
 
@@ -245,6 +246,7 @@
     integer, parameter ::  err_file         = 2 
     integer, parameter ::  err_error        = 3
 
+    type (looplist), target :: psiS
     real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
     real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
 
@@ -275,7 +277,7 @@ contains
                 neq = 2 * nsize     
             case ("nucl_neutral_sv")
                 neq =  nsize 
-            case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+            case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nonuclcp")
                 neq = 2 * nsize 
             case ("brushdna","nucl_ionbin")
                 numeq=0 
@@ -849,7 +851,10 @@ contains
         constq0 = delta*delta*(4.0_dp*pi*lb0)/vsol  ! multiplicative constant Poisson Eq. 
         constqE = 1.0_dp /( 8.0_dp *constqW)        ! factor in PDF
         constqWin = constqW                         ! assignment for  loop of dielect
-        ! sigmaqSurf = sigmaqSurfin * 4.0_dp*pi*lb *delta ! dimensionless surface charge 
+
+        beta_times_e = elemcharge/(kBoltzmann*Temp) !  e/ kBT conversion factor  between potential in Volt-J/C to dimensionless potential 
+    
+    !    print*,"beta_times_e=",beta_times_e, "Temp=", Temp
 
     end subroutine init_elect_constants
    
@@ -959,9 +964,8 @@ contains
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
-       ! real(dp) :: xO2salt            ! volume fraction of O2 disolved gas in bulk solution   
-        real(dp) :: xtmp
 
+        real(dp) :: xtmp
         real(dp) :: KaAA6              ! auxilary varialbe
         
         !     .. initializations of input dependent variables, electrostatic part 
@@ -1139,17 +1143,18 @@ contains
 
     end subroutine init_expmu_neutral
 
+
+
     ! inits chem potential 
 
     subroutine init_vars_input()
 
         use globals, only : systype
     
-
         select case (systype)
         case ("elect")
             call init_expmu_elect()
-            call set_VdWepsAAandBB() ! special assigemnt of VdWepsAA etc  
+            call set_VdWepsAAandBB() ! special assigment of VdWepsAA etc  
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
@@ -1178,6 +1183,8 @@ contains
             call init_expmu_elect()  
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)
+        case ("nonuclcp") 
+            call init_expmu_elect()
         case default   
             print*,"Error: systype incorrect at init_vars_input" 
             print*,"Wrong value systype : ", systype
@@ -1908,7 +1915,8 @@ contains
             VdWepsAB = VdWeps(1,2) 
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
-                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+                "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe",&
+                "nonuclcp")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"

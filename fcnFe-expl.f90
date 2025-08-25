@@ -1021,7 +1021,7 @@ contains
         normvol = L2norm_f90(f(1:nsize))
         normPE  = L2norm_f90(f(nsize+1:2*nsize))
         
-        print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+        print*,'iter = ', iter ,'norm = ',norm, "normvol = ",normvol,"normPE = ",normPE
                     
         
         ! test
@@ -1123,7 +1123,7 @@ contains
         normvol = L2norm_f90(f(1:nsize))
         normPE  = L2norm_f90(f(nsize+1:2*nsize))
         
-        print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+        print*,'iter = ', iter,'norm = ',norm, "normvol = ",normvol,"normPE = ",normPE
                     
         
     end subroutine fcnnonucl_cp   

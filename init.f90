@@ -77,6 +77,8 @@ subroutine init_guess(x, xguess)
             call init_guess_multinoVdW(x,xguess)
         case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe") 
             call init_guess_multi(x,xguess)
+        case ("nonuclcp") 
+            call init_guess_nonuclcp(x,xguess)
         case ("nucl_neutral_sv")  
             call init_guess_nucl_neutral_sv(x,xguess)
         case ("brushborn") 
@@ -492,7 +494,7 @@ subroutine init_guess_multinoVdW(x, xguess)
                 call error_handler(ios,text)
             endif
         enddo
-        if(bctype(LEFT)/="cc") then 
+        if(bctype(LEFT)/="cc".and. bctype(LEFT)/="cp") then 
             do i=1,nsurf
                 read(un_file(2),*)psisurfL(i)
             enddo
@@ -506,7 +508,7 @@ subroutine init_guess_multinoVdW(x, xguess)
                   
         enddo
     
-        if(bctype(RIGHT)/="cc") then
+        if(bctype(RIGHT)/="cc".and. bctype(LEFT)/="cp") then
             do i=1,nsurf 
                 read(un_file(2),*)psisurfR(i)
             enddo
@@ -525,6 +527,63 @@ subroutine init_guess_multinoVdW(x, xguess)
 
 end subroutine init_guess_multinoVdW
 
+
+subroutine init_guess_nonuclcp(x, xguess)
+
+    use globals, only : nsize,neqint
+    use field, only : xsol, psi
+    use parameters, only : xbulk, infile
+    use myutils, only : newunit, lenText, error_handler
+    
+    real(dp) :: x(:)       ! volume fraction solvent iteration vector 
+    real(dp) :: xguess(:)  ! guess fraction  solvent 
+  
+    !     ..local variables 
+    integer :: i
+    character(len=9) :: fname(8)
+    character(len=lenText) :: text, istr
+    integer :: ios,un_file(8)
+   
+
+    ! .. init guess 
+    
+    do i=1,nsize
+        x(i)       = xbulk%sol
+        x(i+nsize) = 0.0_dp
+    enddo 
+      
+    if (infile.eq.1) then   ! infile is read in from file/stdio  
+
+        write(fname(1),'(A7)')'xsol.in'
+        write(fname(2),'(A6)')'psi.in'
+
+        do i=1,2 ! loop files
+            open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_nonuclcp: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
+            endif
+        enddo
+       
+        do i=1,nsize
+            read(un_file(1),*)xsol(i)    ! solvent
+            read(un_file(2),*)psi(i)     ! potential
+            x(i)         = xsol(i)       ! placing xsol in vector x
+            x(i+nsize)   = psi(i)        ! placing psi in vector x         
+        enddo
+       
+        do i=1,2
+            close(un_file(i))
+        enddo
+
+    endif  !     .. end init from file 
+  
+    do i=1,neqint
+        xguess(i)=x(i)
+    enddo
+
+end subroutine init_guess_nonuclcp
 
 subroutine init_guess_multi_born(x, xguess)
 

@@ -20,7 +20,7 @@ module energy
     real(dp) :: FEpi                ! sum over pi
     real(dp) :: FErho               ! sum over densities
     real(dp) :: FEel                ! electrostatics energy
-    real(dp) :: FEelsurf(2)         ! electrostatics energy from  surface
+    real(dp) :: FEelsurf(2)         ! electrostatics energy from surface
     real(dp) :: FEelvar             ! electrostatics energy contrbution to total free energy from palpha due to varying dielectric 
     real(dp) :: FEelvarborn         ! electrostatics energy contrbution to total free energy from palpha due to Born self-energy 
     real(dp) :: FEborn              ! Born self-energy  
@@ -82,6 +82,11 @@ contains
         
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
+        
+        case ("nonuclcp")
+
+            call fcnenergy_nonuclcp()
+            call fcnenergy_nonuclcp_alternative()
 
         case("elect")
             
@@ -94,6 +99,7 @@ contains
             call fcnenergy_neutral_alternative()  
         
         case ("brushborn")
+
             print*,"energy born not completed yet "   
             call fcnenergy_electbrush_mul() 
             call fcnenergy_elect_alternative()   
@@ -104,8 +110,7 @@ contains
             call fcnenergy_neutral_sv_alternative() 
 
         case default  
-
-           
+   
             stop
         
         end select 
@@ -375,6 +380,165 @@ contains
 
 
     end subroutine fcnenergy_elect_alternative
+
+
+
+    subroutine fcnenergy_nonuclcp_alternative()
+    
+        use globals, only : nsize
+        use volume, only : volcell
+        use parameters
+        use field
+        use surface
+
+        !  .. local arguments 
+    
+        real(dp) :: volumelat          ! volume lattice 
+     
+        ! .. computation of alternative computation free energy
+
+        ! .. translational entropy 
+
+        FEtrans%sol   = FEtrans_entropy(xsol,xbulk%sol,vsol,"w")   
+        FEtrans%Na    = FEtrans_entropy(xNa,xbulk%Na,vNa)
+        FEtrans%Cl    = FEtrans_entropy(xCl,xbulk%Cl,vCl)
+        FEtrans%Ca    = FEtrans_entropy(xCa,xbulk%Ca,vCa)
+        FEtrans%Mg    = FEtrans_entropy(xMg,xbulk%Mg,vMg)
+        FEtrans%Fe2   = FEtrans_entropy(xFe2,xbulk%Fe2,vFe2)
+        FEtrans%Fe3   = FEtrans_entropy(xFe3,xbulk%Fe3,vFe3)
+        FEtrans%K     = FEtrans_entropy(xK,xbulk%K,vK)
+        FEtrans%KCl   = FEtrans_entropy(xKCl,xbulk%KCl,vKCl)
+        FEtrans%NaCl  = FEtrans_entropy(xNaCl,xbulk%NaCl,vNaCl)
+        FEtrans%Hplus = FEtrans_entropy(xHplus,xbulk%Hplus,vsol,"w")
+        FEtrans%OHmin = FEtrans_entropy(xOHmin,xbulk%OHmin,vsol,"w") 
+
+        ! .. chemical potential + standard chemical potential 
+
+        FEchempot%sol   = 0.0_dp ! by construction  
+        FEchempot%Na    = FEchem_pot(xNa,expmu%Na,vNa)
+        FEchempot%Cl    = FEchem_pot(xCl,expmu%Cl,vCl)
+        FEchempot%Ca    = FEchem_pot(xCa,expmu%Ca,vCa)
+        FEchempot%Mg    = FEchem_pot(xMg,expmu%Mg,vMg)
+        FEchempot%Fe2   = FEchem_pot(xFe2,expmu%Fe2,vFe2)
+        FEchempot%Fe3   = FEchem_pot(xFe3,expmu%Fe3,vFe3)
+        FEchempot%K     = FEchem_pot(xK,expmu%K,vK) 
+        FEchempot%KCl   = FEchem_pot(xKCl,expmu%KCl,vKCl)
+        FEchempot%NaCl  = FEchem_pot(xNaCl,expmu%NaCl,vNaCl)
+        FEchempot%Hplus = FEchem_pot(xHplus,expmu%Hplus,vsol,"w")
+        FEchempot%OHmin = FEchem_pot(xOHmin,expmu%OHmin,vsol,"w")
+
+        ! .. surface chemical contribution
+
+        ! .. summing all contributions
+
+        ! .. translational/mixing entropy
+
+        FEalt = FEtrans%sol +FEtrans%Na+ FEtrans%Cl +FEtrans%NaCl+FEtrans%Ca +FEtrans%Mg
+        FEalt = FEalt+FEtrans%OHmin +FEtrans%Hplus +FEtrans%K +FEtrans%KCl + FEtrans%Fe2
+        FEalt = FEalt+FEtrans%Fe3
+
+        ! .. chemical potential 
+
+        FEalt = FEalt+FEchempot%sol +FEchempot%Na+ FEchempot%Cl +FEchempot%NaCl+FEchempot%Ca +FEchempot%Mg
+        FEalt = FEalt+FEchempot%OHmin +FEchempot%Hplus+ FEchempot%K +FEchempot%KCl+FEchempot%Fe2+FEchempot%Fe3
+      
+
+        ! .. no chemical  reaction and binding contribution
+
+        FEchem = 0.0_dp 
+        
+        ! FEVdW  Van der Waals
+        
+        FEalt = FEalt - FEel + FEconf + Econf + FEchem + FEelSurf(RIGHT)+FEelSurf(LEFT) ! +FEchemSurfalt(RIGHT)+FEchemSurfalt(LEFT) 
+
+        ! .. delta translational entropy
+
+        FEtransbulk%sol   = FEtrans_entropy_bulk(xbulk%sol,vsol,"w")   
+        FEtransbulk%Na    = FEtrans_entropy_bulk(xbulk%Na,vNa)
+        FEtransbulk%Cl    = FEtrans_entropy_bulk(xbulk%Cl,vCl)
+        FEtransbulk%Ca    = FEtrans_entropy_bulk(xbulk%Ca,vCa)
+        FEtransbulk%Mg    = FEtrans_entropy_bulk(xbulk%Mg,vMg)
+        FEtransbulk%Fe2   = FEtrans_entropy_bulk(xbulk%Fe2,vFe2)
+        FEtransbulk%Fe3   = FEtrans_entropy_bulk(xbulk%Fe3,vFe3)
+        FEtransbulk%K     = FEtrans_entropy_bulk(xbulk%K,vK)
+        FEtransbulk%KCl   = FEtrans_entropy_bulk(xbulk%KCl,vKCl)
+        FEtransbulk%NaCl  = FEtrans_entropy_bulk(xbulk%NaCl,vNaCl)
+        FEtransbulk%Hplus = FEtrans_entropy_bulk(xbulk%Hplus,vsol,"w")
+        FEtransbulk%OHmin = FEtrans_entropy_bulk(xbulk%OHmin,vsol,"w") 
+
+        ! .. delta chemical potential + standard chemical potential 
+
+        FEchempotbulk%sol   = 0.0_dp ! by construction  
+        FEchempotbulk%Na    = FEchem_pot_bulk(xbulk%Na,expmu%Na,vNa)
+        FEchempotbulk%Cl    = FEchem_pot_bulk(xbulk%Cl,expmu%Cl,vCl)
+        FEchempotbulk%Ca    = FEchem_pot_bulk(xbulk%Ca,expmu%Ca,vCa)
+        FEchempotbulk%Mg    = FEchem_pot_bulk(xbulk%Mg,expmu%Mg,vMg)
+        FEchempotbulk%Fe2   = FEchem_pot_bulk(xbulk%Fe2,expmu%Fe2,vFe2)
+        FEchempotbulk%Fe3   = FEchem_pot_bulk(xbulk%Fe3,expmu%Fe3,vFe3)
+        FEchempotbulk%K     = FEchem_pot_bulk(xbulk%K,expmu%K,vK) 
+        FEchempotbulk%KCl   = FEchem_pot_bulk(xbulk%KCl,expmu%KCl,vKCl)
+        FEchempotbulk%NaCl  = FEchem_pot_bulk(xbulk%NaCl,expmu%NaCl,vNaCl)
+        FEchempotbulk%Hplus = FEchem_pot_bulk(xbulk%Hplus,expmu%Hplus,vsol,"w")
+        FEchempotbulk%OHmin = FEchem_pot_bulk(xbulk%OHmin,expmu%OHmin,vsol,"w")
+        
+        ! .. bulk free energy
+
+        volumelat = volcell*nsize   ! volume lattice 
+
+        FEbulkalt = FEtransbulk%sol +FEtransbulk%Na+ FEtransbulk%Cl +FEtransbulk%NaCl+FEtransbulk%Ca +FEtransbulk%Mg 
+        FEbulkalt = FEbulkalt+FEtransbulk%OHmin +FEtransbulk%Hplus +FEtransbulk%K +FEtransbulk%KCl +FEtransbulk%Fe2
+        FEbulkalt = FEbulkalt+FEtransbulk%Fe3
+        FEbulkalt = FEbulkalt+FEchempotbulk%sol +FEchempotbulk%Na+FEchempotbulk%Cl +FEchempotbulk%NaCl+FEchempotbulk%Ca 
+        FEbulkalt = FEbulkalt+FEchempotbulk%Mg  + FEchempotbulk%OHmin + FEchempotbulk%Hplus +FEchempotbulk%K 
+        FEbulkalt = FEbulkalt+FEchempotbulk%KCl + FEchempotbulk%Fe2  + FEchempotbulk%Fe3
+
+        ! no Born energy 
+
+       !FEBornbulk = (  bornbulk%Na * xbulk%Na/vNa    + bornbulk%Cl * xbulk%Cl/vCl + &
+       !                 bornbulk%Ca * xbulk%Ca/vCa    + bornbulk%Mg * xbulk%Mg/vMg + &
+       !                bornbulk%Fe2 * xbulk%Fe2/vFe2 + bornbulk%Fe3 * xbulk%Fe3/vFe3 + bornbulk%K * xbulk%K/vK   + &
+       !                 bornbulk%Hplus * xbulk%Hplus  + bornbulk%OHmin * xbulk%OHmin )/vsol  
+        
+        !FEbulkalt = FEbulkalt+FEBornbulk
+
+        FEbulkalt = volumelat*FEbulkalt
+
+        FEBornbulk = volumelat* FEBornbulk
+
+        ! .. delta
+
+        deltaFEtrans%sol   = FEtrans%sol  - FEtransbulk%sol * volumelat
+        deltaFEtrans%Na    = FEtrans%Na   - FEtransbulk%Na * volumelat
+        deltaFEtrans%Cl    = FEtrans%Cl   - FEtransbulk%Cl * volumelat
+        deltaFEtrans%Ca    = FEtrans%Ca   - FEtransbulk%Ca * volumelat
+        deltaFEtrans%Mg    = FEtrans%Mg   - FEtransbulk%Mg * volumelat   
+        deltaFEtrans%Fe2   = FEtrans%Fe2   - FEtransbulk%Fe2 * volumelat 
+        deltaFEtrans%Fe3   = FEtrans%Fe3   - FEtransbulk%Fe3 * volumelat 
+        deltaFEtrans%K     = FEtrans%K    - FEtransbulk%K * volumelat
+        deltaFEtrans%KCl   = FEtrans%KCl  - FEtransbulk%KCl * volumelat
+        deltaFEtrans%NaCl  = FEtrans%NaCl - FEtransbulk%NaCl * volumelat
+        deltaFEtrans%Hplus = FEtrans%Hplus- FEtransbulk%Hplus * volumelat
+        deltaFEtrans%OHmin = FEtrans%OHmin- FEtransbulk%OHmin * volumelat
+         
+        deltaFEchempot%sol   = FEchempot%sol  - FEchempotbulk%sol * volumelat
+        deltaFEchempot%Na    = FEchempot%Na   - FEchempotbulk%Na * volumelat
+        deltaFEchempot%Cl    = FEchempot%Cl   - FEchempotbulk%Cl * volumelat
+        deltaFEchempot%Ca    = FEchempot%Ca   - FEchempotbulk%Ca * volumelat
+        deltaFEchempot%Mg    = FEchempot%Mg   - FEchempotbulk%Mg * volumelat
+        deltaFEchempot%Fe2   = FEchempot%Fe2  - FEchempotbulk%Fe2 * volumelat
+        deltaFEchempot%Fe3   = FEchempot%Fe3  - FEchempotbulk%Fe3 * volumelat
+        deltaFEchempot%K     = FEchempot%K    - FEchempotbulk%K * volumelat
+        deltaFEchempot%KCl   = FEchempot%KCl  - FEchempotbulk%KCl * volumelat
+        deltaFEchempot%NaCl  = FEchempot%NaCl - FEchempotbulk%NaCl * volumelat
+        deltaFEchempot%Hplus = FEchempot%Hplus- FEchempotbulk%Hplus * volumelat
+        deltaFEchempot%OHmin = FEchempot%OHmin- FEchempotbulk%OHmin * volumelat
+
+        ! .. differences
+
+        deltaFEalt = FEalt - FEbulkalt
+
+
+    end subroutine fcnenergy_nonuclcp_alternative
     
 
     subroutine fcnenergy_electbrush_mul()
@@ -668,6 +832,74 @@ contains
         deltaFE = FE - FEbulk
     
     end subroutine fcnenergy_ionbin_sv
+
+    subroutine fcnenergy_nonuclcp()
+
+        use globals, only : nsize, RIGHT, LEFT
+        use volume, only : volcell
+        use parameters, only : xbulk
+        use parameters, only : vsol, vNa, vCl, vK, vCa, vMg, vNaCl, vKCl, vFe2, vFe3
+        use field, only : xsol, xHplus, xOHmin, xNa, xCl, xK, xCa, xMg, xNaCl, xKCl, xFe2, xFe3
+        use field, only : psi, rhoq
+        use surface, only : sigmaqSurfR, sigmaqSurfL, qsurfR, qsurfL
+    
+        !  .. local arguments 
+    
+        integer  :: i              
+        real(dp) :: volumelat    
+        real(dp) :: qsurf(2)
+
+        !  .. computation of free energy
+
+        FEpi  = 0.0_dp
+        FErho = 0.0_dp
+        FEel  = 0.0_dp
+        FEelsurf = 0.0_dp
+        FEq    = 0.0_dp
+        FEbind = 0.0_dp
+        FEchem = 0.0_dp
+        FEVdW  = 0.0_dp
+        qres   = 0.0_dp
+        Eshift = 0.0_dp 
+
+        do i=1,nsize
+            FEpi = FEpi  + log(xsol(i))
+            FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl + xFe2(i)/vFe2 + xFe3(i)/vFe3)                 ! sum over  rho_i 
+            FEel  = FEel  - rhoq(i) * psi(i)
+            qres = qres + rhoq(i)
+        enddo
+        
+
+        FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully implicit minus sign !
+        FEpi  = (volcell/vsol)*FEpi
+        FErho = (volcell/vsol)*FErho
+        qres  = (volcell/vsol)*qres
+  
+        qsurf = SurfaceChargeTot(sigmaqSurfR,sigmaqSurfL)
+        qsurfL = qsurf(LEFT)
+        qsurfR = qsurf(RIGHT)
+
+        qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+
+        FEelsurf = FEelect_surface()
+
+        ! .. total free energy per area of surface 
+
+        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind - Eshift + FEelsurf(RIGHT)+FEelsurf(LEFT)
+        
+        
+        volumelat= volcell*nsize   ! volume lattice
+
+        FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
+            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +&
+            xbulk%Fe2/vFe2  + xbulk%Fe3/vFe3 )
+        
+        FEbulk = volumelat*FEbulk/vsol
+
+        deltaFE = FE - FEbulk
+    
+    end subroutine fcnenergy_nonuclcp
 
 
     ! fcnenergy_neutral_sv  equal to fcnenergy_neutral !! 
@@ -1134,6 +1366,8 @@ contains
 
         case("neutral","electnopoly") 
             FEchem_react=0.0_dp
+        case("nonuclcp") 
+            FEchem_react=0.0_dp    
         case default
             print*,"systype in FEchem_react wrong"  
         end select
@@ -1612,9 +1846,6 @@ contains
 
 
 
-    
-
-
     function FEelect_surface() result(FEelsurf)
 
         use globals, only : bctype,LEFT,RIGHT, pi
@@ -1705,7 +1936,11 @@ contains
         elseif(bctype(RIGHT)=="cc") then  
         
             FEchemSurf(RIGHT)=0.0_dp
-        
+
+        elseif(bctype(RIGHT)=="cp") then  
+
+            FEchemSurf(RIGHT)=0.0_dp
+
         else
             print*,"Error in FEchem_surface"
             print*,"Wrong value bctype(RIGHT) : ",bctype(RIGHT)
@@ -1720,6 +1955,10 @@ contains
         
             FEchemSurf(LEFT)=0.0_dp
         
+        elseif(bctype(LEFT)=="cp") then  
+        
+            FEchemSurf(LEFT)=0.0_dp
+
         else
             print*,"Error in FEchem_surface"
             print*,"Wrong value bctype(LEFT) : ",bctype(LEFT)
@@ -1728,7 +1967,7 @@ contains
     end function
 
  
-    function SurfaceCharge(sigmaqSurfR,sigmaqSurfL) result(qsurf)
+    function SurfacechargeTot(sigmaqSurfR,sigmaqSurfL) result(qsurf)
         
         use globals, only : LEFT,RIGHT
         use volume, only : nx,ny,areacell,delta
@@ -1737,24 +1976,23 @@ contains
 
         real(dp), intent(in) :: sigmaqSurfR(:),sigmaqSurfL(:)
         real(dp) :: qsurf(2)
+       
         ! local
         integer :: i, s 
-        real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx)
-  
-        do s=1,nx*ny
-            sigmaqSurf(RIGHT,s) = sigmaqSurfR(s)
-            sigmaqSurf(LEFT,s)  = sigmaqSurfL(s)
-        enddo    
+      
+        qsurf=0.0_dp
+        
+        do s=1,nx*ny     
+            qsurf(LEFT)   = qsurf(LEFT) + sigmaqSurfL(s)
+            qsurf(RIGHT)  = qsurf(RIGHT)+ sigmaqSurfR(s)
+        enddo
 
-        do i=LEFT,RIGHT
-            qsurf(i)=0.0_dp
-            do s=1,nx*ny     
-                qsurf(i) = qsurf(i)+sigmaqSurf(i,s)
-            enddo
-            qsurf(i)=(qsurf(i)/(4.0_dp*pi*lb*delta))*areacell  ! areacell=area size one surface element, 4*pi*lb*delta make correct dimensional full unit    
+        do i=1,2
+            qsurf(i) = (qsurf(i)/(4.0_dp*pi*lb*delta))*areacell  ! areacell=area size one surface element, 4*pi*lb*delta make correct dimensional full unit    
         enddo
         
-    end function
+    end function SurfacechargeTot
+
 
 
     function FE_selfenergy_brush()result(FEborn)

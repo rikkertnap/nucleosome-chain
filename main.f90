@@ -96,13 +96,11 @@ program main
         call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
         call error_handler(info,"init_vnucl_type")
     endif 
-
-
+ 
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
     ! call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
     call set_value_isVdW(systype,isVdW)
- 
     write(istr,'(L2)')isVdW
     text='VdW interaction: isVdW = '//trim(adjustl(istr))
     call print_to_log(LogUnit,text) 
@@ -110,7 +108,7 @@ program main
  
     call make_chains(chainmethod,systype)   
     call allocate_field(nx,ny,nz,nsegtypes)
-    
+   
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
         call find_phosphate_location(index_phos,inverse_index_phos,len_index_phos) 
         call allocate_index_neighbors_phos(maxneigh,len_index_phos)
@@ -129,8 +127,11 @@ program main
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
         call allocate_field_triplets(11)
         call init_var_compute_fdisPPP
-
     endif   
+    
+    if(systype=="nonuclcp") then 
+        no_overlapchain(1)=.true. ! otherwise loop does not start !!
+    endif    
     
     call init_field()
     call init_surface(bctype,nsurf)
@@ -140,7 +141,6 @@ program main
     call set_dielect_fcn(dielect_env)
     call write_chain_config()
     call write_chain_struct(write_struct,info) 
-    
     if(write_struct) call error_handler(1,"stop after write_chains_struct")
 
     ! call test_index_histone(info)  
@@ -172,13 +172,16 @@ program main
         loop => VdWscale    
     else if(runtype=="rangedielect") then 
         loop => dielectscale   
+    else if(runtype=="rangepsiL") then 
+        loop => psiS  
     else
         nullify(loop) ! make explicit that no association is made
     endif  
 
     ! .. select variable with which list_array to associate
 
-    if (runtype=="inputMgpH".or.runtype=="rangepKd".or.runtype=="rangeVdWeps".or.runtype=="rangedeltaGd") then
+    if (runtype=="inputMgpH".or.&
+        runtype=="rangepKd".or.runtype=="rangeVdWeps".or.runtype=="rangedeltaGd") then
         call set_value_MgCl2(runtype,info)
         call error_handler(info,"set_value_MgCl2")
 
@@ -194,7 +197,7 @@ program main
         list => cFeCl2_array
         list_val => cFeCl2
 
-    else if(runtype=="inputFe3pH") then
+    else if(runtype=="inputFe3pH".or.runtype=="rangepsiL") then
         call set_value_FeCl3(runtype,info)
         call error_handler(info,"set_value_FeCl3")
 
@@ -272,6 +275,7 @@ program main
                     isfirstguess=(loop%val==loopbegin) 
 
                     call init_vars_input()  ! sets chem potential 
+                    call init_surface_constpotential_rangepsiL
 
                    ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
                       

@@ -50,22 +50,24 @@ subroutine make_chains(chainmethod,systype)
     integer :: i, info
     character(len=lenText) :: text, istr
 
-    info=0
+    if(systype=="nonuclcp") return ! alternate return
 
+    info=0
     select case (chainmethod)
     case ("MC")
         call make_chains_mc()
     case ("FILE_XYZ")      
         call read_chains_xyz(systype,info)       
     case default
-        text="chainmethod not equal to MC or FILE_XYZ"
+        text="chainmethod not equal to MC or FILE_XYZ"            
         call print_to_log(LogUnit,text)
         print*,text
-        info=myio_err_chainmethod
+        info = myio_err_chainmethod
     end select
 
     call error_handler(info,"make_chains")
-
+    
+    
 end subroutine make_chains
 
 
