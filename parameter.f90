@@ -235,6 +235,14 @@
     real(dp) :: Hxp_s              ! Henry constant of oxygen Hxp_s = x /p  unit : 1/Pa
     real(dp) :: rhoidO2            ! ideal number desnity of oxygen 
     logical :: isO2present         ! logical switch to determine if O2 is consider or not            
+   
+    ! surface charge 
+    type (looplist), target :: psiS
+    real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
+    real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
+
+    ! unit conversion : converts unit of input conformation to nm unit!
+    real(dp) :: unit_conv
 
     !  return error of subroutine read_pKds 
     integer, parameter ::  err_pKdfile_noexist = 1
@@ -246,15 +254,13 @@
     integer, parameter ::  err_file         = 2 
     integer, parameter ::  err_error        = 3
 
-    type (looplist), target :: psiS
-    real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
-    real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
-
-    ! unit conversion : converts unit of input conformation to nm unit!
-    real(dp) :: unit_conv
-
+    ! eps value for sum xbulk and sum charge in bulk 
+    
+    real(dp), parameter  :: eps_val =1.0e-14_dp 
+    
     private :: err_pKdfile_noexist,err_pKdfile,err_pKderror
     private :: err_file_noexist,err_file,err_error    
+    private :: eps_val
 
 contains
 
@@ -965,7 +971,7 @@ contains
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
 
-        real(dp) :: xtmp
+        real(dp) :: xtmp, rhoqtmp
         real(dp) :: KaAA6              ! auxilary varialbe
         
         !     .. initializations of input dependent variables, electrostatic part 
@@ -1129,8 +1135,24 @@ contains
         ! ionic strength 
         IS= ion_strength(xbulk)
 
+        ! test
 
-        !     .. end init electrostatic part 
+        xtmp = sum_value_moleclist(xbulk)
+
+        if(abs(xtmp-1.0_dp)>eps_val) then 
+            print*,"Error: in init_expmu_elect : sum xbulk not one sum xbulk =", xtmp
+            stop
+        endif    
+
+        rhoqtmp= xbulk%Hplus -xbulk%OHmin +zCl*xbulk%Cl/vCl +xbulk%Na/vNa +xbulk%K/vK & 
+                +zCa*xbulk%Ca/vCa +zFe2*xbulk%Fe2/vFe2 +zFe3*xbulk%Fe3/vFe3 +zMg*xbulk%Mg/vMg
+        
+        if(abs(rhoqtmp)>eps_val) then 
+            print*,"Error: in init_expmu_elect : bulk not charge neutral : residual charge =", rhoqtmp
+        endif
+
+        
+        ! .. end init electrostatic part 
         
     end subroutine init_expmu_elect
 
