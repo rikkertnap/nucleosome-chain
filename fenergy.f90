@@ -212,14 +212,12 @@ contains
         use parameters
         use field
         use VdW
-        use surface
+        !use surface
         use conform_entropy
 
         !  .. local arguments 
     
         real(dp) :: sigmaq0,psi0
-        real(dp) :: qsurf(2)           ! total charge on surface 
-        real(dp) :: qsurfg             ! total charge on grafting surface  
         integer :: i,j,s               ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
         integer :: nzadius
@@ -292,7 +290,7 @@ contains
             FEalt = FEalt-FEVdW ! add Van der Waals
         endif
 
-        FEalt = FEalt - FEel + FEconf + Econf + FEchem +FEborn     
+        FEalt = FEalt - FEel + FEconf + Econf + FEchem +FEborn  + FEelsurf(LEFT) + FEelsurf(RIGHT)
         !+ FEelSurf(RIGHT)+FEelSurf(LEFT)+FEchemSurfalt(RIGHT)+FEchemSurfalt(LEFT) 
 
         ! .. delta translational entropy
@@ -710,22 +708,23 @@ contains
         use parameters
         use field
         use VdW
-        use surface
         use dielectric_const, only : born
         use Poisson, only :  grad_pot_sqr_eps_cubic
         use chains, only : ismonomer_chargeable,type_of_monomer,type_of_charge
+        use surface, only : sigmaqSurfR, sigmaqSurfL, qsurfR, qsurfL
+
 
         !  .. local arguments 
     
         integer  :: i,j,s,g,t          ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        real(dp) :: FEchemSurftmp
         integer  :: ier
         logical  :: alloc_fail
         real(dp) :: sqrgradpsi(nsize)
         real(dp) :: Etotself,lbr
         real(dp) :: vnucltot
         integer  :: ncharge
+        real(dp) :: qsurf(2)
 
         
         if (.not. allocated(sumphi))  then 
@@ -791,6 +790,14 @@ contains
         FErho = (volcell/vsol)*FErho
         qres  = (volcell/vsol)*qres
 
+        qsurf = SurfaceChargeTot(sigmaqSurfR,sigmaqSurfL)
+        qsurfL = qsurf(LEFT)
+        qsurfR = qsurf(RIGHT)
+
+        qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+
+        FEelsurf = FEelect_surface()
+
 
         ! .. calcualtion of FEVdW
         if(isVdW) then 
@@ -818,7 +825,7 @@ contains
        
         ! .. total free energy per area of surface 
 
-        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind - Eshift
+        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind - Eshift + FEelsurf(LEFT) +FEelsurf(RIGHT)
         
         
         volumelat= volcell*nsize   ! volume lattice

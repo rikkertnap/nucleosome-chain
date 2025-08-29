@@ -3,7 +3,7 @@ module surface
     use precision_definition
     use globals, only : LEFT, RIGHT
     use mathconst, only : pi
-    use parameters, only : psiSR, psiSL , psiS ! surface potenital in reduced units for bc=cp
+    use parameters, only : psiSR, psiSL, psiS ! surface potenital in reduced units for bc=cp
 
     implicit none
 
@@ -294,6 +294,7 @@ contains
 
         end subroutine init_surface_constcharge
 
+
         subroutine init_surface_constpotential(side)
 
             use globals, only : runtype
@@ -323,7 +324,12 @@ contains
 
         end subroutine init_surface_constpotential
 
-         subroutine init_surface_constpotential_rangepsiL
+        ! init surface potential for runtype=rangepsiL, rangepsiR and rangepsiLR
+        ! Note it is called in main.f90 alongsude subroutine init_vars_input() 
+        ! It oul not be place in init_vars_input()  because of module dependencies psiL and psiR are initialized seperately, 
+        ! psiSurfL and psiSurfR are not in module parameters 
+
+        subroutine init_surface_constpotential_rangepsi
 
             use globals, only : runtype
             use parameters,  only : beta_times_e 
@@ -340,7 +346,29 @@ contains
                 enddo
             endif    
 
-        end subroutine init_surface_constpotential_rangepsiL
+            if(runtype=="rangepsiR") then 
+                psiSR = psiS%val  ! transfer value psiS to psiSL  
+                psiSR=  psiSR * beta_times_e ! dimensionless surface potential
+
+                do s = 1, nsurf
+                    psiSurfR(s) = psiSR
+                enddo
+            endif    
+            
+            if(runtype=="rangepsiLR") then 
+                psiSL = psiS%val  ! transfer value psiS to psiSL  
+                psiSL=  psiSL * beta_times_e ! dimensionless surface potential
+
+                psiSR = - psiS%val  ! transfer value psiS to psiSL   ! negative sign 
+                psiSR=  psiSR * beta_times_e ! dimensionless surface potential
+
+                do s = 1, nsurf
+                    psiSurfL(s) = psiSL
+                    psiSurfR(s) = psiSR
+                enddo
+            endif 
+
+        end subroutine init_surface_constpotential_rangepsi
 
 
         function surface_charge_quartz(psiS) result(surface_charge)

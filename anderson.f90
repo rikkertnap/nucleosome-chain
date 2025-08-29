@@ -14,7 +14,7 @@ module anderson
 
     real(dp), parameter ::  BETA_A = 0.9 ! 0.9         ! mixing parameter for anderson mixing 
     real(dp), parameter ::  BETA_S = -0.1  !  -0.2    ! mixing parameter for simple mixing 
-    real(dp), parameter ::  TOL_DELTA = 0.001 ! 0.01     ! treshold for Anderson to start 
+    real(dp), parameter ::  TOL_DELTA = 0.00001 ! 0.01     ! treshold for Anderson to start 
     integer, parameter  ::  NUMBER_SOL= 6       ! number of previous solutions used in Anderson mixing */
 
     integer ::  step   ! counter 

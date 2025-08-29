@@ -844,7 +844,7 @@ contains
         use volume, only : delta
         use physconst
 
-        real(dp), intent(in) :: Temp 
+        real(dp), intent(in) :: Temp ! temperature in Kelvin
 
         dielectW=dielectric_constant_water(Temp)
 

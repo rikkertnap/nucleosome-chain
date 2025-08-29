@@ -548,7 +548,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(9)
+    character(len=15) :: runtypestr(11)
     integer :: i
     logical :: flag
 
@@ -563,10 +563,13 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(7)="inputFe2pH"
     runtypestr(8)="inputFe3pH"
     runtypestr(9)="rangepsiL"
+    runtypestr(10)="rangepsiR"
+    runtypestr(11)="rangepsiLR"
+
 
     flag=.FALSE.
 
-    do i=1,9
+    do i=1,11
         if(runtype==runtypestr(i)) flag=.TRUE.
     enddo
 
@@ -936,7 +939,7 @@ subroutine set_value_FeCl3(runtype,info)
 
     info=0
 
-    if(runtype=="inputFe3pH".or.runtype=="rangepsiL") then ! .or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+    if(runtype=="inputFe3pH".or.runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then ! .or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
 
         !     .. read salt concentrations from file
         write(fname,'(A9)')'saltFe.in'
@@ -1731,6 +1734,8 @@ subroutine output_nucl_ionbin_multi
     write(un_sys,*)'systype     = ',systype
     write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
     write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
+    if(bctype(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bctype(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -1761,6 +1766,7 @@ subroutine output_nucl_ionbin_multi
     write(un_sys,*)'xOHminbulk  = ',xbulk%OHmin
     write(un_sys,*)'pHbulk      = ',pHbulk
     write(un_sys,*)'IS          = ',IS
+    
 
 
     ! dissociation constants
@@ -2145,6 +2151,8 @@ subroutine output_nonuclcp
     write(un_sys,*)'systype     = ',systype
     write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
     write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
+    if(bctype(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bctype(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -3447,7 +3455,7 @@ subroutine make_filename_label(fnamelabel)
     use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf, nnucl
     use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2,cFeCl3
     use parameters, only : pHbulk,init_denspol,VdWscale,pKd,dielectscale
-    use parameters, only : psiSL, beta_times_e
+    use parameters, only : psiSL, psiSR, beta_times_e
 
     character(len=*), intent(inout) :: fnamelabel
 
@@ -3456,7 +3464,7 @@ subroutine make_filename_label(fnamelabel)
     character(len=20) :: rstr
     real(dp) :: denspol
     character(len=40) :: sublabel
-    real(dp) :: psiLscaled
+    real(dp) :: psiLscaled, psiRscaled
    
     denspol=init_denspol()
    
@@ -3624,9 +3632,10 @@ subroutine make_filename_label(fnamelabel)
             write(rstr,'(ES9.2E2)')dielectscale%val
             fnamelabel=trim(fnamelabel)//"dielectscale"//trim(adjustl(rstr))//".dat"
 
-        elseif(runtype=="rangepsiL") then 
+        elseif(runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then 
         
             psiLscaled = psiSL/beta_times_e 
+            psiRscaled = psiSR/beta_times_e 
 
             if(psiLscaled>0.0_dp) then         ! positive 
                 if(psiLscaled>=0.001_dp) then
@@ -3644,7 +3653,26 @@ subroutine make_filename_label(fnamelabel)
                 write(rstr,'(F3.1)')psiLscaled
             endif      
 
-            fnamelabel=trim(fnamelabel)//"psiL"//trim(adjustl(rstr))//".dat"
+            fnamelabel=trim(fnamelabel)//"psiL"//trim(adjustl(rstr))
+
+
+             if(psiRscaled>0.0_dp) then         ! positive 
+                if(psiRscaled>=0.001_dp) then
+                    write(rstr,'(F5.3)')psiRscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiRscaled
+                endif    
+            elseif(psiRscaled<0.0_dp) then    ! negative 
+                if( psiRscaled<=-0.001_dp) then
+                    write(rstr,'(F6.3)')psiRscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiRscaled
+                endif
+            else !  
+                write(rstr,'(F3.1)')psiRscaled
+            endif      
+
+            fnamelabel=trim(fnamelabel)//"psiR"//trim(adjustl(rstr))//".dat"
 
         else
             fnamelabel=trim(fnamelabel)//".dat"

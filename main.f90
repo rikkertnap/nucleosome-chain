@@ -172,7 +172,7 @@ program main
         loop => VdWscale    
     else if(runtype=="rangedielect") then 
         loop => dielectscale   
-    else if(runtype=="rangepsiL") then 
+    else if(runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then 
         loop => psiS  
     else
         nullify(loop) ! make explicit that no association is made
@@ -197,7 +197,7 @@ program main
         list => cFeCl2_array
         list_val => cFeCl2
 
-    else if(runtype=="inputFe3pH".or.runtype=="rangepsiL") then
+    else if(runtype=="inputFe3pH".or.runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then
         call set_value_FeCl3(runtype,info)
         call error_handler(info,"set_value_FeCl3")
 
@@ -275,7 +275,7 @@ program main
                     isfirstguess=(loop%val==loopbegin) 
 
                     call init_vars_input()  ! sets chem potential 
-                    call init_surface_constpotential_rangepsiL
+                    call init_surface_constpotential_rangepsi
 
                    ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
                       
