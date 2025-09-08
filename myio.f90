@@ -219,6 +219,16 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) psiSL
             case ('psiSR')
                 read(buffer,*,iostat=ios) psiSR
+             case ('psiS%val')
+                read(buffer,*,iostat=ios) psiS%val
+            case ('psiS%min')
+                read(buffer,*,iostat=ios) psiS%min
+            case ('psiS%max')
+                read(buffer,*,iostat=ios) psiS%max
+            case ('psiS%stepsize')
+                read(buffer,*,iostat=ios) psiS%stepsize
+            case ('psiS%delta')
+                read(buffer,*,iostat=ios) psiS%delta
             case ('cNaCl')
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
@@ -489,7 +499,7 @@ subroutine check_value_systype(systype,info)
     character(len=20), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=20) :: systypestr(17)
+    character(len=20) :: systypestr(19)
     integer :: i
     logical :: flag
 
@@ -509,17 +519,19 @@ subroutine check_value_systype(systype,info)
     systypestr(12)="nucl_ionbin_MgA"
     systypestr(13)="nucl_ionbin_Fe"  
     systypestr(14)="nucl_ionbin_Fe_ST"
-    systypestr(15)="nonucl_ST"
+    systypestr(15)="nucl_ionbin_Fe_ST_mu"
+    systypestr(16)="nonucl_ST"
+    systypestr(17)="nonucl_ST_mu"
     
     ! only need to check input systypes
 
-    systypestr(16)="bulk_water"
-    systypestr(17)="bulk_water_ox"
+    systypestr(18)="bulk_water"
+    systypestr(19)="bulk_water_ox"
 
 
     flag=.FALSE.
 
-    do i=1,15 
+    do i=1,17
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -540,7 +552,7 @@ subroutine check_value_runtype(runtype,info)
     character(len=15), intent(in) :: runtype
     integer, intent(out),optional :: info
 
-    character(len=15) :: runtypestr(8)
+    character(len=15) :: runtypestr(11)
     integer :: i
     logical :: flag
 
@@ -553,11 +565,15 @@ subroutine check_value_runtype(runtype,info)
     runtypestr(5)="rangeVdWeps"
     runtypestr(6)="rangedielect"
     runtypestr(7)="inputFe2pH"
-    runtypestr(8)="inputFe3pH"
+    runtypestr(8)="inputFe3pH" 
+    runtypestr(9)="rangepsiL"
+    runtypestr(10)="rangepsiR"
+    runtypestr(11)="rangepsiLR"
+
 
     flag=.FALSE.
 
-    do i=1,8
+    do i=1,11
         if(runtype==runtypestr(i)) flag=.TRUE.
     enddo
 
@@ -926,7 +942,7 @@ subroutine set_value_FeCl3(runtype,info)
 
     info=0
 
-    if(runtype=="inputFe3pH") then ! .or.runtype=="rangepKd".or.runtype=="rangeVdWeps") then
+    if(runtype=="inputFe3pH".or.runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then 
 
         !     .. read salt concentrations from file
         write(fname,'(A9)')'saltFe.in'
@@ -1134,7 +1150,7 @@ subroutine check_value_VdWeps(systype,isVdW,info)
     character(len=20), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=20) :: systypestr(11)
+    character(len=20) :: systypestr(12)
     integer :: i
     logical :: flag
 
@@ -1153,8 +1169,9 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(9)="nucl_ionbin_MgA"
         systypestr(10)="nucl_ionbin_Fe"   
         systypestr(11)="nucl_ionbin_Fe_ST"  
-        
-        do i=1,11
+        systypestr(12)="nucl_ionbin_Fe_ST_mu"  
+
+        do i=1,12
             if(systype==systypestr(i)) flag=.true.
         enddo
 
@@ -1196,7 +1213,7 @@ subroutine set_value_isVdW(systype, isVdW)
     character(len=20), intent(in) :: systype
     logical, intent(inout)  :: isVdW
 
-    character(len=20) :: systypestr(4)
+    character(len=20) :: systypestr(5)
     integer :: i
 
     isVdW=.True.
@@ -1207,8 +1224,9 @@ subroutine set_value_isVdW(systype, isVdW)
     systypestr(2)="neutralnoVdW"
     systypestr(3)="brush_mulnoVdW"  
     systypestr(4)="nonucl_ST"
+    systypestr(5)="nonucl_ST_mu"
 
-    do i=1,4
+    do i=1,5
         if(systype==systypestr(i)) isVdW=.FALSE.
     enddo
 
@@ -1446,9 +1464,9 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
-    case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_FE_ST")
+    case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
 
-        call output_nucl_ionbin_Mg
+        call output_nucl_ionbin_multi
         call output_individualcontr_fe
 
     case("nucl_neutral_sv")
@@ -1456,7 +1474,7 @@ subroutine output()
         call output_neutral  
         call output_individualcontr_fe  
         
-    case("nonucl_ST")
+    case("nonucl_ST","nonucl_ST_mu")
 
         call output_nonuclcp
         call output_individualcontr_fe
@@ -1473,7 +1491,7 @@ subroutine output()
 end subroutine output
 
 
-subroutine output_nucl_ionbin_Mg
+subroutine output_nucl_ionbin_multi
 
     !     .. variables and constant declaractions
     use globals, only : nnucl, nseg, nsegtypes, nsize, cuantas, bcflag, runtype, systype
@@ -1510,7 +1528,8 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: xKClfilename
     character(len=90) :: xClfilename
     character(len=90) :: xO2filename 
-    character(len=90) :: potentialfilename
+    character(len=90) :: potentialfilename  
+    character(len=90) :: surffilename
     character(len=90) :: chargefilename
     character(len=90) :: chargepolfilename
     character(len=90) :: xHplusfilename
@@ -1523,8 +1542,10 @@ subroutine output_nucl_ionbin_Mg
     character(len=90) :: spacingfilename
     character(len=100) :: fnamelabel
 
+    integer :: ix,iy, idxL, idxR, idxR2D
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol, numpairs, numtriplets
+    logical :: write_surf
 
     ! .. executable statements
 
@@ -1538,7 +1559,7 @@ subroutine output_nucl_ionbin_Mg
     endif
         
 
-   
+    if(bcflag(LEFT)/="cc" .or. bcflag(RIGHT)/="cc")  write_surf=.true.
     ! .. make label filenames 
 
     call make_filename_label(fnamelabel)
@@ -1567,6 +1588,7 @@ subroutine output_nucl_ionbin_Mg
     densfracionpairfilename = 'densityfracionpair.'//trim(fnamelabel)
     anglesfilename = 'angles.'//trim(fnamelabel)
     spacingfilename = 'spacing.'//trim(fnamelabel)
+    surffilename   = 'surface.'//trim(fnamelabel)
 
     !     .. opening files
 
@@ -1579,8 +1601,10 @@ subroutine output_nucl_ionbin_Mg
         open(unit=newunit(un_xpol),file=xpolfilename)
         if(nnucl>1) open(unit=newunit(un_dist),file=spacingfilename)
         if(nnucl>2) open(unit=newunit(un_angle),file=anglesfilename)
-    endif 
+    endif
 
+    if(write_surf) open(unit=newunit(un_surf),file=surffilename)
+    
     if(write_frac) then 
         open(unit=newunit(un_fdis),file=densfracfilename)
         open(unit=newunit(un_fdisP),file=densfracPfilename)
@@ -1632,6 +1656,20 @@ subroutine output_nucl_ionbin_Mg
         enddo
 
     endif     
+
+    if(write_surf) then 
+
+        do ix=1,nx
+            do iy=1,ny 
+                idxL = coordtoindex(ix,iy,1)
+                idxR = coordtoindex(ix,iy,nz)
+                idxR2D = idxR - ( nsize - nx * ny)
+
+                write(un_surf,*)psiSurfL(idxL),psi(idxL),sigmaqSurfL(idxL),psiSurfR(idxR2D),psi(idxR),sigmaqSurfR(idxR2D)
+            enddo    
+        enddo
+
+    endif        
 
     if(write_frac) then 
         do i=1,nsize
@@ -1706,6 +1744,8 @@ subroutine output_nucl_ionbin_Mg
     write(un_sys,*)'systype     = ',systype
     write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
     write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    if(bcflag(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bcflag(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -1897,6 +1937,9 @@ subroutine output_nucl_ionbin_Mg
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
+    if(bcflag(LEFT)=="cp")  write(un_sys,*)'qsurfL          = ',qsurfL
+    if(bcflag(RIGHT)=="cp")  write(un_sys,*)'qsurfR          = ',qsurfR
+   
 
     ! setting Gay-Berne potential
     write(un_sys,*)'GBtype      = ',GBtype
@@ -1951,8 +1994,9 @@ subroutine output_nucl_ionbin_Mg
     endif
 
     if(write_oxygen) close(un_xO2)
+    if(write_surf) close(un_surf)
 
-end subroutine output_nucl_ionbin_Mg
+end subroutine output_nucl_ionbin_multi
 
 
 subroutine output_nonuclcp
@@ -1984,7 +2028,7 @@ subroutine output_nonuclcp
     character(len=90) :: xClfilename
     character(len=90) :: xO2filename 
     character(len=90) :: potentialfilename
-     character(len=90) :: densfracionpairfilename
+    character(len=90) :: densfracionpairfilename
     character(len=90) :: surffilename
     character(len=90) :: chargefilename
     character(len=90) :: xHplusfilename
@@ -2031,13 +2075,11 @@ subroutine output_nonuclcp
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_psi),file=potentialfilename)
         open(unit=newunit(un_surf),file=surffilename)
-
-    endif 
-
+    endif
+    
         
     if(write_localcharge) then
         open(unit=newunit(un_charge),file=chargefilename)
-
     endif    
 
     if(write_iondensities) then
@@ -2114,8 +2156,10 @@ subroutine output_nonuclcp
     write(un_sys,*)'version     = ',VERSION
     ! system description
     write(un_sys,*)'systype     = ',systype
-    write(un_sys,*)'bctype(LEFT)  = ',bcflag(LEFT)
-    write(un_sys,*)'bctype(RIGHT) = ',bcflag(RIGHT)
+    write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
+    write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    if(bcflag(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bcflag(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2508,6 +2552,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'systype     = ',systype
     write(un_sys,*)'bcflag(LEFT)  = ',bcflag(LEFT)
     write(un_sys,*)'bcflag(RIGHT) = ',bcflag(RIGHT)
+    if(bcflag(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bcflag(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2701,6 +2747,8 @@ subroutine output_nucl_mul
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
+    if(bcflag(LEFT)=="cp")  write(un_sys,*)'qsurfL          = ',qsurfL
+    if(bcflag(RIGHT)=="cp")  write(un_sys,*)'qsurfR          = ',qsurfR
 
     ! setting Gay-Berne potential
     write(un_sys,*)'GBtype      = ',GBtype
@@ -3416,13 +3464,14 @@ subroutine make_filename_label(fnamelabel)
     use globals, only : LEFT,RIGHT, systype, runtype, set_confor, local_conf, nnucl
     use parameters, only : cNaCl,cKCl,cCaCl2,cMgCl2,cFeCl2,cFeCl3
     use parameters, only : pHbulk,init_denspol,VdWscale,pKd,dielectscale
+    use parameters, only : psiSL, psiSR, beta_times_e
     
     character(len=*), intent(inout) :: fnamelabel
 
     character(len=20) :: rstr
     real(dp) :: denspol
-
     character(len=40) :: sublabel
+    real(dp) :: psiLscaled, psiRscaled
 
     denspol=init_denspol()
     
@@ -3478,8 +3527,9 @@ subroutine make_filename_label(fnamelabel)
         write(rstr,'(F5.3)')VdWscale%val
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
-    case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
-        "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nonucl_ST")
+    case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn",&
+    "nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
+    "nonucl_ST","nonucl_ST_mu")
         
         fnamelabel=trim(sublabel)
         
@@ -3590,6 +3640,49 @@ subroutine make_filename_label(fnamelabel)
             write(rstr,'(ES9.2E2)')dielectscale%val
             fnamelabel=trim(fnamelabel)//"dielectscale"//trim(adjustl(rstr))//".dat"
 
+        elseif(runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then 
+        
+            psiLscaled = psiSL/beta_times_e 
+            psiRscaled = psiSR/beta_times_e 
+
+            if(psiLscaled>0.0_dp) then         ! positive 
+                if(psiLscaled>=0.001_dp) then
+                    write(rstr,'(F5.3)')psiLscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiLscaled
+                endif    
+            elseif(psiLscaled<0.0_dp) then    ! negative 
+                if( psiLscaled<=-0.001_dp) then
+                    write(rstr,'(F6.3)')psiLscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiLscaled
+                endif
+            else !  
+                write(rstr,'(F3.1)')psiLscaled
+            endif      
+
+            fnamelabel=trim(fnamelabel)//"psiL"//trim(adjustl(rstr))
+
+
+             if(psiRscaled>0.0_dp) then         ! positive 
+                if(psiRscaled>=0.001_dp) then
+                    write(rstr,'(F5.3)')psiRscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiRscaled
+                endif    
+            elseif(psiRscaled<0.0_dp) then    ! negative 
+                if( psiRscaled<=-0.001_dp) then
+                    write(rstr,'(F6.3)')psiRscaled
+                else
+                    write(rstr,'(ES9.2E2)')psiRscaled
+                endif
+            else !  
+                write(rstr,'(F3.1)')psiRscaled
+            endif      
+
+            fnamelabel=trim(fnamelabel)//"psiR"//trim(adjustl(rstr))//".dat"
+
+
         else
             fnamelabel=trim(fnamelabel)//".dat"
         endif
@@ -3617,73 +3710,6 @@ subroutine  make_sublabel(set_confor,num_conf,sublabel)
 
 end subroutine  make_sublabel
 
-! subroutine copy_solution(x)
-
-!     use globals, only : systype, neq, nsize, bcflag, LEFT, RIGHT
-!     use volume, only  : nx,ny
-!     use surface, only : psiSurfL, psiSurfR
-!     use field
-
-!     real(dp), dimension(neq) :: x  ! expliciet size array
-
-!     ! local variable
-!     integer :: i, neq_bc
-!     integer, parameter :: A=1, B=2
-
-!     select case (systype)
-!     case ("elect")
-
-!         do i=1,nsize
-!             xsol(i)= x(i)
-!             psi(i) = x(i+nsize)
-!             rhopol(i,A)=x(i+2*nsize)
-!             rhopol(i,B)=x(i+3*nsize)
-!         enddo
-
-!         neq_bc=0 ! surface potential
-!         if(bcflag(RIGHT)/="cc") then
-!             neq_bc=nx*ny
-!             do i=1,neq_bc
-!                 psiSurfR(i) =x(4*nsize+i)
-!             enddo
-!         endif
-!         if(bcflag(LEFT)/="cc") then
-!             do i=1,nx*ny
-!                 psiSurfL(i) =x(4*nsize+neq_bc+i)
-!             enddo
-!             neq_bc=neq_bc+nx*ny
-!         endif
-
-!     case ("neutral")
-
-!         do i=1,nsize
-!             xsol(i)= x(i)
-!         enddo
-
-!     case ("neutralnoVdW")
-
-!         do i=1,nsize
-!             xsol(i)= x(i)
-!         enddo
-
-!     case ("brush_mulnoVdW")
-
-!         do i=1,nsize
-!             xsol(i)= x(i)
-!             psi(i) = x(i+nsize)
-!         enddo
-
-!     case default
-
-!         print*,"Error: systype incorrect in copy_solution"
-!         print*,"stopping program"
-!         stop
-
-!     end select
-
-! end subroutine copy_solution
-
-! output routine
 
 subroutine compute_vars_and_output()
 
@@ -3760,7 +3786,7 @@ subroutine compute_vars_and_output()
         call max_potential() 
         call output()   
 
-    case ("nucl_ionbin_Fe","nucl_ionbin_FE_ST")   
+    case ("nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")   
         
         call charge_polymer()
         call average_charge_polymer()        
@@ -3775,7 +3801,7 @@ subroutine compute_vars_and_output()
         call fcnenergy()
         call output()   
         
-    case ("nonucl_ST")
+    case ("nonucl_ST","nonucl_ST_mu")
 
         call fcnenergy()
         call make_ion_excess()

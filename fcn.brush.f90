@@ -2476,16 +2476,16 @@ contains
         real(dp), intent(in) :: x(neq)
         real(dp), intent(out) :: f(neq)
 
-        !call fcnnucl_Fe_expl(x,f,nn)
-        call fcnnonucl_cp(x,f,nn)
+        call fcnnucl_Fe_expl(x,f,nn)
+        !call fcnnonucl_cp(x,f,nn)
 
     end subroutine fcnnucl_ionbin_sv_Fe
 
     subroutine fcnnucl_ionbin_sv_Fe_ST(x,f,nn)
 
         use precision_definition
-        use globals , only : neq
-        use modfcnFeexpl
+        use globals, only : neq
+        use modfcnFeexpl, only: fcnnucl_Fe_expl_ST
 
         !     .. scalar arguments
 
@@ -2497,15 +2497,33 @@ contains
         real(dp), intent(out) :: f(neq)
 
         call fcnnucl_Fe_expl_ST(x,f,nn) 
-        !call fcnnonucl_cp(x,f,nn)
 
     end subroutine fcnnucl_ionbin_sv_Fe_ST
+
+     subroutine fcnnucl_ionbin_sv_Fe_ST_mu(x,f,nn)
+
+        use precision_definition
+        use globals, only : neq
+        use modfcnFeexpl, only: fcnnucl_Fe_expl_ST_mu
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Fe_expl_ST_mu(x,f,nn) 
+
+    end subroutine fcnnucl_ionbin_sv_Fe_ST_mu
 
     subroutine fcnnonuclST(x,f,nn)
 
         use precision_definition
-        use globals , only : neq
-        use modfcnFeexpl
+        use globals, only : neq
+        use modfcnFeexpl, only :fcnnonucl_ST
 
         !     .. scalar arguments
 
@@ -2519,6 +2537,25 @@ contains
         call fcnnonucl_ST(x,f,nn)
 
     end subroutine fcnnonuclST
+
+    subroutine fcnnonuclSTmu(x,f,nn)
+
+        use precision_definition
+        use globals , only : neq
+        use modfcnFeexpl, only : fcnnonucl_ST_mu
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnonucl_ST_mu(x,f,nn)
+
+    end subroutine fcnnonuclSTmu
 
 
     !  .. function solves for bulk volume fraction 
@@ -2756,7 +2793,13 @@ contains
                 do i=1,nsize
                     constr(i+nsize)=0.0_dp     ! electrostatic potential 
                 enddo
-
+            case ("nucl_ionbin_Fe_ST_mu","nonucl_ST_mu")   
+                do i=1,nsize
+                    constr(i)=2.0_dp
+                enddo
+                do i=nsize+1,neqint
+                    constr(i)=0.0_dp      ! electrostatic potential and mu 
+                enddo
             case ("brushborn")                 
                 do i=1,neqint
                     constr(i)=1.0_dp
@@ -2826,10 +2869,14 @@ contains
             fcnptr => fcnnucl_ionbin_sv_Fe 
         case ("nucl_ionbin_Fe_ST")
             fcnptr => fcnnucl_ionbin_sv_Fe_ST
+        case ("nucl_ionbin_Fe_ST_mu")
+            fcnptr => fcnnucl_ionbin_sv_Fe_ST_mu
         case ("nucl_neutral_sv")
             fcnptr => fcnnucl_neutral_sv    
         case ("nonucl_ST")
             fcnptr => fcnnonuclST
+        case ("nonucl_ST_mu")
+            fcnptr => fcnnonuclSTmu
         case ("brushborn")
             fcnptr => fcnbrushborn    
         case ("elect")                  ! copolymer weak polyacid, no VdW

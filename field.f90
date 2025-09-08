@@ -145,15 +145,6 @@ contains
     end subroutine deallocate_field
 
 
-!    subroutine allocate_part_fnc(N)
-!       
-!        integer, intent(in) :: N
-
-        ! allocate(lnq(N))
-        ! allocate(q(N))
-
-!    end subroutine allocate_part_fnc
-
     ! set all densities to zero
     
     subroutine init_field()
@@ -205,7 +196,8 @@ contains
 
         endif
  
-        if(systype=="nucl_ionbin_MgA" .or. systype =="nucl_ionbin_Fe") then
+        if(systype=="nucl_ionbin_MgA" .or. systype =="nucl_ionbin_Fe".or. &
+            systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then
 
             N=Nx*Ny*Nz
             allocate(rhoqphos(N))
@@ -221,7 +213,7 @@ contains
         use globals, only : systype 
         integer, intent(in) :: maxfdisPPP
 
-        if(systype=="nucl_ionbin_Fe") then
+        if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then
 
             allocate(fdisPPP_loc1(maxfdisPPP,maxfdisPPP,maxfdisPPP))
             allocate(fdisPPP_loc1_swap(maxfdisPPP,maxfdisPPP,maxfdisPPP))
@@ -260,7 +252,7 @@ contains
        
         use globals, only : systype
  
-        if(systype=="nucl_ionbin_Fe") then
+        if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then
             fdisPPP_loc1=0.0_dp
             fdisPPP_loc1_swap=0.0_dp
             fdisPPP_loc2=0.0_dp
@@ -322,7 +314,6 @@ contains
     subroutine charge_polymer()
 
         use globals, only : systype
-
         
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW")
@@ -341,7 +332,7 @@ contains
 
             call charge_nucl_ionbin_sv()  
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
 
             call charge_nucl_ionbin_Mg() 
 
@@ -584,7 +575,7 @@ contains
 
             call average_charge_nucl_ionbin_Mg()
 
-        case ("nucl_ionbin_Fe")
+        case ("nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
             
             call average_charge_nucl_ionbin_Fe()
 

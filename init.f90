@@ -79,8 +79,10 @@ subroutine init_guess(x, xguess)
             call init_guess_multi(x,xguess)
         case ("nucl_neutral_sv")  
             call init_guess_nucl_neutral_sv(x,xguess) 
-        case ("nonucl_ST") 
+        case ("nonucl_ST","nucl_ionbin_Fe_ST") 
             call init_guess_nonucl_ST(x,xguess)
+        case ("nonucl_ST_mu","nucl_ionbin_Fe_ST_mu") 
+            call init_guess_nonucl_ST_mu(x,xguess)
         case ("brushborn") 
             call init_guess_multi_born(x,xguess)
         case default   
@@ -279,7 +281,6 @@ subroutine init_guess_neutral(x, xguess)
                 enddo
             endif        
         enddo    
-
 
         close(un_file(1))
         close(un_file(2))
@@ -545,10 +546,10 @@ subroutine make_guess_potential_ST(electpot)
     integer :: i, j, k, indx
 
     slope= (psiSR-psiSL)/(nz*1.0_dp)
-     if(DEBUG_ST) print*,"slope=",slope, "psimin=",psiSL," psimax=",psiSR
+    if(DEBUG_ST) print*,"slope=",slope, "psimin=",psiSL," psimax=",psiSR
     
     do k=1,nz 
-        electpot_val = slope * (k - 0.5_dp) + psiSR  ! middle of lattice cell in z-direction
+        electpot_val = slope * (k - 0.5_dp) + psiSL  ! middle of lattice cell in z-direction
         do j=1,ny
             do i=1,nx 
                 indx=coordtoindex(i,j,k)
@@ -559,52 +560,81 @@ subroutine make_guess_potential_ST(electpot)
 
 end subroutine make_guess_potential_ST
 
+
+subroutine linear_interpolation(fcn_interp,fcn_begin,fcn_end)
+
+    use globals, only : DEBUG_ST
+    use volume, only : nx, ny, nz, coordtoindex
+
+    real(dp), intent(inout) :: fcn_interp(:)
+    real(dp), intent(in) :: fcn_begin, fcn_end
+
+    ! local variable 
+    real(dp) :: slope, fcn_val
+    integer :: i, j, k, indx
+
+    slope= (fcn_end-fcn_begin)/(nz*1.0_dp)
+    if(DEBUG_ST) print*,"slope=",slope, "fcn_begin=",fcn_begin," fcn_end=",fcn_end,"nz=",nz 
+    
+    do k=1,nz 
+        fcn_val = slope * (k - 0.5_dp) + fcn_begin  ! middle of lattice cell in z-direction
+        do j=1,ny
+            do i=1,nx 
+                indx=coordtoindex(i,j,k)
+                fcn_interp(indx)=fcn_val
+            enddo
+        enddo
+    enddo            
+
+end subroutine linear_interpolation
+
+
 ! Makes an inital guess vector xguess for systype nonucl_ST
 
 subroutine init_guess_nonucl_ST(x, xguess)
 
-    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,DEBUG_ST
-    use volume, only : nsurf
-    use field, only : xsol, psi
-    use surface, only : psisurfL, psisurfR 
-    use parameters, only : xbulk, infile, xvolmin
+    use globals, only : LEFT, RIGHT, nsize, neqint, DEBUG_ST
+    use field, only : xsol, psi, xNa, xCl, xK, xHplus, xOHmin, xMg, xFe2, xFe3, xCa 
+    use parameters, only : xbulk, infile, xvolmin, psiSL, psiSR
+    use parameters, only : niontypes, iontype, isionselfconsistent
     use myutils, only : newunit, lenText, error_handler
     use molecules, only : get_value_moleclist, sum_value_moleclist
+
   
     real(dp) :: x(:)       ! volume fraction solvent iteration vector 
     real(dp) :: xguess(:)  ! guess fraction  solvent 
   
-    !     ..local variables 
-    integer :: i, t
-    character(len=9) :: fname(8)
+    !  ..local variables 
+    integer :: i, t, k
+    character(len=9) :: fname(11)
     character(len=lenText) :: text, istr
-    integer :: ios,un_file(8)
-    character(len=5) :: iontypes(6),key
-    real(dp) :: xvol,xtmp,xtest
+    integer :: ios,un_file(11)
+    character(len=5) :: key
+    real(dp) :: xvol, xtest
+
     ! .. init guess all xbulk     
 
     call make_guess_potential_ST(psi)
-    
+    call linear_interpolation(psi,psiSL,psiSR)
+   
     do i=1,nsize
         x(i)       = xbulk%sol
         x(i+nsize) = psi(i)
     enddo 
       
-    iontypes=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   "/)
-
+   ! iontype(9)=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   ","Fe2  ","Fe3  ","Ca   "/) 
     xtest=0.0_dp
-
-    do t=1,size(iontypes)
-    
-        key = trim(iontypes(t))
-        xvol = get_value_moleclist(xvolmin,key)
-        xtest = xtest +xvol
-        if(DEBUG_ST) print*,"t= ",t," key= ",key," xvol=",xvol
-
-        do i=(1+t)*nsize+1,(2+t)*nsize 
-            x(i)=xvol
-           ! write(300+t,*)i, x(i)
-        enddo       
+    k = 2*nsize
+    do t=1,size(iontype)
+        if(isionselfconsistent(t)) then 
+            key = trim(iontype(t))
+            xvol = get_value_moleclist(xvolmin,key)
+            xtest = xtest +xvol
+            if(DEBUG_ST) print*,"t= ",t," key= ",key," xvol=",xvol
+       
+            x(k+1:k+nsize)=xvol
+            k = k + nsize
+        endif           
     enddo
 
     xtest=xtest+xbulk%sol
@@ -614,57 +644,110 @@ subroutine init_guess_nonucl_ST(x, xguess)
     if(DEBUG_ST) print*,"xtest=",xtest
 
 
-   ! check packing
-    do i=1,nsize
-        xtmp=0.0_dp
-        do t=2,size(iontypes)+1
-            xtmp=xtmp+x(i+t*nsize)
-        enddo
-        xtmp=xtmp+xbulk%sol
-        write(100,*)xtmp    
-    enddo
-
     if (infile.eq.1) then   ! infile is read in from file/stdio  
     
-        write(fname(1),'(A7)')'xsol.in'
-        write(fname(2),'(A6)')'psi.in'
-        write(fname(3),'(A6)')'xNa.in'
-        write(fname(4),'(A6)')'xCl.in'
-        write(fname(5),'(A5)')'xK.in'
+        write(fname(10),'(A7)')'xsol.in'
+        write(fname(11),'(A6)')'psi.in'
+   
+        write(fname(1),'(A6)')'xNa.in'
+        write(fname(2),'(A6)')'xCl.in'
+        write(fname(3),'(A5)')'xK.in'
+        write(fname(4),'(A9)')'xHplus.in'
+        write(fname(5),'(A9)')'xOHmin.in'
         write(fname(6),'(A6)')'xMg.in'
-        write(fname(7),'(A9)')'xHplus.in'
-        write(fname(8),'(A9)')'xOHmin.in'
+        write(fname(7),'(A9)')'xFe2.in'
+        write(fname(8),'(A9)')'xFe3.in'
+        write(fname(9),'(A6)')'xCa.in'
 
-        do i=1,8 ! loop files
-            open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
+        do t=1,size(iontype) !  open ion files 
+            if(isionselfconsistent(t)) then 
+                open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
+                if(ios >0 ) then
+                    write(istr,'(I5)')un_file(t)
+                    text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
+                    call error_handler(ios,text)
+                endif
+            endif    
+        enddo
+        do t=10,11 ! open xsol and psi files 
+            open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
             if(ios >0 ) then
-                write(istr,'(I5)')un_file(i)
-                text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                write(istr,'(I5)')un_file(t)
+                text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
                 call error_handler(ios,text)
             endif
         enddo
-        if(bcflag(LEFT)/="cc") then 
-            do i=1,nsurf
-                read(un_file(2),*)psisurfL(i)
-            enddo
-        endif            
+           
         do i=1,nsize
-            read(un_file(1),*)xsol(i)    ! solvent
-            read(un_file(2),*)psi(i)     ! potential
+            read(un_file(10),*)xsol(i)    ! solvent
+            read(un_file(11),*)psi(i)     ! potential
         
             x(i)         = xsol(i)    ! placing xsol in vector x
-            x(i+nsize)   = psi(i)     ! placing psi in vector x
-                  
+            x(i+nsize)   = psi(i)     ! placing psi in vector x      
         enddo
-    
-        if(bcflag(RIGHT)/="cc") then
-            do i=1,nsurf 
-                read(un_file(2),*)psisurfR(i)
-            enddo
-        endif            
-       
-         do i=1,2
+                
+        k=2*nsize
+        do t=1,niontypes 
+            if(isionselfconsistent(t)) then 
+                select case (iontype(t))
+                case ("Hplus")
+                    do i=1,nsize     
+                        read(un_file(t),*)xHplus(i)  
+                    enddo
+                    x(k+1:k+nsize)=xHplus
+                case( "OHmin") 
+                    do i=1,nsize     
+                        read(un_file(t),*)xOHmin(i)  
+                    enddo  
+                     x(k+1:k+nsize)=xOHmin
+                case("Na")
+                    do i=1,nsize     
+                        read(un_file(t),*)xNa(i)
+                    enddo  
+                     x(k+1:k+nsize)=xNa
+                case("K")
+                    do i=1,nsize     
+                        read(un_file(t),*)xK(i)
+                    enddo  
+                     x(k+1:k+nsize)=xK
+                case("Cl")
+                    do i=1,nsize   
+                        read(un_file(t),*)xCl(i) 
+                    enddo  
+                     x(k+1:k+nsize)=xCl
+                case("Mg")
+                    do i=1,nsize     
+                        read(un_file(t),*)xMg(i)
+                    enddo   
+                     x(k+1:k+nsize)=xMg
+                case("Fe2")
+                    do i=1,nsize     
+                        read(un_file(t),*)xFe2(i) 
+                    enddo 
+                     x(k+1:k+nsize)=xFe2
+                case("Fe3")
+                    do i=1,nsize     
+                        read(un_file(t),*)xFe3(i)
+                    enddo  
+                    x(k+1:k+nsize)=xFe3  
+                case("Ca")
+                    do i=1,nsize     
+                        read(un_file(t),*)xCa(i)
+                    enddo  
+                    x(k+1:k+nsize)=xCa     
+                case default
+                end select
+                k = k + nsize
+            endif
+        enddo
+
+
+        do i=10,11
             close(un_file(i))
+        enddo
+
+        do t=1,size(iontype) !  open ion files 
+            if(isionselfconsistent(t)) close(un_file(t))   
         enddo
 
     endif
@@ -676,6 +759,194 @@ subroutine init_guess_nonucl_ST(x, xguess)
 
 end subroutine init_guess_nonucl_ST
 
+
+! Makes an inital guess vector xguess for systype nonucl_ST_mu
+
+subroutine init_guess_nonucl_ST_mu(x, xguess)
+
+    use globals, only : LEFT, RIGHT, nsize, neqint, DEBUG_ST
+    use field, only : xsol, psi, xNa, xCl, xK, xHplus, xOHmin, xMg, xFe2, xFe3, xCa 
+    use parameters, only : xbulk, infile, mumin,mumax, psiSL, psiSR
+    use parameters, only : niontypes, iontype, isionselfconsistent
+    use myutils, only : newunit, lenText, error_handler
+    use molecules, only : get_value_moleclist, sum_value_moleclist
+    use flux, only : chem_potential
+  
+    real(dp) :: x(:)       ! volume fraction solvent iteration vector 
+    real(dp) :: xguess(:)  ! guess fraction  solvent 
+  
+    !  ..local variables 
+    integer :: i, t, k
+    character(len=9) :: fname(12)
+    character(len=lenText) :: text, istr
+    integer :: ios,un_file(12)
+    character(len=5) :: key
+    real(dp) :: mu(nsize), muL , muR
+
+
+    if( infile==0) then 
+       
+        ! .. init guess xsol and psi  
+        call linear_interpolation(psi,psiSL,psiSR)
+        
+        do i=1,nsize
+            x(i)       = xbulk%sol
+            x(i+nsize) = psi(i)
+        enddo 
+        
+        ! iontype(9)=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   ","Fe2  ","Fe3  ","Ca   "/) 
+
+        k = 2*nsize
+        do t=1,size(iontype)
+            if(isionselfconsistent(t)) then 
+                key = trim(iontype(t))
+                muL = get_value_moleclist(mumin,key)
+                muR = get_value_moleclist(mumax,key)
+                call linear_interpolation(mu,muL,muR)
+        
+                x(k+1:k+nsize) = mu
+                k = k + nsize
+            endif           
+        enddo
+
+    else if (infile==1) then   ! infile is read in from file/stdio  
+        
+        write(fname(10),'(A7)')'xsol.in'
+        write(fname(11),'(A6)')'psi.in'
+   
+        write(fname(1),'(A6)')'xNa.in'
+        write(fname(2),'(A6)')'xCl.in'
+        write(fname(3),'(A5)')'xK.in'
+        write(fname(4),'(A9)')'xHplus.in'
+        write(fname(5),'(A9)')'xOHmin.in'
+        write(fname(6),'(A6)')'xMg.in'
+        write(fname(7),'(A9)')'xFe2.in'
+        write(fname(8),'(A9)')'xFe3.in'
+        write(fname(9),'(A6)')'xCa.in'
+
+        do t=1,size(iontype) !  open ion files 
+            if(isionselfconsistent(t)) then 
+                open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
+                if(ios >0 ) then
+                    write(istr,'(I5)')un_file(t)
+                    text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
+                    call error_handler(ios,text)
+                endif
+            endif    
+        enddo
+        do t=10,11 ! open xsol and psi files 
+            open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(t)
+                text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
+                call error_handler(ios,text)
+            endif
+        enddo
+           
+        do i=1,nsize
+            read(un_file(10),*)xsol(i)    ! solvent
+            read(un_file(11),*)psi(i)     ! potential
+        
+            x(i)         = xsol(i)    ! placing xsol in vector x
+            x(i+nsize)   = psi(i)     ! placing psi in vector x      
+        enddo
+                
+        k=2*nsize
+        do t=1,niontypes 
+            if(isionselfconsistent(t)) then 
+                select case (iontype(t))
+                case ("Hplus")
+                    do i=1,nsize     
+                        read(un_file(t),*)xHplus(i)  
+                    enddo
+                    call chem_potential(mu,xsol,xHplus,psi,"Hplus")
+                    x(k+1:k+nsize) = mu
+                case( "OHmin") 
+                    do i=1,nsize     
+                        read(un_file(t),*)xOHmin(i)  
+                    enddo  
+                    call chem_potential(mu,xsol,xOHmin,psi,"OHmin")
+                    x(k+1:k+nsize)=mu
+                case("Na")
+                    do i=1,nsize     
+                        read(un_file(t),*)xNa(i)
+                    enddo  
+                    call chem_potential(mu,xsol,xNa,psi,"Na")
+                    x(k+1:k+nsize)=mu
+                case("K")
+                    do i=1,nsize     
+                        read(un_file(t),*)xK(i)
+                    enddo  
+                    call chem_potential(mu,xsol,xK,psi,"K") 
+                    x(k+1:k+nsize)=mu
+                case("Cl")
+                    do i=1,nsize   
+                        read(un_file(t),*)xCl(i) 
+                    enddo  
+                    call chem_potential(mu,xsol,xCl,psi,"Cl")  
+                    x(k+1:k+nsize)=mu
+                case("Mg")
+                    do i=1,nsize     
+                        read(un_file(t),*)xMg(i)
+                    enddo   
+                    call chem_potential(mu,xsol,xMg,psi,"Mg") 
+                    x(k+1:k+nsize)=mu
+                case("Fe2")
+                    do i=1,nsize     
+                        read(un_file(t),*)xFe2(i) 
+                    enddo 
+                    call chem_potential(mu,xsol,xFe2,psi,"Fe2") 
+                    x(k+1:k+nsize)=mu
+                case("Fe3")
+                    do i=1,nsize     
+                        read(un_file(t),*)xFe3(i)
+                    enddo  
+                    call chem_potential(mu,xsol,xFe3,psi,"Fe3")
+                    x(k+1:k+nsize)=mu
+                case("Ca")
+                    do i=1,nsize     
+                        read(un_file(t),*)xCa(i)
+                    enddo 
+                    call chem_potential(mu,xsol,xCa,psi,"Ca") 
+                    x(k+1:k+nsize)=mu     
+                case default
+                end select
+                k = k + nsize
+            endif
+        enddo
+
+
+        do i=10,11
+            close(un_file(i))
+        enddo
+
+        do t=1,size(iontype) !  open ion files 
+            if(isionselfconsistent(t)) close(un_file(t))   
+        enddo
+
+    else if (infile==2) then   ! x  read  directly from x.out
+
+        write(fname(12),'(A5)')'x.out'
+        open(unit=newunit(un_file(12)),file=fname(12),iostat=ios,status='old')
+        if(ios >0 ) then
+            write(istr,'(I5)')un_file(12)
+            text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(12)))                
+            call error_handler(ios,text)
+        endif
+        do i=1,neqint     
+            read(un_file(12),*)x(i)
+        enddo 
+        close(un_file(12))
+
+    endif
+    
+    ! assign xguess to x 
+  
+    do i=1,neqint
+        xguess(i)=x(i)
+    enddo
+
+end subroutine init_guess_nonucl_ST_mu
 
 subroutine init_guess_multi_born(x, xguess)
 

@@ -16,9 +16,9 @@ contains
    
      subroutine compute_fdisPP(fdisPP,fdisP2Mg,fdisP2Fe2,fdisP2Fe3,position1,position2)
 
-        use field, only : xHplus, xOHmin, xNa, xK, xMg, xFe2, xFe3, xsol, psi
-        use parameters, only : vsol,vNa,vK,vCl,vMg,vFe2,vFe3, deltavAA
-        use parameters, only : K0aAA,K0a,K0aion
+        use field, only : xHplus, xNa, xK, xMg, xFe2, xFe3, xsol
+        use parameters, only : vNa,vK,vMg,vFe2,vFe3, deltavAA
+        use parameters, only : K0aAA
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, PhosFe2, PhosFe3
 
         real(dp), intent(inout), dimension(:,:) :: fdisPP
@@ -99,18 +99,18 @@ contains
     subroutine fcnnucl_Mg_expl(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf, DEBUG
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP,vO2
-        use parameters, only : zpol,zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
-        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use parameters, only : vsol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,vnucl,vPP,vO2
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
+        use parameters, only : ta,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
-        use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
+        use volume, only     : volcell 
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only     : energychainLJ, no_overlapchain
-        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhopolin,rhoqpol,rhoq
-        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhoqpol,rhoq
+        use field, only      : psi,gdisA,gdisB,fdis, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
         use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
@@ -136,15 +136,12 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: n,i,j,k,c,s,t,jcharge,m                           ! dummy indices
         integer  :: JJ, KK
-        integer  :: ix,iy
-        real(dp) :: norm, normvol,normPE, normscf
+        real(dp) :: norm, normvol,normPE
         real(dp) :: rhopol0 
-        real(dp) :: xA(3),xB(2),sgxA,sgxB                            ! disociation ariables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
-        integer  :: count_scf
+        real(dp) :: xA(3),xB(2),sgxA,sgxB                             ! disociation ariables 
+        real(dp) :: locallnproshift(2)
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
         real(dp) :: sum_rhoqphos,sum_xphos
 
@@ -565,12 +562,12 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
-        use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
-        use parameters, only : ta,isVdW! isrhoselfconsistent 
-        use volume, only     : nx, ny, nz
-        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
+        use parameters, only : K0aAA,Phos
+        use parameters, only : ta,isVdW
+        use volume, only     : nx, ny
+        use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol, psi, fdis, rhopol_charge, fdisPP_loc, fdisPP_loc_swap 
         use field, only      : fdisP2Mg_loc, fdisP2Mg_loc_swap, fdisP2Fe2_loc, fdisP2Fe2_loc_swap
@@ -586,8 +583,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
-        integer  :: k_ind, m_ind
+        integer  :: n,i,j,k,c,s,m,t,jcharge                ! dummy indices
         integer  :: JJ, KK
         real(dp) :: local_avfdisP2Mg,local_avfdisPP(7,7),local_avfdisP2Fe2,local_avfdisP2Fe3
         real(dp) :: sumrhopairs
@@ -745,15 +741,14 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
-        use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg,Phos2Fe2,Phos2Fe3, ta 
-        use volume, only     : nx, ny, nz
-        use volume, only     : volcell, inverse_indexneighbor_phos, indexneighbor
+        use parameters, only : vPP,qPP,K0aAA,Phos,Phos2Mg,Phos2Fe2,Phos2Fe3, ta 
+        use volume, only     : nx, ny
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only     : energychainLJ, no_overlapchain
-        use field, only      : xsol,psi,fdis, rhopol_charge 
-        use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
-        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
+        use field, only      : xsol,psi,fdis
+        use field, only      : fdisPP_loc, fdisP2Mg_loc!, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
+        use field, only      : fdisP2Fe2_loc, fdisP2Fe3_loc
         use field, only      : q, lnproshift
         use myutils, only    : error_handler
 
@@ -764,7 +759,7 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize)
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,kr,m,mr,t,jcharge                ! dummy indices
+        integer  :: n,i,j,k,c,s,m,t,jcharge                ! dummy indices
         integer  :: JJ, KK
         real(dp) :: local_FEchempair, FEchempair
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 

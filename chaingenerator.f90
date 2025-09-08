@@ -50,7 +50,7 @@ subroutine make_chains(chainmethod,systype)
     integer :: info
     character(len=lenText) :: text
 
-    if(systype=="nonucl_ST") return ! alternate return
+    if(systype=="nonucl_ST".or.systype=="nonucl_ST_mu") return ! alternate return
 
     info=0
 
@@ -260,10 +260,15 @@ subroutine read_chains_xyz(systype,info)
     integer, intent(out) :: info
 
     if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
-       .or. systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe") then 
+       .or. systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe".or. &
+       systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
+
         call read_chains_xyz_nucl_volume(info)
+    
     else
+    
         call read_chains_xyz_nucl(info)
+    
     endif    
 
 end subroutine
@@ -908,13 +913,14 @@ subroutine read_chains_xyz_nucl_volume(info)
     call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
     
     ! pairs variable 
-    if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
+    if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or. &
+         systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
         call allocate_indexconfpair(cuantas,nseg)
         call allocate_nneighbor(cuantas,nseg)
         tPhos = find_type_phosphate()
     endif
     ! triplet  variable 
-    if(systype=="nucl_ionbin_Fe") then 
+    if(systype=="nucl_ionbin_Fe".or. systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
         print*,"allocate_indexconftriplet"
         call allocate_indexconftriplet(cuantas,nseg)
         call allocate_ntriplet(cuantas,nseg)
@@ -1160,7 +1166,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 endif    
 
-                if(systype=="nucl_ionbin_Fe") then
+                if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.&
+                    systype=="nucl_ionbin_Fe_ST_mu") then
                 
                     call find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                     call write_phosphate_triplets(.true.,conf,info)

@@ -83,6 +83,10 @@ contains
                 val=struct%Fe3
             case ("Mg") 
                 val=struct%Mg
+            case ("Ca") 
+                val=struct%Ca
+            case ("O2") 
+                val=struct%O2
             case default
                 print*,"Wrong value member molecule list :  ",member
                 stop

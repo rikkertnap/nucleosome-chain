@@ -39,11 +39,10 @@ contains
         endif
         
     end subroutine Poisson_equation
-        
+
     subroutine Poisson_Equation_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
 
         use volume, only : geometry
-        use parameters, only : psiSL, psiSR
 
         ! input arguments 
         real(dp), intent(inout) :: fvec(:)
@@ -54,7 +53,29 @@ contains
     
         if(geometry=="cubic") then 
 
-            !call Poisson_Equation_cubic_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+            call Poisson_Equation_cubic_bc(fvec,psi,rhoq,sigmaqSurfR,sigmaqSurfL)
+           
+        else 
+
+            print*,"Wrong geometry in Poisson_equation_bc"   
+        
+        endif
+        
+    end subroutine Poisson_equation_bc
+
+
+    subroutine Poisson_Equation_ST(fvec,psi,rhoq)
+
+        use volume, only : geometry
+        use parameters, only : psiSL, psiSR
+
+        ! input arguments 
+        real(dp), intent(inout) :: fvec(:)
+        real(dp), intent(in) :: psi(:)
+        real(dp), intent(in) :: rhoq(:)
+    
+        if(geometry=="cubic") then 
+
             call Poisson_Equation_cubic_ST(fvec,psi,rhoq,psiSL,psiSR)
     
         else 
@@ -63,7 +84,7 @@ contains
         
         endif
         
-    end subroutine Poisson_equation_bc
+    end subroutine Poisson_equation_ST
 
     subroutine Poisson_Equation_Eps(fvec,psi,rhoq,eps)
 
@@ -318,7 +339,7 @@ contains
     end subroutine Poisson_Equation_cubic_bc
 
 
-    subroutine Poisson_Equation_cubic_ST(fvec,psi,rhoq,psizmin,psizmax)
+    subroutine Poisson_Equation_cubic_ST_pbc(fvec,psi,rhoq,psizmin,psizmax)
 
         use globals, only : nsize
         use parameters, only : constqW
@@ -339,17 +360,18 @@ contains
        
         nshift = nsize
 
-        do ix=1,nx
+        ! inside 
+        do iz=2,nz-1
             do iy=1,ny
-                do iz=2,nz-1
+                do ix=1,nx
                   
                     id      = coordtoindex(ix,           iy,iz)
                     idxpls  = coordtoindex(ipbc(ix+1,nx),iy,iz)
                     idxmin  = coordtoindex(ipbc(ix-1,nx),iy,iz)
-                    idzpls  = coordtoindex(ix,           iy,iz+1)
-                    idzmin  = coordtoindex(ix,           iy,iz-1)
                     idypls  = coordtoindex(ix,ipbc(iy+1,ny),iz)
                     idymin  = coordtoindex(ix,ipbc(iy-1,ny),iz)
+                    idzpls  = coordtoindex(ix,           iy,iz+1)
+                    idzmin  = coordtoindex(ix,           iy,iz-1)
 
                     fvec(nshift+id)= -0.5_dp*(&
                          psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
@@ -358,18 +380,23 @@ contains
             enddo
         enddo    
 
-        ! boundary iz=1 
+        ! faces 
+        
+        ! bottom z-face
+        ! boundary z=0 iz=1 
 
-        do ix=1,nx
-            do iy=1,ny
-                iz=1
+        iz=1
+        do iy=1,ny
+            do ix=1,nx
+                
                 id      = coordtoindex(ix,           iy,iz)
                 idxpls  = coordtoindex(ipbc(ix+1,nx),iy,iz)
                 idxmin  = coordtoindex(ipbc(ix-1,nx),iy,iz)
-                idzpls  = coordtoindex(ix,           iy,iz+1)
                 idypls  = coordtoindex(ix,ipbc(iy+1,ny),iz)
                 idymin  = coordtoindex(ix,ipbc(iy-1,ny),iz)
-
+                idzpls  = coordtoindex(ix,           iy,iz+1)
+                !idzmin  = coordtoindex(ix,           iy,iz-1)
+                
                 fvec(nshift+id)= -0.5_dp*(&
                     psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psizmin &
                     -6.0_dp*psi(id) +rhoq(id)*constqW)
@@ -377,18 +404,21 @@ contains
             enddo
         enddo    
 
-        ! boundary iz=nz 
+        ! top z-face
+        ! boundary z=nz*delta iz=nz
 
-        do ix=1,nx
-            do iy=1,ny
-                iz=nz
+        iz=nz
+        do iy=1,ny
+            do ix=1,nx
+
                 id      = coordtoindex(ix,           iy,iz)
                 idxpls  = coordtoindex(ipbc(ix+1,nx),iy,iz)
                 idxmin  = coordtoindex(ipbc(ix-1,nx),iy,iz)
-                idzmin  = coordtoindex(ix,           iy,iz-1)
                 idypls  = coordtoindex(ix,ipbc(iy+1,ny),iz)
                 idymin  = coordtoindex(ix,ipbc(iy-1,ny),iz)
-                
+                !idzpls  = coordtoindex(ix,           iy,iz+1)
+                idzmin  = coordtoindex(ix,           iy,iz-1) 
+
                 fvec(nshift+id)= -0.5_dp*(&
                          psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psizmax+psi(idzmin) &
                         -6.0_dp*psi(id) +rhoq(id)*constqW)
@@ -397,7 +427,580 @@ contains
         enddo    
 
 
+    end subroutine Poisson_Equation_cubic_ST_pbc
+
+    subroutine Poisson_Equation_cubic_ST(fvec,psi,rhoq,psizmin,psizmax)
+
+        use globals, only : nsize
+        use parameters, only : constqW
+        use volume, only : nx, ny, nz, coordtoindex ! linearIndexFromCoordinate
+
+        ! input arguments 
+        real(dp), intent(inout) :: fvec(:)
+        real(dp), intent(in) :: psi(:)
+        real(dp), intent(in) :: rhoq(:)
+        real(dp), intent(in) :: psizmin
+        real(dp), intent(in) :: psizmax
+        
+        ! local variables
+        integer :: ix, iy, iz, nshift
+        integer :: id, idxpls, idxmin, idypls, idymin, idzpls, idzmin
+        real(dp) :: factor6, factor5, factor4, factor3
+
+        ! .. electrostatics 
+       
+        nshift = nsize
+
+        factor6 = -1.0_dp/6.0_dp
+        factor5 = -1.0_dp/5.0_dp 
+        factor4 = -1.0_dp/4.0_dp
+        factor3 = -1.0_dp/3.0_dp
+
+        ! inside 
+
+        do iz=2,nz-1
+            do iy=2,ny-1
+                do ix=2,nx-1
+                  
+                    id      = coordtoindex(ix  ,iy  ,iz  )
+                    idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                    idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                    idypls  = coordtoindex(ix  ,iy+1,iz  )
+                    idymin  = coordtoindex(ix  ,iy-1,iz  )
+                    idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                    idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+
+                    fvec(nshift+id)= factor6*(&
+                         psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psi(idzmin) &
+                        -6.0_dp*psi(id) +rhoq(id)*constqW)
+                   
+                enddo
+            enddo
+        enddo    
+
+        ! faces 
+        
+        ! bottom z-face
+        ! boundary z=0 iz=1 
+
+        iz=1
+        do iy=2,ny-1
+            do ix=2,nx-1
+                
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                idypls  = coordtoindex(ix  ,iy+1,iz  )
+                idymin  = coordtoindex(ix  ,iy-1,iz  )
+                idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+               ! idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+                
+                fvec(nshift+id)= factor6*(&
+                    psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psi(idzpls)+psizmin &
+                    -6.0_dp*psi(id) +rhoq(id)*constqW)
+            
+            enddo
+        enddo    
+
+        ! top z-face
+        ! boundary z=nz*delta iz=nz
+
+        iz=nz
+        do iy=2,ny-1
+            do ix=2,nx-1
+
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                idypls  = coordtoindex(ix  ,iy+1,iz  )
+                idymin  = coordtoindex(ix  ,iy-1,iz  )
+                !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+
+                fvec(nshift+id)= factor6*(&
+                         psi(idxpls)+psi(idxmin) +psi(idypls)+psi(idymin)+psizmax+psi(idzmin) &
+                        -6.0_dp*psi(id) +rhoq(id)*constqW)
+
+            enddo
+        enddo    
+
+        ! fvec(nshift+id)= -0.5_dp*(&
+        !            psi(idxpls) + psi(idypls) + psi(idzpls) &
+        !                   -6.0_dp*psi(id)  + &
+        !           psi(idxmin) + psi(idymin) + psi(idzmin)  +rhoq(id)*constqW)
+                
+
+        ! rear x-face 
+        ! boundary x= 0 plane ix=1  
+        
+        ix = 1
+        do iz=2,nz-1
+            do iy=2,ny-1
+                
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                idypls  = coordtoindex(ix  ,iy+1,iz  )
+                idymin  = coordtoindex(ix  ,iy-1,iz  ) 
+                idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+               
+
+                fvec(nshift+id)= factor6*(&
+                    psi(idxpls) + psi(idypls) + psi(idzpls) -5.0_dp*psi(id)  + &
+                    psi(idymin) + psi(idzmin) +rhoq(id)*constqW)
+                
+            enddo
+        enddo    
+
+
+        ! front x-face
+        ! boundary x= nx delta  plane ix=nx  
+        
+        ix = nx
+        do iz=2,nz-1
+            do iy=2,ny-1
+                
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                !idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                idypls  = coordtoindex(ix  ,iy+1,iz  )
+                idymin  = coordtoindex(ix  ,iy-1,iz  ) 
+                idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+               
+                fvec(nshift+id)= factor5*(&
+                    psi(idypls) + psi(idzpls) -5.0_dp*psi(id)  + &
+                    psi(idxmin) + psi(idymin) + psi(idzmin)  +rhoq(id)*constqW)
+                 
+            enddo
+        enddo    
+
+
+
+        ! left y-face
+        ! boundary y= 0 plane iy=1  
+
+        iy = 1
+        do iz=2,nz-1
+            do ix=2,nx-1
+                
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                idypls  = coordtoindex(ix  ,iy+1,iz  )
+                !idymin  = coordtoindex(ix  ,iy-1,iz  ) 
+                idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+               
+                fvec(nshift+id)= factor5*(&
+                    psi(idxpls) + psi(idypls) + psi(idzpls) -5.0_dp*psi(id)  + &
+                    psi(idxmin) + psi(idzmin) + rhoq(id)*constqW)+rhoq(id)
+                 
+            enddo
+        enddo    
+
+        ! right y-face
+        ! boundary y= ny delta  plane iy=ny  
+
+        iy = ny
+        do iz=2,nz-1
+            do ix=2,nx-1
+                
+                id      = coordtoindex(ix  ,iy  ,iz  )
+                idxpls  = coordtoindex(ix+1,iy  ,iz  )
+                idxmin  = coordtoindex(ix-1,iy  ,iz  )
+                !idypls  = coordtoindex(ix  ,iy+1,iz  )
+                idymin  = coordtoindex(ix  ,iy-1,iz  ) 
+                idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+                idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+               
+                fvec(nshift+id)= factor5*(&
+                    psi(idxpls) + psi(idzpls) -5.0_dp*psi(id)  + &
+                    psi(idxmin) + psi(idymin) + psi(idzmin) + rhoq(id)*constqW)
+                 
+            enddo
+        enddo    
+        
+
+        ! corners 
+
+        ! ix=1  iy=1  iz=1 
+        ix = 1
+        iy = 1
+        iz = 1
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        !idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        idypls  = coordtoindex(ix  ,iy+1,iz  )
+        !idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idxpls) + psi(idypls) + psi(idzpls) -3.0_dp*psi(id) +rhoq(id)*constqW)
+
+
+        ! ix=nx iy=1  iz=1 :
+        ix = nx
+        iy = 1
+        iz = 1
+
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        !idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        idypls  = coordtoindex(ix  ,iy+1,iz  )
+        !idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idypls) + psi(idzpls) -3.0_dp*psi(id) +psi(idxmin) +rhoq(id)*constqW)
+
+
+        ! ix=nx iy=ny iz=1 : 
+        ix = nx
+        iy = ny
+        iz = 1
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        !idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        !idypls  = coordtoindex(ix  ,iy+1,iz  )
+        idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idzpls) -3.0_dp*psi(id) +psi(idxmin) + psi(idymin)  +rhoq(id)*constqW)
+
+
+
+         ! ix=1  iy=ny iz=1 :
+        ix = 1
+        iy = ny
+        iz = 1
+        
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        !idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        !idypls  = coordtoindex(ix  ,iy+1,iz  )
+        idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idxpls) + psi(idzpls) -3.0_dp*psi(id)  + psi(idymin) +rhoq(id)*constqW)
+
+        ! ix=1  iy=1  iz=nz :
+        ix = 1
+        iy = 1
+        iz = nz
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        idypls  = coordtoindex(ix  ,iy+1,iz  )
+        !idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idxpls) + psi(idypls) -3.0_dp*psi(id) + psi(idzmin)  +rhoq(id)*constqW)
+
+
+
+          ! ix=nx iy=1  iz=nz :
+        ix = nx
+        iy = 1
+        iz = nz 
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        idypls  = coordtoindex(ix  ,iy+1,iz  )
+        !idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idypls) -3.0_dp*psi(id) + psi(idxmin) + psi(idzmin)  +rhoq(id)*constqW)
+
+        ! ix=nx iy=ny iz=nz :
+        ix = nx
+        iy = ny
+        iz = nz
+
+        id      = coordtoindex(ix  ,iy  ,iz  )
+        !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+        idxmin  = coordtoindex(ix-1,iy  ,iz  )
+        !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+        idzmin  = coordtoindex(ix  ,iy  ,iz-1) 
+        !idypls  = coordtoindex(ix  ,iy+1,iz  )
+        idymin  = coordtoindex(ix  ,iy-1,iz  )
+
+        fvec(nshift+id)= factor3*(&
+            psi(idypls) -3.0_dp*psi(id) + psi(idxmin) + psi(idzmin)  +rhoq(id)*constqW)
+
+        ! edges
+
+        ! (1,1,1)  -> (nx,1,1)  line concencting corner  1-2
+        ! (nx,1,1) -> (nx,ny,1) line concencting corner  2-3
+        ! (nx,ny,1)-> (1,ny,1)  line concencting corner  3-4
+        ! (1,ny,1) -> (1,1,1)   line concencting corner  4-1
+
+        ! (1,1,1)  -> (1,1,nz)   line concencting corner  1-5
+        ! (nx,1,1) -> (nx,1,nz)  line concencting corner  2-5
+        ! (nx,ny,1)-> (nx,ny,nz) line concencting corner  3-5
+        ! (1,ny,1) -> (1,ny,nz)  line concencting corner  4-5
+
+        ! (1,1,nz)  -> (nx,1,nz)  line concencting corner  5-6
+        ! (nx,1,nz) -> (nx,ny,nz) line concencting corner  6-7
+        ! (nx,ny,nz)-> (1,ny,nz)  line concencting corner  7-8
+        ! (1,ny,nz) -> (1,1,nz)   line concencting corner  9-5
+        
+
+        ! (1,1,1)  -> (nx,1,1)  line concencting corner  1-2
+
+        iy=1
+        iz=1
+        
+        do ix=2,nx-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            !idymin  = coordtoindex(ix  ,iy-1,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            !idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idypls) + psi(idzpls) -4.0_dp*psi(id) + psi(idxmin) + rhoq(id)*constqW)
+
+        enddo    
+        
+        ! (nx,1,1) -> (nx,ny,1) line concencting corner  2-3
+         
+        ix=nx
+        iz=1
+
+         do iy=2,ny-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            !idzmin  = coordtoindex(ix  ,iy  ,iz-1)!
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idypls) + psi(idzpls) -4.0_dp*psi(id) + psi(idxmin) + psi(idymin) + rhoq(id)*constqW)
+
+        enddo   
+
+        ! (nx,ny,1)-> (1,ny,1)  line concencting corner  3-4
+
+        iy=ny
+        iz=1
+        
+        do ix=2,nx-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            !idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            !idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idzpls) -4.0_dp*psi(id) + psi(idxmin) + psi(idymin) + rhoq(id)*constqW)
+
+        enddo
+
+        ! (1,ny,1) -> (1,1,1)   line concencting corner  4-1
+
+        ix=1
+        iz=1
+        
+        do iy=2,ny-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            !idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idypls) + psi(idzpls) -4.0_dp*psi(id) + psi(idymin) + rhoq(id)*constqW)
+
+        enddo
+
+         ! (1,1,1)  -> (1,1,nz)   line concencting corner  1-5
+        ix=1
+        iy=1
+
+        do iz=2,nz-1
+        
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            !idymin  = coordtoindex(ix  ,iy-1,iz  )
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idypls) + psi(idzpls) -4.0_dp*psi(id) + psi(idzmin) + rhoq(id)*constqW)
+        
+        enddo
+      
+       ! (nx,1,1) -> (nx,1,nz)  line concencting corner  2-5
+
+        ix=nx
+        iy=1
+
+        do iz=2,nz-1
+        
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            !idymin  = coordtoindex(ix  ,iy-1,iz  )
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idypls) + psi(idzpls) -4.0_dp*psi(id) + psi(idxmin) + psi(idzmin) + rhoq(id)*constqW)
+
+        enddo   
+        
+        
+        ! (nx,ny,1)-> (nx,ny,nz) line concencting corner  3-5
+        ix=nx
+        iy=ny
+
+        do iz=2,nz-1
+        
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            !idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idzpls) - 4.0_dp*psi(id) + psi(idxmin) + psi(idymin) + psi(idzmin) + rhoq(id)*constqW)
+
+        enddo
+
+        ! (1,ny,1) -> (1,ny,nz)  line concencting corner  4-5
+        ix=1
+        iy=ny
+
+        do iz=2,nz-1
+        
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            !idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idzpls) -4.0_dp*psi(id) + psi(idymin) + psi(idzmin) + rhoq(id)*constqW)
+
+        enddo
+
+         ! (1,1,nz)  -> (nx,1,nz)  line concencting corner  5-6
+
+        iy=1
+        iz=nz
+        
+        do ix=2,nx-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            !idymin  = coordtoindex(ix  ,iy-1,iz  )
+            !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idypls) -4.0_dp*psi(id) + psi(idxmin) + psi(idzmin) + rhoq(id)*constqW)
+
+        enddo 
+
+        ! (nx,1,nz) -> (nx,ny,nz) line concencting corner  6-7
+
+        ix=nx
+        iz=nz
+        
+        do iy=2,ny-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            !idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idypls) -4.0_dp*psi(id) + psi(idxmin) + psi(idymin) + psi(idzmin)  +rhoq(id)*constqW)
+
+        enddo     
+
+
+        ! (nx,ny,nz)-> (1,ny,nz)  line concencting corner  7-8
+        iy=ny
+        iz=nz
+        
+        do ix=2,nx-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            !idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) -4.0_dp*psi(id) +psi(idxmin) + psi(idymin) + psi(idzmin) + rhoq(id)*constqW)
+
+        enddo
+  
+         ! (1,ny,nz) -> (1,1,nz)   line concencting corner  9-5
+
+        ix=1
+        iz=nz
+        
+        do iy=2,ny-1
+                    
+            id      = coordtoindex(ix  ,iy  ,iz  )
+            idxpls  = coordtoindex(ix+1,iy  ,iz  )     
+            !idxmin  = coordtoindex(ix-1,iy  ,iz  )
+            idypls  = coordtoindex(ix  ,iy+1,iz  )
+            idymin  = coordtoindex(ix  ,iy-1,iz  )
+            !idzpls  = coordtoindex(ix  ,iy  ,iz+1)
+            idzmin  = coordtoindex(ix  ,iy  ,iz-1)
+            
+            fvec(nshift+id)= factor4*(&
+                psi(idxpls) + psi(idypls) -4.0_dp*psi(id) + psi(idymin) + psi(idzmin) + rhoq(id)*constqW)
+        enddo
+
     end subroutine Poisson_Equation_cubic_ST
+
 
     ! Set value offset use to the assignmet of the PE and potential EL bc to the iteration vector fvec 
     ! noffset, noffset_bc and noffset_bc_left 

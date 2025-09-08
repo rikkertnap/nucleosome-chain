@@ -9,7 +9,7 @@
 program main
 
     !  .. variable and constant declaractions
-    ! use mpivars
+    
     use globals       ! parameters definitions
     use physconst
     use mathconst
@@ -33,6 +33,7 @@ program main
     use modfcnMg
     use modfcnMgexpl
     use modfcnFeexpl
+    use flux
 
     implicit none
 
@@ -75,6 +76,7 @@ program main
     print*,text
 
     ! .. init
+
     call read_inputfile(info)
     call error_handler(info,"read_inputfile")
     call init_constants()
@@ -92,17 +94,19 @@ program main
   
     ! init distributed volume  
     if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
-        systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then 
+        systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe".or. &
+        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+        
         call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
         call error_handler(info,"init_vnucl_type")
+    
     endif 
 
-
+    ! .. Van der Waals
     call make_VdWeps(info) 
     call error_handler(info,"make_VdWeps")
     ! call set_value_isVdW_on_values(nsegtypes, VdWeps, isVdW) 
     call set_value_isVdW(systype,isVdW)
- 
     write(istr,'(L2)')isVdW
     text='VdW interaction: isVdW = '//trim(adjustl(istr))
     call print_to_log(LogUnit,text) 
@@ -124,21 +128,28 @@ program main
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
     endif   
     
-    if(systype=="nucl_ionbin_Fe") then 
+    if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST"&
+        .or.systype=="nucl_ionbin_Fe_ST_mu") then 
+        
         phoscutoff=int(distphoscutoff/delta)+2
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
         call allocate_field_triplets(11)
         call init_var_compute_fdisPPP
     endif   
 
-    if(systype=="nonucl_ST") then 
+    if(systype=="nonucl_ST".or. systype=="nonucl_ST_mu".or.&
+        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+        
+        call allocate_divJ()
         no_overlapchain(1)=.true. ! otherwise loop does not start !!
-    endif    
+    endif   
+    if( systype=="nonucl_ST_mu" .or. systype=="nucl_ionbin_Fe_ST_mu") call allocate_mu() 
     
     
     call init_field()
     call init_surface(bcflag,nsurf)
     call make_isrhoselfconsistent(info)
+    call make_isionselfconsistent(info)
     call set_size_neq()             ! number of non-linear equation neq
     call set_fcn()
     call set_dielect_fcn(dielect_env)
@@ -169,6 +180,8 @@ program main
         loop => VdWscale    
     else if(runtype=="rangedielect") then 
         loop => dielectscale   
+    else if(runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then 
+        loop => psiS   
     else
         nullify(loop) ! make explicit that no association is made
     endif  
@@ -191,7 +204,7 @@ program main
         list => cFeCl2_array
         list_val => cFeCl2
 
-    else if(runtype=="inputFe3pH") then
+    else if(runtype=="inputFe3pH".or.runtype=="rangepsiL".or.runtype=="rangepsiR".or.runtype=="rangepsiLR") then
         call set_value_FeCl3(runtype,info)
         call error_handler(info,"set_value_FeCl3")
 
@@ -268,13 +281,15 @@ program main
 
                     isfirstguess=(loop%val==loopbegin) 
 
-                    call init_vars_input()  ! sets chem potential 
+                    call init_vars_input()  ! sets chem potential  
+                    call init_surface_constpotential_rangepsi
 
                    ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
-                      
+        
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
-
+    
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
+                    
                     ! isSolution=.true.
                     call fcnptr(x, fvec, neq)
                  
@@ -290,7 +305,8 @@ program main
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
 
-                    if(systype=="nucl_ionbin_Fe") then
+                    if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.&
+                        systype=="nucl_ionbin_Fe_ST_mu") then
                         call compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP,avfdisPPP)
                         call compute_FEchem_react_PPP_expl(FEchempair,FEchemtriplet)
                     endif          

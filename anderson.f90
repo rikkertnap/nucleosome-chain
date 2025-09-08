@@ -12,10 +12,10 @@ module anderson
 
     implicit none
 
-    real(dp), parameter ::  BETA_A = 0.9 ! 0.9         ! mixing parameter for anderson mixing 
-    real(dp), parameter ::  BETA_S = -0.05  !  -0.2    ! mixing parameter for simple mixing 
-    real(dp), parameter ::  TOL_DELTA = 0.001 ! 0.01     ! treshold for Anderson to start 
-    integer, parameter  ::  NUMBER_SOL= 10       ! number of previous solutions used in Anderson mixing */
+    real(dp), parameter ::  BETA_A = 0.9_dp ! 0.9         ! mixing parameter for anderson mixing 
+    real(dp), parameter ::  BETA_S = -0.2_dp  !  -0.2    ! mixing parameter for simple mixing 
+    real(dp), parameter ::  TOL_DELTA = 0.0001_dp ! 0.01     ! treshold for Anderson to start 
+    integer, parameter  ::  NUMBER_SOL= 6       ! number of previous solutions used in Anderson mixing */
 
     integer ::  step   ! counter 
 
@@ -274,10 +274,11 @@ subroutine anderson_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         text="number of iterations  = "//trim(adjustl(istr))
         call print_to_log(LogUnit,text)
     endif    
-    
-    if (step>MAX_INT) then
+
+    if (step>=MAX_INT) then
         text="program exceeded maximuum number of interations, iteration aborted"
         call print_to_log(LogUnit,text)
+        call write_last_fcn_eval(x)
     endif     
     
     ! free memory 
@@ -331,7 +332,7 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
     
     !    simple mixing   
 
-    do while( (.not.(conv) .and. (step <= MAX_INT)))
+    do while( (.not.(conv) .and. (step < MAX_INT)))
         call fcnptr(x,fvec,N)
         do i = 1, NN
             x(i) = x(i) + BETA_S * fvec(i) ! update 
@@ -356,17 +357,40 @@ subroutine  simple_min_loop(xguess, x, TOL, fnorm, isSolution, MAX_INT, N)
         call print_to_log(LogUnit,text)
     endif    
     
-    if (step>MAX_INT) then
+    if (step>=MAX_INT) then
         text="program exceeded maximuum number of interations, iteration aborted"
         call print_to_log(LogUnit,text)
+        call write_last_fcn_eval(x)
     endif    
 
-   
     ! free memory 
     deallocate(fvec)
   
 end subroutine  simple_min_loop
 
+
+subroutine  write_last_fcn_eval(x)
+
+    real(dp), intent(in), dimension(:) :: x
+
+    integer :: un_out 
+    character(len=5) :: outfilename
+    integer :: ios, i
+
+    outfilename = "x.out"
+    open(unit=newunit(un_out),file=outfilename, iostat=ios, action="write")
+    
+    if(ios > 0 ) then
+        print*, 'Error opening file : iostat =', ios
+    endif
+
+    do i=1,size(x)
+        write(un_out,*)x(i)
+    enddo
+
+    close(un_out)
+
+end subroutine write_last_fcn_eval
 
 end module 
 

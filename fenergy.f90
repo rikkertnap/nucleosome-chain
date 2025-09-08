@@ -20,7 +20,7 @@ module energy
     real(dp) :: FEpi                ! sum over pi
     real(dp) :: FErho               ! sum over densities
     real(dp) :: FEel                ! electrostatics energy
-    real(dp) :: FEelsurf(2)         ! electrostatics energy from  surface
+    real(dp) :: FEelsurf(2)         ! electrostatics energy from surface
     real(dp) :: FEelvar             ! electrostatics energy contrbution to total free energy from palpha due to varying dielectric 
     real(dp) :: FEelvarborn         ! electrostatics energy contrbution to total free energy from palpha due to Born self-energy 
     real(dp) :: FEborn              ! Born self-energy  
@@ -81,13 +81,13 @@ contains
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
-        case ("nucl_ionbin_Fe_ST")
+        case ("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
         
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
-        case("nonucl_ST")
-            text="fenergy not yet implemented for nonucl_ST"
+        case("nonucl_ST","nonucl_ST_mu")
+            text="fenergy not yet implemented for nonucl_ST and nonucl_ST_mu"
             print*,text
 
         case("elect")
@@ -126,17 +126,12 @@ contains
         use parameters, only : xbulk, vsol, vNa, vK, vCl, vCa, vNaCl, vKCl
         use field, only : xsol, xHplus, xOHmin, xNa, xCa, xCl, xK, xNaCl, xKCl
         use field, only : psi, rhoq, rhopol, fdisA, fdisB , q , lnproshift
-       ! use surface
+       
 
         !  .. local arguments 
     
-     !    real(dp) :: sigmaq0,psi0
-     !    real(dp) :: qsurf(2)           ! total charge on surface 
-     !   real(dp) :: qsurfg             ! total charge on grafting surface  
         integer  :: i                  ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-     !   real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
-     !   real(dp) :: FEchemSurftmp
         integer, parameter :: A=1, B=2    
 
         !  .. computation of free energy 
@@ -194,7 +189,7 @@ contains
         FE = FEq  + FEpi + FErho + FEel + FEVdW + FEbind -Eshift
         
     
-       ! qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+        ! qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
   
         volumelat= volcell*nsize                  ! volume lattice
 
@@ -215,19 +210,10 @@ contains
         use field, only : xsol, xHplus, xOHmin, xNa, xCa, xCl, xK, xNaCl, xKCl
         use field, only : xFe2, xFe3, xMg
     
-       ! use VdW
-       ! use surface
-       ! use conform_entropy
-
         !  .. local arguments 
-    
-        !real(dp) :: sigmaq0,psi0
-        !real(dp) :: qsurf(2)           ! total charge on surface 
-        !real(dp) :: qsurfg             ! total charge on grafting surface  
-        real(dp) :: volumelat          ! volume lattice 
-        !integer :: nzadius
-    
 
+        real(dp) :: volumelat          ! volume lattice 
+    
         ! .. computation of alternative computation free energy
 
         ! .. translational entropy 
@@ -278,11 +264,13 @@ contains
 
         ! be vary carefull FE = -1/2 \int dz rho_q(z) psi(z)
 
-         ! .. chemical and binding contribution
+        ! .. chemical and binding contribution
 
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
             "brushborn","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+            FEchem = FEchem_react_multi()
+        case("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
             FEchem = FEchem_react_multi()
         case default
             FEchem = FEchem_react()
@@ -443,7 +431,6 @@ contains
 
         checkphi=nseg-sum(sumphi)
         
-
         if(systype=="nucl_ionbin_sv") then
             ncharge=0
             do s=1,nseg
@@ -542,7 +529,6 @@ contains
         deltaFE = FE - FEbulk
     
     end subroutine fcnenergy_electbrush_mul
-
 
 
     subroutine fcnenergy_ionbin_sv()
@@ -671,6 +657,73 @@ contains
     
     end subroutine fcnenergy_ionbin_sv
 
+    subroutine fcnenergy_nonucl_ST()
+
+        use globals, only : nsize, RIGHT, LEFT
+        use volume, only : volcell
+        use parameters, only : xbulk
+        use parameters, only : vsol, vNa, vCl, vK, vCa, vMg, vNaCl, vKCl, vFe2, vFe3
+        use field, only : xsol, xHplus, xOHmin, xNa, xCl, xK, xCa, xMg, xNaCl, xKCl, xFe2, xFe3
+        use field, only : psi, rhoq
+        use surface, only : sigmaqSurfR, sigmaqSurfL, qsurfR, qsurfL
+    
+        !  .. local arguments 
+    
+        integer  :: i              
+        real(dp) :: volumelat    
+        real(dp) :: qsurf(2)
+
+        !  .. computation of free energy
+
+        FEpi  = 0.0_dp
+        FErho = 0.0_dp
+        FEel  = 0.0_dp
+        FEelsurf = 0.0_dp
+        FEq    = 0.0_dp
+        FEbind = 0.0_dp
+        FEchem = 0.0_dp
+        FEVdW  = 0.0_dp
+        qres   = 0.0_dp
+        Eshift = 0.0_dp 
+
+        do i=1,nsize
+            FEpi = FEpi  + log(xsol(i))
+            FErho = FErho - (xsol(i) + xHplus(i) + xOHmin(i)+ xNa(i)/vNa + xCa(i)/vCa + xMg(i)/vMg+ xCl(i)/vCl+&
+                xK(i)/vK +xNaCl(i)/vNaCl +xKCl(i)/vKCl + xFe2(i)/vFe2 + xFe3(i)/vFe3)                 ! sum over  rho_i 
+            FEel  = FEel  - rhoq(i) * psi(i)
+            qres = qres + rhoq(i)
+        enddo
+        
+
+        FEel  = (volcell/vsol)*FEel/2.0_dp  ! carefully implicit minus sign !
+        FEpi  = (volcell/vsol)*FEpi
+        FErho = (volcell/vsol)*FErho
+        qres  = (volcell/vsol)*qres
+  
+        qsurf = SurfaceChargeTot(sigmaqSurfR,sigmaqSurfL)
+        qsurfL = qsurf(LEFT)
+        qsurfR = qsurf(RIGHT)
+
+        qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+
+        FEelsurf = FEelect_surface()
+
+        ! .. total free energy per area of surface 
+
+        FE = FEq + FEpi + FErho + FEel + FEVdW + FEbind - Eshift + FEelsurf(RIGHT)+FEelsurf(LEFT)
+        
+        
+        volumelat= volcell*nsize   ! volume lattice
+
+        FEbulk   = log(xbulk%sol)-(xbulk%sol+xbulk%Hplus +xbulk%OHmin+ xbulk%Na/vNa +&
+            xbulk%Ca/vCa +xbulk%Mg/vMg +xbulk%Cl/vCl+ xbulk%K/vK + xbulk%NaCl/vNaCl +xbulk%KCl/vKCl +&
+            xbulk%Fe2/vFe2  + xbulk%Fe3/vFe3 )
+        
+        FEbulk = volumelat*FEbulk/vsol
+
+        deltaFE = FE - FEbulk
+    
+    end subroutine fcnenergy_nonucl_ST
 
     ! fcnenergy_neutral_sv  equal to fcnenergy_neutral !! 
     
@@ -1443,7 +1496,7 @@ contains
             enddo
 
 
-        case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+        case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
             
             do t=1,nsegtypes
 
@@ -1460,10 +1513,8 @@ contains
                         else 
                             if(systype=="nucl_ionbin_Fe") then 
                                 FEchem_react = FEchem_react+(FEchempair+FEchemtriplet)/volcell 
-
                             else
-                                print*,"Wrong systype in FEchem_react_multi. systype =",systype
-         
+                                print*,"FEchem_react_multi not defined for systype =",systype
                             endif
                         endif    
 
@@ -1716,7 +1767,7 @@ contains
     end function
 
  
-    function SurfaceCharge(sigmaqSurfR,sigmaqSurfL) result(qsurf)
+    function SurfaceChargeTot(sigmaqSurfR,sigmaqSurfL) result(qsurf)
         
         use globals, only : LEFT,RIGHT
         use volume, only : nx,ny,areacell,delta
@@ -1744,7 +1795,7 @@ contains
             qsurf(i)=(qsurf(i)/(4.0_dp*pi*lb*delta))*areacell  ! areacell=area size one surface element, 4*pi*lb*delta make correct dimensional full unit    
         enddo
         
-    end function SurfaceCharge
+    end function SurfaceChargeTot
 
 
     function FE_selfenergy_brush()result(FEborn)
@@ -1846,6 +1897,10 @@ contains
             call check_volume_nucl_ionbin_sv(checksumxpoltot)
 
         case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+
+            call check_volume_nucl_ionbin_Mg(checksumxpoltot)
+
+        case ("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
 
             call check_volume_nucl_ionbin_Mg(checksumxpoltot)
 

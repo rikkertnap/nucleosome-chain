@@ -106,7 +106,14 @@
     type(looplist), target :: VdWscale     ! scale factor in VdW interaction
     type(looplist), target :: dielectscale ! scale factor in dielectric constant: used for loop of eps to descrease elect interactions
 
-     !  .. input filenames 
+     !  .. steady state variables
+ 
+    logical, dimension(:), allocatable :: isionselfconsistent
+    character(len=5), parameter :: iontype(9)=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   ","Fe2  ","Fe3  ","Ca   "/) 
+    integer, parameter :: niontypes=9  
+    
+    !  .. input filenames 
+
     integer, parameter :: lenfname=40
     character(len=lenfname) :: chainfname,vpolfname,pKafname,pKaionfname,typesfname,lsegfname,segcmfname
     character(len=lenfname) :: mtpdbfname,vnuclfname,orientfname
@@ -122,6 +129,7 @@
     real(dp) :: constqWin        ! constant in Poisson eq dielectric constant of water  stored for loop dielect   
     real(dp) :: constq0          ! constant in Poisson eq dielectric constant of vacuum 
     real(dp) :: constqE          ! electrostatic pre-factor in pdf 
+    real(dp) :: beta_times_e     ! conversion factor  e/ kBT 
   
     !  .. solver variables
 
@@ -208,7 +216,7 @@
     type (looplist), target :: pKd         ! binding constants 
     type (looplist), target :: deltaGd 
       
-     ! water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
+    ! water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
     real(dp) :: pKw                 
   
     real(dp) :: K0ionNa             ! intrinsic equilibruim constant
@@ -219,7 +227,7 @@
     real(dp) :: KionK               ! experimemtal equilibruim constant 
     real(dp) :: pKionK              ! experimental equilibruim constant pKion= -log[Kion]	 
 
-    !     .. bulk concentrations 
+    !  .. bulk concentrations 
    
     real(dp) :: cHplus             ! concentration of H+ in bulk in mol/liter
     real(dp) :: cOHmin             ! concentration of OH- in bulk in mol/liter
@@ -254,20 +262,31 @@
     integer, parameter ::  err_error        = 3
 
     ! electrostatic difference between z=0 and z=nz delta plane 
-    real(dp) :: deltapsi 
+    !real(dp) :: deltapsi 
+     ! surface charge 
+    type (looplist), target :: psiS
     real(dp) :: psiSL    ! surface potenital in reduced units for bc=cp at z = 0 
     real(dp) :: psiSR    ! surface potenital in reduced units for bc=cp at z = nz delta
 
     ! unit conversion : converts unit of input conformation to nm unit!
 
-    real(dp) :: unit_conv
-
+    real(dp) :: unit_conv  
+    
+    ! eps value for sum xbulk and sum charge in bulk 
+    
+    real(dp), parameter  :: eps_val =1.0e-14_dp 
+    
     private :: err_pKdfile_noexist,err_pKdfile,err_pKderror
     private :: err_file_noexist,err_file,err_error    
+    private :: eps_val
 
 contains
 
     ! determine total number of non linear equations
+    ! pre nsize and isionselfconsistent need to be set 
+    ! post value of neq is determined
+    ! output integer(8) :: neq 
+    !        integer    :: neqint
 
     subroutine set_size_neq()
 
@@ -275,6 +294,7 @@ contains
         use volume, only : nx, ny, nz
         use myutils, only  : error_handler
 
+        ! local variables
         integer :: numeq, t
 
         nsize = nx * ny * nz
@@ -288,10 +308,13 @@ contains
                 neq =  nsize 
             case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
                 neq = 2 * nsize 
-            case ("nucl_ionbin_Fe_ST","nonucl_ST")
-                numeq = 6
+            case ("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu")
+                numeq=0
+                do t=1, niontypes
+                    if(isionselfconsistent(t)) numeq = numeq+1
+                enddo    
                 neq = (2 +numeq) * nsize 
-                print*,"Warning set_size_neq : numeq of ion density set to 6  set for Steady State"
+                print*,"numeq=",numeq, " neq=",neq
             case ("brushdna","nucl_ionbin")
                 numeq=0 
                 do t=1,nsegtypes
@@ -622,7 +645,8 @@ contains
             K0aAA(i) = KaAA(i)*(vsol*Na/1.0e24_dp)
         enddo
 
-        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA".and. systype/="nucl_ionbin_Fe") then ! old binding model
+        if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA".and. systype/="nucl_ionbin_Fe"&
+            .and. systype/="nucl_ionbin_Fe_ST".and. systype/="nucl_ionbin_Fe_ST_mu") then ! old binding model
             K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
             K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
         endif 
@@ -659,14 +683,15 @@ contains
         deltavAA(12) = 3.0_dp*vpolAA(1)+vFe3-vpolAA(13) ! 3vA- + vFe3+ -vA2Fe3
 
 
-        if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then
+        if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe"&
+           .or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu") then
             call init_vPP(info)
             call error_handler(info,"init_vPP")
             call init_qpp()
         endif
             
 
-        if(systype=="nucl_ionbin_Fe") then
+        if(systype=="nucl_ionbin_Fe".or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu") then
             call init_vPPP(info)
             call error_handler(info,"init_vPPP")
             call init_qppp()
@@ -893,6 +918,9 @@ contains
         constqE = 1.0_dp /( 8.0_dp *constqW)        ! factor in PDF
         constqWin = constqW                         ! assignment for  loop of dielect
         ! sigmaqSurf = sigmaqSurfin * 4.0_dp*pi*lb *delta ! dimensionless surface charge 
+        
+        beta_times_e = elemcharge/(kBoltzmann*Temp) !  e/ kBT conversion factor  between potential in Volt-J/C to dimensionless potential 
+    
 
     end subroutine init_elect_constants
    
@@ -1001,10 +1029,10 @@ contains
         real(dp) :: xMgCl2salt         ! volume fraction of MgCl2 salt in bulk
         real(dp) :: xFeCl2salt         ! volume fraction of "FeCl2" salt in bulk 
         real(dp) :: xFeCl3salt         ! volume fraction of "FeCl3" salt in bulk
-        real(dp) :: xtmp
+        real(dp) :: xsum, rhoqsum
 
         real(dp) :: KaAA6              ! auxilary varialbe
-        
+       
         !     .. initializations of input dependent variables, electrostatic part 
         
         pHbulk=pH%val ! transfer pH value 
@@ -1055,9 +1083,9 @@ contains
             
             call solve_xbulk_with_oxygen(xbulk)
 
-            xtmp=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
+            xsum=1.0_dp -xbulk%Hplus -xbulk%OHmin -xbulk%Cl -xbulk%Na -xbulk%K-xbulk%NaCl-xbulk%KCl & 
                 -xbulk%Ca -xbulk%Fe2 -xbulk%Fe3 -xbulk%Mg -xbulk%O2 -xbulk%sol
-            !print*,"xtmp=",xtmp
+            !print*,"xsum=",xsum
         else 
           
             xbulk%O2 = 0.0_dp        
@@ -1101,7 +1129,9 @@ contains
         K0a = (Ka*vsol)*(Na/1.0e24_dp)              ! intrinstic equilibruim constant 
  
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.& 
-           systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then 
+            systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.&
+            systype=="nucl_ionbin_Fe_ST_mu") then 
+            
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
         endif    
@@ -1166,6 +1196,22 @@ contains
         ! ionic strength 
         IS= ion_strength(xbulk)
 
+        ! test
+
+        xsum= sum_value_moleclist(xbulk)
+
+        if(abs(xsum-1.0_dp)>eps_val) then 
+            print*,"Error: in init_expmu_elect : sum xbulk not one sum xbulk =", xsum
+            stop
+        endif    
+
+        rhoqsum= xbulk%Hplus -xbulk%OHmin +zCl*xbulk%Cl/vCl +xbulk%Na/vNa +xbulk%K/vK & 
+                +zCa*xbulk%Ca/vCa +zFe2*xbulk%Fe2/vFe2 +zFe3*xbulk%Fe3/vFe3 +zMg*xbulk%Mg/vMg
+        
+        if(abs(rhoqsum)>eps_val) then 
+            print*,"Error: in init_expmu_elect : bulk not charge neutral : residual charge =", rhoqsum
+        endif
+
 
         !     .. end init electrostatic part 
         
@@ -1193,7 +1239,7 @@ contains
     
         real(dp) :: psimin,psimax
 
-        deltapsi = (psiSR-psiSL)
+        !deltapsi = (psiSR-psiSL)
         psimin = psiSL
         psimax = psiSR
     
@@ -1225,6 +1271,7 @@ contains
           
         xvolmin = xbulk 
         xvolmax = xvolmin
+
         if(DEBUG_ST) then 
             print*,"mu Na"
             print*,"mu_zmax=",mumax%Na
@@ -1268,15 +1315,23 @@ contains
         ! at T= 25 C
         ! all values are in 10-5 cm^2/sec 10-9 m^2/sec
 
-        Diffcoeff%sol   = 0.0e-9_dp ! not needed for calcualting conductivity
+       
         Diffcoeff%Na    = 1.33e-9_dp
         Diffcoeff%Cl    = 2.03e-9_dp
         Diffcoeff%K     = 1.96e-9_dp
         Diffcoeff%Ca    = 0.79e-9_dp 
-        Diffcoeff%NaCl  = 0.0e-9_dp  ! not charged not needed
-        Diffcoeff%KCl   = 0.0e-9_dp  ! not charged 
         Diffcoeff%Hplus = 9.31e-9_dp
-        Diffcoeff%OHmin = 5.28e-9_dp        
+        Diffcoeff%OHmin = 5.28e-9_dp  
+        Diffcoeff%Mg    = 0.71e-9_dp 
+        
+        Diffcoeff%Fe2   = 0.719e-9_dp  ! from https://www.aqion.de/site/diffusion-coefficients
+        Diffcoeff%Fe3   = 0.604e-9_dp 
+
+        ! assign value not needed for calcualting conductivity  not charged 
+        Diffcoeff%sol   = 0.0e-9_dp  
+        Diffcoeff%NaCl  = 0.0e-9_dp  
+        Diffcoeff%KCl   = 0.0e-9_dp  
+        Diffcoeff%O2    = 0.0e-9_dp
 
     end subroutine  init_diffusion_coeff
 
@@ -1317,17 +1372,15 @@ contains
             call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
 
-        case("nucl_ionbin_Fe_ST")
+        case("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
 
+            call init_dna() 
             call init_expmu_elect()
             call init_mu_elect()  
-            
-            print*,"init_vars_input:"
-            print*,"xbulk=",xbulk
-            print*,"mumax=", mumax
-            print*,"mumin=", mumin
-            print*,"xvolmax=",xvolmax
-            print*,"xvolmin=",xvolmin
+
+            call set_VdWeps_scale(VdWscale)
+            call set_energychainLJ_scale(VdWscale)
+            call set_dielect_scale(dielectscale)
 
         case ("nucl_neutral_sv") 
       
@@ -1343,7 +1396,7 @@ contains
             call set_VdWeps_scale(VdWscale)
             call set_energychainLJ_scale(VdWscale)  
             
-        case ("nonucl_ST") 
+        case ("nonucl_ST","nonucl_ST_mu") 
         
             call init_expmu_elect() 
             call init_mu_elect()  
@@ -1420,7 +1473,8 @@ contains
         integer, intent(in) :: nelemtypes
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe") then 
+           systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe".or. &
+           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
             allocate(vnucl(nelemtypes,nsegtypes))
         endif    
 
@@ -1434,7 +1488,8 @@ contains
         integer, intent(in) :: nelemtypes
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
+           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
+           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
@@ -1459,6 +1514,8 @@ contains
         if(systype=="nucl_ionbin_Mg") vnucl=0.0_dp
         if(systype=="nucl_ionbin_MgA") vnucl=0.0_dp
         if(systype=="nucl_ionbin_Fe") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_Fe_ST") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_Fe_ST_mu") vnucl=0.0_dp
 
     end subroutine init_vnucl
        
@@ -1482,7 +1539,8 @@ contains
         pKaion = 0.0_dp
         
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
+           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
+           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
         endif    
        
@@ -1966,6 +2024,30 @@ contains
     end subroutine read_vnucl_type
 
 
+    subroutine allocate_isionselfconsistent(info)
+    
+        integer,  intent(out), optional :: info
+
+        integer :: ier
+       ! integer :: niontypes ! make 'global module parameter"
+
+        ier = 0
+        if (present(info)) info = 0
+
+       ! niontypes=9
+
+        if (.not. allocated(isionselfconsistent))  then 
+            allocate(isionselfconsistent(niontypes),stat=ier)
+        endif        
+
+        if(ier/=0) then 
+            print*,'Allocation error: allocate_isionselfconsistent failed'
+            if (present(info)) info = ier
+
+        endif    
+       
+    end subroutine allocate_isionselfconsistent
+
 
     subroutine allocate_isrhoselfconsistent(info)
     
@@ -1996,7 +2078,8 @@ contains
     ! isrhoselfconsistent needs to be know before neq can be  determined !!!
     ! pre: Vdweps and isVdW is allready intialized
     ! post isrhoselfconsistent is set  
-
+   
+    
     subroutine make_isrhoselfconsistent(info)
 
         use globals, only : nsegtypes,nseg,systype
@@ -2065,6 +2148,97 @@ contains
 
     end subroutine make_isrhoselfconsistent
 
+    ! Determines for every ion type if it needed to be selfconsistently solved
+    ! pre xbulk and runttupe need to be set 
+    ! post isrhoselfconsistent = .true if needed to be selfconsistently solved
+    ! output logical isrhoselfconsistent(niontypes) 
+    
+    subroutine make_isionselfconsistent(info)
+
+        use globals, only : systype, runtype
+        use myutils, only : print_to_log, LogUnit, lenText
+ 
+        !  .. arguments 
+    
+        integer,  intent(out) :: info
+
+         !  .. local variables
+
+        integer :: info_alloc, t 
+        character(len=lenText) :: text
+        character(len=5) :: key
+        real(dp) :: xvol, xsum
+        logical :: flag
+        integer, parameter :: myio_err_ion =101 ! need to fixed 
+        real(dp), parameter :: xvoleps=1.0e-11_dp  ! need to fixed 
+    
+        info=0
+        
+        ! check if xbulk allready set 
+        xsum= sum_value_moleclist(xbulk)
+        if(abs(xsum-1.0_dp)>eps_val)  then 
+            call init_expmu_elect() 
+        endif
+        
+        text= "Error : value of runtype incompatible with xbulk of type"
+
+        if(systype/="nonucl_ST".and.systype/="nonucl_ST_mu"&
+            .and.systype/="nucl_ionbin_Fe_ST" .and.systype/="nucl_ionbin_Fe_ST_mu") then 
+                return ! alternate return
+        endif        
+
+        call allocate_isionselfconsistent(info_alloc)
+        if(info_alloc/=0) then 
+            print*,"Error: in allocate_isionelfconsistent"
+            info=info_alloc
+            return
+        endif    
+
+        ! init all elements of isionrhoselfconsistent to .true.
+        do t=1,niontypes
+            isionselfconsistent(t)=.true.
+        enddo
+      
+        ! determine ion type that are to solve self consistently  
+       
+        do t=1,niontypes
+            key = trim(iontype(t))
+            xvol = get_value_moleclist(xbulk,key)
+            print*,"key=",key," xvol=",xvol
+            if(xvol< xvoleps) isionselfconsistent(t) = .false. 
+        enddo
+
+        do t=1,niontypes
+            print*,iontype(t),isionselfconsistent(t)
+
+            key = trim(iontype(t))
+        
+            ! ensure that HPlus and OHmin and Cl are selfconsistent 
+            if(iontype(t)=="Hplus") isionselfconsistent(t) = .true.    
+            if(iontype(t)=="OHmin") isionselfconsistent(t) = .true.    
+            if(iontype(t)=="Cl") isionselfconsistent(t) = .true.   
+
+
+            if(isionselfconsistent(t) .eqv. .false.) then 
+                flag=.false.
+                if(iontype(t)=="Mg"  .and. runtype=="inputMgpH")    flag=.true.
+                if(iontype(t)=="Fe2" .and. runtype=="inputFe2pH")   flag=.true. 
+                if(iontype(t)=="Fe3" .and. runtype=="inputFe3pH")   flag=.true. 
+                if(iontype(t)=="K"   .and. runtype=="inputcsKClpH") flag=.true.
+                if(iontype(t)=="Na"  .and. runtype=="inputcspH")    flag=.true.
+                
+                if(flag) then
+                    print*,text
+                    print*,"key = ",key
+                    info = myio_err_ion
+                    return
+                endif
+          
+            endif        
+        enddo
+        
+    end subroutine make_isionselfconsistent
+
 
     ! special assignment for runtype==rangeVdWeps
     ! pre VdWeps and VdWepsin allocated 
@@ -2090,7 +2264,7 @@ contains
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
                 "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe",&
-                "nucl_ionbin_Fe_ST","nonucl_ST")
+                "nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu")
         case default
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"
