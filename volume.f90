@@ -19,8 +19,9 @@ module volume
     real(dp) :: areasurf            ! area surfaces spanned in x- and y- direction
     real(dp) :: gamma               ! angle between oblique basis vectors u and v: cubic = gamma=90=pi/2 hexagonl gamma=60=2pi/3                          
     real(dp) :: beta                ! related beta = (pi/2- gamma)/2, angle between basis vector u and x and v and y
-    real(dp) :: cos_two_beta        ! sqrt(cos(beta)**2 - sin(beta)**2)=cos(2beta) scales u and v coordinates 
+    real(dp) :: cos_two_beta        ! cos(2beta)
     real(dp) :: sin_two_beta        ! sin(2beta)  
+    real(dp) :: sqrt_cos_two_beta   ! sqrt(cos(2beta)) = sqrt(cos(beta)**2 - sin(beta)**2)=cos(2beta) scales u and v coordinates 
     character(len=11) :: geometry
 
     ! variable for grafting position
@@ -69,8 +70,9 @@ contains
         endif        
 
         beta = (pi/2.0_dp - gamma) / 2.0_dp       ! used by ut, vt, xt and yt functions
-        cos_two_beta=cos(2.0_dp*beta) ! sqrt(cos(beta)**2 - sin(beta)**2)  ! scaling of u and v coordinates
+        cos_two_beta=cos(2.0_dp*beta) !
         sin_two_beta=sin(2.0_dp*beta)
+        sqrt_cos_two_beta=sqrt(cos_two_beta) !  sqrt(cos(beta)**2 - sin(beta)**2)  ! scaling of u and v coordinates
 
         ! cubic lattice  or prism surface in x-y direction at z=0 and z=nz  
         ! nz=nzmax
@@ -176,7 +178,7 @@ contains
         real(dp) :: ut_val
         
         ut_val = cos(beta)*x - sin(beta)*y
-        ut_val = ut_val / cos_two_beta
+        ut_val = ut_val / sqrt_cos_two_beta
     
     end function ut
 
@@ -189,7 +191,7 @@ contains
         real(dp) :: vt_val
        
         vt_val = -sin(beta)*x + cos(beta)*y
-        vt_val = vt_val / cos_two_beta
+        vt_val = vt_val / sqrt_cos_two_beta
     
     end function vt
 
@@ -203,7 +205,7 @@ contains
         real(dp) :: xt_val
     
         xt_val = cos(beta)*u + sin(beta)*v
-        xt_val = xt_val / cos_two_beta
+        xt_val = xt_val / sqrt_cos_two_beta
     
     end function xt
 
@@ -215,7 +217,7 @@ contains
         real(dp) :: yt_val
     
         yt_val = sin(beta)*u + cos(beta)*v
-        yt_val = yt_val / cos_two_beta
+        yt_val = yt_val / sqrt_cos_two_beta
     
     end function yt
  

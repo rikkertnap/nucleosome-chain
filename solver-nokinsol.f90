@@ -21,7 +21,8 @@ subroutine solver(x, xguess, accuracy, residual, isSolution)
 
     if(method.eq."kinsol") then
 
-!        call kinsol_gmres_solver(x, xguess, accuracy, residual, issolution)
+        print*,"Warning kinsol cannot be called."
+        stop
 
     else if(method.eq."anderson") then
 
@@ -33,7 +34,7 @@ subroutine solver(x, xguess, accuracy, residual, isSolution)
 
 
     else 
-        print*,"Solver method incorrect"
+        print*,"Solver method incorrect."
         stop
     endif
 

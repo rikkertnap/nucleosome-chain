@@ -1848,50 +1848,50 @@ contains
                 select case (iontype(t))
                 case ("Hplus")
                     
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xHplus,xsol,mu(:,t),psi,1.0_dp,1)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xHplus,xsol,mu,psi,1.0_dp,1)
                     call div_flux(divJ(:,t),xsol,xHplus,psi,"Hplus")
 
                 case( "OHmin")  
 
-                    mu(:,t)  = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xOHmin,xsol,mu(:,t),psi,1.0_dp,-1)
+                    mu  = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xOHmin,xsol,mu,psi,1.0_dp,-1)
                     call div_flux(divJ(:,t),xsol,xOHmin,psi,"OHmin") 
 
                 case("Na")
 
-                    mu(:,t)= x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xNa,xsol,mu(:,t),psi,vNa,zNa)
+                    mu= x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xNa,xsol,mu,psi,vNa,zNa)
                     call div_flux(divJ(:,t),xsol,xNa,psi,"Na")
                 
                 case("K")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xK, xsol,mu(:,t), psi,vK,zK)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xK, xsol,mu, psi,vK,zK)
                     call div_flux(divJ(:,t),xsol,xK,psi,"K")
 
                 case("Cl")
 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xCl,xsol,mu(:,t),psi,vCl,zCl)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xCl,xsol,mu,psi,vCl,zCl)
                     call div_flux(divJ(:,t),xsol,xCl,psi,"Cl")    
                    
                 case("Mg")
 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))  
-                    call volumefraction(xMg,xsol,mu(:,t),psi,vMg,zMg)  
+                    mu = x(nshift(k)+1:nshift(k+1))  
+                    call volumefraction(xMg,xsol,mu,psi,vMg,zMg)  
                     call div_flux(divJ(:,t),xsol,xMg,psi,"Mg")
                 
                 case("Fe2")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xFe2,xsol,mu(:,t),psi,vFe2,zFe2)  
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xFe2,xsol,mu,psi,vFe2,zFe2)  
                     call div_flux(divJ(:,t),xsol,xFe2,psi,"Fe2")
                 
                 case("Fe3")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1)) 
-                    call volumefraction(xFe3,xsol,mu(:,t),psi,vFe3,zFe3)
+                    mu = x(nshift(k)+1:nshift(k+1)) 
+                    call volumefraction(xFe3,xsol,mu,psi,vFe3,zFe3)
                     call div_flux(divJ(:,t),xsol,xFe3,psi,"Fe3")
                 
                 case default
@@ -2680,50 +2680,50 @@ contains
                 select case (iontype(t))
                 case ("Hplus")
                     
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xHplus,xsol,mu(:,t),psi,1.0_dp,1)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xHplus,xsol,mu,psi,1.0_dp,1)
                     call div_flux(divJ(:,t),xsol,xHplus,psi,"Hplus")
 
                 case( "OHmin")  
 
-                    mu(:,t)  = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xOHmin,xsol,mu(:,t),psi,1.0_dp,-1)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xOHmin,xsol,mu,psi,1.0_dp,-1)
                     call div_flux(divJ(:,t),xsol,xOHmin,psi,"OHmin") 
 
                 case("Na")
 
-                    mu(:,t)= x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xNa,xsol,mu(:,t),psi,vNa,zNa)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xNa,xsol,mu,psi,vNa,zNa)
                     call div_flux(divJ(:,t),xsol,xNa,psi,"Na")
                 
                 case("K")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xK, xsol,mu(:,t), psi,vK,zK)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xK, xsol,mu, psi,vK,zK)
                     call div_flux(divJ(:,t),xsol,xK,psi,"K")
 
                 case("Cl")
 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xCl,xsol,mu(:,t),psi,vCl,zCl)
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xCl,xsol,mu,psi,vCl,zCl)
                     call div_flux(divJ(:,t),xsol,xCl,psi,"Cl")    
                    
                 case("Mg")
 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))  
-                    call volumefraction(xMg,xsol,mu(:,t),psi,vMg,zMg)  
+                    mu  = x(nshift(k)+1:nshift(k+1))  
+                    call volumefraction(xMg,xsol,mu,psi,vMg,zMg)  
                     call div_flux(divJ(:,t),xsol,xMg,psi,"Mg")
                 
                 case("Fe2")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1))
-                    call volumefraction(xFe2,xsol,mu(:,t),psi,vFe2,zFe2)  
+                    mu = x(nshift(k)+1:nshift(k+1))
+                    call volumefraction(xFe2,xsol,mu,psi,vFe2,zFe2)  
                     call div_flux(divJ(:,t),xsol,xFe2,psi,"Fe2")
                 
                 case("Fe3")
                 
-                    mu(:,t) = x(nshift(k)+1:nshift(k+1)) 
-                    call volumefraction(xFe3,xsol,mu(:,t),psi,vFe3,zFe3)
+                    mu = x(nshift(k)+1:nshift(k+1)) 
+                    call volumefraction(xFe3,xsol,mu,psi,vFe3,zFe3)
                     call div_flux(divJ(:,t),xsol,xFe3,psi,"Fe3")
                 
                 case default
@@ -2756,11 +2756,11 @@ contains
      
         ! .. flux for ions 
 
-        k = 2 * nsize
+        k = 2 
         do t = 1, niontypes
             if(isionselfconsistent(t)) then
-                f(k+1:k+nsize) = divJ(:,t)
-                k = k + nsize
+                f(nshift(k)+1:nshift(k+1)) = divJ(:,t)
+                k = k + 1
             endif        
         enddo
 

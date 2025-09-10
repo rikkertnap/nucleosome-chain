@@ -280,9 +280,10 @@ program main
                         (abs(loop%stepsize)>=loop%delta))
 
                     isfirstguess=(loop%val==loopbegin) 
-
-                    call init_vars_input()  ! sets chem potential  
+                    
                     call init_surface_constpotential_rangepsi
+                    call init_vars_input()  ! sets chem potential  
+                    !call init_surface_constpotential_rangepsi
 
                    ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
         

@@ -12,7 +12,7 @@ module anderson
 
     implicit none
 
-    real(dp), parameter ::  BETA_A = 0.9_dp ! 0.9         ! mixing parameter for anderson mixing 
+    real(dp), parameter ::  BETA_A = 1.0_dp ! 0.9         ! mixing parameter for anderson mixing 
     real(dp), parameter ::  BETA_S = -0.2_dp  !  -0.2    ! mixing parameter for simple mixing 
     real(dp), parameter ::  TOL_DELTA = 0.0001_dp ! 0.01     ! treshold for Anderson to start 
     integer, parameter  ::  NUMBER_SOL= 6       ! number of previous solutions used in Anderson mixing */

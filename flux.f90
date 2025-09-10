@@ -1,4 +1,4 @@
-! module computate dirgence of diffusive (flux div_flux)
+! module computate divergence of diffusive (flux div_flux)
 ! and related quantities
 
 module flux
@@ -8,7 +8,7 @@ module flux
     implicit none
 
     real(dp), allocatable, dimension(:,:) :: divJ ! divergence of flux range divJ(nsize,niontypes)
-    real(dp), allocatable, dimension(:,:) :: mu   ! chemical potential range mu(nsize,niontypes)
+    real(dp), allocatable, dimension(:)   :: mu   ! chemical potential range mu(nsize)
 
     public :: divJ,mu
     public :: div_flux, allocate_divJ, allocate_mu
@@ -29,7 +29,7 @@ contains
         use globals, only : nsize
         use parameters, only : niontypes
 
-        allocate(mu(nsize,niontypes))
+        allocate(mu(nsize))
 
     end subroutine allocate_mu
 
@@ -175,11 +175,12 @@ contains
         endif
 
         do id=1,nsize
-            mu(id) = log(xvol(id)/volum) -log(xsol(id))*volum +valence * psi(id)
+            mu(id) = log(xvol(id)/volum) -log(xsol(id))*volum + valence * psi(id)
         enddo     
         ! call chem_potential(mu, xsol, xvol, psi, iontype) ! same as above 
 
-        divJ=123435600.0000_dp ! used to detect unassinged values of divJ 
+        divJ=0.0_dp
+        if(DEBUG_ST) divJ= 123435600.0000_dp ! used to detect unassinged values of divJ 
         
         ! inside 
         ! periodic bc  for x and y planes 
@@ -238,7 +239,7 @@ contains
                 Jdotzpls = (xvol(idzpls)+ xvol(id)     )*(mu(idzpls) - mu(id)    )
                 Jdotzmin = (xvol(id)    + xvol_zmin    )*(mu(id)     - mu_zmin   )
 
-                divJtmp  =  Jdotxpls - Jdotxmin + Jdotypls - Jdotymin + Jdotzpls - Jdotzmin
+                divJtmp  = Jdotxpls - Jdotxmin + Jdotypls - Jdotymin + Jdotzpls - Jdotzmin
                 
                 divJ(id) = - coeff_scaled * divJtmp
 
@@ -977,6 +978,12 @@ contains
             divJ(id) = - coeff_scaled * divJtmp
 
         enddo    
+        
+        if(DEBUG_ST) then 
+            do id=1,nsize    
+                if(divJ(id)== 123435600.0000_dp) print*,"divJ unassiged in id=",id
+            enddo     
+        endif    
 
     end subroutine div_flux_cubic
 
@@ -1168,7 +1175,7 @@ contains
         
 
         do id=1,nsize
-            mu(id) = log(xvol(id)/volum) -log(xsol(id))*volum +valence * psi(id)
+            mu(id) = log(xvol(id)/volum) -log(xsol(id))*volum + valence * psi(id)
         enddo     
        
         ! inside 

@@ -1243,8 +1243,11 @@ contains
         psimin = psiSL
         psimax = psiSR
     
-        if(DEBUG_ST) print*,"psimin=",psimin," psimax=",psimax
-      
+        if(DEBUG_ST) then
+            print*,"Hello!!!!!!!!" 
+            print*,"psimin=",psimin," psimax=",psimax
+        endif
+        
         mumin%Na = chem_potential_bulk(xbulk%Na, xbulk%sol, vol%Na, psimin, zval%Na)
         mumax%Na = chem_potential_bulk(xbulk%Na, xbulk%sol, vol%Na, psimax, zval%Na)
 
@@ -2229,7 +2232,7 @@ contains
                 
                 if(flag) then
                     print*,text
-                    print*,"key = ",key
+                    print*,"key = ",key," runtype = ",runtype
                     info = myio_err_ion
                     return
                 endif
