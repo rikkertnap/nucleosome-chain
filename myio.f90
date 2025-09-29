@@ -496,10 +496,10 @@ end subroutine read_inputfile
 
 subroutine check_value_systype(systype,info)
 
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
     integer, intent(out),optional :: info
 
-    character(len=20) :: systypestr(19)
+    character(len=25) :: systypestr(21)
     integer :: i
     logical :: flag
 
@@ -520,18 +520,20 @@ subroutine check_value_systype(systype,info)
     systypestr(13)="nucl_ionbin_Fe"  
     systypestr(14)="nucl_ionbin_Fe_ST"
     systypestr(15)="nucl_ionbin_Fe_ST_mu"
-    systypestr(16)="nonucl_ST"
-    systypestr(17)="nonucl_ST_mu"
+    systypestr(16)="nucl_ionbin_MgA_ST"
+    systypestr(17)="nucl_ionbin_MgA_ST_mu"
+    systypestr(18)="nonucl_ST"
+    systypestr(19)="nonucl_ST_mu"
     
     ! only need to check input systypes
 
-    systypestr(18)="bulk_water"
-    systypestr(19)="bulk_water_ox"
+    systypestr(20)="bulk_water"
+    systypestr(21)="bulk_water_ox"
 
 
     flag=.FALSE.
 
-    do i=1,17
+    do i=1,19
         if(systype==systypestr(i)) flag=.TRUE.
     enddo
 
@@ -765,6 +767,8 @@ subroutine set_value_NaCl(runtype,info)
         info = myio_err_runtype
     
     endif
+
+    print*,"Hello :num_cNaCl ",num_cNaCl 
 
 end subroutine  set_value_NaCl
 
@@ -1147,10 +1151,10 @@ end subroutine check_value_dielect_env
 subroutine check_value_VdWeps(systype,isVdW,info)
 
     logical, intent(in) :: isVdW
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
     integer, intent(out), optional :: info
 
-    character(len=20) :: systypestr(12)
+    character(len=25) :: systypestr(14)
     integer :: i
     logical :: flag
 
@@ -1170,8 +1174,10 @@ subroutine check_value_VdWeps(systype,isVdW,info)
         systypestr(10)="nucl_ionbin_Fe"   
         systypestr(11)="nucl_ionbin_Fe_ST"  
         systypestr(12)="nucl_ionbin_Fe_ST_mu"  
+        systypestr(13)="nucl_ionbin_MgA_ST"  
+        systypestr(14)="nucl_ionbin_MgA_ST_mu"  
 
-        do i=1,12
+        do i=1,14
             if(systype==systypestr(i)) flag=.true.
         enddo
 
@@ -1210,10 +1216,10 @@ end subroutine check_value_VdWeps
 
 subroutine set_value_isVdW(systype, isVdW)
 
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
     logical, intent(inout)  :: isVdW
 
-    character(len=20) :: systypestr(5)
+    character(len=25) :: systypestr(5)
     integer :: i
 
     isVdW=.True.
@@ -1237,7 +1243,7 @@ end subroutine
 
 subroutine set_value_isVdWintEne(systype, isVdWintEne)
 
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
     logical, intent(inout)  :: isVdWintEne
 
     ! all systype that involve internal VdW chain energy
@@ -1280,7 +1286,7 @@ subroutine set_value_nsegtypes(nsegtypes,chaintype,systype,info)
     integer, intent(inout) :: nsegtypes
     integer, intent(out),optional :: info
     character(len=8), intent(in) :: chaintype
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
 
     logical :: flag
     character(len=8) :: chaintypestr(5)
@@ -1464,7 +1470,9 @@ subroutine output()
         call output_nucl_mul
         call output_individualcontr_fe
 
-    case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
+    case("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe",&
+        "nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
+         "nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
 
         call output_nucl_ionbin_multi
         call output_individualcontr_fe
@@ -1478,6 +1486,7 @@ subroutine output()
 
         call output_nonuclcp
         call output_individualcontr_fe
+        call write_fluxJ
 
     case default
 
@@ -3528,8 +3537,9 @@ subroutine make_filename_label(fnamelabel)
         fnamelabel=trim(fnamelabel)//"VdWscale"//trim(adjustl(rstr))//".dat"
 
     case("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv","brushborn",&
-    "nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
-    "nonucl_ST","nonucl_ST_mu")
+        "nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
+        "nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu",&
+        "nonucl_ST","nonucl_ST_mu")
         
         fnamelabel=trim(sublabel)
         
@@ -3786,7 +3796,8 @@ subroutine compute_vars_and_output()
         call max_potential() 
         call output()   
 
-    case ("nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")   
+    case ("nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
+        "nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")   
         
         call charge_polymer()
         call average_charge_polymer()        
@@ -3856,4 +3867,49 @@ subroutine write_chain_config()
 end subroutine write_chain_config
 
 
-end module
+! write flux and mu to file 
+
+subroutine write_fluxJ() 
+
+    use flux, only : Jvec, mu_ion
+    use globals, only : nsize
+    use parameters, only : niontypes, isionselfconsistent, iontype
+    use myutils, only : newunit
+      
+    ! local arguments
+    integer :: i,k
+    character(len=100) :: fnamelabel
+    character(len=100) :: filename 
+    integer :: un_flux, un_mu
+
+    ! .. make label filename       
+    call make_filename_label(fnamelabel)
+
+    do k=1,niontypes
+        if(isionselfconsistent(k)) then
+            filename='flux'//trim(iontype(k))//'.'//trim(fnamelabel)
+            open(unit=newunit(un_flux),file=filename) 
+            do i=1,nsize
+                write(un_flux,*)Jvec(i,1,k),Jvec(i,2,k),Jvec(i,3,k)
+            enddo    
+            close(un_flux) 
+        endif      
+    enddo
+
+    do k=1,niontypes
+        if(isionselfconsistent(k)) then
+            filename='mu'//trim(iontype(k))//'.'//trim(fnamelabel)
+            open(unit=newunit(un_mu),file=filename) 
+            do i=1,nsize
+                write(un_mu,*)mu_ion(i,k)
+            enddo    
+            close(un_mu) 
+        endif      
+    enddo
+
+end subroutine write_fluxJ
+
+
+end module myio
+
+      

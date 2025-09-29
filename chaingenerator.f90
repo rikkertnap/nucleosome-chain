@@ -37,7 +37,7 @@ contains
 ! Main chain generator routine selects type of method to use 
 ! based on value 
 ! input character(len=15) chainmethod
-!       character(len=20) systype
+!       character(len=25) systype
 
 subroutine make_chains(chainmethod,systype)
 
@@ -45,7 +45,7 @@ subroutine make_chains(chainmethod,systype)
     use myio, only : myio_err_chainmethod
 
     character(len=15), intent(in) :: chainmethod
-    character(len=20), intent(in) :: systype 
+    character(len=25), intent(in) :: systype 
 
     integer :: info
     character(len=lenText) :: text
@@ -256,12 +256,13 @@ end subroutine make_chains_mc
 subroutine read_chains_xyz(systype,info)
 
     ! .. argument
-    character(len=20), intent(in) :: systype
+    character(len=25), intent(in) :: systype
     integer, intent(out) :: info
 
-    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
-       .or. systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe".or. &
-       systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
+    if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
+        systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe".or. &
+        systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu".or.&
+        systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then 
 
         call read_chains_xyz_nucl_volume(info)
     
@@ -914,10 +915,13 @@ subroutine read_chains_xyz_nucl_volume(info)
     
     ! pairs variable 
     if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or. &
-         systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
+        systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu".or.&
+        systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then 
+
         call allocate_indexconfpair(cuantas,nseg)
         call allocate_nneighbor(cuantas,nseg)
         tPhos = find_type_phosphate()
+   
     endif
     ! triplet  variable 
     if(systype=="nucl_ionbin_Fe".or. systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then 
@@ -1158,7 +1162,8 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 enddo ! end s loop
 
-                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA")  then
+                if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA"&
+                    .or.systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then  
     
                     call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                     call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
@@ -1166,8 +1171,7 @@ subroutine read_chains_xyz_nucl_volume(info)
                 
                 endif    
 
-                if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.&
-                    systype=="nucl_ionbin_Fe_ST_mu") then
+                if(systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then
                 
                     call find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
                     call write_phosphate_triplets(.true.,conf,info)

@@ -44,7 +44,7 @@ program main
 
     integer :: i,c,num
     logical :: use_xstored
-    logical :: isfirstguess
+    logical :: isfirstguess, selectfirstguess
     logical :: issolution
     integer :: info
     character(len=lenText) :: text, istr
@@ -95,7 +95,8 @@ program main
     ! init distributed volume  
     if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
         systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe".or. &
-        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu".or.&
+        systype=="nucl_ionbin_MgA_ST".or. systype=="nucl_ionbin_MgA_ST_mu") then 
         
         call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
         call error_handler(info,"init_vnucl_type")
@@ -123,7 +124,9 @@ program main
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
     endif
 
-    if(systype=="nucl_ionbin_MgA") then 
+    if(systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_MgA_ST"&
+        .or.systype=="nucl_ionbin_MgA_ST_mu") then
+
         phoscutoff=int(distphoscutoff/delta)+2
         call allocate_field_pairs(nx,ny,nz,maxneigh,7,len_index_phos) ! internal systype switch !
     endif   
@@ -138,12 +141,16 @@ program main
     endif   
 
     if(systype=="nonucl_ST".or. systype=="nonucl_ST_mu".or.&
-        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+        systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu".or.&
+        systype=="nucl_ionbin_MgA_ST".or. systype=="nucl_ionbin_MgA_ST_mu") then 
         
         call allocate_divJ()
+        call allocate_Jvec()
+        call allocate_mu_ion()
         no_overlapchain(1)=.true. ! otherwise loop does not start !!
     endif   
-    if( systype=="nonucl_ST_mu" .or. systype=="nucl_ionbin_Fe_ST_mu") call allocate_mu() 
+    if( systype=="nonucl_ST_mu" .or. systype=="nucl_ionbin_Fe_ST_mu".or.&
+        systype=="nucl_ionbin_MgA_ST_mu") call allocate_mu() 
     
     
     call init_field()
@@ -221,7 +228,6 @@ program main
         list_val => cKCl
 
     else 
-
         call set_value_NaCl(runtype,info)
         call error_handler(info,"set_value_NaCl")
         num = num_cNaCl
@@ -245,8 +251,8 @@ program main
         if(no_overlapchain(c)) then 
           
             isfirstguess = .true.
-            use_xstored = .false.       ! with both flags set false make_guess will set xguess equal to x
-            iter = 0                    ! iteration counter
+            use_xstored = .false.          ! with both flags set false make_guess will set xguess equal to x
+            selectfirstguess = (infile==3) ! use always firstguess  
 
             if(loop%stepsize>0) then
                 loop%val = loop%min
@@ -283,25 +289,30 @@ program main
                     
                     call init_surface_constpotential_rangepsi
                     call init_vars_input()  ! sets chem potential  
-                    !call init_surface_constpotential_rangepsi
+                   
 
                    ! if(systype=="nucl_ionbin_Fe") call test_compute_fdisPPP
         
-                    call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
+                    call make_guess(x, xguess, isfirstguess,  selectfirstguess, use_xstored,xstored)
     
+
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
-                    
-                    ! isSolution=.true.
+                    isSolution=.True.
+    
                     call fcnptr(x, fvec, neq)
-                 
-                    call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
-                    
+
+
+                    call FEconf_entropy(FEconf,Econf) 
+
+                    ! systype dependent variabels computation : should be moved into compute_vars_input        
+
                     if(systype=="nucl_ionbin_Mg") then  
                         call compute_average_charge_PP(avfdisP2Mg,avfdisp2fe2,avfdisPP)
                         call compute_FEchem_react_PP(FEchempair)
                     endif 
                    
-                    if(systype=="nucl_ionbin_MgA") then
+                    if(systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_MgA_ST".or.&
+                        systype=="nucl_ionbin_MgA_ST_mu") then
                         call compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
                         call compute_FEchem_react_PP_expl(FEchempair)
                     endif          
@@ -310,6 +321,14 @@ program main
                         systype=="nucl_ionbin_Fe_ST_mu") then
                         call compute_average_charge_PPP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP,avfdisPPP)
                         call compute_FEchem_react_PPP_expl(FEchempair,FEchemtriplet)
+                    endif
+
+                    if(systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu".or. &
+                        systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu".or. &
+                        systype=="nonucl_ST_mu".or.systype=="nonucl_ST") then
+                       
+                        call calculate_fluxJ()
+                        call calculate_mu_ion()
                     endif          
                 
                     if(isSolution) then

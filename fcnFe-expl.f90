@@ -1100,7 +1100,7 @@ contains
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
         real(dp) :: sum_rhoqphos,sum_xphos
         real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
-        real(dp) :: numphos, numphos_comp, numpairs,numtriplets
+        real(dp) :: numphos, numphos_comp, numpairs, numtriplets
         logical  :: testnumphos
         integer  :: nshift(niontypes)
         logical  :: IsPositive   
@@ -1123,7 +1123,7 @@ contains
 
         ! .. read  in x 
 
-        xsol = x(1:nsize)           ! solvent volume fraction 
+        xsol = x(1:nsize)         ! solvent volume fraction 
         psi  = x(nsize+1:2*nsize) ! potential 
        
         k=2
@@ -2631,7 +2631,7 @@ contains
     subroutine fcnnonucl_ST_mu(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, neq
+        use globals, only    : nsize, neq, DEBUG_ST
         use parameters, only : vNa,vK,vCl,vFe2,vFe3,vCa,vMg
         use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg
         use parameters, only : iter
@@ -2641,6 +2641,7 @@ contains
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
         use Poisson, only    : Poisson_Equation_ST
         use flux, only       : div_flux, volumefraction , divJ, mu
+        use volume, only     : indextocoord
        
         ! .. scalar arguments
 
@@ -2653,7 +2654,7 @@ contains
 
         ! .. local variables
         
-        integer  :: n, i, k, t ! dummy indices
+        integer  :: n, i, k, t, ix,iy, iz, idx! dummy indices
         real(dp) :: norm, normvol, normPE, normflux
         integer  :: nshift(niontypes)
 
@@ -2753,6 +2754,7 @@ contains
         ! .. Poisson Eq 
            
         call Poisson_Equation_ST(f,psi,rhoq)     
+
      
         ! .. flux for ions 
 
@@ -2772,6 +2774,15 @@ contains
         normflux  = L2norm_f90(f(2*nsize+1:neq))
 
         print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE,"normflux=",normflux 
+
+        if(DEBUG_ST) then
+            do idx=1,nsize
+                ix=indextocoord(idx,1)
+                iy=indextocoord(idx,2)
+                iz=indextocoord(idx,3)
+                write(100,*)ix,iy,iz,f(nshift(1)+idx),rhoq(idx),psi(idx)
+            enddo    
+        endif    
 
     end subroutine fcnnonucl_ST_mu
 

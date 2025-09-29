@@ -62,6 +62,7 @@ contains
     subroutine fcnenergy()
  
         use globals, only : systype 
+        use myutils, only : error_handler
 
         character(len=70) :: text
        
@@ -86,7 +87,16 @@ contains
             call fcnenergy_ionbin_sv()
             call fcnenergy_elect_alternative()
 
+        case("nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
+            
+            call fcnenergy_ionbin_sv()
+            call fcnenergy_elect_alternative()
+
+            text="fenergy not properly nucl_ionbin_MgA_ST and nucl_ionbin_MgA_ST_mu"
+            print*,text
+
         case("nonucl_ST","nonucl_ST_mu")
+
             text="fenergy not yet implemented for nonucl_ST and nonucl_ST_mu"
             print*,text
 
@@ -111,9 +121,8 @@ contains
             call fcnenergy_neutral_sv_alternative() 
 
         case default  
-            print*,"Warning in fcnenergy"   
-            stop
-        
+            text="Error in fcnenergy systype wrong"
+            call error_handler(1,text)
         end select 
   
     end subroutine fcnenergy

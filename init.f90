@@ -12,50 +12,56 @@ contains
 
 ! Makes an inital guess vector xguess
 ! Order of assignment:
-! if flagstored present and true  : xguess => xstored
+! if selectfirstguess true             : xguess => init_guess(x,xguess) 
+! else if flagstored present and true  : xguess => xstored
 ! if flagstored false and isfirstguess true                 
-!                                 : xguess => init_guess(x,xguess)
-! else                            : xguess => x
+!                                      : xguess => init_guess(x,xguess)  
+! else                                 : xguess => x
 
-subroutine make_guess(x, xguess, isfirstguess, flagstored, xstored)
+subroutine make_guess(x, xguess, isfirstguess, selectfirstguess, flagstored, xstored)
   
-    use globals, only : neqint 
+    use myutils, only : error_handler, lenText
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential 
-    logical, intent(in) :: isfirstguess     ! first guess   
+    logical, intent(in) :: isfirstguess        ! first guess  
+    logical, intent(in) :: selectfirstguess    ! use first guess 
     logical, optional, intent(in) :: flagstored
     real(dp), optional, intent(in) :: xstored(:)
     
     !  ..local variables 
-    integer :: i 
+    character(len=lenText) :: text
 
     if(present(flagstored)) then
         if(present(xstored)) then
-            if(flagstored) then  
+            if(selectfirstguess) then 
+                call init_guess(x,xguess)
+            else if(flagstored) then  
                 call make_guess_from_xstored(xguess,xstored)
             else if(isfirstguess) then       ! first guess
                 call init_guess(x,xguess)
-            else  
-                do i=1,neqint
-                    xguess(i)=x(i)      
-                enddo
+            else
+                xguess = x
             endif
         else
-            print*,"Error: argument xstored not present, while flagstored present"
-            stop 
+            text="Error: argument xstored not present, while flagstored present"
+            call error_handler(1,text)
         endif 
     else if(isfirstguess) then       ! first guess
         call init_guess(x,xguess)
+    else if(selectfirstguess) then 
+        call init_guess(x,xguess)
     else     
-        do i=1,neqint
-            xguess(i)=x(i)     
-        enddo
+        xguess = x     
     endif
 
 end subroutine make_guess
 
-
+! initial or first guess x and xguess 
+! infile = 0  guess xsol = xbulk%sol and psi=0 for equilibrium and linear interpol for psi for steady state
+! infile = 1  guess from input files for varialbe xsol.in psi.in etc
+! infile = 2  guess from file x.out containing complete x vector
+! infile = 3  guess is infile 0 option in use select first guess == true in make_guess
 
 subroutine init_guess(x, xguess)
     
@@ -63,6 +69,8 @@ subroutine init_guess(x, xguess)
 
     real(dp), intent(in) :: x(:)          ! iteration vector 
     real(dp), intent(out) :: xguess(:)    ! guess volume fraction solvent and potential   
+
+   ! print*," init guess systype=",systype," len=",len(systype)
 
     select case (systype)
         case ("elect")   
@@ -79,9 +87,9 @@ subroutine init_guess(x, xguess)
             call init_guess_multi(x,xguess)
         case ("nucl_neutral_sv")  
             call init_guess_nucl_neutral_sv(x,xguess) 
-        case ("nonucl_ST","nucl_ionbin_Fe_ST") 
+        case ("nonucl_ST","nucl_ionbin_Fe_ST","nucl_ionbin_MgA_ST") 
             call init_guess_nonucl_ST(x,xguess)
-        case ("nonucl_ST_mu","nucl_ionbin_Fe_ST_mu") 
+        case ("nonucl_ST_mu","nucl_ionbin_Fe_ST_mu","nucl_ionbin_MgA_ST_mu") 
             call init_guess_nonucl_ST_mu(x,xguess)
         case ("brushborn") 
             call init_guess_multi_born(x,xguess)
@@ -96,7 +104,7 @@ end subroutine init_guess
 
 subroutine init_guess_elect(x, xguess)
 
-    use globals, only : neqint,bcflag,LEFT,RIGHT,nsize
+    use globals, only : bcflag,LEFT,RIGHT,nsize
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol
     use surface, only : psisurfL, psisurfR 
@@ -113,16 +121,14 @@ subroutine init_guess_elect(x, xguess)
     integer, parameter :: A=1, B=2   
     character(len=lenText) :: text, istr
   
-    ! .. init guess all xbulk     
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-        x(i+nsize)=0.0_dp
-        x(i+2*nsize)=0.0_dp
-        x(i+3*nsize)=0.0_dp
-    enddo
    
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    if(infile==0.or.infile==3) then  
+        ! .. init guess all xbulk  
+        x = 0.0_dp
+        x(1:nsize) = xbulk%sol
+
+    else if(infile==1) then   
+        ! .. infile is read in from file/stdio  
     
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A6)')'psi.in'
@@ -164,20 +170,22 @@ subroutine init_guess_elect(x, xguess)
             close(un_file(i))
         enddo
 
+    !     .. end init from file 
+   
+    else if(infile==2) then 
+
+        call read_xout(x)
+    
     endif
 
-    !     .. end init from file 
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
-
+    xguess = x
     
 end subroutine init_guess_elect
 
 
 subroutine init_guess_nucl_neutral_sv(x, xguess)
     
-    use globals, only : neqint,nsize
+    use globals, only : nsize
     use field, only : xsol
     use parameters, only : xbulk, infile
     use myutils, only : newunit, lenText, error_handler
@@ -191,17 +199,13 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
     character(len=lenText) :: text, istr
     integer :: ios,un_file
   
-    !     .. init guess all xbulk      
-
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+     if (infile==0.or.infile==3) then
+        ! .. init guess all xbulk   
+        x = 0.0_dp
+        x(1:nsize) = xbulk%sol
+    
+    else if (infile==1) then   
+        ! .. infile is read in from file/stdio  
         write(fname,'(A7)')'xsol.in'   
         open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
         if(ios >0 ) then
@@ -216,20 +220,22 @@ subroutine init_guess_nucl_neutral_sv(x, xguess)
         enddo
         
         close(un_file)
-    endif
-    !     .. end init from file 
+   
+        ! .. end init from file 
   
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
+    else if(infile==2) then 
+
+        call read_xout(x)
+    
+    endif
+
+    xguess = x 
     
 end subroutine init_guess_nucl_neutral_sv
 
-
-
 subroutine init_guess_neutral(x, xguess)
     
-    use globals, only : neqint,nsize,nsegtypes
+    use globals, only : nsize,nsegtypes
     use field, only : xsol,rhopol,xpol
     use parameters, only : xbulk, infile, isrhoselfconsistent
     use myutils, only : newunit, lenText, error_handler
@@ -243,18 +249,13 @@ subroutine init_guess_neutral(x, xguess)
     character(len=lenText) :: text, istr
     integer :: ios,un_file(2),count_scf
   
-    !     .. init guess all xbulk      
 
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    if (infile==0.or.infile==3) then
+        ! .. init guess all xbulk      
+        x =0.0_dp    
+        x(1:nsize)=xbulk%sol    
+    else if(infile==1) then   
+        ! ..infile is read in from file/stdio  
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A7)')'xpol.in'
         do i=1,2 ! loop files
@@ -284,18 +285,22 @@ subroutine init_guess_neutral(x, xguess)
 
         close(un_file(1))
         close(un_file(2))
-    endif
-    !     .. end init from file 
+
+        ! .. end init from file 
   
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
+    else if(infile==2) then 
+
+        call read_xout(x)
     
+    endif
+
+    xguess = x
+        
 end subroutine init_guess_neutral
 
 subroutine init_guess_neutralnoVdW(x, xguess)
     
-    use globals, only : neqint,nsize
+    use globals, only : nsize
     use field, only : xsol
     use parameters, only : xbulk, infile
     use myutils, only : newunit, lenText, error_handler
@@ -309,18 +314,14 @@ subroutine init_guess_neutralnoVdW(x, xguess)
     character(len=lenText) :: text, istr
     integer :: ios,un_file
   
-    !     .. init guess all xbulk      
-
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    if (infile==0.or.infile==3) then
+        !  .. init guess all xbulk      
+        x =0.0_dp    
+        x(1:nsize)=xbulk%sol
+    
+    else if(infile==1) then   
+        ! .. infile is read in from file/stdio  
+   
         write(fname,'(A7)')'xsol.in'
         open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
         if(ios >0 ) then
@@ -333,19 +334,23 @@ subroutine init_guess_neutralnoVdW(x, xguess)
             x(i) = xsol(i)            ! placing xsol  in vector x   
         enddo     
         close(un_file)
+
+        !  .. end init from file 
+
+    else if(infile==2) then 
+
+        call read_xout(x)
+    
     endif
-    !     .. end init from file 
-  
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
+
+    xguess = x
     
 end subroutine init_guess_neutralnoVdW
 
 
 subroutine init_guess_multi(x, xguess)
 
-    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes,systype
+    use globals, only : bcflag,LEFT,RIGHT,nsize,nsegtypes,systype
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,xpol_t
     use surface, only : psisurfL, psisurfR 
@@ -361,18 +366,13 @@ subroutine init_guess_multi(x, xguess)
     integer :: ios,un_file(4),count_scf
     character(len=lenText) :: text, istr
 
-    ! .. init guess all xbulk     
+    if (infile==0.or.infile==3) then
+        ! .. init guess all xbulk     
+        x=0.0_dp    
+        x(1:nsize)=xbulk%sol
 
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    else if (infile==1) then   
+        ! i.. nfile is read in from file/stdio  
     
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A6)')'psi.in'
@@ -444,19 +444,20 @@ subroutine init_guess_multi(x, xguess)
             close(un_file(i))
         enddo
 
-    endif
-    !     .. end init from file 
-  
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
+    else if(infile==2) then 
 
+        call read_xout(x)
+    
+    endif
+
+    xguess = x
+    
 end subroutine init_guess_multi
 
 
 subroutine init_guess_multinoVdW(x, xguess)
 
-    use globals, only : bcflag,LEFT,RIGHT,nsize,neqint
+    use globals, only : bcflag,LEFT,RIGHT,nsize
     use volume, only : nsurf
     use field, only : xsol,psi
     use surface, only : psisurfL, psisurfR 
@@ -472,17 +473,13 @@ subroutine init_guess_multinoVdW(x, xguess)
     character(len=lenText) :: text, istr
     integer :: ios,un_file(2)
   
-    ! .. init guess all xbulk     
+        
+    if(infile==0.or.infile==3) then ! .. init guess all xbulk 
 
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
-
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+        x =0.0_dp    
+        x(1:nsize)=xbulk%sol
+    
+    else if(infile==1) then    ! infile is read in from file/stdio  
     
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A6)')'psi.in'
@@ -518,82 +515,24 @@ subroutine init_guess_multinoVdW(x, xguess)
          do i=1,2
             close(un_file(i))
         enddo
+        !     .. end init from file 
 
+    else if(infile==2) then 
+
+        call read_xout(x)
+    
     endif
-    !     .. end init from file 
+
+    xguess = x
   
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
-
 end subroutine init_guess_multinoVdW
-
-! make initial guess for elect potential
-! linear function between surface potential psiL and psiR
-! return :real(dp) :: electpot
-! pre : init_surface called to rescale psiL and psR
-
-subroutine make_guess_potential_ST(electpot)
-
-    use globals, only : DEBUG_ST
-    use parameters, only : psiSL,psiSR 
-    use volume, only : nx, ny, nz, coordtoindex
-
-    real(dp), intent(inout) :: electpot(:)
-
-    ! local variable 
-    real(dp) :: slope, electpot_val
-    integer :: i, j, k, indx
-
-    slope= (psiSR-psiSL)/(nz*1.0_dp)
-    if(DEBUG_ST) print*,"slope=",slope, "psimin=",psiSL," psimax=",psiSR
-    
-    do k=1,nz 
-        electpot_val = slope * (k - 0.5_dp) + psiSL  ! middle of lattice cell in z-direction
-        do j=1,ny
-            do i=1,nx 
-                indx=coordtoindex(i,j,k)
-                electpot(indx)=electpot_val
-            enddo
-        enddo
-    enddo            
-
-end subroutine make_guess_potential_ST
-
-
-subroutine linear_interpolation(fcn_interp,fcn_begin,fcn_end)
-
-    use globals, only : DEBUG_ST
-    use volume, only : nx, ny, nz, coordtoindex
-
-    real(dp), intent(inout) :: fcn_interp(:)
-    real(dp), intent(in) :: fcn_begin, fcn_end
-
-    ! local variable 
-    real(dp) :: slope, fcn_val
-    integer :: i, j, k, indx
-
-    slope= (fcn_end-fcn_begin)/(nz*1.0_dp)
-    if(DEBUG_ST) print*,"slope=",slope, "fcn_begin=",fcn_begin," fcn_end=",fcn_end,"nz=",nz 
-    
-    do k=1,nz 
-        fcn_val = slope * (k - 0.5_dp) + fcn_begin  ! middle of lattice cell in z-direction
-        do j=1,ny
-            do i=1,nx 
-                indx=coordtoindex(i,j,k)
-                fcn_interp(indx)=fcn_val
-            enddo
-        enddo
-    enddo            
-
-end subroutine linear_interpolation
 
 
 ! Makes an inital guess vector xguess for systype nonucl_ST
 
 subroutine init_guess_nonucl_ST(x, xguess)
 
-    use globals, only : LEFT, RIGHT, nsize, neqint, DEBUG_ST
+    use globals, only : LEFT, RIGHT, nsize, DEBUG_ST
     use field, only : xsol, psi, xNa, xCl, xK, xHplus, xOHmin, xMg, xFe2, xFe3, xCa 
     use parameters, only : xbulk, infile, xvolmin, psiSL, psiSR
     use parameters, only : niontypes, iontype, isionselfconsistent
@@ -612,39 +551,39 @@ subroutine init_guess_nonucl_ST(x, xguess)
     character(len=5) :: key
     real(dp) :: xvol, xtest
 
-    ! .. init guess all xbulk     
+    if(infile==0.or.infile==3) then 
 
-    call make_guess_potential_ST(psi)
-    call linear_interpolation(psi,psiSL,psiSR)
-   
-    do i=1,nsize
-        x(i)       = xbulk%sol
-        x(i+nsize) = psi(i)
-    enddo 
-      
-   ! iontype(9)=(/"Na   ","Cl   ","K    ","Hplus","OHmin","Mg   ","Fe2  ","Fe3  ","Ca   "/) 
-    xtest=0.0_dp
-    k = 2*nsize
-    do t=1,size(iontype)
-        if(isionselfconsistent(t)) then 
-            key = trim(iontype(t))
-            xvol = get_value_moleclist(xvolmin,key)
-            xtest = xtest +xvol
-            if(DEBUG_ST) print*,"t= ",t," key= ",key," xvol=",xvol
-       
-            x(k+1:k+nsize)=xvol
-            k = k + nsize
-        endif           
-    enddo
+        ! .. init guess all xbulk     
 
-    xtest=xtest+xbulk%sol
-    if(DEBUG_ST)  print*,"xtest=",xtest
+        call linear_interpolation(psi,psiSL,psiSR)
+    
+        do i=1,nsize
+            x(i)       = xbulk%sol
+            x(i+nsize) = psi(i)
+        enddo 
+        
+        xtest=0.0_dp
+        k = 2*nsize
+        do t=1,size(iontype)
+            if(isionselfconsistent(t)) then 
+                key = trim(iontype(t))
+                xvol = get_value_moleclist(xvolmin,key)
+                xtest = xtest +xvol
+                if(DEBUG_ST) print*,"t= ",t," key= ",key," xvol=",xvol
+        
+                x(k+1:k+nsize)=xvol
+                k = k + nsize
+            endif           
+        enddo
 
-    xtest = sum_value_moleclist(xbulk)
-    if(DEBUG_ST) print*,"xtest=",xtest
+        xtest=xtest+xbulk%sol
+        if(DEBUG_ST)  print*,"xtest=",xtest
+
+        xtest = sum_value_moleclist(xbulk)
+        if(DEBUG_ST) print*,"xtest=",xtest
 
 
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    else if(infile==1) then   ! infile is read in from file/stdio  
     
         write(fname(10),'(A7)')'xsol.in'
         write(fname(11),'(A6)')'psi.in'
@@ -750,13 +689,16 @@ subroutine init_guess_nonucl_ST(x, xguess)
             if(isionselfconsistent(t)) close(un_file(t))   
         enddo
 
-    endif
-    !     .. end init from file 
-  
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
+    else if(infile==2) then   ! x  read  directly from x.out
+       
+        call read_xout(x)
 
+    endif
+
+    ! assign xguess to x 
+  
+    xguess =x 
+  
 end subroutine init_guess_nonucl_ST
 
 
@@ -764,7 +706,7 @@ end subroutine init_guess_nonucl_ST
 
 subroutine init_guess_nonucl_ST_mu(x, xguess)
 
-    use globals, only : LEFT, RIGHT, nsize, neqint, DEBUG_ST
+    use globals, only : LEFT, RIGHT, nsize, DEBUG_ST
     use field, only : xsol, psi, xNa, xCl, xK, xHplus, xOHmin, xMg, xFe2, xFe3, xCa 
     use parameters, only : xbulk, infile, mumin,mumax, psiSL, psiSR
     use parameters, only : niontypes, iontype, isionselfconsistent
@@ -777,16 +719,16 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
   
     !  ..local variables 
     integer :: i, t, k
-    character(len=9) :: fname(12)
+    character(len=9) :: fname(11)
     character(len=lenText) :: text, istr
-    integer :: ios,un_file(12)
+    integer :: ios,un_file(11)
     character(len=5) :: key
     real(dp) :: mu(nsize), muL , muR
 
 
-    if( infile==0) then 
-       
-        ! .. init guess xsol and psi  
+    if(infile==0.or.infile==3) then 
+        ! .. init guess xsol and psi 
+
         call linear_interpolation(psi,psiSL,psiSR)
         
         do i=1,nsize
@@ -809,7 +751,8 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
             endif           
         enddo
 
-    else if (infile==1) then   ! infile is read in from file/stdio  
+    else if(infile==1) then   
+        ! .. infile is read in from file/stdio  
         
         write(fname(10),'(A7)')'xsol.in'
         write(fname(11),'(A6)')'psi.in'
@@ -829,7 +772,7 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
                 open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
                 if(ios >0 ) then
                     write(istr,'(I5)')un_file(t)
-                    text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
+                    text='init_guess_nonucl_ST_mu: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
                     call error_handler(ios,text)
                 endif
             endif    
@@ -838,7 +781,7 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
             open(unit=newunit(un_file(t)),file=fname(t),iostat=ios,status='old')
             if(ios >0 ) then
                 write(istr,'(I5)')un_file(t)
-                text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
+                text='init_guess_nonucl_ST_mu: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(t)))
                 call error_handler(ios,text)
             endif
         enddo
@@ -866,49 +809,49 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
                         read(un_file(t),*)xOHmin(i)  
                     enddo  
                     call chem_potential(mu,xsol,xOHmin,psi,"OHmin")
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Na")
                     do i=1,nsize     
                         read(un_file(t),*)xNa(i)
                     enddo  
                     call chem_potential(mu,xsol,xNa,psi,"Na")
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("K")
                     do i=1,nsize     
                         read(un_file(t),*)xK(i)
                     enddo  
                     call chem_potential(mu,xsol,xK,psi,"K") 
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Cl")
                     do i=1,nsize   
                         read(un_file(t),*)xCl(i) 
                     enddo  
                     call chem_potential(mu,xsol,xCl,psi,"Cl")  
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Mg")
                     do i=1,nsize     
                         read(un_file(t),*)xMg(i)
                     enddo   
                     call chem_potential(mu,xsol,xMg,psi,"Mg") 
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Fe2")
                     do i=1,nsize     
                         read(un_file(t),*)xFe2(i) 
                     enddo 
                     call chem_potential(mu,xsol,xFe2,psi,"Fe2") 
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Fe3")
                     do i=1,nsize     
                         read(un_file(t),*)xFe3(i)
                     enddo  
                     call chem_potential(mu,xsol,xFe3,psi,"Fe3")
-                    x(k+1:k+nsize)=mu
+                    x(k+1:k+nsize) = mu
                 case("Ca")
                     do i=1,nsize     
                         read(un_file(t),*)xCa(i)
                     enddo 
                     call chem_potential(mu,xsol,xCa,psi,"Ca") 
-                    x(k+1:k+nsize)=mu     
+                    x(k+1:k+nsize) = mu     
                 case default
                 end select
                 k = k + nsize
@@ -924,33 +867,21 @@ subroutine init_guess_nonucl_ST_mu(x, xguess)
             if(isionselfconsistent(t)) close(un_file(t))   
         enddo
 
-    else if (infile==2) then   ! x  read  directly from x.out
+    else if(infile==2) then   ! x  read  directly from x.out
 
-        write(fname(12),'(A5)')'x.out'
-        open(unit=newunit(un_file(12)),file=fname(12),iostat=ios,status='old')
-        if(ios >0 ) then
-            write(istr,'(I5)')un_file(12)
-            text='init_guess_nonucl_ST: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(12)))                
-            call error_handler(ios,text)
-        endif
-        do i=1,neqint     
-            read(un_file(12),*)x(i)
-        enddo 
-        close(un_file(12))
+        call read_xout(x)
 
     endif
     
     ! assign xguess to x 
   
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
-
+    xguess =x 
+  
 end subroutine init_guess_nonucl_ST_mu
 
 subroutine init_guess_multi_born(x, xguess)
 
-    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,neqint,nsegtypes
+    use globals, only : neq,bcflag,LEFT,RIGHT,nsize,nsegtypes
     use volume, only : nsurf
     use field, only : xsol,psi,rhopol,xpol,rhopol,fdisA
     use surface, only : psisurfL, psisurfR 
@@ -965,15 +896,12 @@ subroutine init_guess_multi_born(x, xguess)
     character(len=lenText) :: text, istr
     integer :: ios, un_file(4), count_sc
 
-    do i=1,neqint
-        x(i)=0.0_dp    
-    enddo
+    if(infile ==0.or.infile == 3) then
 
-    do i=1,nsize
-        x(i)=xbulk%sol
-    enddo
-
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+        x=0.0_dp    
+        x(1:nsize)=xbulk%sol
+   
+    else if(infile==1) then   ! infile is read in from file/stdio  
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A6)')'psi.in'
         write(fname(3),'(A7)')'xpol.in'
@@ -1047,23 +975,21 @@ subroutine init_guess_multi_born(x, xguess)
             enddo
         endif
 
-
         do i=1,4
             close(un_file(i))
         enddo
 
+    else if (infile==2) then   ! x  read  directly from x.out
+
+        call read_xout(x)
+
     endif
-
-    !  .. end init from file 
-
-    do i=1,neqint
-        xguess(i)=x(i)
-    enddo
-
     
+    ! assign xguess to x 
+  
+    xguess = x 
 
 end subroutine init_guess_multi_born
-
 
 
 ! .. copy solution of previous solution to create new guess
@@ -1084,6 +1010,72 @@ subroutine make_guess_from_xstored(xguess,xstored)
     enddo 
 
 end subroutine make_guess_from_xstored
+
+
+! linear function in z-direction of fcn bewteen 
+! fcn_begin at z= -delta /2 and fc 
+! fcn_end.  at z= nz delta -delta /2 
+! value in x and y direction same  
+
+subroutine linear_interpolation(fcn_interp,fcn_begin,fcn_end)
+
+    use globals, only : DEBUG_ST
+    use volume, only : delta, nx, ny, nz, coordtoindex
+
+
+    real(dp), intent(inout) :: fcn_interp(:)
+    real(dp), intent(in) :: fcn_begin, fcn_end
+
+    ! local variable 
+    real(dp) :: slope, intercept,  fcn_val 
+    integer :: i, j, k, indx
+     
+    slope = (fcn_end-fcn_begin)/((nz+1)*delta)
+    intercept = fcn_begin+slope * delta/2.0_dp
+    
+    do k=1,nz 
+        fcn_val = slope * (k - 0.5_dp) * delta  +  intercept  ! middle of lattice cell in z-direction
+        do j=1,ny
+            do i=1,nx 
+                indx=coordtoindex(i,j,k)
+                fcn_interp(indx)=fcn_val
+            enddo
+        enddo
+    enddo         
+    
+end subroutine linear_interpolation
+
+! Open and read file x.out ( dump file from solver) 
+! assign vector to input vector x 
+
+subroutine read_xout(x)
+
+    use myutils, only : newunit, lenText, error_handler
+    use globals, only : neqint
+
+    real(dp) :: x(:)       
+    
+    !  ..local variables 
+    integer :: i
+    character(len=5) :: fname
+    character(len=lenText) :: text, istr
+    integer :: ios, un_file
+
+    write(fname,'(A5)')'x.out'
+    open(unit=newunit(un_file),file=fname,iostat=ios,status='old')
+    if(ios >0 ) then
+        write(istr,'(I5)')un_file
+        text='Open file failed : file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname))                
+        call error_handler(ios,text)
+    endif
+    
+    do i=1,neqint     
+        read(un_file,*)x(i)
+    enddo 
+
+    close(un_file)
+
+end subroutine read_xout       
 
 
 

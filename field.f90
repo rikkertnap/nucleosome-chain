@@ -197,7 +197,8 @@ contains
         endif
  
         if(systype=="nucl_ionbin_MgA" .or. systype =="nucl_ionbin_Fe".or. &
-            systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu") then
+            systype=="nucl_ionbin_Fe_ST".or.systype=="nucl_ionbin_Fe_ST_mu".or.&
+            systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then
 
             N=Nx*Ny*Nz
             allocate(rhoqphos(N))
@@ -239,7 +240,7 @@ contains
             fdisP2Fe3=0.0_dp
         endif
 
-        if(systype=="nucl_ionbin_MgA") then
+        if(systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then
             fdisPP_loc=0.0_dp
             fdisP2Mg_loc=0.0_dp
             fdisPP_loc_swap=0.0_dp
@@ -332,7 +333,8 @@ contains
 
             call charge_nucl_ionbin_sv()  
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe","nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu",&
+            "nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
 
             call charge_nucl_ionbin_Mg() 
 
@@ -571,7 +573,7 @@ contains
 
             call average_charge_nucl_ionbin_sv()
 
-        case ("nucl_ionbin_Mg","nucl_ionbin_MgA")
+        case ("nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
 
             call average_charge_nucl_ionbin_Mg()
 
@@ -1698,7 +1700,37 @@ contains
         
     end subroutine max_potential
 
+    ! auxilary function checks if all elements of array xvol ( volume fraction) are postivtive
+    ! input real(dp) :: xvol(:)
+    !       character(len=*) :: moltype  =  string describing ion type assocated with xvol       
+    ! return logical ::  IsPostive 
+    !        if IsPostive == .false. additional text output to stdio
 
+    subroutine check_positive(xvol,IsPositive,moltype)
+        
+        use precision_definition 
+
+        real(dp), intent(in)  :: xvol(:)
+        logical, intent(inout) :: IsPositive
+        character(len=*), intent(in) :: moltype
+        
+        integer :: i, n
+        character(len=5) :: key
+
+        key= trim(moltype)
+        IsPositive=.true.
+        n = size(xvol)
+        i=1
+
+        do while(i<=n .and. IsPositive) 
+            if(xvol(i)<=0.0_dp) IsPositive=.false. 
+            if(IsPositive.eqv..false.) then
+                print*,"moltype=",key," i=",i," xvol=", xvol(i)
+            endif 
+            i=i+1
+        end do 
+
+    end subroutine check_positive
 
 
       

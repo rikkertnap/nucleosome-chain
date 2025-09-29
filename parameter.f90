@@ -308,7 +308,8 @@ contains
                 neq =  nsize 
             case ("nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
                 neq = 2 * nsize 
-            case ("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu")
+            case ("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu",&
+            "nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
                 numeq=0
                 do t=1, niontypes
                     if(isionselfconsistent(t)) numeq = numeq+1
@@ -529,6 +530,7 @@ contains
         ! assign vol and zval  
 
         vol%sol = vsol 
+        print*,"Warning assignment of vol%sol =vsol or 1.0_dp ????"
         vol%Na  = vNa
         vol%Cl  = vCl 
         vol%K   = vK
@@ -556,6 +558,8 @@ contains
         zval%O2 = 0.0_dp
         
         cuantas=max_confor
+
+        call init_diffusion_coeff()
 
     end subroutine init_constants
 
@@ -646,7 +650,8 @@ contains
         enddo
 
         if(systype/="nucl_ionbin_Mg".and. systype/="nucl_ionbin_MgA".and. systype/="nucl_ionbin_Fe"&
-            .and. systype/="nucl_ionbin_Fe_ST".and. systype/="nucl_ionbin_Fe_ST_mu") then ! old binding model
+            .and. systype/="nucl_ionbin_Fe_ST".and. systype/="nucl_ionbin_Fe_ST_mu"&
+            .and. systype/="nucl_ionbin_MgA_ST".and. systype/="nucl_ionbin_MgA_ST_mu") then ! old binding model
             K0aAA(4) = K0aAA(4)*(vsol*Na/1.0e24_dp) ! A2Ca
             K0aAA(6) = K0aAA(6)*(vsol*Na/1.0e24_dp) ! A2Mg
         endif 
@@ -684,14 +689,16 @@ contains
 
 
         if(systype=="nucl_ionbin_Mg" .or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe"&
-           .or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu") then
+            .or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu"&
+            .or. systype=="nucl_ionbin_MgA_ST" .or. systype=="nucl_ionbin_MgA_ST_mu") then
             call init_vPP(info)
             call error_handler(info,"init_vPP")
             call init_qpp()
         endif
             
 
-        if(systype=="nucl_ionbin_Fe".or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu") then
+        if(systype=="nucl_ionbin_Fe".or. systype=="nucl_ionbin_Fe_ST" .or. systype=="nucl_ionbin_Fe_ST_mu"&
+            .or. systype=="nucl_ionbin_MgA_ST" .or. systype=="nucl_ionbin_MgA_ST_mu") then
             call init_vPPP(info)
             call error_handler(info,"init_vPPP")
             call init_qppp()
@@ -776,7 +783,7 @@ contains
         ! local variables
         real(dp) ::  xbulkidO2, xbulksalt, conc, tolerance
         real(dp),  dimension(:), allocatable ::  x, xguess
-        character(len=20) :: systype_old
+        character(len=25) :: systype_old
         logical :: issolution
         character(len=lenText) :: text
 
@@ -841,7 +848,7 @@ contains
         type(moleclist), intent(inout) :: xbulk
 
         real(dp),  dimension(:), allocatable ::  x, xguess
-        character(len=20) :: systype_old
+        character(len=25) :: systype_old
         logical :: issolution
         character(len=lenText) :: text
 
@@ -1130,7 +1137,7 @@ contains
  
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.& 
             systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe".or.systype=="nucl_ionbin_Fe_ST".or.&
-            systype=="nucl_ionbin_Fe_ST_mu") then 
+            systype=="nucl_ionbin_Fe_ST_mu".or.systype=="nucl_ionbin_MgA_ST".or.systype=="nucl_ionbin_MgA_ST_mu") then 
             
             Kaion  = 10.0_dp**(-pKaion)             ! experimental equilibruim ionbinding 
             K0aion = (Kaion*vsol)*(Na/1.0e24_dp)    ! intrinstic equilibruim 
@@ -1244,7 +1251,7 @@ contains
         psimax = psiSR
     
         if(DEBUG_ST) then
-            print*,"Hello!!!!!!!!" 
+            print*,"init_mu_elect"
             print*,"psimin=",psimin," psimax=",psimax
         endif
         
@@ -1375,7 +1382,7 @@ contains
             call set_energychainLJ_scale(VdWscale)
             call set_dielect_scale(dielectscale)
 
-        case("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu")
+        case("nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nucl_ionbin_MgA_ST","nucl_ionbin_MgA_ST_mu")
 
             call init_dna() 
             call init_expmu_elect()
@@ -1477,8 +1484,11 @@ contains
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
            systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe".or. &
-           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu".or. &
+           systype=="nucl_ionbin_MgA_ST".or. systype=="nucl_ionbin_MgA_ST_mu") then 
+
             allocate(vnucl(nelemtypes,nsegtypes))
+        
         endif    
 
     end subroutine allocate_vnucl  
@@ -1491,11 +1501,14 @@ contains
         integer, intent(in) :: nelemtypes
 
         if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
-           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+            systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
+            systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu".or. &
+            systype=="nucl_ionbin_MgA_ST".or. systype=="nucl_ionbin_MgA_ST_mu") then 
+
             allocate(vnucl_type(nelemtypes))
             allocate(vnucl_type_char(nelemtypes))
             allocate(vnucl_type_isChargeable(nelemtypes))
+        
         endif    
 
     end subroutine allocate_vnucl_type  
@@ -1519,6 +1532,8 @@ contains
         if(systype=="nucl_ionbin_Fe") vnucl=0.0_dp
         if(systype=="nucl_ionbin_Fe_ST") vnucl=0.0_dp
         if(systype=="nucl_ionbin_Fe_ST_mu") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_MgA_ST") vnucl=0.0_dp
+        if(systype=="nucl_ionbin_MgA_ST_mu") vnucl=0.0_dp
 
     end subroutine init_vnucl
        
@@ -1542,9 +1557,12 @@ contains
         pKaion = 0.0_dp
         
         if(systype=="nucl_ionbin".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.&
-           systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
-           systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu") then 
+            systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe".or.&
+            systype=="nucl_ionbin_Fe_ST".or. systype=="nucl_ionbin_Fe_ST_mu".or.&
+            systype=="nucl_ionbin_MgA_ST".or. systype=="nucl_ionbin_MgA_ST_mu") then 
+
             call read_pKaions(pKaion,zpol,pKaionfname, nsegtypes) 
+       
         endif    
        
     end subroutine init_pKaions
@@ -2186,8 +2204,11 @@ contains
         text= "Error : value of runtype incompatible with xbulk of type"
 
         if(systype/="nonucl_ST".and.systype/="nonucl_ST_mu"&
-            .and.systype/="nucl_ionbin_Fe_ST" .and.systype/="nucl_ionbin_Fe_ST_mu") then 
-                return ! alternate return
+            .and.systype/="nucl_ionbin_Fe_ST" .and.systype/="nucl_ionbin_Fe_ST_mu"&
+             .and.systype/="nucl_ionbin_MgA_ST".and.systype/="nucl_ionbin_MgA_ST_mu") then 
+
+            return ! alternate return
+       
         endif        
 
         call allocate_isionselfconsistent(info_alloc)
@@ -2267,11 +2288,15 @@ contains
             VdWepsBB = VdWeps(2,1) 
         case ("neutral","neutralnoVdW","brush_mul","brush_mulnoVdW","brushvarelec","brushborn","brushdna",&
                 "nucl_ionbin","nucl_ionbin_sv","nucl_neutral_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe",&
-                "nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu")
+                "nucl_ionbin_Fe_ST","nucl_ionbin_Fe_ST_mu","nonucl_ST","nonucl_ST_mu","nucl_ionbin_MgA_ST",&
+                "nucl_ionbin_MgA_ST_mu")
+
         case default
+            
             print*,"Error: in set_VdWepsAAandBB, systype=",systype
             print*,"stopping program"
             stop
+        
         end select  
 
     end subroutine set_VdWepsAAandBB

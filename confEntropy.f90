@@ -53,8 +53,10 @@ contains
         case ("nonucl_ST","nonucl_ST_mu")
             FEconf = 0.0_dp
             Econf = 0.0_dp
-        case ("nucl_ionbin_Fe_ST_mu")
+        case ("nucl_ionbin_Fe_ST_mu","nucl_ionbin_Fe_ST")
             call FEconf_nucl_ionbin_Fe(FEconf,Econf)  
+         case ("nucl_ionbin_MgA_ST_mu","nucl_ionbin_MgA_ST")
+            call FEconf_nucl_ionbin_MgA(FEconf,Econf) 
         case default
             text="FEconf_entropy: wrong systype: "//systype//"stopping program"
             call print_to_log(LogUnit,text)

@@ -2519,6 +2519,47 @@ contains
 
     end subroutine fcnnucl_ionbin_sv_Fe_ST_mu
 
+
+    subroutine fcnnucl_ionbin_sv_Mg_A_ST(x,f,nn)
+
+        use precision_definition
+        use globals, only : neq
+        use modfcnMgexpl, only: fcnnucl_Mg_expl_ST
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Mg_expl_ST(x,f,nn) 
+    
+
+    end subroutine fcnnucl_ionbin_sv_Mg_A_ST
+
+    subroutine fcnnucl_ionbin_sv_Mg_A_ST_mu(x,f,nn)
+
+        use precision_definition
+        use globals, only : neq
+        use modfcnMgexpl, only: fcnnucl_Mg_expl_ST_mu
+
+        !     .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        !     .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        call fcnnucl_Mg_expl_ST_mu(x,f,nn) 
+
+    end subroutine fcnnucl_ionbin_sv_Mg_A_ST_mu
+
+
     subroutine fcnnonuclST(x,f,nn)
 
         use precision_definition
@@ -2786,14 +2827,14 @@ contains
                 do i=1,nsize                    
                     constr(i+nsize)=0.0_dp     ! electrostatic potential 
                 enddo  
-            case ("nucl_ionbin_Fe_ST","nonucl_ST")   
+            case ("nucl_ionbin_Fe_ST","nucl_ionbin_MgA_ST","nonucl_ST")   
                 do i=1,neqint
                     constr(i)=2.0_dp
                 enddo
                 do i=1,nsize
                     constr(i+nsize)=0.0_dp     ! electrostatic potential 
                 enddo
-            case ("nucl_ionbin_Fe_ST_mu","nonucl_ST_mu")   
+            case ("nucl_ionbin_Fe_ST_mu","nucl_ionbin_MgA_ST_mu","nonucl_ST_mu")   
                 do i=1,nsize
                     constr(i)=2.0_dp
                 enddo
@@ -2850,6 +2891,8 @@ contains
         use globals, only : systype
         use fcnpointer
 
+    !    print*,"systype=",systype," len=",len(systype)
+
         select case (systype) 
         case ("brush_mul")
             fcnptr => fcnelectbrushmulti ! acid and base : no counterion binding VdW
@@ -2865,6 +2908,10 @@ contains
             fcnptr => fcnnucl_ionbin_sv_Mg
         case ("nucl_ionbin_MgA")
             fcnptr => fcnnucl_ionbin_sv_Mg_A
+        case ("nucl_ionbin_MgA_ST")
+            fcnptr => fcnnucl_ionbin_sv_Mg_A_ST
+        case ("nucl_ionbin_MgA_ST_mu")
+            fcnptr => fcnnucl_ionbin_sv_Mg_A_ST_mu
         case ("nucl_ionbin_Fe")
             fcnptr => fcnnucl_ionbin_sv_Fe 
         case ("nucl_ionbin_Fe_ST")
@@ -2887,7 +2934,7 @@ contains
             fcnptr => fcnneutralnoVdW
         case ("bulk_water")             ! determines compositon bulk electrolyte solution
              fcnptr => fcnbulk
-        case ("bulk_water_ox")             ! determines compositon bulk electrolyte solution
+        case ("bulk_water_ox")          ! determines compositon bulk electrolyte solution
              fcnptr => fcnbulkO2     
         case default
             print*,"Error in call to set_fcn subroutine"    
