@@ -22,6 +22,12 @@ module chaingenerator
 
     logical, parameter :: COMOLD =.FALSE.
 
+    type :: violation_site
+        integer :: index_lat
+        integer, allocatable :: atom_ids(:)
+    end type violation_site
+
+
     private 
 
     public :: make_chains, make_chains_mc,read_chains_xyz
@@ -29,8 +35,11 @@ module chaingenerator
     public :: set_mapping_num_to_char, set_properties_chain, write_chain_struct
     public :: find_phosphate_location
     public :: write_indexchain_histone, test_index_histone
+    public :: read_chains_xyz_nucl_volume_aigc
+    public :: maximum_xnucl
 
     private :: eps_equilat,fmt3xyz, COMOLD
+
 
 contains
 
@@ -39,34 +48,35 @@ contains
 ! input character(len=15) chainmethod
 !       character(len=15) systype
 
-subroutine make_chains(chainmethod,systype)
+subroutine make_chains(chainmethod,systype,isAIGC)
 
     use myutils, only : print_to_log, LogUnit, lenText, error_handler
     use myio, only : myio_err_chainmethod
 
     character(len=15), intent(in) :: chainmethod
     character(len=15), intent(in) :: systype 
+    logical, intent(in) :: isAIGC
 
-    integer :: i, info
-    character(len=lenText) :: text, istr
+    integer :: info
+    character(len=lenText) :: text
 
     if(systype=="nonuclcp") return ! alternate return
 
-    info=0
+    info = 0
+
     select case (chainmethod)
     case ("MC")
         call make_chains_mc()
     case ("FILE_XYZ")      
-        call read_chains_xyz(systype,info)       
+        call read_chains_xyz(systype,isAIGC,info)       
     case default
-        text="chainmethod not equal to MC or FILE_XYZ"            
+        text = "chainmethod not equal to MC or FILE_XYZ"            
         call print_to_log(LogUnit,text)
         print*,text
         info = myio_err_chainmethod
     end select
 
     call error_handler(info,"make_chains")
-    
     
 end subroutine make_chains
 
@@ -154,7 +164,9 @@ subroutine make_chains_mc()
         if(write_mc_chains) then 
             energy=0.0_dp
             write(un_ene,*)energy  
-            call write_chain_lammps_trj(un_trj,chain,nchains)  
+            do i=1,nchains
+                call write_chain_lammps_trj(un_trj,chain(:,:,i))
+            enddo    
         endif    
    
             
@@ -259,15 +271,20 @@ subroutine make_chains_mc()
 end subroutine make_chains_mc
 
 
-subroutine read_chains_xyz(systype,info)
+subroutine read_chains_xyz(systype,isAIGC,info)
 
     ! .. argument
     character(len=15), intent(in) :: systype
+    logical, intent(in) :: isAIGC
     integer, intent(out) :: info
 
     if(systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg" &
        .or. systype=="nucl_ionbin_MgA" .or. systype=="nucl_ionbin_Fe") then 
-        call read_chains_xyz_nucl_volume(info)
+       if(isAIGC) then 
+            call read_chains_xyz_nucl_volume_aigc(info)
+        else     
+            call read_chains_xyz_nucl_volume(info)
+        endif    
     else
         call read_chains_xyz_nucl(info)
     endif    
@@ -749,7 +766,7 @@ subroutine read_chains_xyz_nucl_volume(info)
     use myutils, only  : error_handler
     use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
     use VdW_potential, only : make_com_nucl_rotation
-    use listfcn, only : maximum_xnucl
+
 
     ! .. argument
 
@@ -811,6 +828,9 @@ subroutine read_chains_xyz_nucl_volume(info)
     integer :: s_local 
     logical :: no_overlap, isCheck
     real(dp) :: gyr_tensor(3,3)
+
+    integer, dimension(:), allocatable :: violation_sites
+
     ! .. executable statements   
 
     info=0
@@ -993,11 +1013,11 @@ subroutine read_chains_xyz_nucl_volume(info)
         
         if(isReadGood) then ! read was succesfull  
 
-            chain_lammps(:,:,1)=xseg
+           
 
             if(DEBUG)then
                 un_traj=open_chain_lammps_trj(info_traj)
-                call write_chain_lammps_trj(un_traj,chain_lammps,1)
+                call write_chain_lammps_trj(un_traj,xseg)
                 close(un_traj)
             endif      
 
@@ -2010,7 +2030,10 @@ subroutine make_type_of_charge_table(type_of_charge,zpol,nsegtypes)
 end subroutine make_type_of_charge_table
 
 ! Checks if (xi,yi,zi) is inside lattice
-! 0<=xi<=nx  and 0<= yi <= ny and o
+! 1 <= xi <= nx
+! 1 <= yi <= ny
+! 1 <= zi <= nz
+! Returns: .true. if outside
 ! returns: logical = .true. if outside 
 
 function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
@@ -2020,15 +2043,11 @@ function isOutsideLattice(xi,yi,zi,nx,ny,nz)result(isOutside)
 
     logical :: isOutside
 
-    integer :: intxi,intyi,intzi
-    logical :: isInside
-    
-    intxi=int(xi/nx)
-    intyi=int(yi/ny)
-    intzi=int(zi/nz)
 
-    isInside=(0<=intxi).and.(intxi<=1).and.(0<=intyi).and.(intyi<=1).and.(0<=intzi).and.(intzi<=1)
-    isOutside=.not.isInside
+    isOutside = (xi < 1).or.(xi > nx).or. &
+            (yi < 1).or.(yi > ny).or. &
+            (zi < 1).or.(zi > nz)
+  
     
 end function isOutsideLattice
 
@@ -2309,50 +2328,49 @@ end function
 !        integer nchains : number of confomations
 ! return: a lammpstrj file
 
-subroutine write_chain_lammps_trj(un_trj,chain,nchains)
+subroutine write_chain_lammps_trj(un_trj,chain)
 
-    use globals, only : nseg
     use myutils, only : newunit, lenText
     use volume, only : delta, nx, ny, nz
-    use chains, only : type_of_monomer
+    use chains, only : type_of_monomer, mapping_num_to_char
 
-    real(dp), intent(in) :: chain(:,:,:)
-    integer, intent(in) :: nchains
+    real(dp), intent(in) :: chain(:,:)
     integer , intent(in) :: un_trj
     
     character(len=lenText) :: istr
     real(dp) :: x, y, z
-    integer ::  i, j, k
     real(dp) :: xbox0, xbox1(3)
-    integer :: idatom, item, moltype !, conf_write
+    integer :: idatom, item
+    integer :: nseg ! local
+    character(len=3) :: moltype 
+
+    nseg = size(chain,2) 
 
     xbox0=0.0_dp
     xbox1(1)=nx*delta*10.0_dp ! conversion to Angstrom 
     xbox1(2)=ny*delta*10.0_dp
     xbox1(3)=nz*delta*10.0_dp
-
-    do j=1,nchains   
-        
-        conf_write_chain=conf_write_chain+1 
-        ! write preamble 
-        write(un_trj,'(14A)')'ITEM: TIMESTEP' 
-        write(un_trj,*)conf_write 
-        write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
-        write(un_trj,*)nseg 
-        write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
-        write(un_trj,*)xbox0,xbox1(1)
-        write(un_trj,*)xbox0,xbox1(2)
-        write(un_trj,*)xbox0,xbox1(3)
-        write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
-        do item=1,nseg
-            x = chain(1,item,j)*10.0_dp
-            y = chain(2,item,j)*10.0_dp
-            z = chain(3,item,j)*10.0_dp
-            idatom=1
-            moltype=type_of_monomer(item) 
-            write(un_trj,*)item,idatom,moltype,x,y,z
-        enddo    
-    enddo
+    
+    conf_write_chain=conf_write_chain+1 
+    ! write preamble 
+    write(un_trj,'(14A)')'ITEM: TIMESTEP' 
+    write(un_trj,*)conf_write 
+    write(un_trj,'(21A)')'ITEM: NUMBER OF ATOMS' 
+    write(un_trj,*)nseg 
+    write(un_trj,'(25A)')'ITEM: BOX BOUNDS ff ff ff'
+    write(un_trj,*)xbox0,xbox1(1)
+    write(un_trj,*)xbox0,xbox1(2)
+    write(un_trj,*)xbox0,xbox1(3)
+    write(un_trj,'(29A)')'ITEM: ATOMS id mol type x y z'
+    
+    do item=1,nseg
+        x = chain(1,item)*10.0_dp
+        y = chain(2,item)*10.0_dp
+        z = chain(3,item)*10.0_dp
+        idatom = type_of_monomer(item)
+        moltype = mapping_num_to_char(type_of_monomer(item) )
+        write(un_trj,*)item,idatom,moltype,x,y,z
+    enddo       
         
 end subroutine write_chain_lammps_trj
 
@@ -3727,7 +3745,7 @@ subroutine allocate_chain_elements(nsegAA,nelemAA,chain_elem)
     integer   :: s, k, j
     
     allocate(chain_elem(3,nsegAA))
-
+    
     do s=1,nsegAA
         do k=1,3
             allocate(chain_elem(k,s)%elem(nelemAA(s)))
@@ -4755,6 +4773,962 @@ function compute_cuantas_no_overlap(cuantas,no_overlapchain)result(num_no_overla
     num_no_overlap = num
 
 end function compute_cuantas_no_overlap
+
+
+   ! Compute maximun volume fraction for conformation conf
+   ! returns logical isVolfracLargerOne : .true. if xnucl(i)>1 for an i , .false. otherwise
+   ! optional return of violation_sites : list of lattice integer that violate constrains 
+   ! optinnal return of xnulc_violation_sites : volume fraction xnucl(i)>1
+   ! input integer : conf
+   ! return logical : isVolfracLargerOne
+   !        optional integer violation_sites(:) 
+   !        optional real(dp) xnucl_violation_sites(:)
+
+    subroutine maximum_xnucl(conf,isVolfracLargerOne,violation_sites,xnucl_violation_sites)
+        
+        use precision_definition
+        use globals, only : nsize, nseg
+        use chains, only : indexconf, nelem, type_of_monomer
+        use parameters, only : vnucl
+        use volume, only : volcell
+
+        integer, intent(in) :: conf
+        logical, intent(inout) :: isVolfracLargerOne  
+
+        integer, allocatable, intent(inout), optional :: violation_sites(:)
+        real(dp), allocatable, intent(inout),optional :: xnucl_violation_sites(:)
+
+        ! local arguments
+
+        real(dp) :: maxxnucl
+        integer  :: i, s, t, j, k, count, nviol
+        real(dp) :: xnucl(nsize)
+        logical :: locate_violation
+
+        ! .. executable statements 
+        locate_violation=.false. 
+
+        ! .. make nucleosome volume fraction 
+        xnucl=0.0_dp
+        isVolfracLargerOne=.false.
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            do j=1,nelem(s)
+                k = indexconf(s,conf)%elem(j) 
+                xnucl(k)=xnucl(k)+vnucl(j,t) 
+            enddo
+        enddo    
+    
+        do i=1,nsize
+            xnucl(i)=xnucl(i)/volcell
+        enddo
+
+        ! .. find maximum 
+        maxxnucl=maxval(xnucl)
+
+        ! .. locate violatation_sites : xnucl larger > =1 
+        
+        if(maxxnucl>=1.0_dp) then 
+            isVolfracLargerOne=.true.
+            print*,"max xnucl= ",maxxnucl
+        endif 
+
+        ! .. locate violatation_sites : xnucl larger > =1 
+        if(present(violation_sites).and.present(xnucl_violation_sites)) locate_violation=.true.    
+    
+        if(locate_violation) then 
+            if(maxxnucl>=1.0_dp) then 
+
+                ! first pass: find total number of sites for which  of xnucl larger 1.0
+                count=0
+                do i=1,nsize
+                    if(xnucl(i) >= 1.0_dp) then 
+                        count=count+1
+                        print*,"i=",i,"xnucl=",xnucl(i)                
+                    endif
+                enddo         
+                print*,"total number of lattice cell =",count
+
+                nviol=count
+                allocate(violation_sites(nviol))
+                allocate(xnucl_violation_sites(nviol))
+
+                ! second pass: store violation_sites                
+                k=0
+                do i=1,nsize
+                    if(xnucl(i) >= 1.0_dp) then 
+                        k=k+1
+                        violation_sites(k)=i
+                        xnucl_violation_sites(k)=xnucl(i)                
+                    endif
+                enddo
+
+            else 
+                nviol=0   
+                allocate(violation_sites(0))
+                allocate(xnucl_violation_sites(0))
+            endif    
+        endif     
+    
+    end subroutine  
+
+   
+
+
+    ! Reads base conformations from a file called traj.<rank>.xyz.
+    ! Reads energy of the conformation from a file called energy.<rank>.ene.
+    ! Reading of energy file only if isChainEnergyFile==.true.
+    ! Format conformation file : lammps trajectory file xyz file
+    ! number of ATOMS much equal nseg  
+    ! 
+    ! input/output  : integer  info : info = 0 chain read in correct info/=0 an error occured
+    ! returns : indexconf and weightchain for fcnnucl_neutral_sv 
+    !         : structural quantities:  
+    !           Rgsqr   = radius of gyration,
+    !           Rendsqr = end_to_end distance,
+    !           bond_angle =
+    !           dihedral_angle =
+    !           nucl_spacing = nucleosomal_spacing
+    !           no_overalchain = logical indicating overlap 
+
+    subroutine read_chains_xyz_nucl_volume_AIGC(info)
+
+        !     .. variable and constant declaractions                                                                                    
+        use globals, only : nsize,nseg, nsegsource, nsegtypes, s_begin, s_end , nsegAA, DEBUG 
+        use globals, only : nnucl, cuantas, cuantas_no_overlap, max_confor, set_confor, runtype, systype
+        use chains, only : var_darray
+        use chains, only : indexconf, nelem, nelemAA, typeAA, elem_charge, nucl_elem_type, distphoscutoff
+        use chains, only : logweightchain, no_overlapchain, segcm, sgraftpts
+        use chains, only : energychain, energychainLJ, energychainLJ0, unitvector_triplets, orientation_triplets 
+        use chains, only : Rgsqr, Rendsqr, bond_angle, dihedral_angle, nucl_spacing, Asphparam
+        use chains, only : allocate_indexconf, allocate_indexconfpair, allocate_nneighbor
+        use chains, only : allocate_indexconftriplet, allocate_ntriplet
+        use eigenvalues, only : asphericty_parameter
+        use parameters, only : VdWscale, isChainEnergyFile, isVdW, isvdwintene, mtpdbfname, orientfname
+        use parameters, only : pbc_chains, readinchains, unit_conv, vnucl, write_rotations
+        use volume, only   :  nx, ny,nz, delta, geometry, ut, vt, linearindexfromcoordinate, coordtoindex
+        use chain_rotation, only : rotate_nucl_chain, rotate_nucl_chain_test, orientation_coordinates
+        use chain_rotation, only : orientation_vector_ref, orientation_vector, rotate_chain_elem
+        use chain_rotation, only : check_chain_elem_index_and_chain
+        use myio, only     : myio_err_chainsfile, myio_err_energyfile, myio_err_index
+        use myio, only     : myio_err_conf, myio_err_nseg, myio_err_geometry, myio_err_equilat
+        use myutils, only  : print_to_log, LogUnit, lenText, newunit
+        use Eqtriangle, only : equilateralness_vectors
+        use myutils, only  : error_handler
+        use VdW_potential, only : GBenergyeffective, init_GBenergyeffective
+        use VdW_potential, only : make_com_nucl_rotation
+    
+        ! .. argument
+
+        integer, intent(out) :: info
+
+        ! .. local variables
+
+        integer :: i,j,s,sprime,rot,g,gn,k,sAA ,tPhos ! dummy indices
+        integer :: idx, idx_tmp                   ! index label
+        integer :: ix,iy,iz 
+        integer :: conf,conffile        ! counts number of conformations  
+        integer :: nsegfile             ! nseg in chain file      
+        integer :: cuantasfile          ! cuantas in chain file                                              
+        real(dp) :: chain(3,nseg),chain_rot(3,nseg),chain_pbc(3,nseg),chain_pbc_tmp(3),chain_tmp(3)    ! chains(x,i)= coordinate x of segement i
+        real(dp) :: xseg(3,nseg)
+        real(dp) :: xp(nseg), yp(nseg), zp(nseg) ! coordinates 
+        real(dp) :: xpp(nseg),ypp(nseg)
+        real(dp) :: rtranslate(3)
+        integer  :: xi,yi,zi, ri(3)
+        real(dp) :: Lx,Ly,Lz,xcm,ycm,zcm, Lr(3), rcm(3) ! sizes box and center of mass box
+        real(dp) :: xc,yc,zc             ! coordinates            
+        real(dp) :: energy, energyLJ, energyLJ_comb                                            
+        character(len=25) :: fname
+        character(lenText):: fname2
+        integer :: ios, rankfile, iosene
+        character(len=30) :: str
+        real(dp) :: scalefactor
+        integer :: un,un_ene ! unit number
+        logical :: exist
+        character(len=lenText) :: text,istr
+        real(dp) :: d_type_num, d_atom_num
+        integer :: i_type_num, i_atom_num
+        logical :: isReadGood, isVolfracLargerOne
+        integer :: nrotpts
+        real(dp) :: equilat,equilat_rot
+        integer :: nelem2(3),nsegAA2 
+        integer  :: segnumAAstart(nnucl), segnumAAend(nnucl) ! segment numbers first/last AAs 
+        integer  :: orient_triplet_ref(3)
+        real(dp) :: orient_vector_ref(3)
+        real(dp) :: orient_vectors(3,nnucl)
+        real(dp) :: triangle_orient_vectors(3,3,nnucl)
+
+        ! chain_elem(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth AA of reference histone protein 
+        ! chain_elem_rot(k,s,n)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth AA of nth nucleosome 
+        ! chain_elem_index(k,s)%elem(j) the k=(1,2,3)=(x,yz) cartesian coordinate of jth chain element of sth segement (AA and DNA) 
+    
+        type(var_darray), dimension(:,:), allocatable   :: chain_elem  
+        type(var_darray), dimension(:,:,:), allocatable :: chain_elem_rot
+        type(var_darray), dimension(:,:), allocatable   :: chain_elem_index
+        real(dp) :: rcom(3,nnucl)
+        
+        integer :: un_traj, info_traj
+        real(dp) :: chain_lammps(3,nseg,1)
+        real(dp) :: sqrdist, sqrDphoscutoff ! square distance and square cutoff for pair distances of phosphates
+        ! integer, dimension(:,:), allocatable   :: list_of_pairs
+        integer :: max_range_nneigh 
+        integer :: s_local 
+        logical :: no_overlap, isCheck
+        real(dp) :: gyr_tensor(3,3)
+        integer, dimension(:), allocatable   :: violation_sites
+        real(dp), dimension(:), allocatable   :: xnucl_violation_sites
+        integer :: nviol
+        type(violation_site), allocatable :: overlap_atoms(:)
+
+
+        ! .. executable statements   
+        
+        info=0
+
+        ! .. open file   
+
+        rankfile=set_confor                                                                                     
+        
+        write(istr,'(I4)')rankfile
+        fname='traj.'//trim(adjustl(istr))//'.xyz'
+        
+        inquire(file=fname,exist=exist)
+        if(exist) then
+            open(unit=newunit(un),file=fname,status='old',iostat=ios)
+        else
+            print*,' traj file :',fname,' does not exit'
+            info = myio_err_chainsfile
+            return
+        endif
+        if(ios >0 ) then
+            print*, 'Error opening file : iostat =', ios
+            info = myio_err_chainsfile
+            return
+        endif
+
+        if(isChainEnergyFile) then
+            write(istr,'(I4)')rankfile
+            fname='energy.'//trim(adjustl(istr))//'.ene'
+            inquire(file=fname,exist=exist)
+            if(exist) then
+                open(unit=newunit(un_ene),file=fname,status='old',iostat=ios)
+            else
+                text='energy.'//trim(adjustl(istr))//'.ene file does not exit'
+                print*,text
+                info = myio_err_energyfile
+                return
+            endif
+            if(ios >0 ) then
+                print*, 'Error opening file : iostat =', ios
+                info = myio_err_energyfile
+                return
+            endif
+        endif    
+
+        conf=1                    ! counter for conformations                                                           
+        conffile=0                ! counter for conformations in file 
+        conf_write=0  
+        conf_write_chain=0 
+        
+        ios=0
+        scalefactor=unit_conv
+
+        energy = 0.0_dp
+        energyLJ = 0.0_dp
+        no_overlap = .true.
+    
+        ios=0
+
+        Lz= nz*delta            ! maximum height box 
+        Lx= nx*delta            ! maximum width box 
+        Ly= ny*delta            ! maximum depth box 
+        xcm= Lx/2.0_dp          ! center box
+        ycm= Ly/2.0_dp
+        zcm= Lz/2.0_dp
+
+        rcm=(/xcm,ycm,zcm/)
+        Lr=(/Lx,Ly,Lz/)
+
+        sqrDphoscutoff=distphoscutoff**2
+        !print*,"sqrDphoscutoff=",sqrDphoscutoff
+        max_range_nneigh = 10                             ! assume at maximum there  at 10 ! 
+        ! allocate(list_of_pairs(nseg,max_range_nneigh))   ! temporaly storage of neighbor index
+
+        nrotpts=sgraftpts(1)  ! nucleosome id /segment number around which to rotate whole conformation
+        !nrotpts=rotation_triplets(1)
+        
+        ! ! return position (chain_elem) and number (nelem) of elements of every AA segment
+                            
+
+        ! call read_nucl_elements(mtpdbfname,nsegAA,nelemAA,chain_elem,typeAA,vnucl,nucl_elem_type,elem_charge,info)
+        ! if(info/=0) return
+
+        ! if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
+        
+        ! call read_nucl_orient_triplets(orientfname,nnucl,orientation_triplets,info)
+
+        ! call compute_segnumAAstart(nseg,nsegtypes,nnucl,segnumAAstart)
+        ! call compute_segnumAAend(nnucl,nsegAA,segnumAAstart,segnumAAend)
+
+        ! if(DEBUG) then 
+        !     do i=1,nnucl
+        !         print*," sAAstart ",segnumAAstart(i)," sAAend ",segnumAAend(i)
+        !     enddo    
+        ! endif    
+
+        ! ! compare ORDER of sgraftpts and orientation triplets !!!!!!!
+        ! ! check indices
+
+        ! do i=1,3
+        !     orient_triplet_ref(i)=orientation_triplets(1,i)-segnumAAstart(1)+1
+        ! enddo 
+
+        ! if(DEBUG) then
+        !     print*,"Module : chaingenerator : read_chains_xyz_nucl_volume "
+        !     print*,"orient_triplets"
+        !     do i=1,3
+        !         print*,"orient_triplet_ref(",i,")=",orient_triplet_ref(i)," original ",orientation_triplets(1,i)
+        !         print*,"orientation_triplets=",orientation_triplets
+        !     enddo
+        ! endif    
+
+        ! ! make chain_elem relative to CA of AA of CM rotation i.e., sgraftpts
+        ! call shift_nucl_elements(nsegAA,nelemAA,orient_triplet_ref(1),chain_elem)
+    
+        ! if(DEBUG) call print_nucl_elements(nsegAA,nelemAA,chain_elem)
+    
+        ! call make_nelem(nseg,nsegAA,nnucl,segnumAAstart,nelemAA,nelem)
+        
+        ! no side chains     
+        nelem =1 
+        
+        call allocate_indexconf(cuantas,nseg,nelem)
+        
+        ! !! this makes only the object holding the AA plus AA side chain 
+        ! call allocate_nucl_chain_elements(nnucl,nsegAA,nelemAA,chain_elem_rot) 
+        
+        call allocate_chain_elements(nseg,nelem,chain_elem_index)
+        ! call orientation_vector_ref(chain_elem,orient_triplet_ref,orient_vector_ref)
+        
+        ! pairs variable 
+        if(systype=="nucl_ionbin_Mg".or. systype=="nucl_ionbin_MgA".or. systype=="nucl_ionbin_Fe") then 
+            call allocate_indexconfpair(cuantas,nseg)
+            call allocate_nneighbor(cuantas,nseg)
+            tPhos = find_type_phosphate()
+        endif
+        ! triplet  variable 
+        if(systype=="nucl_ionbin_Fe") then 
+            print*,"allocate_indexconftriplet"
+            call allocate_indexconftriplet(cuantas,nseg)
+            call allocate_ntriplet(cuantas,nseg)
+        endif
+
+        if(isVdW) call init_GBenergyeffective(segcm,nnucl,segnumAAstart,segnumAAend) 
+        
+        isReadGood=.true. 
+    
+
+        do while ((conf<=max_confor).and.isReadGood)
+        
+            if(conf.ne.1) then ! skip lines
+                read(un,*,iostat=ios)
+                read(un,*,iostat=ios) 
+            else               ! read preamble
+                read(un,*,iostat=ios)nsegfile
+                if(ios/=0) isReadGood=.false.
+                read(un,*,iostat=ios) ! skip line
+                if(ios/=0) isReadGood=.false.   
+            
+                if(nsegfile.ne.nsegsource) then 
+                    text="nseg chain file not equal internal nseg : stop program"
+                    call print_to_log(LogUnit,text)
+                    info=myio_err_nseg 
+                    return
+                endif    
+            endif
+            
+            s_local=0
+
+            do s=1,nsegsource              ! .. read form  trajectory file
+        
+                read(un,fmt3xyz,iostat=ios)xc,yc,zc
+                if(ios/=0) isReadGood=.false. 
+                            
+                if(s_begin<=s.and.s<=s_end) then ! filter 
+
+                    s_local=s_local+1
+                    xseg(1,s_local) = xc*scalefactor 
+                    xseg(2,s_local) = yc*scalefactor  
+                    xseg(3,s_local) = zc*scalefactor 
+
+                endif
+            enddo
+
+            if(isChainEnergyFile) read(un_ene,*,iostat=ios)energy
+
+            !if(isVdW)  energyLJ    = GBenergyeffective(xseg,nnucl,segcm,segunitvector) 
+            
+            if(isReadGood) then ! read was succesfull  
+
+                if(DEBUG)then
+                    un_traj=open_chain_lammps_trj(info_traj)
+                    call write_chain_lammps_trj(un_traj,xseg)
+                    close(un_traj)
+                endif      
+
+                conffile=conffile +1 
+            
+                ! -1. translation such that chain(:,nrotpts) in origin
+
+                do s=1,nseg        
+                    chain(1,s) = xseg(1,s)-xseg(1,nrotpts) 
+                    chain(2,s) = xseg(2,s)-xseg(2,nrotpts) 
+                    chain(3,s) = xseg(3,s)-xseg(3,nrotpts) 
+                enddo
+            
+
+                ! 0. rotate chain 
+                
+                call rotate_nucl_chain_test(chain,chain_rot,sgraftpts,nseg,write_rotations) 
+                
+                ! 0.a. extra test rotation
+                equilat=equilateralness_vectors(chain(:,sgraftpts(1)),chain(:,sgraftpts(2)),chain(:,sgraftpts(3)))
+                equilat_rot=equilateralness_vectors(chain_rot(:,sgraftpts(1)),chain_rot(:,sgraftpts(2)),&
+                    chain_rot(:,sgraftpts(3)))
+    
+                if( abs(equilat-equilat_rot)>=eps_equilat )  then
+                    text="Equilateralness test failed : stop program"
+                    call print_to_log(LogUnit,text)
+                    info=myio_err_equilat 
+                    return
+                endif  
+                
+
+                ! ! 1. determine orientation chain_rot : n 
+                ! ! 2. get orientation vector of all nnucl nucleosomes in chain_rot and of reference in chain_elem
+                    
+                ! call orientation_vector(chain_rot,orientation_triplets,orient_vectors)
+
+                ! ! 2.a. get coordinates of for all orientation triplets of all nucleosomes   
+
+                ! call orientation_coordinates(chain_rot,orientation_triplets,triangle_orient_vectors)
+
+                ! ! 3. make rotation axis/angle for all nnuclnucleosome
+                ! ! 4. apply rotation for all nucleosome to chain_elem
+                    
+                ! call rotate_chain_elem(orient_vector_ref,orient_vectors,nelemAA,chain_elem,chain_elem_rot,&
+                !     orientation_triplets,triangle_orient_vectors,segnumAAstart)
+
+
+                ! if(DEBUG)then
+                !     print*,"Module : chaingenerator : read_chains_xyz_nucl_volume "
+                !     print*,"orientation triangle: "
+                !     print*," sAA      k          chain_elem_rot(k,sAA,1)%elem(1)  chain_rot(k,sAA+3)"
+                !     ! indices 
+                !     do sAA=1,nsegAA
+                !         do k=1,3
+                !             print*," ",sAA," " ,k," ",chain_elem_rot(k,sAA,1)%elem(1),chain_rot(k,sAA+3)
+                !         enddo 
+                !     enddo
+                ! endif      
+
+                ! ! 5. add chain+chain_elem_rot together
+                
+                ! call add_chain_rot_and_chain_elem_rot(nseg,nsegAA,nnucl,segnumAAstart,segnumAAend,nelemAA,&
+                !     chain_rot,chain_elem_rot,chain_elem_index) 
+
+                !chain_elem_index(:,:)%elem(1)=chain_rot 
+                do s=1,nseg
+                    do k=1,3
+                        chain_elem_index(k,s)%elem(1)=chain_rot(k,s) 
+                    enddo
+                enddo      
+
+                chain=chain_rot ! this alligns variables chain_elem_index and chain : contain same backbone conformation
+
+                call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+                if(.not.isCheck) then 
+                    print*,"chain=chain_rot => chain_elem_index==chain",isCheck
+                endif  
+
+            
+                ! 6.a translate conformation 
+
+                rtranslate(1) =  xcm
+                rtranslate(2) =  ycm
+                rtranslate(3) =  zcm
+            
+                call translate_chain_elem_index(nseg,nelem,chain_elem_index,rtranslate) 
+                call translate_chain(nseg,chain,rtranslate)
+
+                call check_chain_elem_index_and_chain(nseg,nelem,chain_elem_index,chain,isCheck)
+                if(.not.isCheck) then 
+                    print*,"post translation => chain_elem_index==chain",isCheck
+                endif    
+
+
+                if(DEBUG)then
+                    un_traj=open_chain_elem_index_lammps_trj(info_traj)
+                    call write_chain_elem_index_lammps_trj(un_traj,chain_elem_index)
+                    close(un_traj)
+                endif     
+
+            
+                un_traj=open_chain_lammps_trj(info_traj)
+                call write_chain_lammps_trj(un_traj,chain)
+                close(un_traj)
+
+                print*,"=> past 5." 
+                ! 6. make indexconfig i.e. place conformation on lattice
+                
+                select case (geometry)
+                case ("cubic")
+
+                    print*,"=> within select geomery cubic statement"
+
+                    do s=1,nseg
+
+                        ! transforming form real- to lattice coordinates  
+                        if(pbc_chains) then 
+                            chain_pbc(1,s) = pbc(chain(1,s),Lx) ! periodic boundary conditions  
+                            chain_pbc(2,s) = pbc(chain(2,s),Ly) 
+                            chain_pbc(3,s) = pbc(chain(3,s),Lz) 
+                        else
+                            chain_pbc(1,s) = chain(1,s)  
+                            chain_pbc(2,s) = chain(2,s)
+                            chain_pbc(3,s) = chain(3,s)
+                        endif                    
+
+                        xi  = int(chain_pbc(1,s)/delta)+1
+                        yi  = int(chain_pbc(2,s)/delta)+1
+                        zi  = int(chain_pbc(3,s)/delta)+1
+
+                        if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then   
+
+                            text="Conformation outside box:"
+                            call print_to_log(LogUnit,text)  
+                            print*,text    
+                            print*,"chain_pbc=",chain_pbc(:,s)                      
+                            print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                            info= myio_err_index
+                            return
+
+                        endif
+
+                        call linearIndexFromCoordinate(xi,yi,zi,idx)
+                        
+                        idx_tmp=coordtoindex(xi,yi,zi)
+
+                        ! test 
+                        if(idx/=idx_tmp) then
+                            text="idx/=idx_tmp"
+                            call print_to_log(LogUnit,text)  
+                            print*,text 
+                            info= myio_err_index
+                            return
+                        endif
+                            
+                        indexconf(s,conf)%elem(1) = idx ! CA elementjjj
+
+                        ! apply elements other than CA
+                        do j=2,nelem(s) 
+
+                            if(pbc_chains) then 
+                                chain_pbc_tmp(1) = pbc(chain_elem_index(1,s)%elem(j),Lx) ! periodic boundary conditions 
+                                chain_pbc_tmp(2) = pbc(chain_elem_index(2,s)%elem(j),Ly)
+                                chain_pbc_tmp(3) = pbc(chain_elem_index(3,s)%elem(j),Lz)  
+                            else
+                                chain_pbc_tmp(1) = chain_elem_index(1,s)%elem(j)   
+                                chain_pbc_tmp(2) = chain_elem_index(2,s)%elem(j)
+                                chain_pbc_tmp(3) = chain_elem_index(3,s)%elem(j)
+                            endif 
+
+                            xi = int(chain_pbc_tmp(1)/delta)+1
+                            yi = int(chain_pbc_tmp(2)/delta)+1
+                            zi = int(chain_pbc_tmp(3)/delta)+1
+
+                            if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then   
+
+                                text="Conformation outside box:"
+                                call print_to_log(LogUnit,text)  
+                                print*,text 
+                                print*,"isOutsideLattice= ", isOutsideLattice(xi,yi,zi,nx,ny,nz)
+                                print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
+                                print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
+                                print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                                info= myio_err_index
+                                return
+                            endif
+
+                            call linearIndexFromCoordinate(xi,yi,zi,idx)
+
+                            ! idx=coordtoindex(xi,yi,zi)
+                            
+                            indexconf(s,conf)%elem(j) = idx ! all other element
+
+                        enddo   
+                    
+                    enddo ! end s loop
+
+                    if(systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA")  then
+        
+                        call find_phosphate_pairs(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                        call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
+                        call write_phosphate_pairs(.true.,conf,info)
+                    
+                    endif    
+
+                    if(systype=="nucl_ionbin_Fe") then
+                    
+                        call find_phosphate_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                        call write_phosphate_triplets(.true.,conf,info)
+                        call find_phosphate_pairs_exclude_triplets(nseg,conf,tPhos,sqrDphoscutoff,chain,Lx,Ly,Lz)
+                        call write_indexconfpair(nseg,conf,tPhos,sqrDphoscutoff)
+                        call write_phosphate_pairs(.true.,conf,info)
+                        
+                    endif  
+
+                    ! if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
+                    ! 
+                    print*,"=> GBenergy" 
+                    energyLJ = 0.0 ! GBenergyeffective(chain_rot,nnucl,no_overlap)
+
+                    call maximum_xnucl(conf,isVolfracLargerOne,violation_sites,xnucl_violation_sites)
+                    print*,"conf=",conf,"isVolfracLargerOne=",isVolfracLargerOne
+                
+                    nviol=size(violation_sites)
+                    print*,"nviol=",nviol
+
+                    call find_overlap_atoms_lookup(nseg, nviol, violation_sites,  indexconf, overlap_atoms)
+                    call print_overlap_atoms(nviol, violation_sites, xnucl_violation_sites, overlap_atoms)
+
+
+                    if(isVolfracLargerOne) no_overlap=.false. 
+                    
+                    print*,"=> make_com_nucl_rotation" 
+                    ! call make_com_nucl_rotation(chain_pbc,nnucl,unitvector_triplets,rcom)
+
+                    energychainLJ(conf)    = energyLJ
+                    energychain(conf)      = energy
+                    no_overlapchain(conf)  = no_overlap 
+
+                    Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                    Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                    bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                    dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                    gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+        
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
+                
+                    if(COMOLD) then     
+                        Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                        Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                        bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                        dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                        nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                        gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                        Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
+                    endif 
+
+                    conf=conf+1       
+                                        
+                case("prism") 
+                        
+                    do s=1,nseg
+                        
+                        xp(s) = chain_rot(1,s)+xcm
+                        yp(s) = chain_rot(2,s)+ycm
+                        zp(s) = chain_rot(3,s)+zcm
+
+                        ! .. transformation to prism coordinates 
+                        xpp(s) = ut(xp(s),yp(s))
+                        ypp(s) = vt(xp(s),yp(s))
+
+                        ! .. periodic boundary conditions in u and v ands z direction
+                        if(pbc_chains) then 
+                            chain_pbc(1,s) = pbc(xpp(s),Lx) 
+                            chain_pbc(2,s) = pbc(ypp(s),Ly)
+                            chain_pbc(3,s) = pbc(zp(s),Lz)
+                        else
+                            chain_pbc(1,s) = xpp(s) 
+                            chain_pbc(2,s) = ypp(s)
+                            chain_pbc(3,s) = zp(s)
+                        endif        
+
+                        ! .. transforming form real- to lattice coordinates                 
+                        xi = int(chain_pbc(1,s)/delta)+1
+                        yi = int(chain_pbc(2,s)/delta)+1
+                        zi = int(chain_pbc(3,s)/delta)+1
+                            
+                        if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then   
+                            text="Conformation outside box:"
+                            call print_to_log(LogUnit,text)  
+                            print*,text                          
+                            print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                            info= myio_err_index
+                            return
+                        endif 
+
+
+                        call linearIndexFromCoordinate(xi,yi,zi,idx)
+                        
+                        indexconf(s,conf)%elem(1) = idx ! CA element    
+
+
+                        ! apply elements other than CA
+                        do j=2,nelem(s) 
+
+                            chain_tmp(1) = chain_elem_index(1,s)%elem(j)+xcm  
+                            chain_tmp(2) = chain_elem_index(2,s)%elem(j)+ycm
+                            chain_tmp(3) = chain_elem_index(3,s)%elem(j)+zcm  
+
+                            if(pbc_chains) then 
+                                chain_pbc_tmp(1) = pbc(ut(chain_tmp(1),chain_tmp(2)),Lx) 
+                                chain_pbc_tmp(2) = pbc(vt(chain_tmp(1),chain_tmp(2)),Ly)
+                                chain_pbc_tmp(3) = pbc(chain_tmp(3) ,Lz)
+                            else
+                                chain_pbc_tmp(1) = ut(chain_tmp(1),chain_tmp(2))
+                                chain_pbc_tmp(2) = vt(chain_tmp(1),chain_tmp(2))
+                                chain_pbc_tmp(3) = chain_tmp(3)
+                            endif
+
+                            xi = int(chain_pbc_tmp(1)/delta)+1
+                            yi = int(chain_pbc_tmp(2)/delta)+1
+                            zi = int(chain_pbc_tmp(3)/delta)+1
+
+                            print*,isOutsideLattice(xi,yi,zi,nx,ny,nz)
+
+                            if(isOutsideLattice(xi,yi,zi,nx,ny,nz)) then   
+
+                                text="Conformation outside box:"
+                                call print_to_log(LogUnit,text)  
+                                print*,text  
+                                print*,"chain_elem_index= ",(chain_elem_index(k,s)%elem(j),k=1,3)
+                                print*,"chain_pbc= ",chain_pbc_tmp(:),"s= ",s," j= ",j                          
+                                print*,"index=",idx, " xi=",xi," yi=",yi," zi=",zi, "conf=",conf,"s=",s 
+                                info= myio_err_index
+                                return
+                            endif
+
+                            call linearIndexFromCoordinate(xi,yi,zi,idx)
+                            
+                            indexconf(s,conf)%elem(j) = idx ! all other element
+
+                        enddo 
+                        
+                    enddo
+
+                    ! energyLJ    = GBenergyeffective(chain_pbc,nnucl,no_overlap)  
+
+                    call make_com_nucl_rotation(chain_rot,nnucl,unitvector_triplets,rcom)
+                    
+                    call maximum_xnucl(conf,isVolfracLargerOne,violation_sites,xnucl_violation_sites)
+
+                    print*,"conf=",conf,"isVolfracLargerOne=",isVolfracLargerOne
+                    
+                    if(isVolfracLargerOne) no_overlap=.false. 
+
+                    energychainLJ(conf)    = energyLJ
+                    energychain(conf)      = energy
+                    no_overlapchain(conf)  = no_overlap 
+                    Rgsqr(conf)            = radius_gyration_com_rotation(rcom,nnucl)
+                    Rendsqr(conf)          = end_to_end_distance_com_rotation(rcom,nnucl)
+                    bond_angle(:,conf)     = bond_angles_com_rotation(rcom,nnucl)
+                    dihedral_angle(:,conf) = dihedral_angles_com_rotation(rcom,nnucl)
+                    nucl_spacing(:,conf)   = nucleosomal_spacing_com_rotation(rcom,nnucl)
+                    gyr_tensor             = gyr_tensor_com_rotation(rcom,nnucl)
+                    Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
+            
+
+                    if(COMOLD) then 
+                        Rgsqr(conf)            = radius_gyration_com(chain_pbc,nnucl,segcm)
+                        Rendsqr(conf)          = end_to_end_distance_com(chain_pbc,nnucl,segcm)
+                        bond_angle(:,conf)     = bond_angles_com(chain_pbc,nnucl,segcm)
+                        dihedral_angle(:,conf) = dihedral_angles_com(chain_pbc,nnucl,segcm)
+                        nucl_spacing(:,conf)   = nucleosomal_spacing_com(chain_pbc,nnucl,segcm)
+                        gyr_tensor             = gyr_tensor_com(chain_pbc,nnucl,segcm)
+                        Asphparam(conf)        = Asphericty_parameter(Rgsqr(conf),gyr_tensor)
+                    endif    
+
+                    conf=conf+1   
+
+                case default
+
+                    text="Error: in make_chains_XYZ_nucl geometry not cubic or prism: stopping program"
+                    call print_to_log(LogUnit,text)
+                    info = myio_err_geometry
+                    return 
+                        
+                end select
+
+            endif   ! read 
+
+        enddo       ! end while loop                                                                                                          
+        ! end chains generation    
+        
+        conf=conf-1  ! lower by one  
+
+        if(conf<max_confor) then
+            print*,"subroutine read_chains_xyz_nucl_volume :" 
+            print*,"conf     = ",conf," less then imposed max cuantas     = ",max_confor
+            print*,"conffile = ",conffile
+            cuantas=conf   
+            info = myio_err_conf        
+        else
+            text="Chains generated: subroutine read_chains_xyz_nucl_volume"
+            call print_to_log(LogUnit,text)
+            readinchains=conffile
+            info = 0
+        endif
+
+
+        write(istr,'(L2)')isVdWintEne
+        text="isVdWintEne = "//trim(adjustl(istr))
+        call print_to_log(LogUnit,text)
+
+        if(.not.(isChainEnergyFile)) energychain=0.0_dp
+
+        close(un) 
+        if(isChainEnergyFile) close(un_ene)
+
+        cuantas_no_overlap = compute_cuantas_no_overlap(cuantas,no_overlapchain)
+
+        call normed_weightchains()
+        text="No reweighting chains."
+        call print_to_log(LogUnit,text)
+        logweightchain=0.0_dp        
+
+        deallocate(energychain) ! free unused variables 
+
+        if(DEBUG) call write_indexconf_lammps_trj(info_traj)
+
+        if(runtype=="rangeVdWeps") then 
+            allocate(energychainLJ0(cuantas))
+            do i=1,cuantas
+                energychainLJ0(i)=energychainLJ(i)
+            enddo 
+        else 
+            ! energy of conformation fixed: VdWscale%val set the energy scale relative to epsilonS
+            ! for runtype=="rangVdWeps" loop over values of VdWscale%val     
+            do i=1,cuantas
+                energychainLJ(i)=VdWscale%val*energychainLJ(i)
+            enddo
+        endif            
+
+    end subroutine read_chains_xyz_nucl_volume_AIGC
+
+
+
+    subroutine find_overlap_atoms_lookup(nseg, nviol, violation_sites,  indexconf, overlap_atoms)
+
+        use chains, only : var_iarray
+        use volume, only : nx, ny,nz
+
+        implicit none
+
+        integer, intent(in) :: nseg, nviol
+        integer, intent(in) :: violation_sites(nviol)
+        type(var_iarray), intent(in) :: indexconf(nseg,1)
+        type(violation_site), allocatable, intent(out) :: overlap_atoms(:)
+
+        integer :: s, j, k, n
+        integer, allocatable :: counts(:)
+        integer, allocatable :: violation_map(:)
+
+        allocate(violation_map(nx*ny*nz))
+        violation_map = 0
+
+        do k = 1, nviol
+            violation_map(violation_sites(k)) = k
+        end do
+
+        allocate(overlap_atoms(nviol))
+        allocate(counts(nviol))
+
+        counts = 0
+
+        ! Initialize violating lattice sites
+        do k = 1, nviol
+            overlap_atoms(k)%index_lat = violation_sites(k)
+        end do
+
+        ! First pass: count atoms belonging to each violating site
+        do s = 1, nseg
+
+            j = indexconf(s,1)%elem(1)
+
+            k = violation_map(j)
+
+            if (k > 0) then
+                counts(k) = counts(k) + 1
+            end if
+
+        end do
+
+
+        ! Allocate atom ID arrays
+        do k = 1, nviol
+            allocate(overlap_atoms(k)%atom_ids(counts(k)))
+        end do
+
+        ! Reset counters for filling arrays
+        counts = 0
+
+        ! Second pass: store global segment IDs
+        do s = 1, nseg
+
+            j = indexconf(s,1)%elem(1)
+
+            k = violation_map(j)
+
+            if (k > 0) then
+                counts(k) = counts(k) + 1
+                overlap_atoms(k)%atom_ids(counts(k)) = s
+            end if
+
+        end do
+
+        deallocate(counts)  
+        deallocate(violation_map)
+
+    end subroutine find_overlap_atoms_lookup
+
+
+    subroutine print_overlap_atoms(nviol, violation_sites, xnucl_violation_sites, overlap_atoms)
+
+        use chains, only : type_of_monomer, mapping_num_to_char
+        use volume, only : indextocoord
+
+        integer, intent(in) :: nviol
+        integer, intent(in) :: violation_sites(nviol)
+        real(dp), intent(in) :: xnucl_violation_sites(nviol)
+        type(violation_site), intent(in) :: overlap_atoms(:)
+
+        integer :: k, s
+        integer :: num_beads, lb,ub
+
+        print*,"Overlap violations: ",nviol
+        print*,""   
+
+        do k=1,nviol
+
+            num_beads = size(overlap_atoms(k)%atom_ids)
+            lb = lbound(overlap_atoms(k)%atom_ids, 1)
+            ub = ubound(overlap_atoms(k)%atom_ids, 1)
+
+            print*,"Lattice site: ",violation_sites(k)
+            print*,"coordinate  : ",indextocoord(violation_sites(k),:)
+            print*,"xnucl       : ",xnucl_violation_sites(k)
+            print*,"Number beads: ",num_beads
+            print*,"Segment IDs : ",(overlap_atoms(k)%atom_ids(s),s=lb,ub)
+            print*,"            : ",(mapping_num_to_char(type_of_monomer(overlap_atoms(k)%atom_ids(s)))//" ",s=lb,ub)
+            print*,""
+        end do 
+
+    end subroutine  print_overlap_atoms
 
 
 end module chaingenerator

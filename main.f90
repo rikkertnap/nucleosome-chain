@@ -9,15 +9,15 @@
 program main
 
     !  .. variable and constant declaractions
-    ! use mpivars
-    use globals       ! parameters definitions
-    use physconst
-    use mathconst
-    use volume
-    use random
+    
+    use globals, only : neq
+   ! use physconst
+   ! use mathconst
+    use volume, only : make_geometry
+   ! use random
     use field
     use parameters
-    use matrices
+    use matrices, only : init_matrices
     use energy
     use conform_entropy
     use chains
@@ -28,11 +28,12 @@ program main
     use initxvector
     use surface
     use myio
-    use myutils
-    use dielectric_const
+    use myutils, only : open_logfile, close_logfile, logUnit, print_to_log, error_handler, lenText
+    use dielectric_const, only : set_dielect_fcn
     use modfcnMg
     use modfcnMgexpl
     use modfcnFeexpl
+   
 
     implicit none
 
@@ -58,7 +59,7 @@ program main
     integer  :: nlist_elem, maxlist_elem, nlist_step
     integer :: phoscutoff
     logical :: isVolfracLargerOne
-
+    
     ! .. executable statements
 
     ! .. logfile
@@ -90,7 +91,7 @@ program main
     call set_properties_chain(chainperiod,chaintype) 
     call set_mapping_num_to_char(mapping_num_to_char)
   
-    ! init distributed volume  
+    ! .. init distributed volume  
     if(systype=="nucl_ionbin_sv".or.systype=="nucl_neutral_sv".or.systype=="nucl_ionbin_Mg".or. &
         systype=="nucl_ionbin_MgA".or.systype=="nucl_ionbin_Fe") then 
         call init_vnucl_type(info) ! ismonomer_chargeable etc needs to be set
@@ -106,7 +107,21 @@ program main
     call print_to_log(LogUnit,text) 
     print*,text
  
-    call make_chains(chainmethod,systype)   
+    if(isAIGC) then ! .. no side chain   
+        elem_charge=1
+        do i=1,size(elem_charge)
+            print*,"elem_charge(",i,")=",elem_charge(i)
+        enddo
+        vnucl(1,:)=vpol*vsol
+        vnucl(1,:)=0.0_dp
+        do i=1,size(vnucl,2)
+            print*,"vnucl(1,",i,")=",vnucl(1,i)
+        enddo
+    endif
+
+    call make_chains(chainmethod,systype,isAIGC) 
+
+    
     call allocate_field(nx,ny,nz,nsegtypes)
    
     if(systype=="nucl_ionbin_Mg") then ! auxiliary array index_phos
@@ -151,13 +166,7 @@ program main
     allocate(x(neq))
     allocate(xguess(neq))
     allocate(fvec(neq))
-        
-    ! print*,"elemcharge"
-    ! do i=1,nsegtypes
-    !    print*,"elemcharge(",i,")=",elem_charge(i)," type= ",mapping_num_to_char(i),&
-    !         " type of charge=" ,type_of_charge(i)
-    ! enddo   
-
+   
 
     ! .. loop over pH, or pKd etc  values
 

@@ -62,10 +62,8 @@ contains
     subroutine fcnenergy()
  
         use globals, only : systype 
-        use myutils, only : print_to_log,LogUnit,lenText
-
-      
-        character(len=lenText) :: text 
+       
+        character(len=70) :: text 
 
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin")
@@ -120,22 +118,16 @@ contains
    
     subroutine fcnenergy_elect()
 
-        use globals
-        use volume
-        use parameters
-        use field
-        use surface
+        use globals, only : nsize, nseg, LEFT, RIGHT
+        use volume, only : volcell
+        use parameters, only : xbulk, vsol, vNa, vK, vCl, vCa, vNaCl, vKCl
+        use field, only : xsol, xHplus, xOHmin, xNa, xCa, xCl, xK, xNaCl, xKCl
+        use field, only : psi, rhoq, rhopol, fdisA, fdisB , q , lnproshift
 
         !  .. local arguments 
     
-        real(dp) :: sigmaq0,psi0
-        real(dp) :: qsurf(2)           ! total charge on surface 
-        real(dp) :: qsurfg             ! total charge on grafting surface  
-        integer  :: i,j,s,g               ! dummy variables 
+        integer  :: i                  ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        integer  :: nzadius
-        real(dp) :: sigmaSurf(2),sigmaqSurf(2,ny*nx),sigmaq0Surf(2,nx*ny),psiSurf(2,nx*ny)
-        real(dp) :: FEchemSurftmp
         integer, parameter :: A=1, B=2    
 
         !  .. computation of free energy 
@@ -193,7 +185,7 @@ contains
         FE = FEq  + FEpi + FErho + FEel + FEVdW + FEbind -Eshift
         
     
-        qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
+        !qres = qres + (qsurf(RIGHT)+qsurf(LEFT))  ! total residual charge 
   
         volumelat= volcell*nsize                  ! volume lattice
 
@@ -212,17 +204,11 @@ contains
         use parameters
         use field
         use VdW
-        !use surface
-        use conform_entropy
-
+       
         !  .. local arguments 
     
-        real(dp) :: sigmaq0,psi0
-        integer :: i,j,s               ! dummy variables 
         real(dp) :: volumelat          ! volume lattice 
-        integer :: nzadius
-    
-
+       
         ! .. computation of alternative computation free energy
 
         ! .. translational entropy 
@@ -273,7 +259,7 @@ contains
 
         ! be vary carefull FE = -1/2 \int dz rho_q(z) psi(z)
 
-         ! .. chemical and binding contribution
+        ! .. chemical and binding contribution
 
         select case (systype) 
         case ("brush_mul","brush_mulnoVdW","brushdna","nucl_ionbin","nucl_ionbin_sv",&
@@ -1974,7 +1960,7 @@ contains
     end function
 
  
-    function SurfacechargeTot(sigmaqSurfR,sigmaqSurfL) result(qsurf)
+    function SurfaceChargeTot(sigmaqSurfR,sigmaqSurfL) result(qsurf)
         
         use globals, only : LEFT,RIGHT
         use volume, only : nx,ny,areacell,delta
@@ -1998,7 +1984,7 @@ contains
             qsurf(i) = (qsurf(i)/(4.0_dp*pi*lb*delta))*areacell  ! areacell=area size one surface element, 4*pi*lb*delta make correct dimensional full unit    
         enddo
         
-    end function SurfacechargeTot
+    end function SurfaceChargeTot
 
 
 

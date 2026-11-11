@@ -1,8 +1,7 @@
 ! --------------------------------------------------------------|
-! fcnCa.f90:                                                    |
+! fcn.main.f90:                                                 |
 ! constructs the vector function  needed by the                 |
-! routine solver, which solves the SCMFT eqs for weak poly-     |
-! electrolytes onto a tethered planar surface                   |
+! routine solver, which solves the SCMFT eqs                    |
 ! --------------------------------------------------------------|
 
 
@@ -25,7 +24,9 @@ module fcnpointer
 end module fcnpointer
 
 module listfcn
-   
+
+    use precision_definition
+
     implicit none
 
 contains
@@ -67,7 +68,7 @@ contains
         !     .. executable statements 
 
         n=nsize
-        ! read out x 
+        ! .. read out x 
         k=n
         do i=1,n                     
             xsol(i) = x(i)        ! volume fraction solvent
@@ -214,8 +215,6 @@ contains
 
             print*,'iter=', iter ,'norm=',norm
 
-        
-
     end subroutine fcnelectbrushmulti
 
 
@@ -248,11 +247,10 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
+        integer  :: n,i,k,c,s,t  ! dummy indices
         real(dp) :: norm
-        real(dp) :: rhopol0 !integra_q
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: rhopol0 
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
 
         !     .. executable statements 
 
@@ -391,7 +389,6 @@ contains
             ! .. Poisson Eq 
             call Poisson_Equation(f,psi,rhoq)   
 
-          
             norm=l2norm(f,neqint)
             iter=iter+1
 
@@ -430,18 +427,14 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
-
+        integer  :: n,i,k,c,s,t   ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 
-        real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: xA(7), sgxA,qAD, constA, constACa, constAMg ! disociation variables 
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
         integer  :: count_scf
 
         !     .. executable statements 
-
-        
 
         n=nsize
         ! read out x 
@@ -678,18 +671,18 @@ contains
 
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf
-        use parameters, only : Tlocal=>Tref 
+       ! use parameters, only : Tlocal=>Tref 
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vCa,vMg,vpolAA,deltavAA, vnucl
+        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vCa,vMg,vpolAA,deltavAA
         use parameters, only : zpol,zNa,zK,zCl,zFe2,zCa,zMg,K0aAA,K0a,K0aion
-        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use parameters, only : ta,isrhoselfconsistent,iter
         use volume, only     : volcell
         use chains, only     : indexchain, type_of_monomer, logweightchain, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge 
+        use chains, only     : type_of_charge
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xMg,xCa
         use field, only      : rhopol,rhopolin,rhoqpol,rhoq, xpol, rhopol
-        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA
         use field, only      : q, lnproshift
         use vectornorm, only : L2norm, L2norm_sub
         use Poisson, only    : Poisson_Equation
@@ -710,19 +703,16 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t   ! dummy indices
+        integer  :: n,i,k,c,s,t   ! dummy indices
 
         real(dp) :: norm, normvol, normPE
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
         real(dp) :: qAD, constA, constACa, constAMg ! disociation variables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
         integer  :: count_scf
 
         !     .. executable statements 
-
-       
 
         n=nsize
         ! read out x 
@@ -875,11 +865,9 @@ contains
         locallnproshift(1)=lnpro
         locallnproshift(2)=0! rank  
     
-        
-       
+   
         lnproshift=  locallnproshift(1) ! globallnproshift(1)
              
-         
         do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)
@@ -1007,13 +995,12 @@ contains
 
     subroutine fcnnucl_ionbin_sv_general(x,f,nn)
 
-
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vCa,vMg,vpolAA,deltavAA, vnucl
-        use parameters, only : zpol,zNa,zK,zCl,zFE2,zCa,zMg,K0aAA,K0a,K0aion
-        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use parameters, only : vsol,vNa,vK,vCl,vFe2,vCa,vMg,deltavAA, vnucl
+        use parameters, only : zNa,zK,zCl,zFE2,zCa,zMg,K0aAA,K0a,K0aion
+        use parameters, only : ta,isrhoselfconsistent,iter
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge 
@@ -1042,13 +1029,12 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
         real(dp) :: lnexppivw(nsize) 
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge                        ! dummy indices
+        integer  :: n,i,j,k,c,s,t,jcharge                        ! dummy indices
         real(dp) :: norm, normvol, normPE,normscf
         real(dp) :: rhopol0 
         real(dp) :: xA(7),xB(3),sgxA,sgxB
         real(dp) :: qAD, constA, constACa, constAMg                   ! disociation variables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
         integer  :: count_scf
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK
         real(dp) :: deltaxpol
@@ -1407,8 +1393,8 @@ contains
     subroutine fcnnucl_neutral_sv(x,f,nn)
 
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf,  DEBUG
-        use parameters, only : vsol,vpol, vnucl
+        use globals, only    : nsize, nsegtypes, nseg, neq, local_conf,  DEBUG
+        use parameters, only : vsol, vnucl
         use parameters, only : iter
         use volume, only     : volcell
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem 
@@ -1416,6 +1402,7 @@ contains
         use field, only      : xsol, xpol=>xpol_t, xpol_tot=>xpol  ! xpol pointer to xpol_t xpol_tot pointer to xpol !!!
         use field, only      : q, lnproshift
         use vectornorm, only : L2norm_f90
+
 
         ! .. scalar arguments
 
@@ -1433,11 +1420,11 @@ contains
         real(dp) :: lnexppi(nsize)                    ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro                         ! probability and logarithem of probabilty
         integer  :: i,j,k,c,s,t                       ! dummy indices
-        real(dp) :: norm, normvol
+        real(dp) :: norm
         real(dp) :: xpol0 
         real(dp) :: locallnproshift(2)
-        real(dp) :: globallnproshift(2)
-        real(dp) :: lnpro_per_c
+       ! real(dp) :: globallnproshift(2)
+       ! real(dp) :: lnpro_per_c
 
       
         ! .. executable statements 
@@ -1585,21 +1572,21 @@ contains
         real(dp) :: lnexppi(nsize,nsegtypes)         ! auxilairy variable for computing P(\alpha) 
         real(dp) :: phi(nsize)                     ! phi=1-xsol-sum_ix_i 
         real(dp) :: pro,lnpro
-        real(dp) :: lbr,expborn,avgvol,Etotself,expsqrgrad, Eself
+        real(dp) :: lbr,expborn,Etotself,expsqrgrad, Eself
         real(dp) :: expsqrgradpsi(nsize),expdeltaGAA(nsize,6),expEtotself(nsize)
-        integer  :: n,i,j,k,l,c,s,ln,t,k1,k2,k3,k4,k5          !indices
+        integer  :: n,i,k,c,s,t,k1,k2,k3,k4,k5          !indices
         real(dp) :: norm
         real(dp) :: rhopol0 
-        real(dp) :: xA(7),sumxA, sgxA,qAD, constA, constACa, constAMg ! disociation variables 
-        integer  :: noffset,neq_bc
+        real(dp) :: xA(7), sgxA,qAD, constA, constACa, constAMg ! disociation variables 
+        integer  :: neq_bc
         integer  :: count_sc
         real(dp) :: rhopolAA(nsize),rhopolACa(nsize),rhopolAMg(nsize)
                     ! AA because  conflict with definition rhopolA in field.f90
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
+    
         !     .. executable statements 
 
-        
-
+    
         ! read out x 
         n=nsize             
         k1=n
@@ -1919,20 +1906,20 @@ contains
         !     .. declare local variables
 
         real(dp) :: lnexppiA(nsize),lnexppiB(nsize)  ! auxilairy variable for computing P(\alpha) 
-        real(dp) :: rhopolAin(nsize,2)   
+        !real(dp) :: rhopolAin(nsize,2)   
         real(dp) :: rhopol_local(nsize,2)
         real(dp) :: q_local
-        real(dp) :: xA(3),xB(3),sumxA,sumxB, sgxA, sgxB, qAD, qBD 
+        real(dp) :: xA(3),xB(3), sgxA, sgxB, qAD, qBD 
         real(dp) :: constA,constB
         real(dp) :: pro,rhopol0,lnpro
-        integer :: n,ix,iy,iz,neq_bc                  
-        integer :: i,j,k,kL,kR,c,s        ! dummy indices
+        integer :: n,neq_bc                  
+        integer :: i,k,c,s        ! dummy indices
         real(dp) :: norm
-        integer :: conf               ! counts number of conformations
-        real(dp) :: cn                ! auxilary variable for Poisson Eq
+       ! integer :: conf               ! counts number of conformations
+       ! real(dp) :: cn                ! auxilary variable for Poisson Eq
         character(len=lenText) :: text, istr, rstr
         integer,  parameter  :: A=1, B=2
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
         
         !     .. executable statements 
       
@@ -2168,11 +2155,10 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,l,c,s,ln,t  ! dummy indices
+        integer  :: n,i,k,c,s,t  ! dummy indices
         real(dp) :: norm
-        real(dp) :: rhopol0 !integra_q
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: rhopol0 
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
 
         !     .. executable statements 
 
@@ -2283,7 +2269,7 @@ contains
         use volume
         use chains
         use field, only : xpol, xsol, rhopol, q, lnproshift
-        use vectornorm
+        use vectornorm, only : l2norm
        
         !     .. scalar arguments
 
@@ -2300,10 +2286,10 @@ contains
         real(dp) :: local_q
         real(dp) :: lnexppi(nsize,nsegtypes)          ! auxilairy variable for computing P(\alpha)  
         real(dp) :: pro,lnpro
-        integer  :: n,i,j,k,c,s,t   ! dummy indices
+        integer  :: n,i,k,c,s,t   ! dummy indices
         real(dp) :: norm
         real(dp) :: rhopol0 !integra_q
-        real(dp) :: locallnproshift(2), globallnproshift(2)
+        real(dp) :: locallnproshift(2)!, globallnproshift(2)
 
         !     .. executable statements 
 
@@ -2421,7 +2407,7 @@ contains
 
         
         use globals , only : neq
-        use modfcnMg
+        use modfcnMg, only : fcnnucl_Mg        
        
         !     .. scalar arguments
 
@@ -2438,9 +2424,8 @@ contains
 
     subroutine fcnnucl_ionbin_sv_Mg_A(x,f,nn)
 
- 
         use globals , only : neq
-        use modfcnMgexpl
+        use modfcnMgexpl, only : fcnnucl_Mg_expl
 
         !     .. scalar arguments
 
@@ -2607,65 +2592,6 @@ contains
 
     end subroutine fcnbulkO2
 
-   ! Compute maximun volume fraction for conformation conf
-   ! returns logical isVolfracLargerOne : .true. if xnucl(i)>1 for an i , .false. otherwise
-
-    subroutine maximum_xnucl(conf,isVolfracLargerOne)
-        
-        use precision_definition
-        use globals, only : nsize, nseg
-        use chains, only : indexconf, nelem, type_of_monomer
-        use parameters, only : vnucl
-        use volume, only : volcell
-
-        integer, intent(in) :: conf
-        logical, intent(inout) :: isVolfracLargerOne 
-
-        ! local arguments
-
-        real(dp) :: maxxnucl
-        integer  :: i, s, t, j, k
-        real(dp) :: xnucl(nsize)
-    
-        ! .. executable statements 
-
-        xnucl=0.0_dp
-        isVolfracLargerOne=.false.
-
-        do s=1,nseg
-            t=type_of_monomer(s)
-            do j=1,nelem(s)
-                k = indexconf(s,conf)%elem(j) 
-                xnucl(k)=xnucl(k)+vnucl(j,t) 
-            enddo
-        enddo    
-    
-        do i=1,nsize
-            xnucl(i)=xnucl(i)/volcell
-        enddo
-
-        ! find maximum 
-        maxxnucl=maxval(xnucl)
-
-        if(maxxnucl>=1.0_dp) then 
-
-            isVolfracLargerOne=.true.
-
-            print*,"max xnucl= ",maxxnucl
-
-            ! find all elements of xnucl larger 1.0
-            j=0
-            do i=1,nsize
-                if(xnucl(i) >= 1.0_dp) then 
-                    j=j+1
-                    print*,"i=",i,"xnucl=",xnucl(i)                
-                endif
-            enddo         
-            print*,"total number of lattice cell =",j
-        endif    
-    
-    end subroutine  
-
 
     subroutine locate_xpol_lager_one(xpol)
         
@@ -2695,7 +2621,7 @@ contains
         enddo         
         print*,"total number of lattice cell =",j
 
-     end subroutine       
+     end subroutine  locate_xpol_lager_one     
 
 
     !     set constrains on vector x  depending on systype value
@@ -2801,9 +2727,9 @@ contains
             fcnptr => fcnneutral
         case ("neutralnoVdW")           ! homopolymer neutral
             fcnptr => fcnneutralnoVdW
-        case ("bulk_water")             ! determines compositon bulk electrolyte solution
+        case ("bulk_water")             ! determines composition bulk electrolyte solution
              fcnptr => fcnbulk
-        case ("bulk_water_ox")             ! determines compositon bulk electrolyte solution
+        case ("bulk_water_ox")          ! determines composition bulk electrolyte solution
              fcnptr => fcnbulkO2     
         case default
             print*,"Error in call to set_fcn subroutine"    

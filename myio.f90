@@ -100,7 +100,7 @@ subroutine read_inputfile(info)
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
     logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
-    logical :: isSet_pO2, isSet_write_oxygen
+    logical :: isSet_pO2, isSet_write_oxygen, isSet_isAIGC,  isSet_KionK, isSet_KionNa
 
     if (present(info)) info = 0
 
@@ -128,6 +128,9 @@ subroutine read_inputfile(info)
     isSet_GBtype       =.false.
     isSet_GBCOMtype    =.false.
     isSet_pO2          =.false.
+    isSet_isAIGC       =.false.
+    isSet_KionK        =.false.
+    isSet_KionNa       =.false. 
 
     write_mc_chains    =.false.
     write_struct       =.false.
@@ -149,7 +152,7 @@ subroutine read_inputfile(info)
     ! init surface charge 
     sigmaSurfL = 0.0_dp
     sigmaSurfR = 0.0_dp
-    bctype(LEFT) = "cc"
+    bctype(LEFT)  = "cc"
     bctype(RIGHT) = "cc"
 
     ios = 0
@@ -187,6 +190,9 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) chainmethod
             case ('chaintype')
                 read(buffer,*,iostat=ios) chaintype
+            case ('isAIGC')
+                read(buffer,*,iostat=ios) isAIGC
+                isSet_isAIGC=.true.
             case ('isChainEnergyFile')
                 read(buffer,*,iostat=ios) isChainEnergyFile
             case ('isEnergyShift')
@@ -208,8 +214,10 @@ subroutine read_inputfile(info)
                 read(buffer,*,iostat=ios) pH%delta
             case ('KionNa')
                 read(buffer,*,iostat=ios) KionNa
+                isSet_KionNa=.true.
             case ('KionK')
                 read(buffer,*,iostat=ios) KionK
+                isSet_KionK=.true.
             case ('sigmaSurfL')
                 read(buffer,*,iostat=ios) sigmaSurfL
             case ('sigmaSurfR')
@@ -227,7 +235,7 @@ subroutine read_inputfile(info)
             case ('psiS%stepsize')
                 read(buffer,*,iostat=ios) psiS%stepsize
             case ('psiS%delta')
-                read(buffer,*,iostat=ios) pH%delta
+                read(buffer,*,iostat=ios) psiS%delta
             case ('cNaCl')
                 read(buffer,*,iostat=ios) cNaCl
             case ('cKCl')
@@ -462,8 +470,11 @@ subroutine read_inputfile(info)
     call set_value_char_array_var(GBtype,isSet_GBtype,"PerssonLJ")
     call set_value_char_array_var(GBCOMtype, isSet_GBCOMtype,"rotation")
     call set_value_double_var(pO2,isSet_pO2,0.0_dp)
+    call set_value_logical_var(isAIGC,isSet_isAIGC,.false.) 
+    call set_value_double_var(KionNa,isSet_KionNa, 0.0_dp)
+    call set_value_double_var(KionK, isSet_KionK, 0.0_dp)
 
-    ! check value after set value
+    ! .. check value after set value
 
     call check_value_GBtype(GBtype,info_GB)
     if (info_GB == myio_err_GBtype) then
@@ -1537,7 +1548,6 @@ subroutine output_nucl_ionbin_multi
     character(len=100) :: fnamelabel
 
     integer :: ix,iy, idxL, idxR, idxR2D
-
     integer :: i,j,k          ! dummy indexes
     real(dp) :: denspol, numpairs, numtriplets
 
@@ -1928,6 +1938,8 @@ subroutine output_nucl_ionbin_multi
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
+    if(bctype(LEFT)=="cp")  write(un_sys,*)'qsurfL          = ',qsurfL
+    if(bctype(RIGHT)=="cp")  write(un_sys,*)'qsurfR          = ',qsurfR
 
     ! setting Gay-Berne potential
     write(un_sys,*)'GBtype      = ',GBtype
@@ -2019,7 +2031,7 @@ subroutine output_nonuclcp
     character(len=90) :: xClfilename
     character(len=90) :: xO2filename 
     character(len=90) :: potentialfilename
-     character(len=90) :: densfracionpairfilename
+    character(len=90) :: densfracionpairfilename
     character(len=90) :: surffilename
     character(len=90) :: chargefilename
     character(len=90) :: xHplusfilename
@@ -2066,13 +2078,11 @@ subroutine output_nonuclcp
         open(unit=newunit(un_xsol),file=xsolfilename)
         open(unit=newunit(un_psi),file=potentialfilename)
         open(unit=newunit(un_surf),file=surffilename)
-
     endif 
 
         
     if(write_localcharge) then
         open(unit=newunit(un_charge),file=chargefilename)
-
     endif    
 
     if(write_iondensities) then
@@ -2546,6 +2556,8 @@ subroutine output_nucl_mul
     write(un_sys,*)'systype     = ',systype
     write(un_sys,*)'bctype(LEFT)  = ',bctype(LEFT)
     write(un_sys,*)'bctype(RIGHT) = ',bctype(RIGHT)
+    if(bctype(LEFT)=="cp")  write(un_sys,*)'psiSL       = ',psiSL / beta_times_e
+    if(bctype(RIGHT)=="cp")  write(un_sys,*)'psiSR       = ',psiSR / beta_times_e
     write(un_sys,*)'delta       = ',delta
     write(un_sys,*)'nx          = ',nx
     write(un_sys,*)'ny          = ',ny
@@ -2739,6 +2751,7 @@ subroutine output_nucl_mul
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
+    
 
     ! setting Gay-Berne potential
     write(un_sys,*)'GBtype      = ',GBtype
@@ -2840,7 +2853,7 @@ subroutine output_elect
     !     .. make label filename
     call make_filename_label(fnamelabel)
 
-    fnamelabel=trim(fnamelabel)//".dat"
+    ! fnamelabel=trim(fnamelabel)//".dat"
 
     sysfilename='system.'//trim(fnamelabel)
     xpolfilename='xpol.'//trim(fnamelabel)
@@ -3131,6 +3144,8 @@ subroutine output_elect
     do k=1,6
         write(un_sys,'(A8,I2,A2,ES25.16)')'max_psi(',k,')= ',max_psi(k)
     enddo
+    write(un_sys,*)'qsurfL          = ',qsurfL
+    write(un_sys,*)'qsurfR          = ',qsurfR
  
     ! setting Gay-Berne potential
     write(un_sys,*)'GBtype      = ',GBtype

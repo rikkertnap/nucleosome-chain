@@ -99,6 +99,7 @@
     type(looplist), target :: dielectscale ! scale factor in dielectric constant: used for loop of eps to descrease elect interactions
 
      !  .. input filenames 
+
     integer, parameter :: lenfname=40
     character(len=lenfname) :: chainfname,vpolfname,pKafname,pKaionfname,typesfname,lsegfname,segcmfname
     character(len=lenfname) :: mtpdbfname,vnuclfname,orientfname
@@ -116,7 +117,7 @@
     real(dp) :: constqE          ! electrostatic pre-factor in pdf 
     real(dp) :: beta_times_e     ! conversion factor  e/ kBT 
   
-    !  .. solver variables
+    ! .. solver variables
 
     integer  :: itmax            ! maximum number of iterations
     real(dp) :: tol_conv         ! error imposed accuaracy
@@ -128,7 +129,7 @@
     character(len=8) :: method   ! method="kinsol"  
     logical ::  precondition     ! controls use of precondtioner 
 
-    !  .. output control
+    ! .. output control
 
     logical :: write_localcharge     ! if .true. rhoq and rhoqpol also outputted
     logical :: write_iondensities    ! if .true. ion density also outputted
@@ -139,6 +140,7 @@
     logical :: write_oxygen          ! if .true. xO2 is outputted
     
     ! .. chain variables 
+
     real(dp) :: lseg              ! segment length of A polymer in nm
     real(dp), dimension(:), allocatable :: lsegAA 
     real(dp) :: lsegA             ! segment length of A polymer in nm
@@ -148,8 +150,9 @@
     real(dp) :: lsegPAMPS
     real(dp) :: lsegPS  
 
-    character(len=15) :: chainmethod  ! method of generating chains ="MC" or "FILE" 
+    character(len=15) :: chainmethod  ! method of generating chains ="MC" or "FILE_XYZ" 
     character(len=8)  :: chaintype    ! type of chain: diblock,alt
+    logical :: isAIGC                 ! determine type of AA side chains used in combination with chainmethod FILE_XYZ
     integer :: readinchains           ! nunmber of used/readin chains
     integer :: chainperiod            ! peridociy of repeat of A or B block 
     integer :: maxnchainsrotations    ! number of rotations read in from input.in, assigned to maxnchain in chaingenerator default 12  
@@ -185,8 +188,8 @@
     real(dp) :: sum_ion_excess     ! sum of ion_excess of all ions weighted with valence of ion
     real(dp) :: max_psi(6)         ! maximum electrostatic potential on each face of lattice 
 
-    !  .. weak polyelectrolyte variables 
-    !  .. equibrium constant
+    ! .. weak polyelectrolyte variables 
+    ! .. equibrium constant
     real(dp), dimension(:), allocatable :: K0a               ! intrinsic equilibruim constant
     real(dp), dimension(:), allocatable :: Ka                ! experimemtal equilibruim constant 
     real(dp), dimension(:), allocatable :: pKa               ! experimental equilibruim constant pKa= -log[Ka]
@@ -201,7 +204,7 @@
     type (looplist), target :: pKd         ! binding constants 
     type (looplist), target :: deltaGd 
       
-     ! water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
+    ! .. water equilibruim constant pKw= -log[Kw] ,Kw=[H+][OH-]   
     real(dp) :: pKw                 
   
     real(dp) :: K0ionNa             ! intrinsic equilibruim constant
@@ -212,7 +215,7 @@
     real(dp) :: KionK               ! experimemtal equilibruim constant 
     real(dp) :: pKionK              ! experimental equilibruim constant pKion= -log[Kion]	 
 
-    !     .. bulk concentrations 
+    !  .. bulk concentrations 
    
     real(dp) :: cHplus             ! concentration of H+ in bulk in mol/liter
     real(dp) :: cOHmin             ! concentration of OH- in bulk in mol/liter
@@ -1593,7 +1596,6 @@ contains
         
         close(un)
 
-
     end subroutine read_pKas_and_zpol
 
     !  .. assign  pKaion from values in file named filename
@@ -1706,7 +1708,7 @@ contains
         do while (line<maxline.and.ios==0)
             line=line+1
             read(un,*,iostat=ios)pKd(line)
-            !print*,line,pKd(line)
+            ! print*,line,pKd(line)
         enddo
         
         close(un)

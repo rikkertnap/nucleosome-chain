@@ -13,7 +13,7 @@ module globals
     integer  :: nsize         ! size lattice, numer of layers
     integer  :: nnucl         ! number of nucleosome
     integer  :: nseg          ! number of segment 
-    integer  :: nsegAA        ! number of AA segments
+    integer  :: nsegAA        ! number of AA segments in one nucleosome
     integer  :: nsegtypes     ! number of segment types
     integer  :: nsegtypesAA   ! number of AA segment types 
 
@@ -36,7 +36,7 @@ module globals
     character(len=15) :: runtype   ! runtype
     character(len=2)  :: bctype(2) ! bctype selects electrostatic boundary condition of surface  LEFT and RIGHT
 
-    integer, parameter :: LEFT = 1. ! z=0 bottom plane 
+    integer, parameter :: LEFT = 1  ! z=0 bottom plane 
     integer, parameter :: RIGHT = 2 ! z=nz delta  top plane
 
     logical, parameter :: DEBUG = .false. ! switch for debug information

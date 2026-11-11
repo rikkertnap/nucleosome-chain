@@ -9,7 +9,7 @@ module surface
 
     real(dp) :: sigmaSurfL          ! surface density of acid on surface in nm^2
     real(dp) :: sigmaSurfR          ! surface density of acid on surface in nm^2
-    real(dp) :: qsurfL, qsurfR
+    real(dp) :: qsurfL, qsurfR      ! total surface charge 
 
     real(dp), dimension(:), allocatable :: sigmaqSurfL         ! surface charge density on surface in nm^2
     real(dp), dimension(:), allocatable :: sigmaqSurfR         ! surface charge density on surface in nm^2
@@ -306,7 +306,10 @@ contains
             integer :: s
 
             ! site density
-            if(side==RIGHT) then 
+            if(side==RIGHT) then  
+                
+                if(runtype=="rangepsiR") psiSR = psiS%val  ! transfer value psiS to psiSR
+                
                 psiSR = psiSR * beta_times_e ! dimensionless surface potential
                 do s = 1, nsurf
                     psiSurfR(s) = psiSR
