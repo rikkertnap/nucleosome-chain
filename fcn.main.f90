@@ -2424,19 +2424,24 @@ contains
 
     subroutine fcnnucl_ionbin_sv_Mg_A(x,f,nn)
 
-        use globals , only : neq
+        use globals, only : neq, use_optimized
         use modfcnMgexpl, only : fcnnucl_Mg_expl
+        use modfcnMgexpl_opt, only : fcnnucl_Mg_expl_opt
 
-        !     .. scalar arguments
+        ! .. scalar arguments
 
         integer(8), intent(in) :: nn
 
-        !     .. array arguments
+        !  .. array arguments
 
         real(dp), intent(in) :: x(neq)
         real(dp), intent(out) :: f(neq)
 
-        call fcnnucl_Mg_expl(x,f,nn)
+        if (use_optimized) then
+            call fcnnucl_Mg_expl_opt(x,f,nn)
+        else
+            call fcnnucl_Mg_expl(x,f,nn)
+        endif 
 
     end subroutine fcnnucl_ionbin_sv_Mg_A
 

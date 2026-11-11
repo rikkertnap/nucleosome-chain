@@ -113,7 +113,8 @@ program main
             print*,"elem_charge(",i,")=",elem_charge(i)
         enddo
         vnucl(1,:)=vpol*vsol
-        ! vnucl(1,:)=0.0_dp
+        vnucl(1,:)=0.0_dp
+        print*,"warning vnucl is zero !!"
         do i=1,size(vnucl,2)
             print*,"vnucl(1,",i,")=",vnucl(1,i)
         enddo

@@ -8,7 +8,7 @@ module globals
   
     implicit none
   
-    !     .. variables
+    !  .. variables
 
     integer  :: nsize         ! size lattice, numer of layers
     integer  :: nnucl         ! number of nucleosome
@@ -24,6 +24,7 @@ module globals
     integer  :: local_conf    ! conformation number used from set
   
     ! .. development variables
+
     integer :: nsegsource     ! number of segment in source traj files
     integer :: s_begin        ! first segment to actually use from source traj file
     integer :: s_end          ! last segement to actually use from source traj file 
@@ -32,14 +33,16 @@ module globals
     integer(8) :: neqmax      ! maximum number of non-linear equations
     integer  :: neqint        ! number of non-linear equations, for mpi fnc bindings
     
-    character(len=15) :: systype   ! systype selects fcn    
-    character(len=15) :: runtype   ! runtype
+    character(len=15) :: systype   ! systype selects fcn : systype selects different physical models    
+    character(len=15) :: runtype   ! runtype selects the variable to vary 
     character(len=2)  :: bctype(2) ! bctype selects electrostatic boundary condition of surface  LEFT and RIGHT
 
     integer, parameter :: LEFT = 1  ! z=0 bottom plane 
     integer, parameter :: RIGHT = 2 ! z=nz delta  top plane
 
     logical, parameter :: DEBUG = .false. ! switch for debug information
+
+    logical :: use_optimized = .false.
 
 end module globals
 

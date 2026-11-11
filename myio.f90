@@ -100,7 +100,7 @@ subroutine read_inputfile(info)
     integer :: line
     logical :: isSet_maxnchains, isSet_maxnchainsxy, isSet_precondition, isSet_write_Palpha,  isSet_EnergyShift
     logical :: isSet_maxfkfunevals, isSet_maxniter, isSet_pbc_chains, isSet_GBtype, isSet_GBCOMtype
-    logical :: isSet_pO2, isSet_write_oxygen, isSet_isAIGC,  isSet_KionK, isSet_KionNa
+    logical :: isSet_pO2, isSet_write_oxygen, isSet_isAIGC,  isSet_KionK, isSet_KionNa,  isSet_use_optimized
 
     if (present(info)) info = 0
 
@@ -131,6 +131,7 @@ subroutine read_inputfile(info)
     isSet_isAIGC       =.false.
     isSet_KionK        =.false.
     isSet_KionNa       =.false. 
+    isSet_use_optimized =.false. 
 
     write_mc_chains    =.false.
     write_struct       =.false.
@@ -381,6 +382,9 @@ subroutine read_inputfile(info)
             case ('GBCOMtype')
                 read(buffer, *,iostat=ios) GBCOMtype 
                 isSet_GBCOMtype=.true. 
+            case ('use_optimized ')
+                read(buffer, *,iostat=ios) use_optimized 
+                isSet_use_optimized =.true. 
             case default
                 if(pos>1) then
                     print *, 'Invalid label at line', line  ! empty lines are skipped
@@ -473,6 +477,7 @@ subroutine read_inputfile(info)
     call set_value_logical_var(isAIGC,isSet_isAIGC,.false.) 
     call set_value_double_var(KionNa,isSet_KionNa, 0.0_dp)
     call set_value_double_var(KionK, isSet_KionK, 0.0_dp)
+    call set_value_logical_var(use_optimized,isSet_use_optimized,.true.)
 
     ! .. check value after set value
 
