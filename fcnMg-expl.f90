@@ -563,7 +563,7 @@ contains
 
        
         use precision_definition
-        use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
+        use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG, use_optimized
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
         use parameters, only : ta,isVdW! isrhoselfconsistent 
@@ -676,6 +676,8 @@ contains
                         enddo    
                     endif        
                 enddo    
+
+                if(use_optimized) lnproshift=lnpro
 
                 pro = exp(lnpro-lnproshift)   
             

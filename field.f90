@@ -7,6 +7,9 @@ module field
     
     real(dp), dimension(:), allocatable   :: xpol     ! volume fraction of polymer 
     real(dp), dimension(:,:), allocatable :: xpol_t   ! volume fraction of polymer in layer i of type t
+
+    real(dp), dimension(:,:), allocatable :: xpol_ref ! volume fraction of polymer in layer i of type t
+    
     real(dp), dimension(:,:), allocatable :: rhopol   ! density monomer of polymer in layer i of type t
     real(dp), dimension(:,:), allocatable :: rhopolin 
     real(dp), dimension(:,:), allocatable :: rhopol_charge ! density chargeable monomer of polymer in layer i of type t

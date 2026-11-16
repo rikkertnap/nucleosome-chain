@@ -1,5 +1,5 @@
 ! --------------------------------------------------------------|
-! fcnMg-excpl.f90:                                              |
+! fcnMg-expl-opt.f90:                                              |
 ! Constructs the vector function  needed by the                 |
 ! routine solver, which solves the SCMFT eqs for                |
 ! nucleosome with inbinding and distubed volume and Mg binding  |
@@ -14,11 +14,11 @@ module modfcnMgexpl_opt
 
 contains
    
-     subroutine compute_fdisPP(fdisPP,fdisP2Mg,fdisP2Fe2,fdisP2Fe3,position1,position2)
+    subroutine compute_fdisPP(fdisPP,fdisP2Mg,fdisP2Fe2,fdisP2Fe3,position1,position2)
 
-        use field, only : xHplus, xOHmin, xNa, xK, xMg, xFe2, xFe3, xsol, psi
-        use parameters, only : vsol,vNa,vK,vCl,vMg,vFe2,vFe3, deltavAA
-        use parameters, only : K0aAA,K0a,K0aion
+        use field, only : xHplus, xNa, xK, xMg, xFe2, xFe3, xsol
+        use parameters, only : vNa,vK,vMg,vFe2,vFe3, deltavAA
+        use parameters, only : K0aAA
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, PhosFe2, PhosFe3
 
         real(dp), intent(inout), dimension(:,:) :: fdisPP
@@ -93,7 +93,7 @@ contains
 
 
     ! nucleosome of AA and dna polymers
-    ! with ion charegeable group being on one acid (tA) with counterion binding etc 
+    ! with ion chargeable group being on one acid (tA) with counterion binding etc 
     ! distribute volume of neighboring cells
 
     subroutine fcnnucl_Mg_expl_opt(x,f,nn)
@@ -101,15 +101,15 @@ contains
         use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
-        use parameters, only : vsol,vpol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,vpolAA,deltavAA,vnucl,vPP,vO2
-        use parameters, only : zpol,zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
+        use parameters, only : vsol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,deltavAA,vnucl,vPP,vO2
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
-        use volume, only     : volcell, indexneighbor !, inverse_indexneighbor_phos
+        use volume, only     : volcell, indexneighbor 
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
         use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
         use chains, only     : energychainLJ, no_overlapchain
-        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhopolin,rhoqpol,rhoq
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
@@ -117,43 +117,31 @@ contains
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
         use Poisson, only    : Poisson_Equation
 
-        !     .. scalar arguments
+        !  .. scalar arguments
 
         integer(8), intent(in) :: nn
 
-        !     .. array arguments
+        ! .. array arguments
 
         real(dp), intent(in) :: x(neq)
         real(dp), intent(out) :: f(neq)
 
-        !     .. local variables
-        
-        real(dp) :: local_rhopol(nsize,nsegtypes)                     ! local density nucleosome
-        real(dp) :: local_xpol(nsize,nsegtypes)                       ! local volumer fraction nucleosome
-        real(dp) :: local_rhopol_charge(nsize,nsegtypes)              ! local density nucleosome chargeable      
-        real(dp) :: local_q                                           ! local normalization q 
-        real(dp) :: local_rhoqphos(nsize)                             ! local charge dnisty of phosphates      
-        real(dp) :: lnexppi(nsize,nsegtypes)                          ! auxilairy variable for computing P(\alpha) 
-        real(dp) :: lnexppivw(nsize) 
-        real(dp) :: pro,lnpro
+        !  .. local variables
+                                    
+        real(dp) :: pro                                               ! local normalization q 
         integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
         integer  :: JJ, KK
-        integer  :: ix,iy
-        real(dp) :: norm, normvol,normPE, normscf
+        real(dp) :: norm, normvol,normPE
         real(dp) :: rhopol0 
         real(dp) :: xA(3),xB(2),sgxA,sgxB                            ! disociation ariables 
-        integer  :: noffset
-        real(dp) :: locallnproshift(2), globallnproshift(2)
-        integer  :: count_scf
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
         real(dp) :: sum_rhoqphos,sum_xphos
 
-        real(dp) :: K0aPP   ! Kdis of P2Mg pair temporarily define 
-
         ! .. executable statements 
 
-        ! print*,"K0aAA=",K0aAA
-        K0aPP=K0aAA(6) ! P2Mg
+        deltavpolstateNa = vNa*vsol
+        deltavpolstateK = vK*vsol   
+        deltavpolstateCl = vCl*vsol
 
         n=nsize
 
@@ -169,9 +157,6 @@ contains
             do i=1,n
                 xpol(i,t)  = 0.0_dp 
                 rhopol(i,t) = 0.0_dp 
-                local_xpol(i,t) = 0.0_dp
-                local_rhopol(i,t) = 0.0_dp
-                local_rhopol_charge(i,t) = 0.0_dp
                 rhopol_charge(i,t) = 0.0_dp
             enddo    
         enddo    
@@ -189,9 +174,7 @@ contains
             xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
             xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
             xO2(i)      = expmu%O2*(xsol(i)**vO2)                  ! O2 volume fraction
-
-            lnexppivw(i) = log(xsol(i))/vsol                       ! auxilary variable  divide by vsol  !!
-            local_rhoqphos(i) = 0.0_dp 
+            rhoqphos(i) = 0.0_dp 
         enddo
 
         do t=1,nsegtypes
@@ -211,7 +194,7 @@ contains
                             gdisA(i,4,t) = gdisA(i,1,t)*xA(3)             ! AK
                        
                             fdis(i,t) = gdisA(i,1,t)
-                            lnexppi(i,t) = psi(i) -log(gdisA(i,1,t))      ! auxilary variable palpha log(xsol)*(delta vpol+0) =0 
+                        
                         enddo
 
                     else !  base
@@ -223,8 +206,6 @@ contains
                             gdisB(i,2,t) = gdisB(i,1,t)*xB(1)             ! B
                             gdisB(i,3,t) = gdisB(i,1,t)*xB(2)             ! BHCl     
                     
-                            lnexppi(i,t) = -log(gdisB(i,2,t))             ! auxilary variable palpha lo 
-
                             fdis(i,t) = gdisB(i,2,t)  
                         enddo
         
@@ -232,125 +213,34 @@ contains
                                 
                 else
                     ! t=ta : phosphate
-                           
-                    !do ind=1,len_index_phos ! loop over index of  location of phosphates
-                     !i = index_phos(ind)  ! give the lattice location 
-                    do i=1,nsize  
-                        lnexppi(i,t) =  psi(i)!!   ! auxilary variable palpha
-                       ! here used to be computation of fdisPP
-                    enddo
-
+                  
                 endif
             else  
 
                 fdis(:,t)  = 0.0_dp
-                lnexppi(:,t) = 0.0_dp
 
             endif   
         enddo   
     
-
-        !  .. computation polymer density fraction      
+        !  .. computation polymer/nuclesome density fraction      
  
-        local_q = 0.0_dp    ! init q
-        lnpro = 0.0_dp
-        
-        do c=local_conf,local_conf                         ! loop over cuantas
+        do c=local_conf,local_conf                            ! loop over cuantas 
 
             if(no_overlapchain(c)) then 
 
-                lnpro = lnpro+logweightchain(c) - energychainLJ(c)
-                
-                do s=1,nseg                           ! loop over segments 
-                    t=type_of_monomer(s)
-                    if(t/=ta) then 
-                        do j=1,nelem(s)               ! loop over elements of segment 
-                            k = indexconf(s,c)%elem(j)
-                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution      
-                        enddo
-                        if(ismonomer_chargeable(t)) then
-                            jcharge=elem_charge(t)
-                            k = indexconf(s,c)%elem(jcharge) 
-                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution
-                        endif
-                    else 
-                        ! phosphates 
-                       
-                        k = indexconf(s,c)%elem(1)
-
-                        do jj=1,nneigh(s,c)           ! loop neighbors 
-
-                            m = indexconfpair(s,c)%elem(jj)
-                           
-                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
-
-                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                          -log(fdisPP_loc(Phos,Phos))  )/(2.0_dp*nneigh(s,c))    
-                        enddo
-                    endif        
-                enddo
-            endif         
-        enddo
-
-        locallnproshift(1)=lnpro
-        locallnproshift(2)=1  ! rank  
-    
-        ! call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! synchronize 
-        ! call MPI_ALLREDUCE(locallnproshift, globallnproshift, 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, MPI_COMM_WORLD,ierr)
-       
-        ! lnproshift=globallnproshift(1)
-        lnproshift=locallnproshift(1)
-         
-        do c=local_conf,local_conf                            ! loop over cuantas
-
-            if(no_overlapchain(c)) then 
-
-                lnpro=logweightchain(c) - energychainLJ(c)
-           
-                do s=1,nseg                           ! loop over segments 
-                    t=type_of_monomer(s)
-                    if(t/=ta) then 
-                        do j=1,nelem(s)               ! loop over elements of segment 
-                            k = indexconf(s,c)%elem(j)
-                            lnpro = lnpro +lnexppivw(k)*vnucl(j,t)   ! excluded-volume contribution        
-                        enddo
-                        if(ismonomer_chargeable(t)) then
-                            jcharge=elem_charge(t)
-                            k = indexconf(s,c)%elem(jcharge) 
-                            lnpro = lnpro + lnexppi(k,t)  ! electrostatic, VdW and chemical contribution 
-                        endif
-                    else 
-                        ! phosphates 
-                        k = indexconf(s,c)%elem(1)
-
-                        do jj=1,nneigh(s,c)           ! loop neighbors 
-
-                            m = indexconfpair(s,c)%elem(jj)
-
-                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc,fdisP2Fe2_loc, fdisP2Fe3_loc,  k , m)
-
-                            lnpro =lnpro + (lnexppi(k,ta) + lnexppi(m,ta)+ (lnexppivw(k) + lnexppivw(m))*vnucl(1,ta) &
-                                          -log(fdisPP_loc(Phos,Phos)))/(2.0_dp*nneigh(s,c))
-                        enddo
-
-                    endif        
-                enddo    
-
-
-                pro = exp(lnpro-lnproshift)   
-                local_q = local_q+pro
+                pro = 1.0_dp
                
                 do s=1,nseg
                     t=type_of_monomer(s)
                     if(t/=ta) then  ! not phosphates
                         do j=1,nelem(s)
                             k = indexconf(s,c)%elem(j) 
-                            local_xpol(k,t)=local_xpol(k,t)+pro*vnucl(j,t)          ! unnormed polymer volume fraction
+                            xpol(k,t)=xpol(k,t)+vnucl(j,t)          ! unnormed polymer volume fraction
                         enddo
                         if(ismonomer_chargeable(t)) then
                             jcharge=elem_charge(t)
                             k = indexconf(s,c)%elem(jcharge) 
-                            local_rhopol_charge(k,t)=local_rhopol_charge(k,t)+pro   ! unnormed density of charge center
+                            rhopol_charge(k,t)=rhopol_charge(k,t)+1.0_dp   ! unnormed density of charge center
                         endif
                     else
                         ! pair density of phosphates 
@@ -389,10 +279,10 @@ contains
                            
                             ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge
 
-                            local_rhoqphos(k) = local_rhoqphos(k) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
-                            local_xpol(k,ta) = local_xpol(k,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
+                            rhoqphos(k) = rhoqphos(k) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            xpol(k,ta) = xpol(k,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
 
-                            local_rhopol_charge(k,ta)=local_rhopol_charge(k,ta)+pro/(2.0_dp*nneigh(s,c))
+                            rhopol_charge(k,ta)= rhopol_charge(k,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
                     
                             ! second integral contributes to location m of rhoqpos and xphol  xpol  
                          
@@ -421,10 +311,10 @@ contains
 
                             ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge                    
 
-                            local_rhoqphos(m) = local_rhoqphos(m) + pro * sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
-                            local_xpol(m,ta) = local_xpol(m,ta) + pro * sum_xphos /(2.0_dp*nneigh(s,c))
+                            rhoqphos(m) = rhoqphos(m) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            xpol(m,ta) = xpol(m,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
 
-                            local_rhopol_charge(m,ta)=local_rhopol_charge(m,ta)+pro/(2.0_dp*nneigh(s,c))
+                            rhopol_charge(m,ta)=rhopol_charge(m,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
 
                         enddo 
          
@@ -436,26 +326,8 @@ contains
                 
         enddo ! cuantas loop
         
-
-            q = 0.0_dp 
-            q = local_q
+            q = 1.0_dp 
         
-            ! first graft point 
-            do t=1,nsegtypes
-                do i=1,nsize
-                    xpol(i,t)=local_xpol(i,t) ! polymer volume fraction density 
-                enddo
-                if(ismonomer_chargeable(t)) then
-                    do i=1,nsize
-                        rhopol_charge(i,t)=local_rhopol_charge(i,t)   ! polymer density of charge center
-                    enddo    
-                endif   
-            enddo
-
-            do i=1,nsize
-                rhoqphos(i)=local_rhoqphos(i) 
-            enddo     
-
             !  .. construction of fcn and volume fraction polymer 
             !  .. volume polymer segment per volume cell
 
@@ -467,22 +339,18 @@ contains
                     if(t/=ta) then
                         if(type_of_charge(t)=="A") then ! acid   
 
-                            deltavpolstateNa=vNa*vsol
-                            deltavpolstateK=vK*vsol                                     
-
                             do i=1,n
                                
                                 rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t  
                                 rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
 
                                 ! volume fraction only consider Na and K ionpairing
-                                deltaxpol = rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+gdisA(i,4,t)*deltavpolstateK)
+                                deltaxpol = rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+gdisA(i,4,t)&
+                                    *deltavpolstateK)
                                 xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol                      ! scale xpol(i,t) and add delta xspol due to ionbinding
                             enddo
 
                         else  ! base   
-
-                            deltavpolstateCl=vCl*vsol
 
                             do i=1,n
                                 
@@ -555,6 +423,488 @@ contains
 
     end subroutine fcnnucl_Mg_expl_opt
 
+    ! nucleosome of AA and dna polymers
+    ! with ion chargeable group being on one acid (tA) with counterion binding etc 
+    ! distribute volume of neighboring cells
+
+    subroutine fcnnucl_Mg_expl_opt_version2(x,f,nn)
+
+        use precision_definition
+        use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
+        use parameters, only : expmu 
+        use parameters, only : vsol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,deltavAA,vnucl,vPP,vO2
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
+        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
+        use volume, only     : volcell, indexneighbor 
+        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : energychainLJ, no_overlapchain
+        use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhoqpol,rhoq
+        use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
+        use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
+        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
+        use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol, xpol_ref
+        use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
+        use Poisson, only    : Poisson_Equation
+
+        !  .. scalar arguments
+
+        integer(8), intent(in) :: nn
+
+        ! .. array arguments
+
+        real(dp), intent(in) :: x(neq)
+        real(dp), intent(out) :: f(neq)
+
+        !  .. local variables
+                                    
+        real(dp) :: pro                                               ! local normalization q 
+        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: JJ, KK
+        real(dp) :: norm, normvol,normPE
+        real(dp) :: rhopol0 
+        real(dp) :: xA(3),xB(2),sgxA,sgxB                            ! disociation ariables 
+        real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
+        real(dp) :: sum_rhoqphos,sum_xphos
+
+        ! .. executable statements 
+
+        deltavpolstateNa = vNa*vsol
+        deltavpolstateK = vK*vsol   
+        deltavpolstateCl = vCl*vsol
+
+        n=nsize
+
+        ! read out x 
+        k=n
+        do i=1,n                     
+            xsol(i) = x(i)        ! volume fraction solvent
+            psi(i)  = x(i+k)      ! potential
+        enddo  
+
+        !  .. assign global and local polymer density 
+        do t=1,nsegtypes
+            do i=1,n
+                xpol(i,t)  = 0.0_dp 
+                rhopol(i,t) = 0.0_dp 
+            enddo    
+        enddo    
+       
+        do i=1,n                  ! init volume fractions
+            xpol_tot(i) = 0.0_dp                                   ! volume fraction polymer
+            rhoqpol(i)  = 0.0_dp                                   ! charge density AA monomoer
+            xNa(i)      = expmu%Na*(xsol(i)**vNa)*exp(-psi(i)*zNa) ! Na+ volume fraction
+            xK(i)       = expmu%K* (xsol(i)**vK) *exp(-psi(i)*zK)  ! K+ volume fraction
+            xCl(i)      = expmu%Cl*(xsol(i)**vCl)*exp(-psi(i)*zCl) ! Cl- volume fraction
+            xHplus(i)   = expmu%Hplus*(xsol(i))  *exp(-psi(i))     ! H+  volume fraction
+            xOHmin(i)   = expmu%OHmin*(xsol(i))  *exp(+psi(i))     ! OH- volume fraction
+            xFe2(i)     = expmu%Fe2*(xsol(i)**vFe2)*exp(-psi(i)*zFe2) ! Fe++ volume fraction
+            xFe3(i)     = expmu%Fe3*(xsol(i)**vFe3)*exp(-psi(i)*zFe3) ! Fe+++ volume fraction
+            xCa(i)      = expmu%Ca*(xsol(i)**vCa)*exp(-psi(i)*zCa) ! Ca++ volume fraction
+            xMg(i)      = expmu%Mg*(xsol(i)**vMg)*exp(-psi(i)*zMg) ! Mg++ volume fraction
+            xO2(i)      = expmu%O2*(xsol(i)**vO2)                  ! O2 volume fraction
+            rhoqphos(i) = 0.0_dp 
+        enddo
+
+        do t=1,nsegtypes
+            if(ismonomer_chargeable(t)) then
+                if(t/=ta) then
+                    if(type_of_charge(t)=="A") then  !  acid
+                     
+                        do i=1,n
+
+                            xA(1) = xHplus(i)/(K0a(t)*xsol(i))           ! AH/A!
+                            xA(2) = (xNa(i)/vNa)/(K0aion(t,2))!*xsol(i)) ! ANa/A- :xsol(i)**deltav = xsol(i)**0= 1 
+                            xA(3) = (xK(i)/vK)/(K0aion(t,3))!*xsol(i))   ! AK/A-
+                            sgxA = 1.0_dp+xA(1)+xA(2)+xA(3)  
+                            gdisA(i,1,t) = 1.0_dp/sgxA                    ! A^- 
+                            gdisA(i,2,t) = gdisA(i,1,t)*xA(1)             ! AH 
+                            gdisA(i,3,t) = gdisA(i,1,t)*xA(2)             ! ANa 
+                            gdisA(i,4,t) = gdisA(i,1,t)*xA(3)             ! AK
+                       
+                            fdis(i,t) = gdisA(i,1,t)
+                        
+                        enddo
+
+                    else !  base
+                        do i=1,n
+                            xB(1) = (K0a(t)*xsol(i))/xHplus(i)            ! B/BH+
+                            xB(2) = (xCl(i)/vCl)/(K0aion(t,2))!*xsol(i))  ! BHCl/BH+
+                            sgxB =  1.0_dp+xB(1)+xB(2)  
+                            gdisB(i,1,t) = 1.0_dp/sgxB                    ! BH^+
+                            gdisB(i,2,t) = gdisB(i,1,t)*xB(1)             ! B
+                            gdisB(i,3,t) = gdisB(i,1,t)*xB(2)             ! BHCl     
+                    
+                            fdis(i,t) = gdisB(i,2,t)  
+                        enddo
+        
+                    endif  
+                                
+                else
+                    ! t=ta : phosphate
+                  
+                endif
+            else  
+
+                fdis(:,t)  = 0.0_dp
+
+            endif   
+        enddo   
+    
+        !  .. computation polymer/nuclesome density fraction      
+ 
+        do c=local_conf,local_conf                            ! loop over cuantas 
+
+            if(no_overlapchain(c)) then 
+
+                pro = 1.0_dp
+               
+                do s=1,nseg
+                    t=type_of_monomer(s)
+                    if(t/=ta) then  ! not phosphates
+                      !  do j=1,nelem(s)
+                      !      k = indexconf(s,c)%elem(j) 
+                      !      xpol(k,t)=xpol(k,t)+vnucl(j,t)          ! unnormed polymer volume fraction
+                      !  enddo
+                      !  if(ismonomer_chargeable(t)) then
+                      !      jcharge=elem_charge(t)
+                      !      k = indexconf(s,c)%elem(jcharge) 
+                      !      rhopol_charge(k,t)=rhopol_charge(k,t)+1.0_dp   ! unnormed density of charge center
+                      !  endif
+                    else
+                        ! pair density of phosphates 
+                        k = indexconf(s,c)%elem(1)
+                        ! k_ind = inverse_index_phos(k) 
+
+                        do j=1,nneigh(s,c)
+
+                            m = indexconfpair(s,c)%elem(j)
+
+                            call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
+                            call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,& 
+                                        fdisP2Fe2_loc_swap, fdisP2Fe3_loc_swap, m , k)    
+
+                            ! % first part integral
+
+                            sum_rhoqphos=0.0_dp
+                            sum_xphos=0.0_dp 
+                        
+                            do JJ=1,7
+                                do KK=1,7
+                                    sum_rhoqphos = sum_rhoqphos+&
+                                        (fdisPP_loc(JJ,KK)*qPP(JJ)+fdisPP_loc_swap(JJ,KK)*qPP(KK))/2.0_dp
+                                    sum_xphos = sum_xphos   +&
+                                        (fdisPP_loc(JJ,KK)*vPP(JJ)+fdisPP_loc_swap(JJ,KK)*vPP(KK))/2.0_dp
+                                enddo
+                            enddo
+        
+                            sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
+                            sum_xphos=sum_xphos+(fdisP2Fe2_loc+fdisP2Fe2_loc_swap)*vPP(Phos2Fe2)/4.0_dp 
+                            sum_xphos=sum_xphos+(fdisP2Fe3_loc+fdisP2Fe3_loc_swap)*vPP(Phos2Fe3)/4.0_dp 
+
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+
+                            sum_rhoqphos = sum_rhoqphos+((fdisP2Fe3_loc+fdisP2Fe3_loc_swap)*qPP(Phos2Fe3))/4.0_dp
+                           
+                            ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge
+
+                            rhoqphos(k) = rhoqphos(k) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            xpol(k,ta) = xpol(k,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
+
+                            rhopol_charge(k,ta)= rhopol_charge(k,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+                    
+                            ! second integral contributes to location m of rhoqpos and xphol  xpol  
+                         
+                            sum_rhoqphos=0.0_dp
+                            sum_xphos=0.0_dp 
+                        
+                            ! contributes to location k of rhoqpos and xol
+                               
+                            do JJ=1,7
+                                do KK=1,7   
+                                    sum_rhoqphos = sum_rhoqphos+&
+                                        (fdisPP_loc_swap(JJ,KK)*qPP(JJ)+fdisPP_loc(JJ,KK)*qPP(KK))/2.0_dp
+
+                                    sum_xphos = sum_xphos   +&
+                                        (fdisPP_loc_swap(JJ,KK)*vPP(JJ)+fdisPP_loc(JJ,KK)*vPP(KK))/2.0_dp
+                                enddo
+                            enddo
+        
+                            sum_xphos=sum_xphos+(fdisP2Mg_loc_swap +fdisP2Mg_loc)*vPP(Phos2Mg)/4.0_dp
+                            sum_xphos=sum_xphos+(fdisP2Fe2_loc_swap +fdisP2Fe2_loc)*vPP(Phos2Fe2)/4.0_dp
+                            sum_xphos=sum_xphos+(fdisP2Fe3_loc_swap +fdisP2Fe3_loc)*vPP(Phos2Fe3)/4.0_dp
+
+                            ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                            
+                            sum_rhoqphos = sum_rhoqphos+((fdisP2Fe3_loc_swap+fdisP2Fe3_loc)*qPP(Phos2Fe3))/4.0_dp
+
+                            ! division 4.0_dp  because symmetry and  qPP(Phos2Fe3)/2 is charge per phosphate of bridge                    
+
+                            rhoqphos(m) = rhoqphos(m) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
+                            xpol(m,ta) = xpol(m,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
+
+                            rhopol_charge(m,ta)=rhopol_charge(m,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+
+                        enddo 
+         
+                    endif
+
+                enddo
+            
+            endif 
+                
+        enddo ! cuantas loop
+        
+            q = 1.0_dp 
+        
+            !  .. construction of fcn and volume fraction polymer 
+            !  .. volume polymer segment per volume cell
+
+            rhopol0=(1.0_dp/volcell)/q 
+
+            do t=1, nsegtypes
+                if(ismonomer_chargeable(t)) then 
+
+                    if(t/=ta) then
+                        if(type_of_charge(t)=="A") then ! acid   
+
+                            do i=1,n
+                               
+                                !rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t  
+                                rhoqpol(i) = rhoqpol(i) - gdisA(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
+
+                                ! volume fraction only consider Na and K ionpairing
+                                deltaxpol = rhopol_charge(i,t)*(gdisA(i,3,t)*deltavpolstateNa+gdisA(i,4,t)&
+                                    *deltavpolstateK)
+                                !xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol                      ! scale xpol(i,t) and add delta xspol due to ionbinding
+                                xpol(i,t) = xpol_ref(i,t) + deltaxpol  
+    
+                            enddo
+
+                        else  ! base   
+
+                            do i=1,n
+                                
+                               ! rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                ! density nucleosome of type t chargeable 
+                                rhoqpol(i) = rhoqpol(i) + gdisB(i,1,t)*rhopol_charge(i,t)*vsol   ! total charge density nucleosome in units of vsol 
+                                
+                                ! volume fraction only consider Cl ionpairing
+                                deltaxpol = rhopol_charge(i,t)*gdisB(i,3,t)*deltavpolstateCl
+                                ! xpol(i,t) = rhopol0 * xpol(i,t) + deltaxpol
+
+                                xpol(i,t) = xpol_ref(i,t) + deltaxpol
+
+                            enddo 
+                            
+                        endif     
+
+                    else
+                        ! t=tAA phosphate 
+                        
+                        do i=1,n
+
+                            !rhopol_charge(i,ta) = rhopol0 * rhopol_charge(i,ta) 
+                            rhoqphos(i) = rhopol0 * rhoqphos(i) 
+                            rhoqpol(i) = rhoqpol(i) + rhoqphos(i)* vsol ! total  charge density in units of vsol 
+                            xpol(i,ta) = rhopol0 * xpol(i,ta) 
+
+                        enddo           
+                            
+                    endif    
+                else  
+
+                    ! volume fraction polymer of type t 
+                    !do i=1,n
+                    !    xpol(i,t)  = rhopol0 * xpol(i,t)   
+                    !enddo
+
+                endif 
+
+                do i=1,n
+                    xpol_tot(i) = xpol_tot(i)+xpol(i,t)  
+                enddo
+
+            enddo    
+
+            do i=1,n
+
+                f(i) = xpol_tot(i)+xsol(i)+xNa(i)+xCl(i)+xHplus(i)+xOHmin(i)+xFe2(i)+xCa(i)+xMg(i)+&
+                    xK(i)+xFe3(i)+xO2(i)-1.0_dp
+                rhoq(i) = rhoqpol(i)+zNa*xNa(i)/vNa +zCl*xCl(i)/vCl +xHplus(i)-xOHmin(i)+ &
+                    zCa*xCa(i)/vCa +zMg*xMg(i)/vMg+zFe2*xFe2(i)/vFe2 +zFe3*xFe3(i)/vFe3+zK*xK(i)/vK ! total charge density in units of vsol  
+
+            enddo
+          
+            ! .. end computation polymer density and charge density  
+
+            ! .. electrostatics 
+
+            call Poisson_Equation(f,psi,rhoq)
+
+            norm=l2norm_f90(f)
+            iter=iter+1
+                        
+            normvol = L2norm_f90(f(1:nsize))
+            normPE  = L2norm_f90(f(nsize+1:2*nsize))
+           
+            print*,'iter=', iter ,'norm=',norm, "normvol=",normvol,"normPE=",normPE
+                       
+           !  if(DEBUG) call locate_xpol_lager_one(xpol_tot)
+           ! print*,"vnucl(1,ta)=",vnucl(1,ta)," ta=",ta
+           ! print*,"vPP(Phos)=",vPP(phos)
+        
+
+    end subroutine fcnnucl_Mg_expl_opt_version2
+
+    ! Computes neutral volume fraction of nucleosome and chargeable number density which is unchanged
+    ! this are valueas that need not be updated aka reference
+
+    subroutine xnucl_ref()
+
+        use precision_definition
+        use globals, only    : nsize, nsegtypes, nseg, local_conf
+        use parameters, only : vpol,vnucl,vPP, ta        
+        use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
+        use volume, only     : volcell, indexneighbor 
+        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use field, only      : rhopol_charge,  xpol=>xpol_t, xpol_ref
+        use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
+        use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
+        
+        !  .. local variables
+                                                                            
+        integer  :: n,i,j,k,l,s,c,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: JJ, KK
+        real(dp) :: rhopol0 
+        real(dp) :: sum_rhoqphos,sum_xphos
+        integer  :: ier
+
+        ! .. executable statements 
+
+        n=nsize
+       
+        !  .. assign global and local polymer/nucleosome density 
+        
+        xpol  = 0.0_dp 
+        rhopol_charge = 0.0_dp
+       
+        fdisPP_loc = 0.0_dp
+        fdisPP_loc_swap = 0.0_dp
+        fdisP2Mg_loc = 0.0_dp 
+        fdisP2Mg_loc_swap = 0.0_dp 
+        fdisP2Fe2_loc = 0.0_dp 
+        fdisP2Fe2_loc_swap = 0.0_dp 
+        fdisP2Fe3_loc = 0.0_dp 
+        fdisP2Fe3_loc_swap = 0.0_dp 
+
+        fdisPP_loc(PhosH,PhosH) = 1.0_dp
+        fdisPP_loc_swap(PhosH,PhosH) = 1.0_dp
+
+        do c=local_conf,local_conf                            ! loop over cuantas 
+            do s=1,nseg
+                t=type_of_monomer(s)
+                if(t/=ta) then  ! not phosphates
+                    do j=1,nelem(s)
+                        k = indexconf(s,c)%elem(j) 
+                        xpol(k,t) = xpol(k,t)+vnucl(j,t)          ! unnormed polymer volume fraction
+                    enddo
+                    if(ismonomer_chargeable(t)) then
+                        jcharge = elem_charge(t)
+                        k = indexconf(s,c)%elem(jcharge) 
+                        rhopol_charge(k,t) = rhopol_charge(k,t)+1.0_dp   ! unnormed density of charge center
+                    endif
+                else
+                    ! pair density of phosphates 
+                    k = indexconf(s,c)%elem(1)
+                    ! k_ind = inverse_index_phos(k) 
+
+                    do j=1,nneigh(s,c)
+
+                        m = indexconfpair(s,c)%elem(j)
+
+                        !call  compute_fdisPP(fdisPP_loc, fdisP2Mg_loc, fdisP2Fe2_loc, fdisP2Fe3_loc, k , m)
+                        !call  compute_fdisPP(fdisPP_loc_swap, fdisP2Mg_loc_swap,& 
+                        !            fdisP2Fe2_loc_swap, fdisP2Fe3_loc_swap, m , k)    
+                        ! make fdisPP such that fPH,PH state is 1          
+
+                        ! % first part integral
+
+                        sum_rhoqphos=0.0_dp
+                        sum_xphos=0.0_dp 
+                    
+                        do JJ=1,7
+                            do KK=1,7
+                                sum_xphos = sum_xphos   +&
+                                    (fdisPP_loc(JJ,KK)*vPP(JJ)+fdisPP_loc_swap(JJ,KK)*vPP(KK))/2.0_dp
+                            enddo
+                        enddo
+
+                        sum_xphos=sum_xphos+(fdisP2Mg_loc+fdisP2Mg_loc_swap)*vPP(Phos2Mg)/4.0_dp 
+                        sum_xphos=sum_xphos+(fdisP2Fe2_loc+fdisP2Fe2_loc_swap)*vPP(Phos2Fe2)/4.0_dp 
+                        sum_xphos=sum_xphos+(fdisP2Fe3_loc+fdisP2Fe3_loc_swap)*vPP(Phos2Fe3)/4.0_dp 
+
+                        ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+
+                        
+                        xpol(k,ta) = xpol(k,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
+
+                        rhopol_charge(k,ta) = rhopol_charge(k,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+                
+                        ! second integral contributes to location m of rhoqpos and xphol  xpol  
+                        
+                        sum_rhoqphos=0.0_dp
+                        sum_xphos=0.0_dp 
+                    
+                        ! contributes to location k of xphos
+                            
+                        do JJ=1,7
+                            do KK=1,7  
+
+                                sum_xphos = sum_xphos   +&
+                                    (fdisPP_loc_swap(JJ,KK)*vPP(JJ)+fdisPP_loc(JJ,KK)*vPP(KK))/2.0_dp
+                            enddo
+                        enddo
+
+                        sum_xphos=sum_xphos+(fdisP2Mg_loc_swap +fdisP2Mg_loc)*vPP(Phos2Mg)/4.0_dp
+                        sum_xphos=sum_xphos+(fdisP2Fe2_loc_swap +fdisP2Fe2_loc)*vPP(Phos2Fe2)/4.0_dp
+                        sum_xphos=sum_xphos+(fdisP2Fe3_loc_swap +fdisP2Fe3_loc)*vPP(Phos2Fe3)/4.0_dp
+
+                        ! division 4.0_dp  because symmetry and  vPP(Phos2Mg)/2 is volume change per phosphate 
+                                            
+                        xpol(m,ta) = xpol(m,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
+
+                        rhopol_charge(m,ta) = rhopol_charge(m,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+
+                    enddo 
+            
+                endif
+
+            enddo
+
+        enddo        
+    
+        !  .. construction of volume polymer segment per volume cell
+        !  .. output 
+
+        if(.not. allocated(xpol_ref) ) then 
+             allocate(xpol_ref(N,nsegtypes),stat=ier)
+        endif 
+
+        rhopol0=(1.0_dp/volcell) !/q 
+
+        do t=1, nsegtypes
+            do i=1,n
+                rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                
+                xpol_ref(i,t) = rhopol0 * xpol(i,t)  
+                ! scale xpol(i,t) and DO NOT delta xspol due to ionbinding 
+            enddo
+        enddo
+
+        xpol_ref(:,ta) = 0.0_dp ! make phosphate reference zero !!!!!1
+                
+    end subroutine xnucl_ref
 
 
     ! compute the average fraction of charged state of the phosphate pairs 

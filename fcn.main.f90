@@ -2426,7 +2426,7 @@ contains
 
         use globals, only : neq, use_optimized
         use modfcnMgexpl, only : fcnnucl_Mg_expl
-        use modfcnMgexpl_opt, only : fcnnucl_Mg_expl_opt
+        use modfcnMgexpl_opt, only : fcnnucl_Mg_expl_opt_version2
 
         ! .. scalar arguments
 
@@ -2438,7 +2438,7 @@ contains
         real(dp), intent(out) :: f(neq)
 
         if (use_optimized) then
-            call fcnnucl_Mg_expl_opt(x,f,nn)
+            call fcnnucl_Mg_expl_opt_version2(x,f,nn)
         else
             call fcnnucl_Mg_expl(x,f,nn)
         endif 

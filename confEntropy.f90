@@ -27,6 +27,8 @@ contains
 
         character(len=lenText) :: text 
 
+        print*,"=> FEconf_entropy:"
+
         select case (systype) 
         case ("elect")
             call FEconf_elect(FEconf,Econf)
@@ -1116,7 +1118,7 @@ contains
 
         !  .. variables and constant declaractions 
 
-        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf
+        use globals, only : nseg, nnucl,nsegtypes, nsize, local_conf, use_optimized
         use parameters, only : ta, Phos
         use chains, only : indexconf,  nelem, type_of_monomer, ismonomer_chargeable, logweightchain,elem_charge
         use chains, only : type_of_charge, elem_charge, indexconfpair, nneigh
@@ -1232,9 +1234,11 @@ contains
                         enddo    
                     endif        
                 enddo    
-
+        
+                if(use_optimized) lnproshift = lnpro ! in optimized fcn lnproshift not computed
+        
                 pro = exp(lnpro-lnproshift)  
-
+    
                 FEconf_local=FEconf_local+(pro/q)*(log(pro/q)-logweightchain(c))
                 Econf_local=Econf_local+pro*energychainLJ(c)
                 Rgsqr_local=Rgsqr_local+Rgsqr(c)*pro
