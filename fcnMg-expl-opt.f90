@@ -8,7 +8,7 @@
 
 module modfcnMgexpl_opt
    
-    use precision_definition
+    use precision_definition, only : dp
 
     implicit none
 
@@ -98,22 +98,21 @@ contains
 
     subroutine fcnnucl_Mg_expl_opt(x,f,nn)
 
-        use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,deltavAA,vnucl,vPP,vO2
-        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
+        use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0a,K0aion
         use parameters, only : ta,isVdW,isrhoselfconsistent,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
         use volume, only     : volcell, indexneighbor 
-        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use chains, only     : indexconf, type_of_monomer, nelem, ismonomer_chargeable
+        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh
         use chains, only     : energychainLJ, no_overlapchain
         use field, only      : xsol,xNa,xCl,xK,xHplus,xOHmin,xFe2,xFe3,xMg,xCa,xO2,rhopol,rhoqpol,rhoq
         use field, only      : psi,gdisA,gdisB,fdis,fdisA, rhopol_charge
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap, rhoqphos
         use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
-        use field, only      : q, lnproshift, xpol=>xpol_t, xpol_tot=>xpol
+        use field, only      : q, xpol=>xpol_t, xpol_tot=>xpol
         use vectornorm, only : L2norm, L2norm_sub, L2norm_f90
         use Poisson, only    : Poisson_Equation
 
@@ -129,7 +128,7 @@ contains
         !  .. local variables
                                     
         real(dp) :: pro                                               ! local normalization q 
-        integer  :: n,i,j,k,l,c,s,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: n,i,j,k,l,c,s,t,jcharge,kr,m,ii,ind         ! dummy indices
         integer  :: JJ, KK
         real(dp) :: norm, normvol,normPE
         real(dp) :: rhopol0 
@@ -429,12 +428,11 @@ contains
 
     subroutine fcnnucl_Mg_expl_opt_version2(x,f,nn)
 
-        use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, neq, neqint, local_conf, DEBUG
         use parameters, only : expmu 
         use parameters, only : vsol,vNa,vK,vCl,vFe2,vFe3,vCa,vMg,deltavAA,vnucl,vPP,vO2
         use parameters, only : zNa,zK,zCl,zFe2,zFe3,zCa,zMg,qPP,K0aAA,K0a,K0aion
-        use parameters, only : ta,isVdW,isrhoselfconsistent,iter
+        use parameters, only : ta,isVdW,iter
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
         use volume, only     : volcell, indexneighbor 
         use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
@@ -464,7 +462,7 @@ contains
         integer  :: JJ, KK
         real(dp) :: norm, normvol,normPE
         real(dp) :: rhopol0 
-        real(dp) :: xA(3),xB(2),sgxA,sgxB                            ! disociation ariables 
+        real(dp) :: xA(3),xB(2),sgxA,sgxB                            ! dissociation variables 
         real(dp) :: deltavpolstateCl, deltavpolstateNa, deltavpolstateK, deltaxpol
         real(dp) :: sum_rhoqphos,sum_xphos
 
@@ -477,18 +475,19 @@ contains
         n=nsize
 
         ! read out x 
-        k=n
         do i=1,n                     
             xsol(i) = x(i)        ! volume fraction solvent
-            psi(i)  = x(i+k)      ! potential
+            psi(i)  = x(i+n)      ! potential
         enddo  
 
         !  .. assign global and local polymer density 
         do t=1,nsegtypes
-            do i=1,n
-                xpol(i,t)  = 0.0_dp 
-                rhopol(i,t) = 0.0_dp 
-            enddo    
+            if(ismonomer_chargeable(t)) then
+                do i=1,n
+                    xpol(i,t)  = 0.0_dp 
+                    rhopol(i,t) = 0.0_dp 
+                enddo
+            endif        
         enddo    
        
         do i=1,n                  ! init volume fractions
@@ -612,7 +611,7 @@ contains
                             rhoqphos(k) = rhoqphos(k) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                             xpol(k,ta) = xpol(k,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
 
-                            rhopol_charge(k,ta)= rhopol_charge(k,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+                           !  rhopol_charge(k,ta)= rhopol_charge(k,ta)+1.0_dp/(2.0_dp*nneigh(s,c)) ! not needed anymore
                     
                             ! second integral contributes to location m of rhoqpos and xphol  xpol  
                          
@@ -644,7 +643,7 @@ contains
                             rhoqphos(m) = rhoqphos(m) + sum_rhoqphos /(2.0_dp*nneigh(s,c)) ! nneigh could be zero  hence with in loop 
                             xpol(m,ta) = xpol(m,ta) + sum_xphos /(2.0_dp*nneigh(s,c))
 
-                            rhopol_charge(m,ta)=rhopol_charge(m,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
+                           ! rhopol_charge(m,ta)=rhopol_charge(m,ta)+1.0_dp/(2.0_dp*nneigh(s,c))
 
                         enddo 
          
@@ -762,23 +761,22 @@ contains
 
     subroutine xnucl_ref()
 
-        use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf
         use parameters, only : vpol,vnucl,vPP, ta        
         use parameters, only : Phos,PhosH, PhosK, PhosNa, PhosMg, Phos2Mg, Phos2Fe2, Phos2Fe3
-        use volume, only     : volcell, indexneighbor 
-        use chains, only     : indexconf, type_of_monomer, logweightchain, nelem, ismonomer_chargeable
-        use chains, only     : type_of_charge, elem_charge, indexconfpair, nneigh, maxneigh
+        use volume, only     : volcell
+        use chains, only     : indexconf, type_of_monomer, nelem, ismonomer_chargeable
+        use chains, only     : elem_charge, indexconfpair, nneigh, maxneigh
         use field, only      : rhopol_charge,  xpol=>xpol_t, xpol_ref
         use field, only      : fdisPP_loc, fdisPP_loc_swap, fdisP2Mg_loc, fdisP2Mg_loc_swap
         use field, only      : fdisP2Fe2_loc, fdisP2Fe2_loc_swap, fdisP2Fe3_loc, fdisP2Fe3_loc_swap
         
         !  .. local variables
                                                                             
-        integer  :: n,i,j,k,l,s,c,ln,t,jcharge,kr,m,mr,ii,ind         ! dummy indices
+        integer  :: n,i,j,k,s,c,t,jcharge,m    ! dummy indices
         integer  :: JJ, KK
         real(dp) :: rhopol0 
-        real(dp) :: sum_rhoqphos,sum_xphos
+        real(dp) :: sum_rhoqphos,sum_xphos, sumrhophos
         integer  :: ier
 
         ! .. executable statements 
@@ -896,23 +894,25 @@ contains
 
         do t=1, nsegtypes
             do i=1,n
-                rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)                
-                xpol_ref(i,t) = rhopol0 * xpol(i,t)  
+                rhopol_charge(i,t) = rhopol0 * rhopol_charge(i,t)     
+                xpol(i,t) = rhopol0 * xpol(i,t)             
+                xpol_ref(i,t) = xpol(i,t)  
                 ! scale xpol(i,t) and DO NOT delta xspol due to ionbinding 
             enddo
         enddo
 
-        xpol_ref(:,ta) = 0.0_dp ! make phosphate reference zero !!!!!1
+        xpol_ref(:,ta) = 0.0_dp ! make phosphate reference zero !!
                 
+        sumrhophos=sum(rhopol_charge(:,tA))*volcell 
+        print*,"xnucl_ref: sumrhophos=",sumrhophos
+
     end subroutine xnucl_ref
 
 
     ! compute the average fraction of charged state of the phosphate pairs 
 
     subroutine compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
-
        
-        use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : qPP,K0aAA,K0a,K0aion,Phos
@@ -1092,7 +1092,6 @@ contains
 
     subroutine compute_FEchem_react_PP_expl(FEchemPP)
 
-        use precision_definition
         use globals, only    : nsize, nsegtypes, nseg, local_conf, DEBUG
         use parameters, only : vsol,vnucl
         use parameters, only : vPP,qPP,K0aAA,K0a,K0aion,Phos,Phos2Mg,Phos2Fe2,Phos2Fe3, ta 

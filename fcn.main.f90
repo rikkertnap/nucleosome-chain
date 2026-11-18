@@ -1924,7 +1924,6 @@ contains
         !     .. executable statements 
       
         
-        
         n=nsize                      ! size vector neq=4*nsize x=(pi,psi,rhopolA,rhopolB]
     
         do i=1,n                     ! init x 
@@ -1934,7 +1933,6 @@ contains
             rhopolin(i,B)=x(i+3*n)
         enddo
    
-      
             neq_bc=0
             if(bctype(RIGHT)/="cc") then
                 neq_bc=nx*ny
@@ -1949,7 +1947,8 @@ contains
                 neq_bc=neq_bc+nx*ny
             endif    
         
-        do i=1,n                     ! init volume fractions 
+        do i=1,n                           ! init volume fractions 
+
             rhopol_local(i,A) = 0.0_dp     ! A polymer density 
             rhopol_local(i,B) = 0.0_dp     ! B polymer density  
            
@@ -1997,7 +1996,6 @@ contains
 
         enddo
 
-        
             do i=1,n
                 xpol(i) = 0.0_dp 
                 rhopol(i,A) = 0.0_dp     ! A polymer density 
@@ -2006,7 +2004,6 @@ contains
             
             q=0.0_dp
             
-       
         !     .. computation polymer volume fraction 
        
         q_local=0.0_dp       ! init q
@@ -2124,9 +2121,6 @@ contains
             write(istr,'(I6)')iter
             text="iter = "//trim(istr)//" fnorm = "//trim(rstr)
             call print_to_log(LogUnit,text)
-
-
-
 
     end subroutine fcnelect
 
@@ -2255,8 +2249,7 @@ contains
             iter=iter+1
 
             print*,'iter=', iter ,'norm=',norm
-
-       
+ 
 
     end subroutine fcnneutral
 
@@ -2338,7 +2331,6 @@ contains
 
         lnproshift=locallnproshift(1)
 
-
         do c=local_conf,local_conf        ! loop over cuantas
             if(no_overlapchain(c)) then
                 lnpro=logweightchain(c) -energychainLJ(c)        ! internal energy
@@ -2361,7 +2353,6 @@ contains
          
         !   .. import results 
 
-       
           
             q=0.0_dp 
             q=local_q
@@ -2373,9 +2364,7 @@ contains
                     rhopol(i,t)=local_rhopol(i,t) ! polymer density 
                 enddo
             enddo
-
-            
-                
+ 
             !     .. construction of fcn and volume fraction polymer             
             rhopol0=(1.0_dp/volcell)/q  ! volume polymer segment per volume cell
 
@@ -2396,7 +2385,6 @@ contains
             iter=iter+1
 
             print*,'iter=', iter ,'norm=',norm
-
 
             call locate_xpol_lager_one(xpol)
 
@@ -2449,7 +2437,7 @@ contains
 
         use precision_definition
         use globals , only : neq
-        use modfcnFeexpl
+        use modfcnFeexpl, only : fcnnucl_Fe_expl
 
         !     .. scalar arguments
 
@@ -2461,7 +2449,7 @@ contains
         real(dp), intent(out) :: f(neq)
 
         call fcnnucl_Fe_expl(x,f,nn)
-        !call fcnnonucl_cp(x,f,nn)
+       
         
 
     end subroutine fcnnucl_ionbin_sv_Fe
@@ -2493,13 +2481,11 @@ contains
 
         !     .. variables and constant declaractions 
 
-        use globals
-        use volume
-        use chains
-        use field
-        use parameters
-        use physconst
-        use vectornorm
+        use precision_definition, only : dp
+        use globals, only : neq
+        use parameters, only : vNaCl, vNa, vCl, vKCl, vCa, vK, vsol, &
+                               K0ionNa, K0ionK, xbulk, cNaCl, cKCl, iter
+        use physconst, only : Na
 
         !     .. scalar arguments
 
@@ -2555,7 +2541,6 @@ contains
     !    print*,'iter=', iter ,'norm=',norm
 
     end subroutine fcnbulk
-
 
 
     !  .. function solves for bulk volume fraction containing oxygeb

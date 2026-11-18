@@ -1417,6 +1417,8 @@ contains
 
                     endif        
                 enddo    
+                
+                !if(use_optimized) lnproshift=lnpro
 
                 pro = exp(lnpro-lnproshift)  
 

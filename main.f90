@@ -43,7 +43,7 @@ program main
     real(dp),  dimension(:), allocatable :: xstored   ! stored iteration vector
     real(dp),  dimension(:), allocatable :: fvec
 
-    integer :: i,c,num,t
+    integer :: i,c,num
     logical :: use_xstored
     logical :: isfirstguess
     logical :: issolution
@@ -110,18 +110,17 @@ program main
  
     if(isAIGC) then ! .. no side chain   
         elem_charge=-1
-        do t=1,nsegtypes
-            if(ismonomer_chargeable(t)) elem_charge= 1
+        do i=1,nsegtypes
+            if(ismonomer_chargeable(i)) elem_charge(i)= 1
         enddo       
-        !do i=1,size(elem_charge)
-        !    print*,"elem_charge(",i,")=",elem_charge(i)
-        !enddo
+        do i=1,size(elem_charge)
+            print*,"elem_charge(",i,")=",elem_charge(i)
+        enddo
         vnucl(1,:)=vpol*vsol
-        vnucl(1,:)=0.0_dp
-        print*,"Warning: vnucl is zero !!"
-        !do i=1,size(vnucl,2)
-        !    print*,"vnucl(1,",i,")=",vnucl(1,i)
-        !enddo
+        !print*,"Warning: vnucl is zero !!"
+        do i=1,size(vnucl,2)
+            print*,"vnucl(1,",i,")=",vnucl(1,i)
+        enddo
     endif
 
     call make_chains(chainmethod,systype,isAIGC) 
@@ -247,8 +246,7 @@ program main
         
         call maximum_xnucl(local_conf,isVolfracLargerOne)
         print*,"local_conf=",local_conf,"isVolfracLargerOne=",isVolfracLargerOne
-        
-    !    if(use_optimized ) call xnucl_ref() 
+
         
         if(no_overlapchain(c)) then 
           
@@ -298,22 +296,19 @@ program main
                     call make_guess(x, xguess, isfirstguess,use_xstored,xstored)
 
                     call solver(x, xguess, tol_conv, fnorm, isSolution)
-                    !isSolution=.true.
+                    ! isSolution=.true.
                     call fcnptr(x, fvec, neq)
-                    print*,"=> conf_entropy : "
+                
                     call FEconf_entropy(FEconf,Econf) ! parallel computation of conf FEconf_entropy
-                    print*,"=> after conf_entropy : "
+                
                     if(systype=="nucl_ionbin_Mg") then  
                         call compute_average_charge_PP(avfdisP2Mg,avfdisp2fe2,avfdisPP)
                         call compute_FEchem_react_PP(FEchempair)
                     endif 
                    
                     if(systype=="nucl_ionbin_MgA") then
-                        print*,"hello compute_average_charge_PP_expl"
                         call compute_average_charge_PP_expl(avfdisP2Mg,avfdisP2Fe2,avfdisP2Fe3,avfdisPP)
-                         print*,"A"
                         call compute_FEchem_react_PP_expl(FEchempair)
-                        print*,"B"
                     endif          
 
                     if(systype=="nucl_ionbin_Fe") then
@@ -322,9 +317,7 @@ program main
                     endif          
                 
                     if(isSolution) then
-                        print*,"=> compute_vars_and_output : "
                         call compute_vars_and_output()
-                         print*," B"
                         if(isfirstguess) then
                            do i=1,neqint
                               xstored(i)=x(i)

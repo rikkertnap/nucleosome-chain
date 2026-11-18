@@ -4825,14 +4825,12 @@ end function compute_cuantas_no_overlap
         enddo
 
         ! .. find maximum 
-        maxxnucl=maxval(xnucl)
+        maxxnucl = maxval(xnucl)
 
-        ! .. locate violatation_sites : xnucl larger > =1 
+        print*,"max xnucl= ",maxxnucl
         
-        if(maxxnucl>=1.0_dp) then 
-            isVolfracLargerOne=.true.
-            print*,"max xnucl= ",maxxnucl
-        endif 
+        if(maxxnucl>=1.0_dp) isVolfracLargerOne=.true.
+       
 
         ! .. locate violatation_sites : xnucl larger > =1 
         if(present(violation_sites).and.present(xnucl_violation_sites)) locate_violation=.true.    
@@ -5276,17 +5274,16 @@ end function compute_cuantas_no_overlap
                 endif     
 
             
-                un_traj=open_chain_lammps_trj(info_traj)
-                call write_chain_lammps_trj(un_traj,chain)
-                close(un_traj)
+                !un_traj=open_chain_lammps_trj(info_traj)
+                !call write_chain_lammps_trj(un_traj,chain)
+                !close(un_traj)
 
-                print*,"=> past 5." 
+
                 ! 6. make indexconfig i.e. place conformation on lattice
                 
                 select case (geometry)
                 case ("cubic")
 
-                    print*,"=> within select geomery cubic statement"
 
                     do s=1,nseg
 
@@ -5391,8 +5388,7 @@ end function compute_cuantas_no_overlap
                     endif  
 
                     ! if(isVdW) energyLJ = GBenergyeffective(chain_rot,nnucl,no_overlap)
-                    ! 
-                    print*,"=> GBenergy" 
+                    
                     energyLJ = 0.0 ! GBenergyeffective(chain_rot,nnucl,no_overlap)
 
                     call maximum_xnucl(conf,isVolfracLargerOne,violation_sites,xnucl_violation_sites)

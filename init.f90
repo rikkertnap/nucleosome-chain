@@ -75,8 +75,10 @@ subroutine init_guess(x, xguess)
             call init_guess_multi(x,xguess)
         case ("brush_mulnoVdW")  
             call init_guess_multinoVdW(x,xguess)
-        case ("brushdna","nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe") 
+        case ("brushdna")
             call init_guess_multi(x,xguess)
+        case ("nucl_ionbin","nucl_ionbin_sv","nucl_ionbin_Mg","nucl_ionbin_MgA","nucl_ionbin_Fe")
+            call init_guess_multi_nucl(x,xguess) 
         case ("nonuclcp") 
             call init_guess_nonuclcp(x,xguess)
         case ("nucl_neutral_sv")  
@@ -120,7 +122,7 @@ subroutine init_guess_elect(x, xguess)
         x(i+3*nsize)=0.0_dp
     enddo
    
-    if (infile.eq.1) then   ! infile is read in from file/stdio  
+    if (infile==1) then   ! infile is read in from file/stdio  
     
         write(fname(1),'(A7)')'xsol.in'
         write(fname(2),'(A6)')'psi.in'
@@ -292,6 +294,8 @@ subroutine init_guess_neutral(x, xguess)
     
 end subroutine init_guess_neutral
 
+!
+
 subroutine init_guess_neutralnoVdW(x, xguess)
     
     use globals, only : neqint,nsize
@@ -341,6 +345,109 @@ subroutine init_guess_neutralnoVdW(x, xguess)
     
 end subroutine init_guess_neutralnoVdW
 
+! Init x guess for nucleosome related systyps=
+! namely "nucl_ionbin_sv", "nucl_ionbin_Mg" and "nucl_ionbin_MgA" 
+          
+
+subroutine init_guess_multi_nucl(x, xguess)
+
+    use globals, only : bctype, LEFT, RIGHT, nsize, nsegtypes, systype, nseg, conf=>local_conf
+    use volume, only : nsurf, volcell
+    use field, only : xsol, psi, xpol, xpol_t
+    use surface, only : psisurfL, psisurfR 
+    use parameters, only : xbulk, infile, isrhoselfconsistent, vnucl
+    use myutils, only : newunit, lenText, error_handler
+    use chains, only : type_of_monomer, nelem, indexconf
+  
+    real(dp) :: x(:)       ! volume fraction solvent iteration vector 
+    real(dp) :: xguess(:)  ! guess fraction  solvent 
+  
+    !     ..local variables 
+    integer :: i, j, k, s, t 
+    character(len=8) :: fname(4)
+    integer :: ios,un_file(4)
+    character(len=lenText) :: text, istr
+
+    ! .. init guess all xbulk     
+
+    if (infile==0) then
+        
+        x = 0.0_dp    
+        x(1:nsize) = xbulk%sol
+
+    else if(infile==2) then 
+
+        x = 0.0_dp 
+
+        do s=1,nseg
+            t=type_of_monomer(s)
+            do j=1,nelem(s)
+                k = indexconf(s,conf)%elem(j) 
+                x(k)=x(k)+vnucl(j,t) 
+            enddo
+        enddo    
+        do i=1,nsize
+            x(i)=abs(xbulk%sol-x(i)/volcell) ! to ensure x is positive !!!
+        enddo
+
+    else if(infile==1) then   ! infile is read in from file/stdio  
+    
+        write(fname(1),'(A7)')'xsol.in'
+        write(fname(2),'(A6)')'psi.in'
+        write(fname(3),'(A7)')'xpol.in'
+     
+        do i=1,3 ! loop files
+            open(unit=newunit(un_file(i)),file=fname(i),iostat=ios,status='old')
+            if(ios >0 ) then
+                write(istr,'(I5)')un_file(i)
+                text='init_guess_multi: file number = '//trim(adjustl(istr))//' file name = '//trim(adjustl(fname(i)))
+                call error_handler(ios,text)
+            endif    
+        enddo
+
+        if(bctype(LEFT)/="cc" .and. bctype(LEFT)/="cp") then 
+            do i=1,nsurf
+                read(un_file(2),*)psisurfL(i)
+            enddo
+        endif    
+
+        do i=1,nsize
+            read(un_file(1),*)xsol(i)    ! solvent
+            read(un_file(2),*)psi(i)     ! potential
+            read(un_file(3),*)xpol(i),(xpol_t(i,t),t=1,nsegtypes)  
+            x(i)         = xsol(i)    ! placing xsol in vector x
+            x(i+nsize)   = psi(i)     ! placing psi in vector x
+        enddo 
+
+
+        do t=1,nsegtypes
+            if(isrhoselfconsistent(t)) then
+                if(systype=="nucl_ionbin_sv".or.systype=="nucl_ionbin_Mg".or.systype=="nucl_ionbin_MgA"&
+                .or.systype=="nucl_ionbin_Fe") then
+                    text='init_guess_multi: combination '//systype//' with VdW not working !'
+                    print*,text
+                    !call error_handler(-1,text)
+                endif
+            endif        
+        enddo
+
+        if(bctype(RIGHT)/="cc" .and. bctype(LEFT)/="cp") then
+            do i=1,nsurf 
+                read(un_file(2),*)psisurfR(i)
+            enddo
+        endif            
+       
+         do i=1,3
+            close(un_file(i))
+        enddo
+
+    endif 
+    !     .. end init from file 
+  
+    xguess = x 
+  
+end subroutine init_guess_multi_nucl
+
 
 subroutine init_guess_multi(x, xguess)
 
@@ -363,7 +470,7 @@ subroutine init_guess_multi(x, xguess)
     ! .. init guess all xbulk     
 
     do i=1,neqint
-        x(i)=1.0_dp    
+        x(i)=0.0_dp    
     enddo
 
     do i=1,nsize
@@ -593,6 +700,7 @@ subroutine init_guess_multi_born(x, xguess)
     use surface, only : psisurfL, psisurfR 
     use parameters, only : xbulk, infile, isrhoselfconsistent, tA
     use myutils, only : newunit, lenText, error_handler
+
     real(dp) ::  x(neq)       ! volume fraction solvent iteration vector 
     real(dp) ::  xguess(neq)  ! guess fraction  solvent 
 

@@ -2427,7 +2427,7 @@ contains
                     ! triplet
                     deltavpolstateP3Fe3=(3.0_dp* vPPP(Phos3Fe3)-3.0_dp*vpol(tPhos)*vsol)/3.0_dp ! volume change per 1 phosphate
 
-                    sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates mu;tiple by volcell
+                    sumrhophos=sum(rhopol_charge(:,tPhos))*volcell ! total number of phosphates multiple by volcell
                     deltaxpol(tPhos)=sumrhophos*(&
                             avfdisA(3)*deltavpolstatePNa   + avfdisA(8)*deltavpolstatePK + &
                             avfdisA(6)*deltavpolstatePMg   + avfdisA(7)*deltavpolstateP2Mg + &
@@ -2445,15 +2445,20 @@ contains
 
 
         if(abs(checksumxpoltot)>epsilon_sumxpol) then 
+
             print*,"Warning: checksumxpoltot larger epsilon_sumxpol ",epsilon_sumxpol
             print*,"checksumxpoltot = ",checksumxpoltot  
-            print*,"sumxpol         = ",(sumxpol(t),t=1,nsegtypes)
+            
             print*,"sumdeltaxpol    = ",deltaxpol
             print*,"sumvolnucl      = ",sumvolnucl
             print*,"sumrhophos      = ",sumrhophos
             print*,"sumxphos        = ",sumxphos
             print*,"sumxpol(tPhos)     = ",sumxpol(tPhos)
-            print*,"deltaxpol(tPhos)   = ",deltaxpol(tPhos)           
+            print*,"deltaxpol(tPhos)   = ",deltaxpol(tPhos)  
+            do t=1,nsegtypes
+                print*,"sumxpol(",t,") = ",sumxpol(t)
+            enddo
+
         endif
 
     end subroutine check_volume_nucl_ionbin_Mg
